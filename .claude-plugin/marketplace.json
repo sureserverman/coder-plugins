@@ -1,0 +1,22 @@
+{
+  "name": "coder-plugins",
+  "owner": {
+    "name": "Sure Serverman",
+    "email": "holyfiremin@gmail.com"
+  },
+  "metadata": {
+    "description": "Opinionated Claude Code plugins for professional coding — language-specific authoring skills and expert subagents.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "rust-dev",
+      "source": "./rust-dev",
+      "description": "Idiomatic Rust authoring: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
+      "version": "0.1.0",
+      "category": "languages",
+      "tags": ["rust", "cargo", "clippy", "unsafe", "async", "tokio", "ffi", "idiomatic"],
+      "strict": false
+    }
+  ]
+}

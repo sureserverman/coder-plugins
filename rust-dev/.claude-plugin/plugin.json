@@ -1,0 +1,11 @@
+{
+  "name": "rust-dev",
+  "version": "0.1.0",
+  "description": "Idiomatic Rust authoring plugin: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
+  "author": {
+    "name": "agents repo",
+    "url": "https://github.com/"
+  },
+  "keywords": ["rust", "cargo", "clippy", "unsafe", "async", "tokio", "ffi", "idiomatic"],
+  "license": "MIT"
+}
