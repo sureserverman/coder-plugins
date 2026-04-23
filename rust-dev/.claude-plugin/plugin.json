@@ -1,6 +1,6 @@
 {
   "name": "rust-dev",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Idiomatic Rust authoring plugin: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
   "author": {
     "name": "agents repo",

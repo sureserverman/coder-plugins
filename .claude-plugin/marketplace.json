@@ -13,7 +13,7 @@
       "name": "rust-dev",
       "source": "./rust-dev",
       "description": "Idiomatic Rust authoring: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "languages",
       "tags": ["rust", "cargo", "clippy", "unsafe", "async", "tokio", "ffi", "idiomatic"],
       "strict": false
