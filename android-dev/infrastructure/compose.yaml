@@ -1,0 +1,118 @@
+services:
+  android-mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Containerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount app debug APK dir (build app first)
+      - ../../matrix-synapse-manager-android/app/build/outputs/apk/debug:/apks:ro
+      # Screenshots written here
+      - ../../matrix-synapse-manager-android/play-screenshots:/screenshots
+    environment:
+      # Emulator IPs for adb -H (static IPs, adb server port 5037)
+      EMULATOR_HOSTS: "10.89.0.10:5037,10.89.0.11:5037,10.89.0.12:5037"
+    networks:
+      android_net:
+        ipv4_address: 10.89.0.20
+    depends_on:
+      emulator-phone6in:
+        condition: service_healthy
+      emulator-tablet7in:
+        condition: service_healthy
+      emulator-tablet10in:
+        condition: service_healthy
+
+  emulator-phone6in:
+    build:
+      context: ./emulator
+      dockerfile: Containerfile
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    volumes:
+      - avd-phone6in:/avd
+    environment:
+      AVD_NAME: phone6in
+      AVD_DEVICE: "Nexus 6P"
+    networks:
+      android_net:
+        ipv4_address: 10.89.0.10
+    healthcheck:
+      test: >-
+        /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  emulator-tablet7in:
+    build:
+      context: ./emulator
+      dockerfile: Containerfile
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    volumes:
+      - avd-tablet7in:/avd
+    environment:
+      AVD_NAME: tablet7in
+      AVD_DEVICE: "Nexus 7"
+    networks:
+      android_net:
+        ipv4_address: 10.89.0.11
+    healthcheck:
+      test: >-
+        /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  emulator-tablet10in:
+    build:
+      context: ./emulator
+      dockerfile: Containerfile
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    volumes:
+      - avd-tablet10in:/avd
+    environment:
+      AVD_NAME: tablet10in
+      AVD_DEVICE: "pixel_c"
+    networks:
+      android_net:
+        ipv4_address: 10.89.0.12
+    healthcheck:
+      test: >-
+        /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  mock-synapse:
+    build:
+      context: ./mock-synapse
+      dockerfile: Containerfile
+    ports:
+      - "8008:8008"
+    environment:
+      SYNAPSE_BASE_URL: "https://example.com"
+    networks:
+      android_net:
+        ipv4_address: 10.89.0.30
+    profiles:
+      - mock
+
+networks:
+  android_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
+          gateway: 10.89.0.1
+
+volumes:
+  avd-phone6in:
+  avd-tablet7in:
+  avd-tablet10in:

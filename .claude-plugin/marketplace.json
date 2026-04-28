@@ -17,6 +17,15 @@
       "category": "languages",
       "tags": ["rust", "cargo", "clippy", "unsafe", "async", "tokio", "ffi", "idiomatic"],
       "strict": false
+    },
+    {
+      "name": "android-dev",
+      "source": "./android-dev",
+      "description": "Android development plugin: Gradle build management, UI/UX design with Material 3 and Figma, multi-device emulator orchestration via bundled MCP stack, mock server generation, and automated screenshot capture across phone and tablet form factors.",
+      "version": "1.0.0",
+      "category": "development",
+      "tags": ["android", "gradle", "kotlin", "compose", "material3", "figma", "emulator", "mcp", "mock-server", "testing", "screenshots"],
+      "strict": false
     }
   ]
 }

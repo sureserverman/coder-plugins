@@ -1,0 +1,29 @@
+{
+  "name": "android-dev",
+  "description": "Android development plugin: Gradle build management, UI/UX design with Material 3 and Figma, multi-device emulator orchestration via MCP, mock server generation from app sources, and automated screenshot capture across phone and tablet form factors.",
+  "version": "1.0.0",
+  "author": {
+    "name": "quietsecurity",
+    "email": "ruler@quietsecurity.dev"
+  },
+  "skills": [
+    "./skills/android-gradle-build",
+    "./skills/android-ui-design-figma",
+    "./skills/android-mcp-orchestrator",
+    "./skills/mock-server-from-app-sources"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "android",
+    "gradle",
+    "kotlin",
+    "compose",
+    "material3",
+    "figma",
+    "emulator",
+    "mcp",
+    "mock-server",
+    "testing",
+    "screenshots"
+  ]
+}

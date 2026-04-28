@@ -1,0 +1,14 @@
+{
+  "name": "mock-synapse-server",
+  "version": "0.1.0",
+  "description": "Simple mock of a Matrix Synapse homeserver for local testing",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
+

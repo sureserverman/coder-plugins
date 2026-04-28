@@ -1,0 +1,45 @@
+FROM debian:bookworm-slim
+
+# Emulator runtime dependencies (JDK needed for avdmanager/sdkmanager)
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openjdk-17-jdk-headless \
+      wget \
+      unzip \
+      libglu1-mesa \
+      libpulse0 \
+      libnss3 \
+      libx11-6 \
+      libx11-xcb1 \
+      libxcomposite1 \
+      libxcursor1 \
+      libxdamage1 \
+      libxi6 \
+      libxtst6 \
+      libxrandr2 \
+      libasound2 \
+      procps \
+      bash \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ANDROID_SDK_ROOT=/opt/android-sdk \
+    ANDROID_HOME=/opt/android-sdk \
+    ANDROID_AVD_HOME=/avd
+ENV PATH="${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator"
+
+# Install Android SDK at build time (eliminates cross-container coordination)
+RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
+    cd /tmp && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11391160_latest.zip -O cmdline-tools.zip && \
+    unzip -q cmdline-tools.zip -d ${ANDROID_SDK_ROOT}/cmdline-tools && \
+    mv ${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools ${ANDROID_SDK_ROOT}/cmdline-tools/latest && \
+    rm cmdline-tools.zip && \
+    yes | sdkmanager --licenses >/dev/null 2>&1 && \
+    sdkmanager "platform-tools" "emulator" "platforms;android-35" \
+      "system-images;android-35;google_apis;x86_64" && \
+    rm -rf /tmp/*
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
