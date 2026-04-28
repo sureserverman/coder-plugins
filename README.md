@@ -4,16 +4,8 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 
 ## Install as a marketplace
 
-Local checkout:
-
 ```
-/plugin marketplace add /home/user/dev/ai-tools/coder-plugins
-```
-
-Or, if published to a remote git repo:
-
-```
-/plugin marketplace add <user>/coder-plugins
+/plugin marketplace add sureserverman/coder-plugins
 ```
 
 Then install individual plugins:
