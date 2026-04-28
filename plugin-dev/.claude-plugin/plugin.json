@@ -1,0 +1,30 @@
+{
+  "name": "plugin-dev",
+  "description": "Lean, security-aware authoring kit for Claude Code plugins. Skills cover plugin structure, skill / command / agent / hook / MCP authoring; agents validate, review, and scaffold; the create-plugin command runs the full guided flow.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/plugin-structure",
+    "./skills/skill-development",
+    "./skills/command-development",
+    "./skills/agent-development",
+    "./skills/hook-development",
+    "./skills/mcp-integration"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "meta",
+    "skills",
+    "agents",
+    "hooks",
+    "mcp",
+    "marketplace",
+    "scaffolding",
+    "validation"
+  ]
+}
