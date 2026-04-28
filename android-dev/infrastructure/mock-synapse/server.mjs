@@ -1,9 +1,24 @@
 import express from "express";
 
+// Fail-closed: this is a mock server with hardcoded test fixtures (admin/1234,
+// alice/alicepass, bob/bobpass). Refuse to start unless MOCK_MODE=1 is set so
+// the image cannot accidentally land in a non-test environment.
+if (process.env.MOCK_MODE !== "1") {
+  console.error(
+    "mock-synapse refuses to start without MOCK_MODE=1. " +
+    "These are public test fixtures, not real credentials — set MOCK_MODE=1 " +
+    "to acknowledge you are deploying this only for local emulator testing."
+  );
+  process.exit(1);
+}
+
 const app = express();
 app.use(express.json());
 
-const port = 8008;
+const port = process.env.PORT || 8008;
+// Default to loopback. Override with MOCK_BIND_HOST=0.0.0.0 only when running
+// inside a container whose published port is itself loopback-bound on the host.
+const bindHost = process.env.MOCK_BIND_HOST || "127.0.0.1";
 const baseDomain = "example.com";
 
 /** Base URL for Matrix IDs (e.g. @user:example.com). Can be overridden via env. */
@@ -120,10 +135,11 @@ app.get("/_matrix/client/v3/account/whoami", (_req, res) => {
   });
 });
 
-app.listen(port, "0.0.0.0", () => {
+app.listen(port, bindHost, () => {
   // eslint-disable-next-line no-console
   console.log(
-    `Mock Synapse listening on http://0.0.0.0:${port}. Well-known base_url is derived from request host (e.g. http://10.0.2.2:${port} from emulator).`
+    `Mock Synapse listening on http://${bindHost}:${port}. Well-known base_url is derived from request host. ` +
+    `MOCK_MODE=1 acknowledged — credentials are public test fixtures, NOT real auth.`
   );
 });
 

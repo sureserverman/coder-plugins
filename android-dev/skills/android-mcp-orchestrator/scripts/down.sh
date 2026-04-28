@@ -4,7 +4,7 @@
 #   --mock       also tear down the mock profile (if the stack was started with --mock)
 #   compose-dir  override compose root (default: bundled <plugin>/infrastructure)
 
-set -eu
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_COMPOSE_DIR="$SCRIPT_DIR/../../../infrastructure"

@@ -1,7 +1,7 @@
 ---
 description: Capture Play Store screenshots across all emulators (phone + tablets)
 argument-hint: [login|capture|full] [--tabs "Accounts,Rooms,Info,Config"]
-allowed-tools: Bash, Read, Write, Glob, Grep
+allowed-tools: ["Read", "Write", "Glob", "Grep", "Bash(podman:*)", "Bash(podman compose:*)", "Bash(curl:*)", "Bash(date:*)", "Bash(ls:*)", "Bash(cd:*)"]
 ---
 
 # Android Screenshots

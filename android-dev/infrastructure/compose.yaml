@@ -3,8 +3,11 @@ services:
     build:
       context: ./mcp-server
       dockerfile: Containerfile
+    # Publish to host-loopback only. To expose on a LAN, override with
+    # MCP_AUTH_TOKEN set in the env file and change the bind to a non-
+    # loopback address — server.mjs refuses to start otherwise.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       # Mount app debug APK dir (build app first)
       - ../../matrix-synapse-manager-android/app/build/outputs/apk/debug:/apks:ro
@@ -13,9 +16,24 @@ services:
     environment:
       # Emulator IPs for adb -H (static IPs, adb server port 5037)
       EMULATOR_HOSTS: "10.89.0.10:5037,10.89.0.11:5037,10.89.0.12:5037"
+      # The MCP server listens inside the compose network — the published port
+      # is host-loopback only, so internally the server still binds to 0.0.0.0
+      # so other compose services could reach it if needed.
+      MCP_BIND_HOST: "0.0.0.0"
+      # Set MCP_AUTH_TOKEN here (via .env file or compose secret) to require
+      # bearer-token auth on every request. Required if MCP_BIND_HOST is non-
+      # loopback. Example: MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:?set MCP_AUTH_TOKEN in .env}"
     networks:
       android_net:
         ipv4_address: 10.89.0.20
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    pids_limit: 256
     depends_on:
       emulator-phone6in:
         condition: service_healthy
@@ -38,6 +56,13 @@ services:
     networks:
       android_net:
         ipv4_address: 10.89.0.10
+    # Emulator container needs /dev/kvm and writes to /avd; minimum-privilege
+    # baseline is cap-drop ALL plus no-new-privileges.
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 4g
+    pids_limit: 1024
     healthcheck:
       test: >-
         /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
@@ -60,6 +85,11 @@ services:
     networks:
       android_net:
         ipv4_address: 10.89.0.11
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 4g
+    pids_limit: 1024
     healthcheck:
       test: >-
         /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
@@ -82,6 +112,11 @@ services:
     networks:
       android_net:
         ipv4_address: 10.89.0.12
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 4g
+    pids_limit: 1024
     healthcheck:
       test: >-
         /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1
@@ -94,13 +129,30 @@ services:
     build:
       context: ./mock-synapse
       dockerfile: Containerfile
+    # Loopback-only on the host. The mock ships with hardcoded test fixtures
+    # — never expose on a LAN.
     ports:
-      - "8008:8008"
+      - "127.0.0.1:8008:8008"
     environment:
       SYNAPSE_BASE_URL: "https://example.com"
+      # Acknowledges that this service uses public test credentials by design.
+      # The container refuses to start without it.
+      MOCK_MODE: "1"
+      # Inside the compose network, bind 0.0.0.0 so emulator containers can
+      # reach it via 10.89.0.30:8008. Host-side exposure is still loopback
+      # via the ports map above.
+      MOCK_BIND_HOST: "0.0.0.0"
     networks:
       android_net:
         ipv4_address: 10.89.0.30
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 256m
+    pids_limit: 128
     profiles:
       - mock
 

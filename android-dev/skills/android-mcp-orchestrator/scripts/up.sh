@@ -4,7 +4,7 @@
 #   --mock       also start the mock-synapse container (for Matrix Synapse Manager testing)
 #   compose-dir  override compose root (default: bundled <plugin>/infrastructure)
 
-set -eu
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # scripts/ -> skill/ -> skills/ -> plugin-root/infrastructure

@@ -1,22 +1,27 @@
 import express from "express";
-import { randomUUID } from "crypto";
 import * as z from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { mkdirSync, writeFileSync, existsSync } from "fs";
-import { join } from "path";
+import { join, resolve as resolvePath } from "path";
+import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
-import { exec as _exec } from "child_process";
+import { timingSafeEqual } from "crypto";
 
-const exec = promisify(_exec);
+const execFile = promisify(_execFile);
 const SCREENSHOTS_DIR = process.env.SCREENSHOTS_DIR || "/screenshots";
+const APK_BASE_DIR = process.env.APK_BASE_DIR || "/apks";
 
 const APP_PACKAGE = "com.matrix.synapse.manager.debug";
 const APP_MAIN_ACTIVITY = "com.matrix.synapse.manager.MainActivity";
-const MOCK_SERVER_URL = "http://10.0.2.2:8008";
-const MOCK_USERNAME = "admin";
-const MOCK_PASSWORD = "1234";
+
+// Mock-server credentials are NEVER hard-coded — supplied at the tool-call boundary
+// or via env vars. Kept undefined so the matrix-synapse-login tool errors if neither
+// the caller nor the env supply them.
+const MOCK_SERVER_URL = process.env.MOCK_SERVER_URL;
+const MOCK_USERNAME = process.env.MOCK_USERNAME;
+const MOCK_PASSWORD = process.env.MOCK_PASSWORD;
 
 /**
  * Emulator container hostnames from compose environment.
@@ -31,10 +36,56 @@ const EMULATOR_HOSTS = (process.env.EMULATOR_HOSTS || "")
     return { host, port: port || "5037" };
   });
 
+// ── Input validation ─────────────────────────────────────────────────
+
+// Java/Android package-name grammar plus a permissive activity grammar
+// that allows the leading-dot relative form ('.MainActivity') and the
+// fully-qualified form ('com.x.MainActivity').
+const PACKAGE_NAME_RE = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/;
+const ACTIVITY_RE = /^\.?[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/;
+
+function validatePackageName(name) {
+  if (typeof name !== "string" || !PACKAGE_NAME_RE.test(name)) {
+    throw new Error(`invalid packageName: ${JSON.stringify(name)}`);
+  }
+  return name;
+}
+
+function validateActivity(activity) {
+  if (typeof activity !== "string" || !ACTIVITY_RE.test(activity)) {
+    throw new Error(`invalid activity: ${JSON.stringify(activity)}`);
+  }
+  return activity;
+}
+
+/**
+ * Resolve apkPath inside APK_BASE_DIR. Reject anything that escapes the base
+ * (path traversal) or contains shell metacharacters. Returns the resolved
+ * absolute path, suitable for passing as an argv arg to execFile.
+ */
+function validateApkPath(apkPath) {
+  if (typeof apkPath !== "string" || apkPath.length === 0) {
+    throw new Error(`invalid apkPath: ${JSON.stringify(apkPath)}`);
+  }
+  const abs = resolvePath(APK_BASE_DIR, apkPath);
+  if (abs !== APK_BASE_DIR && !abs.startsWith(APK_BASE_DIR + "/")) {
+    throw new Error(`apkPath escapes APK_BASE_DIR: ${apkPath}`);
+  }
+  if (!/^[A-Za-z0-9._/-]+$/.test(abs)) {
+    throw new Error(`apkPath contains disallowed characters: ${apkPath}`);
+  }
+  return abs;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
-async function run(cmd, opts = {}) {
-  const { stdout, stderr } = await exec(cmd, {
+/**
+ * Spawn a binary with an argv array — never invokes a shell, so metacharacters
+ * in args are inert. Returns { stdout, stderr } as strings unless opts.encoding
+ * is overridden to "buffer".
+ */
+async function runArgs(file, args, opts = {}) {
+  const { stdout, stderr } = await execFile(file, args, {
     ...opts,
     env: { ...process.env, ...opts.env },
   });
@@ -49,15 +100,19 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** Build adb prefix to talk to a remote emulator's adb server. */
-function adbCmd(emulator) {
-  return `adb -H ${emulator.host} -P ${emulator.port}`;
+/** Build adb argv prefix for a remote emulator's adb server. */
+function adbArgs(emulator) {
+  return ["-H", emulator.host, "-P", emulator.port];
+}
+
+async function adb(emulator, ...args) {
+  return runArgs("adb", [...adbArgs(emulator), ...args]);
 }
 
 /** Check if a remote adb server has a device ready. */
 async function adbCheckDevice(emulator) {
   try {
-    const { stdout } = await run(`${adbCmd(emulator)} devices`);
+    const { stdout } = await adb(emulator, "devices");
     return (stdout || "").includes("emulator");
   } catch {
     return false;
@@ -66,8 +121,8 @@ async function adbCheckDevice(emulator) {
 
 async function getAvdName(emulator) {
   try {
-    const { stdout } = await run(
-      `${adbCmd(emulator)} shell getprop ro.boot.qemu.avd_name 2>/dev/null`
+    const { stdout } = await adb(
+      emulator, "shell", "getprop", "ro.boot.qemu.avd_name"
     );
     const name = (stdout || "").trim();
     if (name) return name;
@@ -77,8 +132,9 @@ async function getAvdName(emulator) {
 
 async function captureScreenshot(emulator, filePath) {
   try {
-    const { stdout } = await exec(
-      `${adbCmd(emulator)} exec-out screencap -p`,
+    const { stdout } = await execFile(
+      "adb",
+      [...adbArgs(emulator), "exec-out", "screencap", "-p"],
       { encoding: "buffer", maxBuffer: 20 * 1024 * 1024 }
     );
     if (Buffer.isBuffer(stdout) && stdout.length > 0) {
@@ -91,7 +147,7 @@ async function captureScreenshot(emulator, filePath) {
 
 async function getDisplaySize(emulator) {
   try {
-    const { stdout } = await run(`${adbCmd(emulator)} shell wm size`);
+    const { stdout } = await adb(emulator, "shell", "wm", "size");
     const match = (stdout || "").match(/(\d+)\s*x\s*(\d+)/);
     if (match) {
       return { width: parseInt(match[1], 10), height: parseInt(match[2], 10) };
@@ -104,8 +160,8 @@ async function waitForBootComplete(emulator, timeoutMs = 120000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const { stdout } = await run(
-        `${adbCmd(emulator)} shell getprop sys.boot_completed 2>/dev/null`
+      const { stdout } = await adb(
+        emulator, "shell", "getprop", "sys.boot_completed"
       );
       if ((stdout || "").trim() === "1") return true;
     } catch { /* ignore */ }
@@ -116,7 +172,8 @@ async function waitForBootComplete(emulator, timeoutMs = 120000) {
 
 async function tap(emulator, x, y) {
   try {
-    await run(`${adbCmd(emulator)} shell input tap ${Math.round(x)} ${Math.round(y)}`);
+    await adb(emulator, "shell", "input", "tap",
+      String(Math.round(x)), String(Math.round(y)));
     return true;
   } catch { return false; }
 }
@@ -129,34 +186,39 @@ async function tapBottomNavTab(emulator, tabIndex, displaySize, navItemCount = 5
 }
 
 async function launchApp(emulator, packageName, activity = ".MainActivity") {
-  const component = `${packageName}/${activity.startsWith(".") ? activity : activity}`;
-  const safe = component.replace(/"/g, '\\"');
+  const pkg = validatePackageName(packageName);
+  const act = validateActivity(activity);
+  const component = `${pkg}/${act}`;
   try {
-    await run(`${adbCmd(emulator)} shell am start -S -n "${safe}"`);
+    await adb(emulator, "shell", "am", "start", "-S", "-n", component);
     return true;
   } catch { return false; }
 }
 
 async function inputText(emulator, text) {
-  const escaped = text.replace(/'/g, "'\\''");
+  if (typeof text !== "string") return false;
+  // adb shell input text uses a single arg — execFile passes it without
+  // shell interpretation, so spaces and metacharacters are inert.
   try {
-    await run(`${adbCmd(emulator)} shell input text '${escaped}'`);
+    await adb(emulator, "shell", "input", "text", text);
     return true;
   } catch { return false; }
 }
 
 async function keyevent(emulator, code) {
+  if (!Number.isInteger(code)) return false;
   try {
-    await run(`${adbCmd(emulator)} shell input keyevent ${code}`);
+    await adb(emulator, "shell", "input", "keyevent", String(code));
     return true;
   } catch { return false; }
 }
 
 async function swipe(emulator, x1, y1, x2, y2, durationMs = 300) {
   try {
-    await run(
-      `${adbCmd(emulator)} shell input swipe ${Math.round(x1)} ${Math.round(y1)} ${Math.round(x2)} ${Math.round(y2)} ${durationMs}`
-    );
+    await adb(emulator, "shell", "input", "swipe",
+      String(Math.round(x1)), String(Math.round(y1)),
+      String(Math.round(x2)), String(Math.round(y2)),
+      String(Math.round(durationMs)));
     return true;
   } catch { return false; }
 }
@@ -165,6 +227,12 @@ async function ensureLoggedIn(emulator, displaySize, opts = {}) {
   const serverUrl = opts.serverUrl ?? MOCK_SERVER_URL;
   const username = opts.username ?? MOCK_USERNAME;
   const password = opts.password ?? MOCK_PASSWORD;
+  if (!serverUrl || !username || !password) {
+    throw new Error(
+      "ensureLoggedIn requires serverUrl/username/password — pass via tool args " +
+      "or set MOCK_SERVER_URL / MOCK_USERNAME / MOCK_PASSWORD env vars."
+    );
+  }
   const { width, height } = displaySize;
   const KEYCODE_ESCAPE = 111;
 
@@ -204,7 +272,7 @@ async function ensureLoggedIn(emulator, displaySize, opts = {}) {
 
 function createServer() {
   const server = new McpServer(
-    { name: "android-emulator-mcp", version: "0.2.0" },
+    { name: "android-emulator-mcp", version: "0.3.0" },
     { capabilities: { logging: {} } }
   );
 
@@ -280,13 +348,19 @@ function createServer() {
       description:
         "Launches an app by package name on all connected emulators (am start -S). Use for any app; activity defaults to .MainActivity.",
       inputSchema: z.object({
-        packageName: z.string().describe("Application ID / package name"),
-        activity: z.string().default(".MainActivity").describe("Launchable activity"),
+        packageName: z.string().regex(PACKAGE_NAME_RE).describe("Application ID / package name"),
+        activity: z.string().regex(ACTIVITY_RE).default(".MainActivity").describe("Launchable activity"),
       }),
     },
     async ({ packageName, activity }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
         return { content: [{ type: "text", text: "No emulators configured." }] };
+      }
+      try {
+        validatePackageName(packageName);
+        validateActivity(activity);
+      } catch (err) {
+        return { content: [{ type: "text", text: err.message }], isError: true };
       }
       for (const emulator of EMULATOR_HOSTS) {
         await log(ctx, "info", { host: emulator.host, packageName, activity });
@@ -303,29 +377,44 @@ function createServer() {
     {
       title: "Matrix Synapse Manager: add server and login",
       description:
-        "App-specific: launches Matrix Synapse Manager, adds server URL, and logs in via mock Synapse.",
+        "App-specific: launches Matrix Synapse Manager, adds server URL, and logs in. " +
+        "Credentials must be supplied as tool args or via MOCK_SERVER_URL/MOCK_USERNAME/MOCK_PASSWORD env vars.",
       inputSchema: z.object({
-        serverUrl: z.string().default(MOCK_SERVER_URL),
-        username: z.string().default(MOCK_USERNAME),
-        password: z.string().default(MOCK_PASSWORD),
+        serverUrl: z.string().url().optional(),
+        username: z.string().min(1).optional(),
+        password: z.string().min(1).optional(),
       }),
     },
     async ({ serverUrl, username, password }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
         return { content: [{ type: "text", text: "No emulators configured." }] };
       }
+      const effectiveUrl = serverUrl ?? MOCK_SERVER_URL;
+      const effectiveUser = username ?? MOCK_USERNAME;
+      const effectivePass = password ?? MOCK_PASSWORD;
+      if (!effectiveUrl || !effectiveUser || !effectivePass) {
+        return {
+          content: [{
+            type: "text",
+            text: "matrix-synapse-login requires serverUrl, username, and password — supply as tool args or set MOCK_SERVER_URL / MOCK_USERNAME / MOCK_PASSWORD env vars.",
+          }],
+          isError: true,
+        };
+      }
       let count = 0;
       for (const emulator of EMULATOR_HOSTS) {
         const displaySize = await getDisplaySize(emulator);
         if (!displaySize) continue;
         await log(ctx, "info", { host: emulator.host, step: "ensure-logged-in" });
-        await ensureLoggedIn(emulator, displaySize, { serverUrl, username, password });
+        await ensureLoggedIn(emulator, displaySize, {
+          serverUrl: effectiveUrl, username: effectiveUser, password: effectivePass
+        });
         count++;
       }
       return {
         content: [{
           type: "text",
-          text: `Logged in on ${count} emulator(s). Server: ${serverUrl}, user: ${username}.`,
+          text: `Logged in on ${count} emulator(s). Server: ${effectiveUrl}, user: ${effectiveUser}.`,
         }],
       };
     }
@@ -338,17 +427,23 @@ function createServer() {
       description:
         "Installs the debug APK on all connected emulators. Build the app first and ensure the APK volume is mounted.",
       inputSchema: z.object({
-        apkPath: z.string().default("/apks/app-debug.apk").describe("Path to APK inside the container"),
+        apkPath: z.string().default("/apks/app-debug.apk").describe("Path to APK inside the container — must resolve under APK_BASE_DIR (default /apks)"),
       }),
     },
     async ({ apkPath }, ctx) => {
-      await log(ctx, "info", { step: "install-app", apkPath });
+      let safePath;
+      try {
+        safePath = validateApkPath(apkPath);
+      } catch (err) {
+        return { content: [{ type: "text", text: err.message }], isError: true };
+      }
+      await log(ctx, "info", { step: "install-app", apkPath: safePath });
 
-      if (!existsSync(apkPath)) {
+      if (!existsSync(safePath)) {
         return {
           content: [{
             type: "text",
-            text: `APK not found at ${apkPath}. Build the app first and ensure the debug output is mounted at /apks.`,
+            text: `APK not found at ${safePath}. Build the app first and ensure the debug output is mounted at ${APK_BASE_DIR}.`,
           }],
           isError: true,
         };
@@ -364,7 +459,7 @@ function createServer() {
       for (const emulator of EMULATOR_HOSTS) {
         const avdName = await getAvdName(emulator);
         try {
-          await run(`${adbCmd(emulator)} install -r ${apkPath}`);
+          await adb(emulator, "install", "-r", safePath);
           results.push({ host: emulator.host, avdName, ok: true });
         } catch (err) {
           results.push({ host: emulator.host, avdName, ok: false, error: err.message || String(err) });
@@ -396,11 +491,11 @@ function createServer() {
         captureCount: z.number().int().min(1).max(10).default(4),
         autoNavigate: z.boolean().default(true),
         navItemCount: z.number().int().min(2).max(10).default(5),
-        launchPackage: z.string().optional(),
+        launchPackage: z.string().regex(PACKAGE_NAME_RE).optional(),
         loginFlow: z.enum(["none", "matrix-synapse"]).default("none"),
-        serverUrl: z.string().optional(),
-        username: z.string().optional(),
-        password: z.string().optional(),
+        serverUrl: z.string().url().optional(),
+        username: z.string().min(1).optional(),
+        password: z.string().min(1).optional(),
         delayMs: z.number().int().min(0).max(30000).default(2000),
         settleMs: z.number().int().min(100).max(5000).default(800),
         tabLabels: z.array(z.string()).optional(),
@@ -411,6 +506,13 @@ function createServer() {
       ctx
     ) => {
       await log(ctx, "info", { step: "capture-screenshots", captureCount, autoNavigate, navItemCount, launchPackage, loginFlow });
+
+      if (launchPackage) {
+        try { validatePackageName(launchPackage); }
+        catch (err) {
+          return { content: [{ type: "text", text: err.message }], isError: true };
+        }
+      }
 
       if (!existsSync(SCREENSHOTS_DIR)) {
         mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -440,7 +542,11 @@ function createServer() {
           if (serverUrl != null) loginOpts.serverUrl = serverUrl;
           if (username != null) loginOpts.username = username;
           if (password != null) loginOpts.password = password;
-          await ensureLoggedIn(emulator, displaySize, { packageName: launchPackage || APP_PACKAGE, ...loginOpts });
+          try {
+            await ensureLoggedIn(emulator, displaySize, { packageName: launchPackage || APP_PACKAGE, ...loginOpts });
+          } catch (err) {
+            return { content: [{ type: "text", text: err.message }], isError: true };
+          }
           await launchApp(emulator, launchPackage || APP_PACKAGE, APP_MAIN_ACTIVITY);
           await sleep(4000);
         } else if (launchPackage && displaySize) {
@@ -467,7 +573,8 @@ function createServer() {
             await sleep(delayMs);
           }
 
-          const filePath = join(SCREENSHOTS_DIR, `${avdName}_${labels[tabIndex]}.png`);
+          const safeLabel = String(labels[tabIndex] ?? `tab${i}`).replace(/[^A-Za-z0-9._-]/g, "_");
+          const filePath = join(SCREENSHOTS_DIR, `${avdName}_${safeLabel}.png`);
           const ok = await captureScreenshot(emulator, filePath);
           if (ok) filesForDevice.push(filePath);
         }
@@ -505,10 +612,46 @@ function createServer() {
 
 // ── Express app ──────────────────────────────────────────────────────
 
+// Default to loopback. To expose on the compose network, the operator must
+// ALSO supply MCP_AUTH_TOKEN — we refuse to start otherwise (fail-closed).
+const BIND_HOST = process.env.MCP_BIND_HOST || "127.0.0.1";
+const PORT = process.env.PORT || 8000;
+const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
+
+const isLoopback = BIND_HOST === "127.0.0.1" || BIND_HOST === "::1" || BIND_HOST === "localhost";
+if (!isLoopback && !AUTH_TOKEN) {
+  console.error(
+    `Refusing to bind to non-loopback address ${BIND_HOST} without MCP_AUTH_TOKEN. ` +
+    `Set MCP_AUTH_TOKEN to a long random secret, or set MCP_BIND_HOST=127.0.0.1.`
+  );
+  process.exit(1);
+}
+
 const app = createMcpExpressApp({
-  host: "0.0.0.0",
-  allowedHosts: ["localhost", "127.0.0.1"],
+  host: BIND_HOST,
+  // Restrict the Host header to defend against DNS-rebinding even when the
+  // listener is on a non-loopback address.
+  allowedHosts: ["localhost", "127.0.0.1", BIND_HOST],
 });
+
+// Bearer-token middleware. Constant-time compare via Buffer length+content.
+function requireAuth(req, res, next) {
+  if (!AUTH_TOKEN) return next(); // loopback-only mode: skip
+  const header = req.get("authorization") || "";
+  const expected = `Bearer ${AUTH_TOKEN}`;
+  const got = Buffer.from(header);
+  const want = Buffer.from(expected);
+  const ok = got.length === want.length && timingSafeEqual(got, want);
+  if (!ok) {
+    res.status(401).json({
+      jsonrpc: "2.0",
+      error: { code: -32001, message: "Unauthorized" },
+      id: null,
+    });
+    return;
+  }
+  next();
+}
 
 async function handleMcpRequest(req, res, parsedBody) {
   const server = createServer();
@@ -524,7 +667,7 @@ async function handleMcpRequest(req, res, parsedBody) {
   await transport.handleRequest(req, res, parsedBody);
 }
 
-app.post("/mcp", async (req, res) => {
+app.post("/mcp", requireAuth, async (req, res) => {
   try {
     await handleMcpRequest(req, res, req.body);
   } catch (error) {
@@ -539,7 +682,7 @@ app.post("/mcp", async (req, res) => {
   }
 });
 
-app.get("/mcp", async (req, res) => {
+app.get("/mcp", requireAuth, async (req, res) => {
   try {
     await handleMcpRequest(req, res, undefined);
   } catch (error) {
@@ -554,7 +697,7 @@ app.get("/mcp", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`MCP Android emulator server listening on port ${PORT}`);
+app.listen(PORT, BIND_HOST, () => {
+  const authNote = AUTH_TOKEN ? "auth: bearer-token required" : "auth: loopback-only (no token set)";
+  console.log(`MCP Android emulator server listening on ${BIND_HOST}:${PORT} (${authNote})`);
 });
