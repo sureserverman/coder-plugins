@@ -270,10 +270,21 @@ async function ensureLoggedIn(emulator, displaySize, opts = {}) {
 
 // ── MCP Server ───────────────────────────────────────────────────────
 
+// Top-level guards. The express layer can swallow per-request errors, but a
+// stray rejection in a fire-and-forget Promise (e.g., the parallel-emulator
+// loops) would otherwise terminate the process with no diagnostic.
+process.on("unhandledRejection", err => {
+  console.error("Unhandled rejection:", err);
+});
+process.on("uncaughtException", err => {
+  console.error("Uncaught exception:", err);
+  process.exit(1);
+});
+
 function createServer() {
   const server = new McpServer(
     { name: "android-emulator-mcp", version: "0.3.0" },
-    { capabilities: { logging: {} } }
+    { capabilities: { tools: {}, logging: {} } }
   );
 
   server.registerTool(
@@ -281,7 +292,9 @@ function createServer() {
     {
       title: "Connect to emulator containers",
       description:
-        "Connects to the 3 emulator containers (phone6in, tablet7in, tablet10in) over the compose network via adb TCP. Waits for boot completion in parallel. Emulators must already be running (started by compose).",
+        "Connect to the 3 bundled emulator containers (phone6in, tablet7in, tablet10in) over the compose network via adb TCP and wait for boot completion in parallel. " +
+        "Use this once after `podman compose up` to confirm all emulators are reachable before installing apps or capturing screenshots. " +
+        "Returns a per-emulator readiness summary (avdName + host) plus a count of failures. Side-effect-free: never starts emulators (compose does that), only checks adb device state and `sys.boot_completed`.",
       inputSchema: z.object({
         bootTimeoutMs: z
           .number()
@@ -290,7 +303,12 @@ function createServer() {
           .max(300000)
           .default(120000)
           .describe("Max wait for each emulator to finish booting (ms)"),
-      }),
+      }).strict(),
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ bootTimeoutMs }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
@@ -346,15 +364,24 @@ function createServer() {
     {
       title: "Launch app on emulators",
       description:
-        "Launches an app by package name on all connected emulators (am start -S). Use for any app; activity defaults to .MainActivity.",
+        "Launch an Android app by package name on every connected emulator using `am start -S` (force-stop then start). " +
+        "Use after `install-app-on-emulators` or any time you need to bring an app to the foreground (for example, before capturing screenshots). " +
+        "Returns a one-line confirmation with the package name and emulator count. " +
+        "Activity defaults to `.MainActivity` (relative to packageName); pass a fully-qualified activity for non-standard launchers.",
       inputSchema: z.object({
-        packageName: z.string().regex(PACKAGE_NAME_RE).describe("Application ID / package name"),
-        activity: z.string().regex(ACTIVITY_RE).default(".MainActivity").describe("Launchable activity"),
-      }),
+        packageName: z.string().regex(PACKAGE_NAME_RE).describe("Application ID / package name (e.g., com.example.app)"),
+        activity: z.string().regex(ACTIVITY_RE).default(".MainActivity").describe("Launchable activity — leading-dot relative form or fully-qualified"),
+      }).strict(),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ packageName, activity }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
-        return { content: [{ type: "text", text: "No emulators configured." }] };
+        return { content: [{ type: "text", text: "No emulators configured." }], isError: true };
       }
       await Promise.all(EMULATOR_HOSTS.map(async emulator => {
         await log(ctx, "info", { host: emulator.host, packageName, activity });
@@ -371,17 +398,26 @@ function createServer() {
     {
       title: "Matrix Synapse Manager: add server and login",
       description:
-        "App-specific: launches Matrix Synapse Manager, adds server URL, and logs in. " +
-        "Credentials must be supplied as tool args or via MOCK_SERVER_URL/MOCK_USERNAME/MOCK_PASSWORD env vars.",
+        "App-specific helper: launch Matrix Synapse Manager, drive the add-server form, and log in on every connected emulator. " +
+        "Use only when testing the Matrix Synapse Manager app against the bundled mock-synapse container. " +
+        "Returns a one-line confirmation with server URL, username, and emulator count (never the password). " +
+        "Prefer supplying credentials via the MOCK_SERVER_URL/MOCK_USERNAME/MOCK_PASSWORD env vars on the compose service; " +
+        "tool args are accepted as a fallback but secrets passed through model-composed args are riskier than env-injected ones.",
       inputSchema: z.object({
-        serverUrl: z.string().url().optional(),
-        username: z.string().min(1).optional(),
-        password: z.string().min(1).optional(),
-      }),
+        serverUrl: z.string().url().optional().describe("Matrix homeserver URL (e.g. http://10.0.2.2:8008). Falls back to MOCK_SERVER_URL env var."),
+        username: z.string().min(1).optional().describe("Account username. Falls back to MOCK_USERNAME env var."),
+        password: z.string().min(1).optional().describe("Account password. Falls back to MOCK_PASSWORD env var. Prefer env over tool arg."),
+      }).strict(),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ serverUrl, username, password }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
-        return { content: [{ type: "text", text: "No emulators configured." }] };
+        return { content: [{ type: "text", text: "No emulators configured." }], isError: true };
       }
       const effectiveUrl = serverUrl ?? MOCK_SERVER_URL;
       const effectiveUser = username ?? MOCK_USERNAME;
@@ -419,10 +455,19 @@ function createServer() {
     {
       title: "Install app on emulators",
       description:
-        "Installs the debug APK on all connected emulators. Build the app first and ensure the APK volume is mounted.",
+        "Install (or reinstall via `adb install -r`) a debug APK on every connected emulator in parallel. " +
+        "Use after building the app's debug APK and confirming the `/apks` volume is mounted. " +
+        "Returns a per-emulator install report (avdName + host + ok/fail status); marks the call as `isError: true` if any single install fails. " +
+        "The apkPath is resolved under APK_BASE_DIR (default `/apks`) and rejected if it escapes the base or contains shell metacharacters.",
       inputSchema: z.object({
         apkPath: z.string().default("/apks/app-debug.apk").describe("Path to APK inside the container — must resolve under APK_BASE_DIR (default /apks)"),
-      }),
+      }).strict(),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ apkPath }, ctx) => {
       let safePath;
@@ -446,6 +491,7 @@ function createServer() {
       if (EMULATOR_HOSTS.length === 0) {
         return {
           content: [{ type: "text", text: "No emulators configured." }],
+          isError: true,
         };
       }
 
@@ -479,20 +525,29 @@ function createServer() {
     {
       title: "Capture emulator screenshots",
       description:
-        "Captures screenshots from all connected emulators. Supports bottom-nav tab auto-navigation, Matrix Synapse login flow, or manual delay-based capture.",
+        "Capture N PNG screenshots per connected emulator into SCREENSHOTS_DIR (default `/screenshots`), in parallel across all devices. " +
+        "Use for Play-Store listings or release-notes assets — set `loginFlow: \"matrix-synapse\"` to drive the bundled mock login first, or `loginFlow: \"none\"` (default) for any other app. " +
+        "Returns the per-emulator file paths plus a `structuredContent` block enumerating screenshotsDir and devices. " +
+        "Defaults walk the bottom-nav tabs; pass `autoNavigate: false` with `delayMs` for manual screen switching, or `tabLabels` to override file naming.",
       inputSchema: z.object({
-        captureCount: z.number().int().min(1).max(10).default(4),
-        autoNavigate: z.boolean().default(true),
-        navItemCount: z.number().int().min(2).max(10).default(5),
-        launchPackage: z.string().regex(PACKAGE_NAME_RE).optional(),
-        loginFlow: z.enum(["none", "matrix-synapse"]).default("none"),
-        serverUrl: z.string().url().optional(),
-        username: z.string().min(1).optional(),
-        password: z.string().min(1).optional(),
-        delayMs: z.number().int().min(0).max(30000).default(2000),
-        settleMs: z.number().int().min(100).max(5000).default(800),
-        tabLabels: z.array(z.string()).optional(),
-      }),
+        captureCount: z.number().int().min(1).max(10).default(4).describe("Screenshots per device"),
+        autoNavigate: z.boolean().default(true).describe("Tap bottom-nav tabs in sequence between captures"),
+        navItemCount: z.number().int().min(2).max(10).default(5).describe("Total bottom-nav items in the target app — used to compute tap x-coordinate"),
+        launchPackage: z.string().regex(PACKAGE_NAME_RE).optional().describe("Package to launch before capturing. Defaults to the Matrix Synapse Manager debug package when loginFlow=matrix-synapse."),
+        loginFlow: z.enum(["none", "matrix-synapse"]).default("none").describe("`matrix-synapse` runs the add-server + login UI choreography first; `none` skips it."),
+        serverUrl: z.string().url().optional().describe("matrix-synapse only — Matrix homeserver URL. Falls back to MOCK_SERVER_URL env var."),
+        username: z.string().min(1).optional().describe("matrix-synapse only — Falls back to MOCK_USERNAME env var."),
+        password: z.string().min(1).optional().describe("matrix-synapse only — Falls back to MOCK_PASSWORD env var. Prefer env over tool arg."),
+        delayMs: z.number().int().min(0).max(30000).default(2000).describe("Sleep between captures when autoNavigate=false"),
+        settleMs: z.number().int().min(100).max(5000).default(800).describe("Sleep after each tab tap before screencap"),
+        tabLabels: z.array(z.string()).optional().describe("File-name suffixes per capture — defaults to tab1..tabN, or matrix labels when applicable"),
+      }).strict(),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
     },
     async (
       { captureCount, autoNavigate, navItemCount, launchPackage, loginFlow, serverUrl, username, password, delayMs, settleMs, tabLabels },
@@ -505,7 +560,7 @@ function createServer() {
       }
 
       if (EMULATOR_HOSTS.length === 0) {
-        return { content: [{ type: "text", text: "No emulators configured." }] };
+        return { content: [{ type: "text", text: "No emulators configured." }], isError: true };
       }
 
       const defaultMatrixLabels = ["users", "rooms", "stats", "settings"];
