@@ -12,7 +12,8 @@
     "./skills/command-development",
     "./skills/agent-development",
     "./skills/hook-development",
-    "./skills/mcp-integration"
+    "./skills/mcp-integration",
+    "./skills/mcp-server-development"
   ],
   "license": "MIT",
   "keywords": [

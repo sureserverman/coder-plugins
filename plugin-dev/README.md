@@ -21,7 +21,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 
 ## Components
 
-### Skills (6)
+### Skills (7)
 
 | Skill | Triggers when you ask |
 |---|---|
@@ -31,6 +31,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 | `agent-development` | "create a subagent", "agent frontmatter", "model pinning for agents" |
 | `hook-development` | "add a hook", "PreToolUse / PostToolUse", "session-end auto-capture", "block dangerous bash" |
 | `mcp-integration` | "add an MCP server to my plugin", ".mcp.json", "stdio / SSE / HTTP MCP" |
+| `mcp-server-development` | "build a custom MCP server", "MCP tool design", "FastMCP / @modelcontextprotocol/sdk", "MCP Inspector" |
 
 ### Agents (3)
 

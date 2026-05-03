@@ -7,12 +7,15 @@ description: Use when adding or configuring an MCP server inside a Claude Code p
 
 Decision rules for shipping an MCP server inside a Claude Code plugin — when to reach for MCP, how to configure `.mcp.json`, which transport to use, and how to handle auth.
 
+> **Authoring vs integrating.** This skill covers wiring an MCP server into a plugin. For *building* a custom MCP server (tool design, JSON-RPC errors, security, testing with the Inspector), use the sibling `mcp-server-development` skill.
+
 ## Reference map
 
 | When you're… | Read first |
 |---|---|
 | Choosing between `stdio`, `sse`, `http`, or `ws` | `references/server-types.md` |
 | Handling secrets, OAuth, or bearer tokens | `references/auth.md` |
+| Designing the server itself (tools, schemas, errors) | `mcp-server-development` skill |
 
 ---
 
