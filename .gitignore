@@ -98,4 +98,6 @@ dist/
 *.bak
 *.tmp
 *.temp
-sec-audit-report-20260428-2015.md
+# ===== sec-audit artifacts =====
+sec-audit-report-*.md
+sec-audit-findings-*.jsonl
