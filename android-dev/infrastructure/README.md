@@ -22,11 +22,11 @@ Two separate services:
      `podman compose up --build -d`  
      → MCP at http://localhost:8000/mcp, mock at http://localhost:8008 (example.com)
 
-2. **Connect Cursor to the MCP server**
+2. **Connect a client to the MCP server**
 
-   In the **app repo** (matrix-synapse-manager-android), use project MCP config so Cursor can call the tools. Either:
+   - **Claude Code (preferred):** Installing the `android-dev` plugin auto-registers the server via the bundled `.mcp.json` at the plugin root. Run `/mcp` to confirm `android-emulator-mcp` appears. If `MCP_AUTH_TOKEN` is set on the compose service, also export `ANDROID_MCP_AUTH_TOKEN` in the shell that launches Claude Code — `.mcp.json` expands it into the `Authorization: Bearer …` header. Restart Claude Code after toggling the compose stack.
 
-   - **Project:** Ensure `.cursor/mcp.json` exists with:
+   - **Cursor (fallback):** Add the following to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
      ```json
      {
@@ -39,9 +39,7 @@ Two separate services:
      }
      ```
 
-   - **Global:** Put the same `mcpServers` block in `~/.cursor/mcp.json` if you want this MCP in every project.
-
-   Restart Cursor after changing MCP config. Then use the tools from the MCP panel or via the assistant.
+     Restart Cursor after changing MCP config.
 
 3. **MCP tools** (work for any Android app; server running and Cursor connected):
 

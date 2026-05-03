@@ -356,16 +356,10 @@ function createServer() {
       if (EMULATOR_HOSTS.length === 0) {
         return { content: [{ type: "text", text: "No emulators configured." }] };
       }
-      try {
-        validatePackageName(packageName);
-        validateActivity(activity);
-      } catch (err) {
-        return { content: [{ type: "text", text: err.message }], isError: true };
-      }
-      for (const emulator of EMULATOR_HOSTS) {
+      await Promise.all(EMULATOR_HOSTS.map(async emulator => {
         await log(ctx, "info", { host: emulator.host, packageName, activity });
         await launchApp(emulator, packageName, activity);
-      }
+      }));
       return {
         content: [{ type: "text", text: `Launched ${packageName} on ${EMULATOR_HOSTS.length} emulator(s).` }],
       };
@@ -455,16 +449,15 @@ function createServer() {
         };
       }
 
-      const results = [];
-      for (const emulator of EMULATOR_HOSTS) {
+      const results = await Promise.all(EMULATOR_HOSTS.map(async emulator => {
         const avdName = await getAvdName(emulator);
         try {
           await adb(emulator, "install", "-r", safePath);
-          results.push({ host: emulator.host, avdName, ok: true });
+          return { host: emulator.host, avdName, ok: true };
         } catch (err) {
-          results.push({ host: emulator.host, avdName, ok: false, error: err.message || String(err) });
+          return { host: emulator.host, avdName, ok: false, error: err.message || String(err) };
         }
-      }
+      }));
 
       const lines = results.map(
         r => `${r.avdName} (${r.host}): ${r.ok ? "installed" : "failed"}` + (r.error ? ` — ${r.error}` : "")
@@ -507,13 +500,6 @@ function createServer() {
     ) => {
       await log(ctx, "info", { step: "capture-screenshots", captureCount, autoNavigate, navItemCount, launchPackage, loginFlow });
 
-      if (launchPackage) {
-        try { validatePackageName(launchPackage); }
-        catch (err) {
-          return { content: [{ type: "text", text: err.message }], isError: true };
-        }
-      }
-
       if (!existsSync(SCREENSHOTS_DIR)) {
         mkdirSync(SCREENSHOTS_DIR, { recursive: true });
       }
@@ -522,9 +508,16 @@ function createServer() {
         return { content: [{ type: "text", text: "No emulators configured." }] };
       }
 
-      const results = [];
+      const defaultMatrixLabels = ["users", "rooms", "stats", "settings"];
+      const labels =
+        tabLabels && tabLabels.length >= captureCount
+          ? tabLabels
+          : loginFlow === "matrix-synapse" && captureCount === defaultMatrixLabels.length
+            ? defaultMatrixLabels
+            : Array.from({ length: captureCount }, (_, i) => `tab${i + 1}`);
+      const postLoginSettle = loginFlow === "matrix-synapse" ? 3000 : settleMs;
 
-      for (const emulator of EMULATOR_HOSTS) {
+      const settled = await Promise.all(EMULATOR_HOSTS.map(async emulator => {
         const avdName = await getAvdName(emulator);
         const filesForDevice = [];
         const displaySize =
@@ -545,7 +538,7 @@ function createServer() {
           try {
             await ensureLoggedIn(emulator, displaySize, { packageName: launchPackage || APP_PACKAGE, ...loginOpts });
           } catch (err) {
-            return { content: [{ type: "text", text: err.message }], isError: true };
+            return { host: emulator.host, avdName, files: filesForDevice, error: err.message };
           }
           await launchApp(emulator, launchPackage || APP_PACKAGE, APP_MAIN_ACTIVITY);
           await sleep(4000);
@@ -554,15 +547,6 @@ function createServer() {
           await launchApp(emulator, launchPackage, ".MainActivity");
           await sleep(settleMs);
         }
-
-        const defaultMatrixLabels = ["users", "rooms", "stats", "settings"];
-        const labels =
-          tabLabels && tabLabels.length >= captureCount
-            ? tabLabels
-            : loginFlow === "matrix-synapse" && captureCount === defaultMatrixLabels.length
-              ? defaultMatrixLabels
-              : Array.from({ length: captureCount }, (_, i) => `tab${i + 1}`);
-        const postLoginSettle = loginFlow === "matrix-synapse" ? 3000 : settleMs;
 
         for (let i = 1; i <= captureCount; i++) {
           const tabIndex = i - 1;
@@ -579,8 +563,14 @@ function createServer() {
           if (ok) filesForDevice.push(filePath);
         }
 
-        results.push({ host: emulator.host, avdName, files: filesForDevice });
+        return { host: emulator.host, avdName, files: filesForDevice };
+      }));
+
+      const loginErr = settled.find(r => r.error);
+      if (loginErr) {
+        return { content: [{ type: "text", text: loginErr.error }], isError: true };
       }
+      const results = settled;
 
       const summaryLines = results.map(
         r => `${r.avdName} (${r.host}):\n  ${r.files.join("\n  ")}`
@@ -667,11 +657,11 @@ async function handleMcpRequest(req, res, parsedBody) {
   await transport.handleRequest(req, res, parsedBody);
 }
 
-app.post("/mcp", requireAuth, async (req, res) => {
+async function mcpRoute(req, res) {
   try {
-    await handleMcpRequest(req, res, req.body);
+    await handleMcpRequest(req, res, req.method === "POST" ? req.body : undefined);
   } catch (error) {
-    console.error("Error handling MCP request:", error);
+    console.error(`Error handling MCP ${req.method} request:`, error);
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: "2.0",
@@ -680,22 +670,10 @@ app.post("/mcp", requireAuth, async (req, res) => {
       });
     }
   }
-});
+}
 
-app.get("/mcp", requireAuth, async (req, res) => {
-  try {
-    await handleMcpRequest(req, res, undefined);
-  } catch (error) {
-    console.error("Error handling MCP GET request:", error);
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: "2.0",
-        error: { code: -32603, message: "Internal server error" },
-        id: null,
-      });
-    }
-  }
-});
+app.post("/mcp", requireAuth, mcpRoute);
+app.get("/mcp", requireAuth, mcpRoute);
 
 app.listen(PORT, BIND_HOST, () => {
   const authNote = AUTH_TOKEN ? "auth: bearer-token required" : "auth: loopback-only (no token set)";

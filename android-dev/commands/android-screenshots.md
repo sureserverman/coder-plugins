@@ -1,7 +1,23 @@
 ---
 description: Capture Play Store screenshots across all emulators (phone + tablets)
 argument-hint: [login|capture|full] [--tabs "Accounts,Rooms,Info,Config"]
-allowed-tools: ["Read", "Write", "Glob", "Grep", "Bash(podman:*)", "Bash(podman compose:*)", "Bash(curl:*)", "Bash(date:*)", "Bash(ls:*)", "Bash(cd:*)"]
+allowed-tools: [
+  "Read",
+  "Write",
+  "Glob",
+  "Grep",
+  "Bash(podman:*)",
+  "Bash(podman compose:*)",
+  "Bash(curl:*)",
+  "Bash(date:*)",
+  "Bash(ls:*)",
+  "Bash(cd:*)",
+  "mcp__plugin_android-dev_android-emulator-mcp__start-android-tablet-emulators",
+  "mcp__plugin_android-dev_android-emulator-mcp__launch-app",
+  "mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login",
+  "mcp__plugin_android-dev_android-emulator-mcp__install-app-on-emulators",
+  "mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots"
+]
 ---
 
 # Android Screenshots
@@ -39,7 +55,11 @@ Wait for emulators to boot (~1-2 minutes). Retry the curl until you get `405`.
 
 ### 2. Login flow (modes: full, login)
 
-Call the MCP `matrix-synapse-login` tool to add the server and sign in on all emulators:
+Prefer the native MCP tool — the `android-dev` plugin's `.mcp.json` registers the server, so call it directly:
+
+- `mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login` (no arguments needed if `MOCK_SERVER_URL` / `MOCK_USERNAME` / `MOCK_PASSWORD` are set in the compose env)
+
+Fallback (diagnostic only — use when the plugin's MCP wiring is unavailable):
 ```bash
 curl -s http://localhost:8000/mcp \
   -H 'Content-Type: application/json' \
@@ -58,6 +78,8 @@ done'
 ### 3. Capture tab screenshots (modes: full, capture)
 
 Default tabs: Accounts, Rooms, Info, Config (override with `--tabs`).
+
+Prefer the native MCP tool — `mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots` with `loginFlow: "matrix-synapse"`, `navItemCount: 5`, and `tabLabels` matching `--tabs`. Use the manual adb sequence below only when the MCP wiring is unavailable or you need a custom tap sequence the tool doesn't expose.
 
 For each emulator, for each tab:
 1. Dump UI via `uiautomator dump`

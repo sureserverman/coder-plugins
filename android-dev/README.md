@@ -79,7 +79,19 @@ APP_APK_DIR=/path/to/app/build/outputs/apk/debug podman compose up -d
 
 ## MCP Server
 
-Connects to the android-emulator-mcp HTTP server at `http://localhost:8000/mcp` when the compose stack is running.
+The plugin ships `.mcp.json` at its root, which auto-registers the `android-emulator-mcp` HTTP server (`http://localhost:8000/mcp`) with Claude Code on plugin install. Run `/mcp` to confirm it appears once the compose stack is up.
+
+The five tools become available as:
+
+- `mcp__plugin_android-dev_android-emulator-mcp__start-android-tablet-emulators`
+- `mcp__plugin_android-dev_android-emulator-mcp__launch-app`
+- `mcp__plugin_android-dev_android-emulator-mcp__install-app-on-emulators`
+- `mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots`
+- `mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login`
+
+### Environment variables
+
+- `ANDROID_MCP_AUTH_TOKEN` *(optional)* — bearer token expanded into `.mcp.json`'s `Authorization` header. Required only when the compose service sets `MCP_AUTH_TOKEN` (i.e. you've moved the listener off loopback). Leave unset for the default loopback-only setup.
 
 ## License
 
