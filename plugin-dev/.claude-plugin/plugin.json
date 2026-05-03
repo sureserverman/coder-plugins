@@ -13,7 +13,8 @@
     "./skills/agent-development",
     "./skills/hook-development",
     "./skills/mcp-integration",
-    "./skills/mcp-server-development"
+    "./skills/mcp-server-development",
+    "./skills/plugin-settings"
   ],
   "license": "MIT",
   "keywords": [
