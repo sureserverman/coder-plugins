@@ -1,7 +1,7 @@
 ---
 name: rust-expert
 description: Use this agent to author, review, or refactor Rust code for idiomatic quality, unsafe soundness, async correctness, FFI boundary safety, error-type design, and edition migration. Trigger phrases include "write idiomatic Rust", "refactor this Rust module", "audit this unsafe block", "fix my tokio deadlock", "is this Send/Sync", "clippy says X — is clippy right", "port this to edition 2024", "review this Rust PR", "why does the borrow checker reject this", "Arc or Rc", "thiserror or anyhow". Also triggers proactively after cargo clippy produces 5+ warnings, after a cargo fix --edition run, when an unsafe block is added or modified, or when a Rust module grows past ~500 lines.
-tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch
+tools: Read, Grep, Glob, Edit, Write, Bash(cargo:*), Bash(rustc:*), Bash(rustup:*), Bash(rustfmt:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), WebFetch
 model: sonnet
 ---
 

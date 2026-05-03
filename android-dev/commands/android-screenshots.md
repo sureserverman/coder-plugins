@@ -71,7 +71,7 @@ If the user passes `--clear` or mode is `full`, first clear app data:
 ```bash
 podman exec android-emu-mcp_android-mcp_1 sh -c '
 for H in 10.89.0.10 10.89.0.11 10.89.0.12; do
-  adb -H $H -P 5037 shell pm clear com.matrix.synapse.manager.debug
+  adb -H "$H" -P 5037 shell pm clear com.matrix.synapse.manager.debug
 done'
 ```
 
@@ -93,20 +93,20 @@ Use this pattern inside the MCP container:
 podman exec android-emu-mcp_android-mcp_1 sh -c '
 TABS="Accounts Rooms Info Config"
 for H in 10.89.0.10 10.89.0.11 10.89.0.12; do
-  NAME=$(adb -H $H -P 5037 shell getprop ro.boot.qemu.avd_name | tr -d "\r\n")
-  adb -H $H -P 5037 shell am start -n "com.matrix.synapse.manager.debug/com.matrix.synapse.manager.MainActivity"
+  NAME=$(adb -H "$H" -P 5037 shell getprop ro.boot.qemu.avd_name | tr -d "\r\n")
+  adb -H "$H" -P 5037 shell am start -n "com.matrix.synapse.manager.debug/com.matrix.synapse.manager.MainActivity"
   sleep 2
   for TAB in $TABS; do
-    adb -H $H -P 5037 shell uiautomator dump /sdcard/ui.xml
-    XML=$(adb -H $H -P 5037 shell cat /sdcard/ui.xml)
+    adb -H "$H" -P 5037 shell uiautomator dump /sdcard/ui.xml
+    XML=$(adb -H "$H" -P 5037 shell cat /sdcard/ui.xml)
     COORDS=$(echo "$XML" | grep -oP "<node[^>]*text=\"${TAB}\"[^>]*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\"" | head -1 | sed -E "s/.*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\".*/\1 \2 \3 \4/")
-    read X1 Y1 X2 Y2 <<< "$COORDS"
+    read -r X1 Y1 X2 Y2 <<< "$COORDS"
     CX=$(( (X1 + X2) / 2 ))
     CY=$(( (Y1 + Y2) / 2 ))
-    adb -H $H -P 5037 shell input tap "$CX" "$CY"
+    adb -H "$H" -P 5037 shell input tap "$CX" "$CY"
     sleep 2
     LABEL=$(echo "$TAB" | tr "[:upper:]" "[:lower:]")
-    adb -H $H -P 5037 exec-out screencap -p > /screenshots/${NAME}_${LABEL}.png
+    adb -H "$H" -P 5037 exec-out screencap -p > "/screenshots/${NAME}_${LABEL}.png"
   done
 done'
 ```

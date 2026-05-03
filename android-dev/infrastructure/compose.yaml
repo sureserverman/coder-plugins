@@ -20,9 +20,12 @@ services:
       # is host-loopback only, so internally the server still binds to 0.0.0.0
       # so other compose services could reach it if needed.
       MCP_BIND_HOST: "0.0.0.0"
-      # Set MCP_AUTH_TOKEN here (via .env file or compose secret) to require
-      # bearer-token auth on every request. Required if MCP_BIND_HOST is non-
-      # loopback. Example: MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:?set MCP_AUTH_TOKEN in .env}"
+      # MCP_AUTH_TOKEN is REQUIRED because MCP_BIND_HOST above is non-loopback.
+      # `podman compose up` fails fast with a clear error if it isn't set in
+      # the env (e.g. via .env file or `MCP_AUTH_TOKEN=... podman compose up`).
+      # server.mjs also fail-closes on missing token — this is defense in depth
+      # so the misconfiguration is caught before the container even starts.
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:?MCP_AUTH_TOKEN required (non-loopback bind). Set in .env or pass via env.}"
     networks:
       android_net:
         ipv4_address: 10.89.0.20

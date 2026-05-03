@@ -401,12 +401,10 @@ function createServer() {
         "App-specific helper: launch Matrix Synapse Manager, drive the add-server form, and log in on every connected emulator. " +
         "Use only when testing the Matrix Synapse Manager app against the bundled mock-synapse container. " +
         "Returns a one-line confirmation with server URL, username, and emulator count (never the password). " +
-        "Prefer supplying credentials via the MOCK_SERVER_URL/MOCK_USERNAME/MOCK_PASSWORD env vars on the compose service; " +
-        "tool args are accepted as a fallback but secrets passed through model-composed args are riskier than env-injected ones.",
+        "The password is read exclusively from the MOCK_PASSWORD env var on the compose service — it is intentionally NOT a tool argument so the secret never traverses the MCP channel or appears in model context.",
       inputSchema: z.object({
         serverUrl: z.string().url().optional().describe("Matrix homeserver URL (e.g. http://10.0.2.2:8008). Falls back to MOCK_SERVER_URL env var."),
         username: z.string().min(1).optional().describe("Account username. Falls back to MOCK_USERNAME env var."),
-        password: z.string().min(1).optional().describe("Account password. Falls back to MOCK_PASSWORD env var. Prefer env over tool arg."),
       }).strict(),
       annotations: {
         readOnlyHint: false,
@@ -415,18 +413,18 @@ function createServer() {
         openWorldHint: false,
       },
     },
-    async ({ serverUrl, username, password }, ctx) => {
+    async ({ serverUrl, username }, ctx) => {
       if (EMULATOR_HOSTS.length === 0) {
         return { content: [{ type: "text", text: "No emulators configured." }], isError: true };
       }
       const effectiveUrl = serverUrl ?? MOCK_SERVER_URL;
       const effectiveUser = username ?? MOCK_USERNAME;
-      const effectivePass = password ?? MOCK_PASSWORD;
+      const effectivePass = MOCK_PASSWORD;
       if (!effectiveUrl || !effectiveUser || !effectivePass) {
         return {
           content: [{
             type: "text",
-            text: "matrix-synapse-login requires serverUrl, username, and password — supply as tool args or set MOCK_SERVER_URL / MOCK_USERNAME / MOCK_PASSWORD env vars.",
+            text: "matrix-synapse-login requires serverUrl + username (tool args or MOCK_SERVER_URL/MOCK_USERNAME env vars) and MOCK_PASSWORD env var on the compose service.",
           }],
           isError: true,
         };

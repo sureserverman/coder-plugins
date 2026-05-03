@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim@sha256:d415caac2f1f77b98caaf9415c5f807e14bc8d7bdea62561ea2fef4fbd08a73c
 
 # Only need adb (platform-tools) — emulators run in separate containers.
 # Pinned platform-tools release (revision pulled from a tagged URL rather
@@ -7,11 +7,13 @@ FROM node:22-bookworm-slim
 # and PT_SHA256 together as part of routine dependency hygiene.
 ARG PT_VERSION=35.0.2
 ARG PT_URL=https://dl.google.com/android/repository/platform-tools_r${PT_VERSION}-linux.zip
+ARG PT_SHA256=acfdcccb123a8718c46c46c059b2f621140194e5ec1ac9d81715be3d6ab6cd0a
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
        ca-certificates curl unzip \
     && curl -fsSLo /tmp/platform-tools.zip "${PT_URL}" \
+    && echo "${PT_SHA256}  /tmp/platform-tools.zip" | sha256sum -c - \
     && unzip -q /tmp/platform-tools.zip -d /opt/android-sdk \
     && rm /tmp/platform-tools.zip \
     && apt-get purge -y curl unzip \
