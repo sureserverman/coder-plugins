@@ -1,0 +1,33 @@
+{
+  "name": "git-github",
+  "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/create-commit",
+    "./skills/create-pr",
+    "./skills/github-workflow-audit",
+    "./skills/license-audit",
+    "./skills/review-readme",
+    "./skills/release-tag"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "github",
+    "commit",
+    "pull-request",
+    "pr",
+    "gh",
+    "github-actions",
+    "workflow",
+    "readme",
+    "license",
+    "spdx",
+    "release",
+    "tag"
+  ]
+}
