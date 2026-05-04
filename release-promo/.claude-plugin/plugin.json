@@ -1,0 +1,37 @@
+{
+  "name": "release-promo",
+  "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (with explicit guidance for Matrix subs r/matrixprotocol and r/matrixdotorg, plus language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/reddit-promo",
+    "./skills/twim-submission",
+    "./skills/hackernews-show-hn",
+    "./skills/lobsters-post",
+    "./skills/fediverse-post"
+  ],
+  "agents": [
+    "./agents/post-drafter.md"
+  ],
+  "commands": [
+    "./commands/promote-release.md"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "release",
+    "announcement",
+    "promotion",
+    "reddit",
+    "matrix",
+    "twim",
+    "hackernews",
+    "show-hn",
+    "lobsters",
+    "fediverse",
+    "mastodon",
+    "marketing"
+  ]
+}

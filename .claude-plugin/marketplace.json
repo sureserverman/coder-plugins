@@ -35,6 +35,15 @@
       "category": "development",
       "tags": ["claude-code", "plugin", "meta", "skills", "agents", "hooks", "mcp", "marketplace", "scaffolding", "validation"],
       "strict": false
+    },
+    {
+      "name": "release-promo",
+      "source": "./release-promo",
+      "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (subreddit-aware, including Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel. Never autoposts.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["release", "announcement", "promotion", "reddit", "matrix", "twim", "hackernews", "show-hn", "lobsters", "fediverse", "mastodon", "marketing"],
+      "strict": false
     }
   ]
 }

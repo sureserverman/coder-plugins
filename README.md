@@ -14,6 +14,7 @@ Then install individual plugins:
 /plugin install rust-dev@coder-plugins
 /plugin install android-dev@coder-plugins
 /plugin install plugin-dev@coder-plugins
+/plugin install release-promo@coder-plugins
 ```
 
 ## Plugins
@@ -53,6 +54,16 @@ Lean, security-aware authoring kit for **other** Claude Code plugins. Positioned
 
 Source: [`plugin-dev/`](./plugin-dev)
 
+### release-promo
+
+Drafts release-announcement posts for the platforms a project actually belongs on. Never autoposts — every draft is a markdown block you copy.
+
+- **5 skills** — `reddit-promo` (subreddit-aware, with explicit guidance for Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language subs, topic subs), `twim-submission` (This Week in Matrix), `hackernews-show-hn` (Show HN rules + first-comment template), `lobsters-post` (tag selection + invite-culture etiquette), `fediverse-post` (Mastodon-compatible toots with hashtag and CW guidance).
+- **`post-drafter` subagent** — haiku-pinned, read-only. Drafts one post per channel from surveyed facts plus the matching SKILL.md. Dispatched in parallel so the orchestrator stays cheap.
+- **`/promote-release`** — surveys the current repo (README, CHANGELOG, latest tag, language signals, Matrix detection), picks eligible channels, then fans out drafting to `post-drafter` (one invocation per channel) and concatenates the results into a single markdown bundle.
+
+Source: [`release-promo/`](./release-promo)
+
 ## Layout
 
 ```
@@ -72,7 +83,12 @@ coder-plugins/
 │   ├── skills/
 │   ├── commands/
 │   └── infrastructure/           # bundled emulator + MCP + mock-synapse compose stack
-└── plugin-dev/
+├── plugin-dev/
+│   ├── .claude-plugin/plugin.json
+│   ├── skills/
+│   ├── agents/
+│   └── commands/
+└── release-promo/
     ├── .claude-plugin/plugin.json
     ├── skills/
     ├── agents/
