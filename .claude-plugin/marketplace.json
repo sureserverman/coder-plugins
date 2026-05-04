@@ -46,6 +46,15 @@
       "strict": false
     },
     {
+      "name": "stingy-agents",
+      "source": "./stingy-agents",
+      "description": "Three scope-bounded subagents that let a skill or an Opus caller offload bulk or mechanical work to a cheaper, faster model: readonly-scanner (Haiku) for bulk file I/O and grep, skill-rewriter (Sonnet) for spec-driven edits to existing files, and code-generator (Sonnet) for spec-driven file creation. Spend Opus tokens on judgment calls, Haiku and Sonnet tokens on everything else.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["subagent", "delegation", "model-pinning", "haiku", "sonnet", "cost-optimization", "scaffolding", "code-generation", "scanner"],
+      "strict": false
+    },
+    {
       "name": "git-github",
       "source": "./git-github",
       "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a compatible project LICENSE, and cut release tags with optional GitHub releases. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history. Hands off announcement drafting to release-promo.",

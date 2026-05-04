@@ -1,0 +1,26 @@
+{
+  "name": "stingy-agents",
+  "description": "Three scope-bounded subagents that let a skill or an Opus caller offload bulk or mechanical work to a cheaper, faster model: readonly-scanner (Haiku) for bulk file I/O and grep, skill-rewriter (Sonnet) for spec-driven edits to existing files, and code-generator (Sonnet) for spec-driven file creation. Spend Opus tokens on judgment calls, Haiku and Sonnet tokens on everything else.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "agents": [
+    "./agents/readonly-scanner.md",
+    "./agents/skill-rewriter.md",
+    "./agents/code-generator.md"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "subagent",
+    "delegation",
+    "model-pinning",
+    "haiku",
+    "sonnet",
+    "cost-optimization",
+    "scaffolding",
+    "code-generation",
+    "scanner"
+  ]
+}
