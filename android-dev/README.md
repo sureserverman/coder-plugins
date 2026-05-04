@@ -51,6 +51,24 @@ Analyzes app source code (Retrofit interfaces, DTOs, auth flow) to scaffold a mi
 
 **Triggers:** Fake backend, stub the API, test server, Docker/Podman mock, offline testing, mock the REST API.
 
+### `android-release-signing`
+
+Shared signing foundation for any distribution channel: upload-keystore creation, `keystore.properties` wiring, `signingConfigs.release` in Gradle, and a `release.yml` GitHub Actions workflow that decodes a base64 keystore from secrets and uploads APK + AAB to GitHub Releases.
+
+**Triggers:** Sign my APK, create upload keystore, set up release signing, build a signed AAB, release workflow won't sign, keystore.properties missing, Gradle uses debug key for release.
+
+### `android-fdroid-publish`
+
+End-to-end F-Droid submission flow: scaffolding `fastlane/metadata/android/en-US/`, drafting the `fdroiddata` build recipe YAML, computing `AllowedAPKSigningKeys`, and choosing between RFP issue vs direct merge request. Reference files include a drop-in YAML template and the full fastlane directory layout with per-file constraints.
+
+**Triggers:** Publish to F-Droid, submit to fdroid, create fdroid metadata, fastlane folder, RFP issue, fdroiddata YAML, AllowedAPKSigningKeys, F-Droid build recipe.
+
+### `android-play-publish`
+
+End-to-end Google Play submission flow: AAB build, Play Console setup, store listing copy and assets, App content forms (Privacy policy, Data safety, App access, Content rating), release tracks, the 12-tester / 14-day closed-test rule for new personal accounts, and `fastlane supply` automation. Reference files include a per-release preflight checklist and a Data safety decision table.
+
+**Triggers:** Publish to Google Play, submit to play store, Play Console setup, build AAB for play, Data safety form, app access demo credentials, Play App Signing, closed test 12 testers, fastlane supply.
+
 ## Commands
 
 ### `/android-screenshots`
@@ -59,6 +77,22 @@ Captures Play Store screenshots across all emulator form factors (phone 6", tabl
 
 ```
 /android-screenshots [login|capture|full] [--tabs "Tab1,Tab2,..."]
+```
+
+### `/android-prepare-fdroid`
+
+Walks through the F-Droid prep checklist: signing, fastlane scaffold, and `docs/f-droid/<applicationId>.yml` build recipe. The user submits to `gitlab.com/fdroid/fdroiddata` themselves — the command produces and validates the artefacts.
+
+```
+/android-prepare-fdroid [check|init|metadata|yaml] [applicationId]
+```
+
+### `/android-prepare-play`
+
+Walks through the Google Play prep checklist: signing, AAB build + verification, Play-specific store listing assets, and a draft `docs/play-app-content.md` for the App content forms. The user uploads to Play Console themselves.
+
+```
+/android-prepare-play [check|init|aab|listing] [applicationId]
 ```
 
 ## Infrastructure

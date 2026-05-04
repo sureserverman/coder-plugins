@@ -1,0 +1,58 @@
+# fdroiddata metadata template — copy to gitlab.com/fdroid/fdroiddata at metadata/<applicationId>.yml
+#
+# Replace every <PLACEHOLDER>. Strip any line you don't need (Binaries / AllowedAPKSigningKeys).
+# Do NOT add Summary: or Description: — F-Droid pulls those from
+# fastlane/metadata/android/en-US/{short_description,full_description}.txt
+# in the app's source repo at the latest tag.
+
+Categories:
+  - <Internet | System | Security | Development | Phone & SMS | Reading | Multimedia | Sports & Health | Money | Connectivity | Theming | Time | Writing | Science & Education | Navigation | Games | …>
+License: <SPDX-ID e.g. Apache-2.0, GPL-3.0-or-later, MIT>
+AuthorName: <Your name or org>
+AuthorEmail: <contact email>
+AuthorWebSite: <https://… optional>
+
+WebSite: <https://… optional, app marketing page>
+SourceCode: <https://github.com/<owner>/<repo>>
+IssueTracker: <https://github.com/<owner>/<repo>/issues>
+Translation: <https://… optional, e.g. Weblate URL>
+Changelog: <https://github.com/<owner>/<repo>/releases optional>
+Donate: <https://… optional>
+
+RepoType: git
+Repo: <https://github.com/<owner>/<repo>>
+
+# Pin the binary to the GitHub release artifact built by .github/workflows/release.yml.
+# %v is replaced with versionName at lookup time. Drop this block if you want F-Droid
+# to build from source and sign with their key.
+Binaries: https://github.com/<owner>/<repo>/releases/download/v%v/app-release.apk
+
+Builds:
+  - versionName: <e.g. 1.0.0>
+    versionCode: <integer, strictly increasing>
+    commit: <git commit hash OR annotated tag matching the release>
+    subdir: app                     # drop this if the app module is at repo root
+    gradle:
+      - yes                          # build flavor; "yes" means default release variant
+
+# Optional: pin the cert fingerprint of YOUR upload keystore so F-Droid only accepts
+# binaries you signed. Compute with:
+#   keytool -list -v -keystore upload.keystore -alias upload \
+#     | awk '/SHA256:/ {gsub(":",""); print tolower($2)}'
+AllowedAPKSigningKeys: <64-char-lowercase-hex-no-colons>
+
+# Auto-update on new git tags. Combined with `Binaries:` above, F-Droid's bot will
+# open an MR adding a new Builds: block whenever you push v<x.y.z>.
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+# UpdateCheckData: <regex-and-paths> # only needed if versionCode/versionName aren't in build.gradle
+CurrentVersion: <latest versionName>
+CurrentVersionCode: <latest versionCode>
+
+# Optional flags F-Droid uses to warn users:
+# AntiFeatures:
+#   - NonFreeNet         # uses a non-free network service (e.g. proprietary backend)
+#   - NonFreeAssets      # bundles non-free media
+#   - Tracking           # contains analytics/tracking
+#   - UpstreamNonFree    # depends on non-free libraries at build time
+#   - NonFreeDep         # depends on non-free libraries at runtime

@@ -21,10 +21,10 @@
     {
       "name": "android-dev",
       "source": "./android-dev",
-      "description": "Android development plugin: Gradle build management, UI/UX design with Material 3 and Figma, multi-device emulator orchestration via bundled MCP stack, mock server generation, and automated screenshot capture across phone and tablet form factors.",
-      "version": "1.0.0",
+      "description": "Android development plugin: Gradle build management, UI/UX design with Material 3 and Figma, multi-device emulator orchestration via bundled MCP stack, mock server generation, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
+      "version": "1.1.0",
       "category": "development",
-      "tags": ["android", "gradle", "kotlin", "compose", "material3", "figma", "emulator", "mcp", "mock-server", "testing", "screenshots"],
+      "tags": ["android", "gradle", "kotlin", "compose", "material3", "figma", "emulator", "mcp", "mock-server", "testing", "screenshots", "fdroid", "google-play", "publishing", "signing", "fastlane", "release"],
       "strict": false
     },
     {
