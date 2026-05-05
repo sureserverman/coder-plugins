@@ -1,0 +1,36 @@
+{
+  "name": "infra-build",
+  "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/build-readiness-check",
+    "./skills/deb-package",
+    "./skills/mac-package",
+    "./skills/bash-script-audit",
+    "./skills/utils-register",
+    "./skills/build-for-mac-register",
+    "./skills/publish-images-register"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "infra",
+    "build",
+    "packaging",
+    "debian",
+    "deb",
+    "macos",
+    "pkg",
+    "docker",
+    "oci",
+    "multi-arch",
+    "github-actions",
+    "reprepro",
+    "pkgbuild",
+    "publish",
+    "registry"
+  ]
+}

@@ -55,6 +55,15 @@
       "strict": false
     },
     {
+      "name": "infra-build",
+      "source": "./infra-build",
+      "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["infra", "build", "packaging", "debian", "deb", "macos", "pkg", "docker", "oci", "multi-arch", "github-actions", "reprepro", "pkgbuild", "publish", "registry"],
+      "strict": false
+    },
+    {
       "name": "git-github",
       "source": "./git-github",
       "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a compatible project LICENSE, and cut release tags with optional GitHub releases. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history. Hands off announcement drafting to release-promo.",
