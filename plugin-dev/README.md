@@ -21,7 +21,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 
 ## Components
 
-### Skills (10)
+### Skills (12)
 
 | Skill | Triggers when you ask |
 |---|---|
@@ -36,14 +36,16 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 | `skill-description-leak-audit` | "audit this skill", "leak-proof my skill", "this skill runs a shortened version of itself", "review skill frontmatter" |
 | `skill-best-practices-sync` | "improve my skills", "sync skills with best practices", "what's new in skill authoring", "refresh skills from Karpathy/community advice" |
 | `creating-subagents` | "create a subagent that works on Claude Code + Codex + Cursor + OpenCode", "scaffold a cross-host agent", "port this agent to other tools" |
+| `skill-workshop` | "what should be a skill", "mine my sessions", "find patterns in my history", "discover skill candidates" — explicit-invocation only (`disable-model-invocation: true`); pairs with the `session-analyzer` agent |
 
-### Agents (3)
+### Agents (4)
 
 | Agent | Model | Tools | Purpose |
 |---|---|---|---|
 | `plugin-validator` | haiku | Read, Grep, Glob, Bash | Static validation of manifest, structure, frontmatter, hooks. Read-only. |
 | `skill-reviewer` | haiku | Read, Grep, Glob | Description leak-audit + injection scan + best-practice review on a SKILL.md. Read-only. |
 | `agent-creator` | sonnet | Write, Read | Generates a new agent file from a brief. |
+| `session-analyzer` | haiku | Bash, Read, Write, Grep, Glob | Parses Claude Code session JSONL files into ranked skill candidates. Driven by `skill-workshop`. |
 
 ### Commands (1)
 

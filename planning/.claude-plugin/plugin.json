@@ -1,7 +1,7 @@
 {
   "name": "planning",
-  "description": "Four-skill pipeline that turns a vague idea into executed work: brainstorming validates the design via question-driven exploration, planning-projects produces a staged plan with phase gates and Red-Green cycles, executing-plans drives the plan with stage-gate checks, and dispatching-parallel-agents fans out independent tasks marked Parallel YES. Skills hand off to each other and were designed as a unit.",
-  "version": "0.1.0",
+  "description": "Five-skill pipeline that turns a vague idea into executed work and keeps debugging disciplined: brainstorming validates the design via question-driven exploration, planning-projects produces a staged plan with phase gates and Red-Green cycles, executing-plans drives the plan with stage-gate checks, dispatching-parallel-agents fans out independent tasks marked Parallel YES, and no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures. Skills hand off to each other and were designed as a unit.",
+  "version": "0.2.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"
@@ -10,7 +10,8 @@
     "./skills/brainstorming",
     "./skills/planning-projects",
     "./skills/executing-plans",
-    "./skills/dispatching-parallel-agents"
+    "./skills/dispatching-parallel-agents",
+    "./skills/no-fafo-debugging"
   ],
   "license": "MIT",
   "keywords": [
@@ -25,6 +26,9 @@
     "dispatch",
     "subagents",
     "roadmap",
-    "tdd"
+    "tdd",
+    "debugging",
+    "root-cause",
+    "evidence-first"
   ]
 }

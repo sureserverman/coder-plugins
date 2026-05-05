@@ -1,6 +1,6 @@
 # planning
 
-A four-skill pipeline that turns a vague idea into executed work. Each skill hands off to the next; they were designed as a unit.
+A five-skill pipeline that turns a vague idea into executed work, with an evidence-first debugging discipline for when execution hits failures. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -59,6 +59,12 @@ Takes a plan file produced by `planning-projects` and executes it. Drives Red-Gr
 Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel YES` and all their dependencies are green. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
+
+### `no-fafo-debugging`
+
+The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculative patches that make the symptom go away without explaining root cause. Use when a plan task fails red and the fix is non-obvious, or any time you're tempted to propose a fix without first answering *what*, *why*, and *how*.
+
+**Triggers:** "debug this", "why is X broken", "fix this bug", any diagnostic request where evidence-first root-cause analysis is expected over speculative patches.
 
 ## Why a separate plugin
 
