@@ -18,6 +18,7 @@ Then install individual plugins:
 /plugin install stingy-agents@coder-plugins
 /plugin install infra-build@coder-plugins
 /plugin install git-github@coder-plugins
+/plugin install planning@coder-plugins
 ```
 
 ## Plugins
@@ -66,6 +67,17 @@ Drafts release-announcement posts for the platforms a project actually belongs o
 - **`/promote-release`** — surveys the current repo (README, CHANGELOG, latest tag, language signals, Matrix detection), picks eligible channels, then fans out drafting to `post-drafter` (one invocation per channel) and concatenates the results into a single markdown bundle.
 
 Source: [`release-promo/`](./release-promo)
+
+### planning
+
+Four-skill pipeline that turns a vague idea into executed work. The skills hand off to each other and were designed as a unit.
+
+- **`brainstorming`** — vague idea → validated design via question-driven exploration (purpose, constraints, alternatives, risks).
+- **`planning-projects`** — staged plan with phase gates, `Depends on` / `Blocks` / `Parallel` task fields, Red-Green max cycles, Stage gates.
+- **`executing-plans`** — drives a plan file; Red-Green loops; respects stage gates; dispatches independent tasks for parallel run.
+- **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
+
+Source: [`planning/`](./planning)
 
 ### Other plugins
 

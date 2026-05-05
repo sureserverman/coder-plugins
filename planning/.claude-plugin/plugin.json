@@ -1,0 +1,30 @@
+{
+  "name": "planning",
+  "description": "Four-skill pipeline that turns a vague idea into executed work: brainstorming validates the design via question-driven exploration, planning-projects produces a staged plan with phase gates and Red-Green cycles, executing-plans drives the plan with stage-gate checks, and dispatching-parallel-agents fans out independent tasks marked Parallel YES. Skills hand off to each other and were designed as a unit.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/brainstorming",
+    "./skills/planning-projects",
+    "./skills/executing-plans",
+    "./skills/dispatching-parallel-agents"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "planning",
+    "brainstorming",
+    "design",
+    "stages",
+    "phase-gates",
+    "red-green",
+    "execution",
+    "parallel",
+    "dispatch",
+    "subagents",
+    "roadmap",
+    "tdd"
+  ]
+}

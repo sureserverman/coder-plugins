@@ -71,6 +71,15 @@
       "category": "development",
       "tags": ["git", "github", "commit", "pull-request", "pr", "gh", "github-actions", "workflow", "readme", "license", "spdx", "release", "tag", "code-review", "diff", "multi-model", "comment-audit"],
       "strict": false
+    },
+    {
+      "name": "planning",
+      "source": "./planning",
+      "description": "Four-skill pipeline that turns a vague idea into executed work: brainstorming validates the design via question-driven exploration, planning-projects produces a staged plan with phase gates and Red-Green cycles, executing-plans drives the plan with stage-gate checks, and dispatching-parallel-agents fans out independent tasks marked Parallel YES. Skills hand off to each other and were designed as a unit.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["planning", "brainstorming", "design", "stages", "phase-gates", "red-green", "execution", "parallel", "dispatch", "subagents", "roadmap", "tdd"],
+      "strict": false
     }
   ]
 }
