@@ -15,6 +15,9 @@ Then install individual plugins:
 /plugin install android-dev@coder-plugins
 /plugin install plugin-dev@coder-plugins
 /plugin install release-promo@coder-plugins
+/plugin install stingy-agents@coder-plugins
+/plugin install infra-build@coder-plugins
+/plugin install git-github@coder-plugins
 ```
 
 ## Plugins
@@ -63,6 +66,12 @@ Drafts release-announcement posts for the platforms a project actually belongs o
 - **`/promote-release`** — surveys the current repo (README, CHANGELOG, latest tag, language signals, Matrix detection), picks eligible channels, then fans out drafting to `post-drafter` (one invocation per channel) and concatenates the results into a single markdown bundle.
 
 Source: [`release-promo/`](./release-promo)
+
+### Other plugins
+
+- **[`git-github/`](./git-github)** — everyday git/GitHub ops: commits, PRs, code review, multi-model second opinions, comment audit, workflow audit, README review, license audit, release tags.
+- **[`infra-build/`](./infra-build)** — make a project buildable by the `~/dev/infra` publishing pipelines (Debian .deb, macOS .pkg, multi-arch Docker).
+- **[`stingy-agents/`](./stingy-agents)** — three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work.
 
 ## Layout
 

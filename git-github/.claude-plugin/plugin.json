@@ -1,7 +1,7 @@
 {
   "name": "git-github",
-  "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
-  "version": "0.1.0",
+  "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, run a single-tool authoritative code review, dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
+  "version": "0.2.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"
@@ -12,7 +12,10 @@
     "./skills/github-workflow-audit",
     "./skills/license-audit",
     "./skills/review-readme",
-    "./skills/release-tag"
+    "./skills/release-tag",
+    "./skills/code-review",
+    "./skills/request-external-reviews",
+    "./skills/code-comment-audit"
   ],
   "license": "MIT",
   "keywords": [
@@ -28,6 +31,10 @@
     "license",
     "spdx",
     "release",
-    "tag"
+    "tag",
+    "code-review",
+    "diff",
+    "multi-model",
+    "comment-audit"
   ]
 }
