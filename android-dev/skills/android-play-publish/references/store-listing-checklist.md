@@ -12,6 +12,7 @@ Run through this before every release. Failing any item delays the rollout — P
 - [ ] No `usesCleartextTraffic="true"` in the manifest (or scoped to debug builds only).
 - [ ] No `android:debuggable="true"` in release manifest.
 - [ ] R8/ProGuard kept rules cover Retrofit, Room entities, kotlinx-serialization, Hilt — verify by smoke-testing the release variant on a device.
+- [ ] **Adaptive launcher icon** in the APK/AAB: `mipmap-anydpi-v26/ic_launcher.xml` (and `ic_launcher_round.xml`) declare `<background>`, `<foreground>`, and `<monochrome>` layers; legacy PNGs exist for mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi. Without this, themed icons fail on Android 13+. See `android-ui-design-figma → references/adaptive-icons.md`.
 
 ## Signing
 

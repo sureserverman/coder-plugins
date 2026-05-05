@@ -35,9 +35,9 @@ Four-phase build management with decision trees and security hard gates. Covers 
 
 End-to-end UI workflow: app analysis, design spec (with optional Figma), feedback loop, then apply to code. Standard-first approach using Material 3 / Compose Material / AndroidX.
 
-Includes reference files for M3 best practices, adaptive layouts, and a component lookup table.
+Includes reference files for M3 best practices, adaptive layouts, a component lookup table, and the adaptive launcher icon spec (foreground/background/monochrome layers, themed icons, Image Asset Studio scaffold + verification recipe — required for every release).
 
-**Triggers:** Redesign a screen, change color scheme, update theme, add bottom nav, implement Figma design, fix spacing, add dark theme, Material 3 components.
+**Triggers:** Redesign a screen, change color scheme, update theme, add bottom nav, implement Figma design, fix spacing, add dark theme, Material 3 components, adaptive launcher icon, themed icon, monochrome layer.
 
 ### `android-mcp-orchestrator`
 

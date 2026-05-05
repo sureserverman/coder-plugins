@@ -1,6 +1,6 @@
 ---
 name: android-ui-design-figma
-description: Use when the user asks to change, design, or restyle Android UI — theming, layouts, screens, components, Material 3, Compose, Views, navigation, typography, colors, spacing, or Figma integration for an Android app. Trigger on "redesign this screen", "add a Figma design", "restyle the app", "dark mode", "this screen feels cramped", "make the app look more modern", a screenshot showing a UI issue, or any UI/UX change request for Android.
+description: Use when the user asks to change, design, or restyle Android UI — theming, layouts, screens, components, Material 3, Compose, Views, navigation, typography, colors, spacing, launcher / app icon (adaptive icon, themed icon, monochrome layer, mipmap-anydpi-v26), or Figma integration for an Android app. Trigger on "redesign this screen", "add a Figma design", "restyle the app", "dark mode", "this screen feels cramped", "make the app look more modern", "make the launcher icon adaptive", "themed icon", "icon looks bad on Android 13", a screenshot showing a UI issue, or any UI/UX change request for Android.
 ---
 
 # Android UI Design and Figma Workflow
@@ -66,9 +66,24 @@ Apply this at every step: theming, components, layout, navigation, motion, acces
 3. **Figma-to-code (when Figma URL is provided)**: Use the implement-design workflow adapted for Android: call `get_design_context(fileKey, nodeId)` and optionally `get_variable_defs` for tokens. Map Figma elements to standard Android/Compose components where possible; translate only the rest. Use `get_screenshot` to validate visually.
 4. **Verify**: Run `./gradlew :app:compileDebugKotlin` (or equivalent) and fix any build issues. Run relevant UI or instrumented tests. Do not mark the task complete with failing tests.
 
+## Launcher icon (adaptive — mandatory)
+
+Every app shipped from this plugin must have an adaptive launcher icon
+(foreground + background + monochrome layers, `mipmap-anydpi-v26/ic_launcher.xml`,
+legacy PNG fallbacks at all five densities). Themed icons on Android 13+ and
+OEM mask shapes both depend on this structure — a legacy single-PNG icon is
+not acceptable.
+
+When the user asks to add/change the app icon, or before publishing (F-Droid,
+Play), follow the spec, scaffold, and verification recipe in
+[references/adaptive-icons.md](references/adaptive-icons.md). Generate via
+Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons
+(Adaptive and Legacy)*) — there is no first-party CLI.
+
 ## Rules
 
 - **Standard first, DIY only when necessary**: For every design/UI/UX/layout change, use a standard tool, component, or framework when one exists; implement custom only when none fits. See references for standard options.
+- **Adaptive launcher icon is mandatory**: Never ship with only a legacy `ic_launcher.png`. See [references/adaptive-icons.md](references/adaptive-icons.md).
 - **Never invent screens or flows**: Design only for screens and flows that exist (or are explicitly requested) in the app.
 - **Spec over vague intent**: Every design change in the spec must be implementable (values, not only descriptions).
 - **One source of truth**: Keep the design spec and any Figma file in sync; when the user amends in Figma, update the spec or re-fetch context before changing code.
@@ -77,6 +92,7 @@ Apply this at every step: theming, components, layout, navigation, motion, acces
 ## Summary Checklist
 
 - [ ] Standard tools/frameworks checked first; DIY used only where no standard fits.
+- [ ] Adaptive launcher icon present (foreground + background + monochrome layers, both `ic_launcher.xml` + `ic_launcher_round.xml` in `mipmap-anydpi-v26/`, legacy PNGs at all five densities) — verified per [references/adaptive-icons.md](references/adaptive-icons.md).
 - [ ] App analyzed (depth scaled to scope: single component vs full app).
 - [ ] Design spec produced with concrete values and standard component names where applicable; optional reference images or Figma instructions.
 - [ ] User feedback gathered and spec (and Figma, if used) updated until approved.

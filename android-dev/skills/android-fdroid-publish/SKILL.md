@@ -139,6 +139,7 @@ In that case F-Droid falls back to building+signing with their own key — your 
 | `versionCode` strictly increases per release | F-Droid (and Android itself) reject downgrades |
 | Repo is public and clone works without auth | F-Droid's builders are unauthenticated |
 | No proprietary deps / Google Maps / Firebase / GMS | F-Droid's `AntiFeatures:` flag or rejection |
+| Adaptive launcher icon present in the APK (`mipmap-anydpi-v26/ic_launcher.xml` with `<background>`+`<foreground>`+`<monochrome>` and legacy PNG fallbacks) | Without it the F-Droid client renders a generic gray square and themed icons fail on Android 13+. See `android-ui-design-figma → references/adaptive-icons.md` |
 
 ## Common mistakes
 

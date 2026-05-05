@@ -9,6 +9,7 @@ Use these before implementing custom (DIY) solutions. Only build custom when no 
 | Colors, typography, shapes | Material 3 `ColorScheme`, `Typography`, `Shapes` in Compose; `themes.xml` + `?attr/` in Views | Brand requires tokens not mappable to M3 roles |
 | Dark/light theme | `MaterialTheme.colorScheme` (Compose), theme night qualifiers (Views) | N/A — use standard |
 | Dynamic color (Android 12+) | `dynamicLightColorScheme()` / `dynamicDarkColorScheme()` | N/A — use standard |
+| Launcher icon | Adaptive icon: `mipmap-anydpi-v26/ic_launcher.xml` with `<background>`, `<foreground>`, `<monochrome>` layers + legacy PNG fallbacks. Generate via Android Studio → New → Image Asset → *Launcher Icons (Adaptive and Legacy)*. See [references/adaptive-icons.md](adaptive-icons.md). | Never DIY — required for themed icons (Android 13+) and OEM mask shapes |
 
 ## Compose UI (Jetpack Compose)
 
