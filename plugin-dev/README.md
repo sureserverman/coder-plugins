@@ -21,7 +21,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 
 ## Components
 
-### Skills (7)
+### Skills (10)
 
 | Skill | Triggers when you ask |
 |---|---|
@@ -32,6 +32,10 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 | `hook-development` | "add a hook", "PreToolUse / PostToolUse", "session-end auto-capture", "block dangerous bash" |
 | `mcp-integration` | "add an MCP server to my plugin", ".mcp.json", "stdio / SSE / HTTP MCP" |
 | `mcp-server-development` | "build a custom MCP server", "MCP tool design", "FastMCP / @modelcontextprotocol/sdk", "MCP Inspector" |
+| `plugin-settings` | "add user-configurable settings to my plugin", ".claude/plugins/<name>/" |
+| `skill-description-leak-audit` | "audit this skill", "leak-proof my skill", "this skill runs a shortened version of itself", "review skill frontmatter" |
+| `skill-best-practices-sync` | "improve my skills", "sync skills with best practices", "what's new in skill authoring", "refresh skills from Karpathy/community advice" |
+| `creating-subagents` | "create a subagent that works on Claude Code + Codex + Cursor + OpenCode", "scaffold a cross-host agent", "port this agent to other tools" |
 
 ### Agents (3)
 

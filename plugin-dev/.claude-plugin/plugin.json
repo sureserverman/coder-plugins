@@ -1,7 +1,7 @@
 {
   "name": "plugin-dev",
-  "description": "Lean, security-aware authoring kit for Claude Code plugins. Skills cover plugin structure, skill / command / agent / hook / MCP authoring; agents validate, review, and scaffold; the create-plugin command runs the full guided flow.",
-  "version": "0.1.0",
+  "description": "Lean, security-aware authoring kit for Claude Code plugins. Skills cover plugin structure, skill / command / agent / hook / MCP authoring; cross-host subagent scaffolding (Claude Code, Codex, Cursor, OpenCode); leak-audit and best-practices-sync passes for existing skills; agents validate, review, and scaffold; the create-plugin command runs the full guided flow.",
+  "version": "0.2.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"
@@ -14,7 +14,10 @@
     "./skills/hook-development",
     "./skills/mcp-integration",
     "./skills/mcp-server-development",
-    "./skills/plugin-settings"
+    "./skills/plugin-settings",
+    "./skills/skill-description-leak-audit",
+    "./skills/skill-best-practices-sync",
+    "./skills/creating-subagents"
   ],
   "license": "MIT",
   "keywords": [
@@ -27,6 +30,12 @@
     "mcp",
     "marketplace",
     "scaffolding",
-    "validation"
+    "validation",
+    "leak-audit",
+    "best-practices",
+    "cross-host",
+    "codex",
+    "cursor",
+    "opencode"
   ]
 }

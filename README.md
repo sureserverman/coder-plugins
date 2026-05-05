@@ -51,7 +51,7 @@ Source: [`android-dev/`](./android-dev)
 
 Lean, security-aware authoring kit for **other** Claude Code plugins. Positioned as the 2026-current alternative to Anthropic's existing plugin-dev (~22k lines) — same surface area in ~3.6k lines, with description-leak audit and prompt-injection screening baked in.
 
-- **6 skills** — `plugin-structure`, `skill-development`, `command-development`, `agent-development`, `hook-development` (covers 2026 events: `PostToolUseFailure`, `PostToolBatch`, `PermissionRequest`, `StopFailure`, `Notification`, `UserPromptExpansion`, `CwdChanged`, `FileChanged`, `SubagentStart/Stop`), `mcp-integration`. Each SKILL.md is ≤221 lines with one-level-deep `references/`.
+- **10 skills** — `plugin-structure`, `skill-development`, `command-development`, `agent-development`, `hook-development` (covers 2026 events: `PostToolUseFailure`, `PostToolBatch`, `PermissionRequest`, `StopFailure`, `Notification`, `UserPromptExpansion`, `CwdChanged`, `FileChanged`, `SubagentStart/Stop`), `mcp-integration`, `mcp-server-development`, `plugin-settings`, plus `skill-description-leak-audit` (leak-proof an existing SKILL.md), `skill-best-practices-sync` (cached research → applied), and `creating-subagents` (one definition that works on Claude Code + Codex + Cursor + OpenCode). Each SKILL.md is ≤500 lines with one-level-deep `references/`.
 - **3 agents** — `plugin-validator` (haiku, read-only static checker), `skill-reviewer` (haiku, leak-audit + injection scan), `agent-creator` (sonnet, write-capable scaffolder).
 - **`/create-plugin`** — guided end-to-end scaffolding: discover intent, draft components via the relevant skill, dispatch `agent-creator` per agent, finish with a `plugin-validator` pass.
 
