@@ -80,6 +80,15 @@
       "category": "development",
       "tags": ["planning", "brainstorming", "design", "stages", "phase-gates", "red-green", "execution", "parallel", "dispatch", "subagents", "roadmap", "tdd"],
       "strict": false
+    },
+    {
+      "name": "browser-extensions",
+      "source": "./browser-extensions",
+      "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["browser-extension", "webextension", "chrome", "firefox", "firefox-android", "manifest-v3", "amo", "addons-mozilla-org", "chrome-web-store", "content-script", "background-service-worker", "publishing"],
+      "strict": false
     }
   ]
 }

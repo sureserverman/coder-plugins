@@ -19,6 +19,7 @@ Then install individual plugins:
 /plugin install infra-build@coder-plugins
 /plugin install git-github@coder-plugins
 /plugin install planning@coder-plugins
+/plugin install browser-extensions@coder-plugins
 ```
 
 ## Plugins
@@ -78,6 +79,15 @@ Four-skill pipeline that turns a vague idea into executed work. The skills hand 
 - **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
 
 Source: [`planning/`](./planning)
+
+### browser-extensions
+
+Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android.
+
+- **`browser-extensions`** — manifest v3 migration, content scripts, background service workers, permissions, store rejections, Firefox-for-Android caveats.
+- **`amo-compliance-check`** — preflight audit before submission to addons.mozilla.org. Ships `scripts/amo-check.py` linter that exits non-zero on hard violations.
+
+Source: [`browser-extensions/`](./browser-extensions)
 
 ### Other plugins
 
