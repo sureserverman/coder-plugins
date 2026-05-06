@@ -1,5 +1,9 @@
 ---
-description: Dispatch the rust-expert subagent to refactor a Rust file or module to idiomatic Rust — tighten API signatures, replace index loops with iterators, remove unnecessary clones, add // SAFETY: comments, fix lock-across-await, modernize error handling.
+description: >
+  Dispatch the rust-expert subagent to refactor a Rust file or module to
+  idiomatic Rust — tighten API signatures, replace index loops with iterators,
+  remove unnecessary clones, add `// SAFETY:` comments, fix lock-across-await,
+  modernize error handling.
 argument-hint: "<path-to-file-or-directory>"
 ---
 

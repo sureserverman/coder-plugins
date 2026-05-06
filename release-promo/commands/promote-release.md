@@ -1,6 +1,6 @@
 ---
 description: Survey the current repo, pick eligible promotion channels (Reddit, TWIM, HN Show HN, Lobsters, Fediverse), and draft one post per channel for review. Does not post anywhere.
-argument-hint: [version-or-hint] (optional)
+argument-hint: "[version-or-hint] (optional)"
 allowed-tools: ["Read", "Glob", "Grep", "Agent", "Bash(git:*)", "Bash(ls:*)", "Bash(jq:*)", "Bash(find:*)", "Bash(test:*)"]
 model: inherit
 ---
