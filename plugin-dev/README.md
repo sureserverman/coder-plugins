@@ -1,6 +1,6 @@
 # plugin-dev
 
-Lean, security-aware authoring kit for Claude Code plugins. Part of the [`coder-plugins`](..) marketplace.
+Lean, security-aware authoring kit for **Claude Code AND Claude Cowork** plugins. Part of the [`coder-plugins`](..) marketplace.
 
 ## Why another plugin-dev?
 
@@ -21,7 +21,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 
 ## Components
 
-### Skills (12)
+### Skills (13)
 
 | Skill | Triggers when you ask |
 |---|---|
@@ -37,6 +37,7 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 | `skill-best-practices-sync` | "improve my skills", "sync skills with best practices", "what's new in skill authoring", "refresh skills from Karpathy/community advice" |
 | `creating-subagents` | "create a subagent that works on Claude Code + Codex + Cursor + OpenCode", "scaffold a cross-host agent", "port this agent to other tools" |
 | `skill-workshop` | "what should be a skill", "mine my sessions", "find patterns in my history", "discover skill candidates" — explicit-invocation only (`disable-model-invocation: true`); pairs with the `session-analyzer` agent |
+| `cowork-plugin-development` | "build a Cowork plugin", "ship to Cowork", "make this plugin Cowork-first", "Cowork zip upload", "GitHub Actions release plugin", "Cowork connectors / scheduled tasks / routines", "Cowork hooks not firing", "multilingual skill triggers", "connector-aware enrichment", "privacy posture for cloud Routines" |
 
 ### Agents (4)
 

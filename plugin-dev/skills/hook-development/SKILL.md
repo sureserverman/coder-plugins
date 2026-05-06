@@ -214,8 +214,21 @@ The hook receives the prompt text and returns a (possibly rewritten) prompt or a
    corrupt hook parsing. Run hook scripts with `env -i` or a minimal shebang that avoids
    profile sourcing.
 
+## Targeting Cowork? Hooks don't fire there yet
+
+If your plugin will be installed in **Claude Cowork** (the chat-shaped surface in Claude Desktop, not Claude Code), plugin-scope hooks do not fire as of 2026-Q2. Cowork spawns Claude Code with `--setting-sources user`, which excludes plugin-scope hook discovery — see [anthropics/claude-code#27398](https://github.com/anthropics/claude-code/issues/27398).
+
+For a Cowork-targeted plugin, redesign hooks as in-skill behavior:
+
+- **PreToolUse policy hooks** → explicit confirmation steps inside skills ("Save? (yes / no / edit)").
+- **SessionStart hooks** → a skill whose description picks up first-message signal ("show me what you do", "what is this").
+- **Stop hooks** → closing-block discipline at the end of each long-running skill.
+
+Full guidance — including the other Cowork-specific patterns (multilingual triggers, connector-aware enrichment, Routines and privacy posture, zip-upload distribution) — lives in the `cowork-plugin-development` skill in this plugin. Read it before shipping a hook-heavy plugin to Cowork.
+
 ## Sources
 
 - code.claude.com/docs/en/hooks (canonical event reference)
 - code.claude.com/docs/en/hooks-guide
 - Community examples: github.com/wshobson/agents, github.com/obra/superpowers
+- Cowork hook bug: [anthropics/claude-code#27398](https://github.com/anthropics/claude-code/issues/27398)
