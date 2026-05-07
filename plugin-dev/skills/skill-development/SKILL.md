@@ -1,6 +1,6 @@
 ---
 name: skill-development
-description: Covers authoring, reviewing, and auditing Claude Code skill files (SKILL.md). Triggers on "write a skill", "create a SKILL.md", "improve this SKILL.md", "skill description triggering", "skill not loading", "skill fires but runs wrong logic", "description leak", "skill description leak", "progressive disclosure", "skill too long", "injection in skill", "skill security", "skill frontmatter", "skill anatomy", or any request to create, restructure, or security-audit a skill. Also triggers on skill description rewrites and "is this description safe".
+description: Covers authoring, reviewing, and auditing Claude Code skill files (SKILL.md). Triggers on "write a skill", "create a SKILL.md", "improve this SKILL.md", "skill description triggering", "skill not loading", "skill fires but runs wrong logic", "description leak", "skill description leak", "progressive disclosure", "skill too long", "injection in skill", "skill security", "skill frontmatter", "skill anatomy", "test this skill", "run skill evals", "benchmark a skill", "tune skill description", or any request to create, restructure, security-audit, or empirically tune a skill. Also triggers on skill description rewrites and "is this description safe".
 ---
 
 # skill-development
@@ -14,6 +14,7 @@ Consult the `references/` files when a topic goes deep.
 |---|---|
 | Rewriting or auditing a description | `references/description-style.md` |
 | Checking a skill for injection or leak risk | `references/leak-and-injection.md` |
+| Test-driven iteration, description tuning, improvement principles | `references/eval-and-iteration.md` |
 
 ---
 
@@ -246,6 +247,29 @@ Use the grep tool to search for patterns.
 # SKILL.md
 
 [Core content]
+
+---
+
+## 7. Iteration & evaluation (pointer)
+
+Authoring is one half of skill-building. Empirically validating that the
+skill triggers on the right requests and produces the right outputs is the
+other half. When the task is to *test*, *benchmark*, *tune for triggering*,
+or *iterate* on an existing skill, read `references/eval-and-iteration.md`
+before drafting changes. It covers:
+
+- the four-question intent capture
+- the test-driven iteration loop (with-skill vs baseline subagents, grading,
+  benchmark aggregation, review with the user)
+- improvement principles (generalize, lean, explain why, bundle repeated work)
+- description tuning (eval-query design, train/test split, anti-overfit)
+- how skill triggering actually works (why trivial prompts don't trigger)
+
+The full automated harness — viewer scripts, run_loop, etc. — lives upstream
+in Anthropic's `skill-creator` plugin; install it from the
+`claude-plugins-official` marketplace if the tooling is needed.
+
+---
 
 ## Sources
 
