@@ -1,0 +1,10 @@
+{
+  "description": "Plugins enabled in every project, regardless of tech or task. Keep this list short — anything here adds a description line to every session.",
+  "plugins": [
+    "claude-md-management@claude-plugins-official",
+    "claude-code-setup@claude-plugins-official",
+    "git-github@coder-plugins",
+    "planning@coder-plugins",
+    "stingy-agents@coder-plugins"
+  ]
+}

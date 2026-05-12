@@ -1,0 +1,6 @@
+{
+  "description": "Run a security review on the current project.",
+  "plugins": [
+    "sec-audit@sec-audit-marketplace"
+  ]
+}

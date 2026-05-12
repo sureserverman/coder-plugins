@@ -1,0 +1,7 @@
+{
+  "description": "Browser-driven work: Playwright control + library docs.",
+  "plugins": [
+    "playwright@claude-plugins-official",
+    "context7@claude-plugins-official"
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "description": "Explicit empty tech baseline. Use when you want only always-on plus overlays.",
+  "plugins": []
+}

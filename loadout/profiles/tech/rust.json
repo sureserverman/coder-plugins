@@ -1,0 +1,7 @@
+{
+  "description": "Rust / Cargo project baseline.",
+  "plugins": [
+    "rust-dev@coder-plugins",
+    "rust-analyzer-lsp@claude-plugins-official"
+  ]
+}

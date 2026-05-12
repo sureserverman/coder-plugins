@@ -1,0 +1,22 @@
+{
+  "name": "loadout",
+  "description": "Per-project plus per-task plugin loadouts. Layers a sticky tech baseline (android/rust/web-ext/...) with on-demand task overlays (security-audit/release/wiki/...) and writes the resulting `enabledPlugins` map to .claude/settings.local.json so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically from Cargo.toml / build.gradle / manifest.json on first entry; task overlays toggle via /loadout +name and /loadout -name.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "loadout",
+    "profile",
+    "enabledPlugins",
+    "per-project",
+    "per-task",
+    "context-management",
+    "scoping",
+    "tech-baseline",
+    "task-overlay",
+    "session-start"
+  ]
+}

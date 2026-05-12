@@ -1,0 +1,7 @@
+{
+  "description": "Cut a release: build, package, draft announcements.",
+  "plugins": [
+    "release-promo@coder-plugins",
+    "infra-build@coder-plugins"
+  ]
+}

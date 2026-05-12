@@ -1,0 +1,7 @@
+{
+  "description": "Capture, ingest, or query the Obsidian vault while working.",
+  "plugins": [
+    "obsidian-wiki@obsidian-wiki",
+    "vault-context@obsidian-wiki"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "Clean up / simplify code, with library docs at hand.",
+  "plugins": [
+    "code-simplifier@claude-plugins-official",
+    "context7@claude-plugins-official"
+  ]
+}
