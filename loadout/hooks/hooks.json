@@ -1,8 +1,14 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-detect.sh"
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-detect.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
