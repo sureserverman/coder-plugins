@@ -1,10 +1,6 @@
 ---
 name: session-analyzer
-description: >
-  Analyzes Claude Code session JSONL files to find repeating patterns,
-  workarounds, and tribal knowledge across sessions in a project.
-  Returns structured JSON with skill candidates ranked by score.
-  Use for session history mining and skill candidate discovery.
+description: Use when mining session JSONL files for patterns and skill candidates. Triggers on "analyze sessions", "session history mining", "skill candidate discovery".
 model: haiku
 tools: Bash, Read, Write, Grep, Glob
 ---

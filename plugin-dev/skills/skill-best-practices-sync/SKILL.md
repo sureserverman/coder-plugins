@@ -1,6 +1,6 @@
 ---
 name: skill-best-practices-sync
-description: Use when the user wants to research current skill-authoring best practices from the wider ecosystem and apply them to locally installed skills — triggers on "improve my skills", "sync skills with best practices", "what's new in skill authoring", "update skills based on Anthropic guidance", "refresh skills from Karpathy/community advice", "audit my skills against current wisdom", "my skills feel outdated", "are my skills using current best practices", "refresh my skill authoring approach", or when the user mentions updating skills based on external sources.
+description: Use when syncing skills to current best practices. Triggers on "sync skills with best practices", "update skills based on Anthropic guidance", "refresh skills from Karpathy/community advice".
 ---
 
 # Skill Best Practices Sync

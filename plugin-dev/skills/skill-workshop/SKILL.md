@@ -1,10 +1,6 @@
 ---
 name: skill-workshop
-description: >
-  Use when the user wants to find what should become a skill, mine Claude Code session history,
-  extract tribal knowledge, or discover skill candidates from past conversations. Trigger on
-  "what should be a skill", "mine my sessions", "find patterns in my history", or requests to
-  analyze session logs for skill ideas.
+description: Use when mining session history for skill candidates. Triggers on "what should be a skill", "mine my sessions", "find patterns in my history".
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Grep, Glob
 ---

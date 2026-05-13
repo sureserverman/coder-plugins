@@ -1,6 +1,6 @@
 ---
 name: plugin-structure
-description: Use when authoring or modifying Claude Code plugin structure. Triggers on "create a plugin", "what goes in .claude-plugin/", "plugin.json schema", "manifest fields", "marketplace.json", "where do hooks live", "how do skills get discovered", "component discovery", "plugin directory layout", "CLAUDE_PLUGIN_ROOT".
+description: Use when laying out a Claude Code plugin correctly. Triggers on "what goes in .claude-plugin/", "plugin.json schema", "marketplace.json", "where do hooks live", "CLAUDE_PLUGIN_ROOT".
 ---
 
 # plugin-structure

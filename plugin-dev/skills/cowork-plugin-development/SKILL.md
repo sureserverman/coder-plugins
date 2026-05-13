@@ -1,6 +1,6 @@
 ---
 name: cowork-plugin-development
-description: Use when authoring or porting a plugin for Claude Cowork specifically — the chat-shaped knowledge-work surface in Claude Desktop. Triggers on "build a Cowork plugin", "ship to Cowork", "make this plugin Cowork-first", "Cowork zip upload", "release plugin via GitHub Actions", "Cowork connectors / Scheduled Tasks / Routines", "Cowork hooks not firing", "/plugin marketplace add doesn't work in Cowork", "multilingual skill triggers", "connector-aware enrichment", "privacy posture for cloud Routines". Decision rules for how Cowork differs from Claude Code, what does and doesn't work, the canonical zip-upload distribution path, and the design patterns that make a Cowork plugin feel native to the chat surface rather than ported from a CLI.
+description: Use when authoring a plugin for Claude Cowork. Triggers on "build a Cowork plugin", "Cowork hooks not firing", "multilingual skill triggers", "connector-aware enrichment", "privacy posture for cloud Routines".
 ---
 
 # cowork-plugin-development

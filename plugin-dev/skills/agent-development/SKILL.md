@@ -1,6 +1,6 @@
 ---
 name: agent-development
-description: Use when authoring or modifying Claude Code subagents (agents/*.md). Triggers on "create a subagent", "agent frontmatter", "model pinning for agents", "agent triggering description", "agent system prompt", "haiku vs sonnet for agent", or any request to add an agent to a plugin.
+description: Use when authoring Claude Code subagents. Triggers on "agent frontmatter", "model pinning for agents", "agent triggering description", "haiku vs sonnet for agent".
 ---
 
 # agent-development

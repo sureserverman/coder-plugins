@@ -1,6 +1,6 @@
 ---
 name: skill-reviewer
-description: Use when reviewing Claude Code skill files (SKILL.md) for quality, triggering effectiveness, leak safety, or injection vulnerability. Triggers on "review my skill", "check skill quality", "skill description leak", "skill not triggering", "improve this SKILL.md", "audit skill for injection", or proactively after a skill is created or modified. Read-only audit — never edits.
+description: Use when reviewing a SKILL.md for quality or safety. Triggers on "review my skill", "check skill quality", "skill description leak", "skill not triggering", "audit skill for injection".
 model: haiku
 color: cyan
 tools: [Read, Grep, Glob]

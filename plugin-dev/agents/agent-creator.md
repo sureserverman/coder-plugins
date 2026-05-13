@@ -1,6 +1,6 @@
 ---
 name: agent-creator
-description: Use when generating a new Claude Code subagent file (agents/<name>.md) from a brief. Triggers on "create an agent", "scaffold a subagent", "generate agent.md", "make me an agent that ...", "write an agent for <task>", or any request to add a new subagent to a plugin or to ~/.claude/agents/. Write-capable — produces one file at a caller-specified path.
+description: Use when generating a new Claude Code subagent file from a brief. Triggers on "create an agent", "scaffold a subagent", "generate agent.md", "write an agent for <task>".
 model: sonnet
 color: magenta
 tools: [Write, Read]

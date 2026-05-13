@@ -1,6 +1,6 @@
 ---
 name: skill-description-leak-audit
-description: Use when auditing or hardening a Claude Code skill's SKILL.md description field — triggers on "audit this skill", "check skill description", "this skill runs a shortened version of its workflow", "fix skill triggering", "leak-proof my skill", "review skill frontmatter", or when a skill executes a summary of itself instead of the full procedure in its body
+description: Use when auditing a skill description for workflow leak. Triggers on "check skill description", "this skill runs a shortened version of its workflow", "leak-proof my skill".
 ---
 
 # Skill Description Leak Audit

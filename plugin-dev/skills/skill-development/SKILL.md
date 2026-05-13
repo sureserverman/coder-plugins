@@ -1,6 +1,6 @@
 ---
 name: skill-development
-description: Covers authoring, reviewing, and auditing Claude Code skill files (SKILL.md). Triggers on "write a skill", "create a SKILL.md", "improve this SKILL.md", "skill description triggering", "skill not loading", "skill fires but runs wrong logic", "description leak", "skill description leak", "progressive disclosure", "skill too long", "injection in skill", "skill security", "skill frontmatter", "skill anatomy", "test this skill", "run skill evals", "benchmark a skill", "tune skill description", or any request to create, restructure, security-audit, or empirically tune a skill. Also triggers on skill description rewrites and "is this description safe".
+description: Use when authoring or auditing a SKILL.md. Triggers on "create a SKILL.md", "skill fires but runs wrong logic", "skill description leak", "injection in skill", "is this description safe".
 ---
 
 # skill-development

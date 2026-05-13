@@ -1,6 +1,6 @@
 ---
 name: plugin-validator
-description: Use when validating Claude Code plugin structure or manifests. Triggers on "validate my plugin", "check plugin structure", "is this plugin correct", "lint my plugin", "verify plugin.json", or proactively after a plugin's manifest, hook, skill, command, or agent is created or modified. Read-only static checker — never edits.
+description: Use when validating a Claude Code plugin structure or manifest. Triggers on "validate my plugin", "check plugin structure", "lint my plugin", "verify plugin.json".
 model: haiku
 color: yellow
 tools: [Read, Grep, Glob, Bash]

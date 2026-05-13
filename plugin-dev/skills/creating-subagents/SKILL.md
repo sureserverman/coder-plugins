@@ -1,6 +1,6 @@
 ---
 name: creating-subagents
-description: Use whenever the user wants to create, generate, scaffold, port, or publish a new custom subagent / agent for AI coding assistants — Claude Code, OpenAI Codex CLI, Cursor, or OpenCode — especially when they want one definition that works across multiple hosts. Trigger phrases include "create a subagent", "new agent for claude/codex/cursor/opencode", "port this agent to <host>", "multi-platform agent", "agent bundle", "write an AGENTS.md / .mdc / agent TOML".
+description: Use when scaffolding a cross-host AI coding subagent. Triggers on "create a subagent", "new agent for claude/codex/cursor/opencode", "multi-platform agent".
 ---
 
 # creating-subagents

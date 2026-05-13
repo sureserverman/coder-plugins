@@ -1,0 +1,6 @@
+{
+  "description": "Browser end-to-end testing with Playwright MCP — only load when you actually need to drive a browser.",
+  "plugins": [
+    "playwright@claude-plugins-official"
+  ]
+}

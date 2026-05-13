@@ -1,6 +1,6 @@
 ---
 name: mcp-integration
-description: Use when adding or configuring an MCP server inside a Claude Code plugin. Triggers on "add an MCP server", ".mcp.json", "stdio MCP", "SSE MCP", "HTTP MCP", "WebSocket MCP", "${CLAUDE_PLUGIN_ROOT} with MCP", "MCP auth", or any request to integrate an external service via MCP into a plugin.
+description: Use when wiring an MCP server into a Claude Code plugin. Triggers on ".mcp.json", "stdio MCP", "SSE MCP", "${CLAUDE_PLUGIN_ROOT} with MCP", "MCP auth".
 ---
 
 # mcp-integration

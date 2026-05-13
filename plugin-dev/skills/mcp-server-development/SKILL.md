@@ -1,6 +1,6 @@
 ---
 name: mcp-server-development
-description: Use when authoring a custom MCP (Model Context Protocol) server from scratch — designing tools, choosing an SDK, handling JSON-RPC errors, declaring capabilities, hardening for security, or testing with the MCP Inspector. Triggers on "build an MCP server", "write a custom MCP", "MCP tool design", "FastMCP", "@modelcontextprotocol/sdk", "mcp inspector", "MCP tool annotations", "structuredContent", "isError", "stderr logging in MCP", "JSON-RPC error in MCP", or any request to implement (not just configure) an MCP server. For wiring an *existing* server into a plugin via .mcp.json, use `mcp-integration` instead.
+description: Use when implementing a custom MCP server from scratch. Triggers on "FastMCP", "@modelcontextprotocol/sdk", "MCP tool annotations", "structuredContent", "isError", "JSON-RPC error in MCP".
 ---
 
 # mcp-server-development

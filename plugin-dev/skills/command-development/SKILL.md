@@ -1,6 +1,6 @@
 ---
 name: command-development
-description: Use when authoring or modifying Claude Code slash commands. Triggers on "create a slash command", "command frontmatter", "$ARGUMENTS in commands", "argument-hint", "allowed-tools for command", "interactive command", or any request to add a /command to a plugin.
+description: Use when authoring Claude Code slash commands. Triggers on "command frontmatter", "$ARGUMENTS in commands", "argument-hint", "allowed-tools for command".
 ---
 
 # command-development

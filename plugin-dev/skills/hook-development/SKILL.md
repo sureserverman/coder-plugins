@@ -1,6 +1,6 @@
 ---
 name: hook-development
-description: Use when authoring or debugging Claude Code hooks. Triggers on "create a hook", "PreToolUse hook", "PostToolUse hook", "session-end hook", "block dangerous bash", "auto-format on save via hook", "Stop hook infinite loop", "hooks.json", or any request to add or fix a hook in a plugin or settings.json.
+description: Use when authoring or debugging Claude Code hooks. Triggers on "PreToolUse hook", "PostToolUse hook", "session-end hook", "Stop hook infinite loop", "hooks.json".
 ---
 
 # hook-development
