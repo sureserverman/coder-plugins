@@ -1,9 +1,11 @@
 {
-  "android-emulator-mcp": {
-    "type": "http",
-    "url": "http://localhost:8000/mcp",
-    "headers": {
-      "Authorization": "Bearer ${ANDROID_MCP_AUTH_TOKEN}"
+  "mcpServers": {
+    "android-emulator-mcp": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ANDROID_MCP_AUTH_TOKEN}"
+      }
     }
   }
 }
