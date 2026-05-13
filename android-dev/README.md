@@ -104,28 +104,24 @@ The `infrastructure/` directory contains the full emulator stack:
 - `mcp-server/` — MCP server that connects to emulators via adb
 - `mock-synapse/` — Optional mock Matrix Synapse backend for testing login-gated apps
 
-Start the stack:
+## MCP stack (ephemeral)
+
+The stack is **off by default**. There is no `.mcp.json` — the in-container HTTP server is a private loopback JSON-RPC backend, not a Claude-Code-registered MCP. The `android-mcp-orchestrator` skill owns the lifecycle: it brings the stack up for one task and tears it down on exit.
+
+Canonical entrypoint:
+
 ```bash
-cd infrastructure/
-APP_APK_DIR=/path/to/app/build/outputs/apk/debug podman compose build
-APP_APK_DIR=/path/to/app/build/outputs/apk/debug podman compose up -d
+skills/android-mcp-orchestrator/scripts/run.sh [--mock] <<'EOF'
+tools/call start-android-tablet-emulators {}
+tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
+tools/call launch-app {"packageName":"com.example.app"}
+tools/call capture-emulator-screenshots {"loginFlow":"none","navItemCount":5}
+EOF
 ```
 
-## MCP Server
+`run.sh` generates `infrastructure/.env` with a random `MCP_AUTH_TOKEN` on first run, builds + starts the compose stack, dispatches each line through `mcp-call.sh` (curl + bearer), and runs `down.sh` in an EXIT trap so the host returns to its idle state.
 
-The plugin ships `.mcp.json` at its root, which auto-registers the `android-emulator-mcp` HTTP server (`http://localhost:8000/mcp`) with Claude Code on plugin install. Run `/mcp` to confirm it appears once the compose stack is up.
-
-The five tools become available as:
-
-- `mcp__plugin_android-dev_android-emulator-mcp__start-android-tablet-emulators`
-- `mcp__plugin_android-dev_android-emulator-mcp__launch-app`
-- `mcp__plugin_android-dev_android-emulator-mcp__install-app-on-emulators`
-- `mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots`
-- `mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login`
-
-### Environment variables
-
-- `ANDROID_MCP_AUTH_TOKEN` *(optional)* — bearer token expanded into `.mcp.json`'s `Authorization` header. Required only when the compose service sets `MCP_AUTH_TOKEN` (i.e. you've moved the listener off loopback). Leave unset for the default loopback-only setup.
+For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.sh`) and wrap it in your own `trap`. See the orchestrator skill for the full flow.
 
 ## License
 

@@ -12,17 +12,18 @@ allowed-tools: [
   "Bash(date:*)",
   "Bash(ls:*)",
   "Bash(cd:*)",
-  "mcp__plugin_android-dev_android-emulator-mcp__start-android-tablet-emulators",
-  "mcp__plugin_android-dev_android-emulator-mcp__launch-app",
-  "mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login",
-  "mcp__plugin_android-dev_android-emulator-mcp__install-app-on-emulators",
-  "mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots"
+  "Bash(./skills/android-mcp-orchestrator/scripts/run.sh:*)",
+  "Bash(./skills/android-mcp-orchestrator/scripts/up.sh:*)",
+  "Bash(./skills/android-mcp-orchestrator/scripts/down.sh:*)",
+  "Bash(./skills/android-mcp-orchestrator/scripts/mcp-call.sh:*)"
 ]
 ---
 
 # Android Screenshots
 
 Capture screenshots of an Android app across all emulator form factors (phone 6", tablet 7", tablet 10" landscape) using the Android MCP emulator stack.
+
+The stack is **off by default**. This command brings it up via `scripts/run.sh`, does its work, and tears it down on exit. After the command finishes, there must be no `infrastructure_*` containers left running.
 
 ## Arguments
 
@@ -36,86 +37,61 @@ The user invoked this command with: $ARGUMENTS
 
 ## Instructions
 
-### 1. Ensure MCP stack is running
+### 1. Run the ephemeral stack
 
-Check if the MCP server is up:
+Always use `scripts/run.sh` from the orchestrator skill. It auto-generates the auth token on first run, builds and starts the stack, runs your JSON-RPC sequence, and tears everything down (even on error) via an EXIT trap. Do NOT call `up.sh` without arranging teardown.
+
+For modes `full` / `login`, pass `--mock` so the mock-synapse container is started.
+
+Example invocation for `full`:
+
 ```bash
-curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/mcp
-```
-- If result is `405`, the stack is running.
-- If not, start it from the bundled infrastructure directory (resolve plugin path first):
-```bash
-# INFRA_DIR: ~/.claude/plugins/local/android-dev/infrastructure
-# or:        ~/.claude/plugins/android-dev/infrastructure
-cd "$INFRA_DIR"
-APP_APK_DIR=/path/to/app/build/outputs/apk/debug APP_SCREENSHOTS_DIR=/path/to/play-screenshots podman compose build
-APP_APK_DIR=/path/to/app/build/outputs/apk/debug APP_SCREENSHOTS_DIR=/path/to/play-screenshots podman compose --profile mock up -d
-```
-Wait for emulators to boot (~1-2 minutes). Retry the curl until you get `405`.
-
-### 2. Login flow (modes: full, login)
-
-Prefer the native MCP tool — the `android-dev` plugin's `.mcp.json` registers the server, so call it directly:
-
-- `mcp__plugin_android-dev_android-emulator-mcp__matrix-synapse-login` (no arguments needed if `MOCK_SERVER_URL` / `MOCK_USERNAME` / `MOCK_PASSWORD` are set in the compose env)
-
-Fallback (diagnostic only — use when the plugin's MCP wiring is unavailable):
-```bash
-curl -s http://localhost:8000/mcp \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"matrix-synapse-login","arguments":{}}}'
+skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
+tools/call start-android-tablet-emulators {}
+tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
+tools/call matrix-synapse-login {}
+tools/call capture-emulator-screenshots {"loginFlow":"matrix-synapse","navItemCount":5,"tabLabels":["Accounts","Rooms","Info","Config"]}
+EOF
 ```
 
-If the user passes `--clear` or mode is `full`, first clear app data:
+For `capture` (no login, current screen):
+
 ```bash
-podman exec android-emu-mcp_android-mcp_1 sh -c '
-for H in 10.89.0.10 10.89.0.11 10.89.0.12; do
-  adb -H "$H" -P 5037 shell pm clear com.matrix.synapse.manager.debug
-done'
+skills/android-mcp-orchestrator/scripts/run.sh <<'EOF'
+tools/call start-android-tablet-emulators {}
+tools/call capture-emulator-screenshots {"loginFlow":"none","navItemCount":5,"tabLabels":["Accounts","Rooms","Info","Config"]}
+EOF
 ```
 
-### 3. Capture tab screenshots (modes: full, capture)
+For `login` only:
 
-Default tabs: Accounts, Rooms, Info, Config (override with `--tabs`).
-
-Prefer the native MCP tool — `mcp__plugin_android-dev_android-emulator-mcp__capture-emulator-screenshots` with `loginFlow: "matrix-synapse"`, `navItemCount: 5`, and `tabLabels` matching `--tabs`. Use the manual adb sequence below only when the MCP wiring is unavailable or you need a custom tap sequence the tool doesn't expose.
-
-For each emulator, for each tab:
-1. Dump UI via `uiautomator dump`
-2. Find the tab element by its text label in the XML
-3. Tap the center of the element's bounds
-4. Wait 2 seconds for content to load
-5. Capture screenshot via `adb exec-out screencap -p`
-
-Use this pattern inside the MCP container:
 ```bash
-podman exec android-emu-mcp_android-mcp_1 sh -c '
-TABS="Accounts Rooms Info Config"
-for H in 10.89.0.10 10.89.0.11 10.89.0.12; do
-  NAME=$(adb -H "$H" -P 5037 shell getprop ro.boot.qemu.avd_name | tr -d "\r\n")
-  adb -H "$H" -P 5037 shell am start -n "com.matrix.synapse.manager.debug/com.matrix.synapse.manager.MainActivity"
-  sleep 2
-  for TAB in $TABS; do
-    adb -H "$H" -P 5037 shell uiautomator dump /sdcard/ui.xml
-    XML=$(adb -H "$H" -P 5037 shell cat /sdcard/ui.xml)
-    COORDS=$(echo "$XML" | grep -oP "<node[^>]*text=\"${TAB}\"[^>]*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\"" | head -1 | sed -E "s/.*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\".*/\1 \2 \3 \4/")
-    read -r X1 Y1 X2 Y2 <<< "$COORDS"
-    CX=$(( (X1 + X2) / 2 ))
-    CY=$(( (Y1 + Y2) / 2 ))
-    adb -H "$H" -P 5037 shell input tap "$CX" "$CY"
-    sleep 2
-    LABEL=$(echo "$TAB" | tr "[:upper:]" "[:lower:]")
-    adb -H "$H" -P 5037 exec-out screencap -p > "/screenshots/${NAME}_${LABEL}.png"
-  done
-done'
+skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
+tools/call start-android-tablet-emulators {}
+tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
+tools/call matrix-synapse-login {}
+EOF
 ```
 
-### 4. Report results
+If the user passes `--tabs "A,B,C"`, substitute that list into the `tabLabels` JSON array.
+
+If the user passes `--clear` or mode is `full`, the `capture-emulator-screenshots` tool will be combined with a preliminary clear step. Either extend the JSON-RPC sequence to call any clear-data tool the server exposes (`tools/call` schema is available via `scripts/mcp-call.sh tools/list`), or do it inline before `run.sh` exits — but never side-step the teardown trap.
+
+### 2. Verify teardown
+
+After `run.sh` returns, confirm the stack is gone:
+
+```bash
+podman ps --filter label=io.podman.compose.project=infrastructure --format '{{.Names}}'
+```
+
+It MUST be empty. If any containers remain, run `skills/android-mcp-orchestrator/scripts/down.sh --mock` explicitly.
+
+### 3. Report results
 
 Show the user:
 - How many screenshots were captured
-- The file paths in `play-screenshots/` on the host (the container's `/screenshots/` directory is volume-mounted to `play-screenshots/`)
+- The file paths under `play-screenshots/` on the host (the container's `/screenshots/` is volume-mounted there)
 - Read and display one screenshot from each device as a sample
 
 ### Emulator details

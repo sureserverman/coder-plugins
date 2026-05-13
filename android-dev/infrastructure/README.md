@@ -1,8 +1,16 @@
 # Android MCP + Mock Synapse
 
+> **Lifecycle note (2026-05):** the stack is **off by default**. There is no
+> `.mcp.json` registration — the orchestrator skill brings the stack up for a
+> task via `skills/android-mcp-orchestrator/scripts/run.sh` and tears it down
+> on exit. See the `android-mcp-orchestrator` skill for the canonical flow.
+> The instructions below describe the raw compose stack and the in-container
+> tool surface; use them only for development or when wiring an external MCP
+> client (e.g. Cursor) directly.
+
 Two separate services:
 
-- **android-mcp** — MCP server for Android emulators (6", 7", 10" AVDs). Use for **any** app: create AVDs, start emulators, install/launch apps, capture screenshots.
+- **android-mcp** — HTTP JSON-RPC server for Android emulators (6", 7", 10" AVDs). Use for **any** app: create AVDs, start emulators, install/launch apps, capture screenshots.
 - **mock-synapse** — Minimal mock Matrix Synapse server. Start **only** when testing **Matrix Synapse Manager** (so the app can log in at http://10.0.2.2:8008).
 
 ## Prerequisites
@@ -24,7 +32,7 @@ Two separate services:
 
 2. **Connect a client to the MCP server**
 
-   - **Claude Code (preferred):** Installing the `android-dev` plugin auto-registers the server via the bundled `.mcp.json` at the plugin root. Run `/mcp` to confirm `android-emulator-mcp` appears. If `MCP_AUTH_TOKEN` is set on the compose service, also export `ANDROID_MCP_AUTH_TOKEN` in the shell that launches Claude Code — `.mcp.json` expands it into the `Authorization: Bearer …` header. Restart Claude Code after toggling the compose stack.
+   - **Claude Code (preferred):** Do **not** wire the stack into Claude Code as a long-lived MCP server. Use the `android-mcp-orchestrator` skill's `scripts/run.sh` wrapper, which brings the stack up, runs JSON-RPC calls via `scripts/mcp-call.sh` (curl + bearer token from `infrastructure/.env`), and tears the stack down on exit. The auth token is auto-generated on first run; you do not export anything from your shell.
 
    - **Cursor (fallback):** Add the following to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
