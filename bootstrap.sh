@@ -50,19 +50,16 @@ DEFAULTS=$(cat <<'JSON'
     }
   },
   "enabledPlugins": {
-    "git-github@coder-plugins": true,
-    "planning@coder-plugins": true,
+    "rust-dev@coder-plugins": true,
+    "android-dev@coder-plugins": true,
     "plugin-dev@coder-plugins": true,
+    "git-github@coder-plugins": true,
+    "release-promo@coder-plugins": true,
     "stingy-agents@coder-plugins": true,
-    "loadout@coder-plugins": true,
-    "rust-dev@coder-plugins": false,
-    "android-dev@coder-plugins": false,
-    "browser-extensions@coder-plugins": false,
-    "release-promo@coder-plugins": false,
-    "infra-build@coder-plugins": false,
-    "obsidian-wiki@obsidian-wiki": false,
-    "vault-context@obsidian-wiki": false,
-    "sec-audit@sec-audit-marketplace": false
+    "browser-extensions@coder-plugins": true,
+    "infra-build@coder-plugins": true,
+    "planning@coder-plugins": true,
+    "loadout@coder-plugins": true
   }
 }
 JSON
@@ -87,8 +84,10 @@ info "merged recommended defaults into $SETTINGS"
 info ""
 info "Defaults applied for keys you did not already have:"
 info "  - 3 marketplaces registered (coder-plugins, obsidian-wiki, sec-audit-marketplace)"
-info "  - 5 always-on plugins enabled (git-github, planning, plugin-dev, stingy-agents, loadout)"
-info "  - 8 plugins registered but disabled (enable per-project via /loadout or globally"
-info "    via /plugin)"
+info "  - 10 coder-plugins enabled (rust-dev, android-dev, plugin-dev, git-github,"
+info "    release-promo, stingy-agents, browser-extensions, infra-build, planning, loadout)"
+info "  - obsidian-wiki and sec-audit-marketplace are registered but their plugins"
+info "    are not enabled — flip them on per-machine with /plugin or per-project"
+info "    with /loadout once installed."
 info ""
 info "Restart Claude Code (or /reload-plugins in an active session) to apply."
