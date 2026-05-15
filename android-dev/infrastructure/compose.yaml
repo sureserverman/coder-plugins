@@ -26,6 +26,11 @@ services:
       # server.mjs also fail-closes on missing token — this is defense in depth
       # so the misconfiguration is caught before the container even starts.
       MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:?MCP_AUTH_TOKEN required (non-loopback bind). Set in .env or pass via env.}"
+      # Default the Synapse Manager add-server URL to the alias on the
+      # mock-synapse container. Override in .env for a real homeserver.
+      # The :8008 is required because mock-synapse listens on that port
+      # (cap_drop:ALL prevents binding to privileged 80/443).
+      MOCK_SERVER_URL: "${MOCK_SERVER_URL:-http://example.com:8008}"
     networks:
       android_net:
         ipv4_address: 10.89.0.20
@@ -148,6 +153,13 @@ services:
     networks:
       android_net:
         ipv4_address: 10.89.0.30
+        # `example.com` resolves to this container from anywhere on
+        # android_net (compose embedded DNS picks it up automatically).
+        # Lets the Synapse Manager add-server form use a hostname instead
+        # of a raw IP — screenshots end up showing "example.com" rather
+        # than "10.89.0.30" without changing any application code.
+        aliases:
+          - example.com
     cap_drop: ["ALL"]
     security_opt:
       - "no-new-privileges:true"
