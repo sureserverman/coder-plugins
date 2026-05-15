@@ -98,6 +98,15 @@
       "category": "development",
       "tags": ["loadout", "profile", "enabledPlugins", "per-project", "per-task", "context-management", "scoping", "tech-baseline", "task-overlay", "session-start", "hook"],
       "strict": false
+    },
+    {
+      "name": "game-dev",
+      "source": "./game-dev",
+      "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["game-dev", "game-design", "mechanics", "game-feel", "juice", "camera", "navigation", "ux", "onboarding", "ftue", "accessibility", "gag", "godot", "unity", "unreal", "ecs", "state-machine", "object-pool", "schell", "sylvester", "swink", "nystrom", "hodent", "nesky"],
+      "strict": false
     }
   ]
 }

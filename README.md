@@ -20,6 +20,7 @@ Then install individual plugins:
 /plugin install git-github@coder-plugins
 /plugin install planning@coder-plugins
 /plugin install browser-extensions@coder-plugins
+/plugin install game-dev@coder-plugins
 ```
 
 ## Plugins
@@ -89,6 +90,27 @@ Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, a
 
 Source: [`browser-extensions/`](./browser-extensions)
 
+### game-dev
+
+Game development plugin: opinionated, source-cited skills for the three things that actually decide whether a game *feels good* — **mechanics**, **user experience**, **navigation/camera** — plus accessibility, architecture, and three engine-specific skills.
+
+- **Engine-agnostic skills (6):**
+  - `game-mechanics-design` — Schell / Sylvester / Nystrom. Core loop, compulsion loop, depth vs shallow complexity, progression pacing, FTUE.
+  - `game-feel-and-juice` — Swink's six principles + concrete starting numbers (coyote time 6–8 frames, jump buffer 6 frames, hitstop 3–6 frames, screen shake amplitude curves).
+  - `game-navigation-camera` — John Nesky's *50 Camera Mistakes* (GDC 2014) distilled into reviewable rules for third-person, 2D, and signposting / wayfinding / fast travel.
+  - `game-ux-onboarding` — Celia Hodent's seven usability pillars applied to HUD, menus, FTUE, button prompts.
+  - `game-accessibility-audit` — Game Accessibility Guidelines Basic-tier as ship-gate checklist (Motor / Cognitive / Vision / Hearing / General).
+  - `game-architecture-patterns` — Nystrom patterns (Component, State, Game Loop, Object Pool, Observer, Event Queue, Service Locator, Spatial Partition, Flyweight) with decision rules.
+- **Engine-specific skills (3):**
+  - `engine-godot` — Godot 4 best practices (scenes vs scripts, autoload restraint, signals over polling).
+  - `engine-unity` — Unity 6 best practices (Update/FixedUpdate/LateUpdate split, GC discipline, ScriptableObject, Addressables).
+  - `engine-unreal` — Unreal 5 gameplay framework (GameMode/GameState/PlayerController/Pawn/PlayerState boundaries, Subsystems, replication, Blueprint vs C++).
+- **`game-design-expert` subagent** — sonnet-pinned. Six protocols: Stack Detection, Mechanic Design, Feel Tune, Camera Audit, UX Review, Accessibility Audit. Every finding cites source by name.
+- **`/game-review [scope]`** — scoped diff (uncommitted / file / commit / PR / branch) review covering mechanics, UX, navigation, accessibility, architecture.
+- **`/game-mechanic <name>`** — guided design session for a new mechanic; outputs an implementable brief.
+
+Source: [`game-dev/`](./game-dev)
+
 ### Other plugins
 
 - **[`git-github/`](./git-github)** — everyday git/GitHub ops: commits, PRs, code review, multi-model second opinions, comment audit, workflow audit, README review, license audit, release tags.
@@ -119,11 +141,16 @@ coder-plugins/
 │   ├── skills/
 │   ├── agents/
 │   └── commands/
-└── release-promo/
+├── release-promo/
+│   ├── .claude-plugin/plugin.json
+│   ├── skills/
+│   ├── agents/
+│   └── commands/
+└── game-dev/
     ├── .claude-plugin/plugin.json
-    ├── skills/
-    ├── agents/
-    └── commands/
+    ├── skills/                   # 9 skills: 6 engine-agnostic + 3 engine-specific
+    ├── agents/                   # game-design-expert (sonnet)
+    └── commands/                 # /game-review, /game-mechanic
 ```
 
 ## Contributing a new plugin
