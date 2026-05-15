@@ -9,15 +9,50 @@
 #   --mock       also start the mock-synapse container (Matrix Synapse Manager testing)
 #   compose-dir  override compose root (default: bundled <plugin>/infrastructure)
 #
+# Requires:
+#   - podman 4.x or 5.x
+#   - podman-compose >= 1.1 (Ubuntu 24.04's apt podman-compose is 1.0.6 — it
+#     lacks --profile support, so --mock won't work. Prefer `pipx install
+#     podman-compose` to get 1.5.x.)
+#
 # Side effects:
 #   - Creates <compose-dir>/.env with a random MCP_AUTH_TOKEN if it does not exist.
-#   - Builds the compose images (idempotent).
+#   - Builds the compose images, but only when one or more required images are
+#     missing from the local image store. To force a rebuild after editing a
+#     Containerfile, `podman image rm` the affected image (or `podman compose
+#     down --rmi local`) and re-run.
 #   - Starts containers and waits for the MCP HTTP listener on 127.0.0.1:8000.
 
 set -Eeuo pipefail
 
+# Force `podman compose` to delegate to podman-compose (the python tool that
+# drives the podman engine) and never to `docker compose`. Without this, on
+# any machine where docker-compose-v2 is installed, podman 5.x will silently
+# pick the docker plugin and run the entire stack against the Docker daemon
+# — which means images live in Docker's store, not podman's, and our
+# image-presence check below never matches anything (so builds run every
+# time, on Docker, while pretending to be podman). Override only if the
+# caller deliberately wants a different provider.
+# Look up podman-compose: prefer the pipx-installed one (typically 1.5.0+,
+# which supports `--profile`); fall back to /usr/bin (Ubuntu 24.04 ships
+# 1.0.6, which does NOT support profiles — `--mock` will break).
+if [ -z "${PODMAN_COMPOSE_PROVIDER:-}" ]; then
+  for candidate in "$HOME/.local/bin/podman-compose" /usr/local/bin/podman-compose /usr/bin/podman-compose; do
+    if [ -x "$candidate" ]; then
+      PODMAN_COMPOSE_PROVIDER="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "${PODMAN_COMPOSE_PROVIDER:-}" ] || [ ! -x "$PODMAN_COMPOSE_PROVIDER" ]; then
+  echo "error: podman-compose not found (tried ~/.local/bin, /usr/local/bin, /usr/bin)" >&2
+  echo "       install it with: pipx install podman-compose" >&2
+  exit 3
+fi
+export PODMAN_COMPOSE_PROVIDER
+
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -54,8 +89,37 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 cd "$COMPOSE_DIR"
-echo "=== building MCP stack in $(pwd) ==="
-podman compose build
+
+# Skip-build guard: podman compose build always re-walks every Containerfile
+# (slow, noisy) even on a full cache hit. Skip the build entirely when every
+# image the active profile needs is already present locally. To force a rebuild
+# after editing a Containerfile or bumping a pinned version, `podman image rm`
+# the relevant image and re-run, or delete all of them with
+# `podman compose down --rmi local`.
+#
+# Image naming follows podman-compose 1.x: `localhost/<project>_<service>:latest`.
+# Project name is the compose-dir basename ("infrastructure" by default).
+PROJECT="$(basename "$PWD")"
+REQUIRED_SERVICES=(android-mcp emulator-phone6in emulator-tablet7in emulator-tablet10in)
+if [ "$MOCK" -eq 1 ]; then
+  REQUIRED_SERVICES+=(mock-synapse)
+fi
+
+missing=0
+for svc in "${REQUIRED_SERVICES[@]}"; do
+  img="localhost/${PROJECT}_${svc}:latest"
+  if ! podman image exists "$img"; then
+    echo "=== image missing: $img ==="
+    missing=1
+  fi
+done
+
+if [ "$missing" -eq 1 ]; then
+  echo "=== building MCP stack in $(pwd) ==="
+  podman compose build
+else
+  echo "=== all required images present, skipping build ==="
+fi
 
 if [ "$MOCK" -eq 1 ]; then
   echo "=== starting with --profile mock ==="
