@@ -3,8 +3,8 @@ import * as z from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import { join, resolve as resolvePath } from "path";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "fs";
+import { join, resolve as resolvePath, dirname } from "path";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
 import { timingSafeEqual } from "crypto";
@@ -77,6 +77,27 @@ function validateApkPath(apkPath) {
   return abs;
 }
 
+/**
+ * Read AGP's output-metadata.json next to the APK and return the applicationId
+ * + versionCode (Number) for its single SINGLE-type element. Returns null when
+ * the file is missing or unparseable — callers fall back to always-install.
+ */
+function readApkMetadata(apkAbsPath) {
+  const metaPath = join(dirname(apkAbsPath), "output-metadata.json");
+  if (!existsSync(metaPath)) return null;
+  try {
+    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+    const element = (meta.elements || []).find(e => e.type === "SINGLE") || meta.elements?.[0];
+    const versionCode = element?.versionCode;
+    const applicationId = meta.applicationId;
+    if (typeof applicationId !== "string" || !PACKAGE_NAME_RE.test(applicationId)) return null;
+    if (typeof versionCode !== "number" || !Number.isInteger(versionCode)) return null;
+    return { applicationId, versionCode };
+  } catch {
+    return null;
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /**
@@ -128,6 +149,26 @@ async function getAvdName(emulator) {
     if (name) return name;
   } catch { /* ignore */ }
   return emulator.host;
+}
+
+/**
+ * Read the installed versionCode for a package from dumpsys, or null if the
+ * package isn't installed (or adb / parsing fail). dumpsys emits one or more
+ * lines like `    versionCode=8 minSdk=26 targetSdk=34`; we grab the first.
+ */
+async function getInstalledVersionCode(emulator, packageName) {
+  try {
+    validatePackageName(packageName);
+    const { stdout } = await adb(emulator, "shell", "dumpsys", "package", packageName);
+    const text = stdout || "";
+    // dumpsys emits "Unable to find package: <pkg>" when not installed.
+    if (/Unable to find package/i.test(text)) return null;
+    const match = text.match(/\bversionCode=(\d+)\b/);
+    if (!match) return null;
+    return parseInt(match[1], 10);
+  } catch {
+    return null;
+  }
 }
 
 async function captureScreenshot(emulator, filePath) {
@@ -455,7 +496,8 @@ function createServer() {
       description:
         "Install (or reinstall via `adb install -r`) a debug APK on every connected emulator in parallel. " +
         "Use after building the app's debug APK and confirming the `/apks` volume is mounted. " +
-        "Returns a per-emulator install report (avdName + host + ok/fail status); marks the call as `isError: true` if any single install fails. " +
+        "If AGP's `output-metadata.json` sits next to the APK, the tool reads the new applicationId + versionCode and skips emulators that already report the same versionCode via `dumpsys package`. No metadata file ⇒ always install. " +
+        "Returns a per-emulator report (avdName + host + installed/skipped/failed status); marks the call as `isError: true` if any single install fails. " +
         "The apkPath is resolved under APK_BASE_DIR (default `/apks`) and rejected if it escapes the base or contains shell metacharacters.",
       inputSchema: z.object({
         apkPath: z.string().default("/apks/app-debug.apk").describe("Path to APK inside the container — must resolve under APK_BASE_DIR (default /apks)"),
@@ -493,26 +535,52 @@ function createServer() {
         };
       }
 
+      // Best-effort version-skip: if AGP's output-metadata.json sits next to
+      // the APK, compare its versionCode against what each emulator already
+      // reports for the same applicationId. Skip the adb install on matches.
+      // No metadata file => fall back to always-install for safety.
+      const apkMeta = readApkMetadata(safePath);
+      if (apkMeta) {
+        await log(ctx, "info", { step: "apk-meta", ...apkMeta });
+      }
+
       const results = await Promise.all(EMULATOR_HOSTS.map(async emulator => {
         const avdName = await getAvdName(emulator);
+        if (apkMeta) {
+          const installed = await getInstalledVersionCode(emulator, apkMeta.applicationId);
+          if (installed !== null && installed === apkMeta.versionCode) {
+            return { host: emulator.host, avdName, ok: true, skipped: true, versionCode: installed };
+          }
+        }
         try {
           await adb(emulator, "install", "-r", safePath);
-          return { host: emulator.host, avdName, ok: true };
+          return { host: emulator.host, avdName, ok: true, skipped: false, versionCode: apkMeta?.versionCode };
         } catch (err) {
           return { host: emulator.host, avdName, ok: false, error: err.message || String(err) };
         }
       }));
 
-      const lines = results.map(
-        r => `${r.avdName} (${r.host}): ${r.ok ? "installed" : "failed"}` + (r.error ? ` — ${r.error}` : "")
-      );
+      const lines = results.map(r => {
+        if (r.ok && r.skipped) {
+          return `${r.avdName} (${r.host}): skipped (versionCode=${r.versionCode} already installed)`;
+        }
+        if (r.ok) {
+          const vc = r.versionCode !== undefined ? ` (versionCode=${r.versionCode})` : "";
+          return `${r.avdName} (${r.host}): installed${vc}`;
+        }
+        return `${r.avdName} (${r.host}): failed — ${r.error}`;
+      });
       const allOk = results.every(r => r.ok);
+      const skipCount = results.filter(r => r.ok && r.skipped).length;
+      const installCount = results.filter(r => r.ok && !r.skipped).length;
+      const header = allOk
+        ? skipCount === results.length
+          ? "App already at target versionCode on every emulator — no installs performed.\n\n"
+          : `App installed on ${installCount} emulator(s); ${skipCount} already up-to-date.\n\n`
+        : "Install finished with failures.\n\n";
 
       return {
-        content: [{
-          type: "text",
-          text: (allOk ? "App installed on all emulators.\n\n" : "Install finished with failures.\n\n") + lines.join("\n"),
-        }],
+        content: [{ type: "text", text: header + lines.join("\n") }],
         ...(allOk ? {} : { isError: true }),
       };
     }
