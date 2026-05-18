@@ -91,7 +91,7 @@ Every task follows this loop. No task is "done" until its test is green.
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
 2. **Diagnose before fixing.** Read the actual error. Form a hypothesis. Confirm against the code. Then write the fix.
-3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation.
+3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`).
 
@@ -145,12 +145,15 @@ When every stage is green:
 1. Run the **full** test suite one more time from a clean state (don't trust the per-stage runs)
 2. Run any integration / e2e tests the plan flagged
 3. Update the plan document with a closing note: "Completed YYYY-MM-DD. Commits: <list>."
-4. Report to the user with:
+4. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
+5. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
+6. Report to the user with:
    - Stages completed
    - Total commits
    - Plan location for future reference
-   - Any deferred items the user explicitly deprioritized during execution
-5. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
+   - Backlog items closed (by ID) and any new ones opened during execution
+   - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
+7. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
 
 ---
 
@@ -186,5 +189,7 @@ When every stage is green:
 
 - **planning-projects** — produces the plan this skill consumes
 - **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts
+- **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
+- **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **code-reviewer agent** — optional; invoke between stages for an independent review of stage changes before the gate
 - **testing-expert agent** — invoke when a task's test is ambiguous, flaky, or the plan's coverage is thin

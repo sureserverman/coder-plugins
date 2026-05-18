@@ -64,6 +64,25 @@ If an Obsidian vault is linked (check `vault-context:status`), search it for:
 
 Even if no vault is linked, check `docs/plans/` and `docs/` in the project for existing design documents and ADRs.
 
+### Backlog scan
+
+Call the `backlog` skill (`read` or `list`) and check `docs/backlog.md` for open entries that touch the new plan's scope — same component, same tags, or named in `Source`. For each match:
+
+- If the new plan naturally subsumes the item, fold it in and reference the ID on the relevant task (`Closes BL-NNN`) so `executing-plans` can remove it on Close-out.
+- If not, leave it deferred and note in the Research Summary why it stays out.
+
+A new plan that silently duplicates an open backlog item is a planning bug — the scan is how you catch it.
+
+### Workflow-spec scan
+
+If `docs/workflows/` exists, read the files whose scope touches the plan. They are the project's behavior contracts and dictate what the plan must preserve, change, or extend:
+
+- A task that intentionally alters a documented behavior must declare it on the task line: `Changes WF-AUTH-003 — passwordless replaces bcrypt branch`.
+- A task that removes a documented behavior must declare it: `Removes WF-AUTH-007`.
+- A task that adds a new user-visible flow must add a corresponding capture/extend step to the plan so the spec doesn't fall behind code.
+
+Plans that touch the codebase without referencing any in-scope WF-ID either (a) genuinely don't change documented behavior, or (b) are missing a declaration. Be explicit about which.
+
 ### Project context
 
 Read the codebase before planning against it:
@@ -396,6 +415,8 @@ Before showing the plan to the user, verify:
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files
 - [ ] The plan is saved to `docs/plans/`
+- [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
+- [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
 
 ---
 
