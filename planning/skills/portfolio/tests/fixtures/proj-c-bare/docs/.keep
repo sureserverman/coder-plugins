@@ -1,0 +1,2 @@
+Negative-control fixture: docs/ exists but contains neither plans/ nor backlog.md.
+The portfolio scan should NOT classify this directory as a project (no markers).
