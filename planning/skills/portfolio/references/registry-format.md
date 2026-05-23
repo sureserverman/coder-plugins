@@ -68,3 +68,74 @@ projects:
   registry to fix a parse failure. The suggested recovery path is:
   `mv ~/.claude/projects-registry.yaml{,.bad}` and re-invoking to trigger the
   first-run seed flow.
+
+## Resolver: repo → vault portfolio home
+
+This section documents the convention that maps a registered project repo to
+its operational-docs home in the Obsidian vault. It is the lynchpin of the
+migration that moves per-project plans, backlogs, and maturity docs OUT of
+repos and INTO the vault.
+
+### The mapping
+
+A repo registered at `~/dev/<area>/<project>` resolves to its vault home at:
+
+```
+<vault_dir>/Portfolio/<area>/<name>/
+```
+
+where:
+
+- `vault_dir` is read from `~/.claude/portfolio-config.yaml` (the `vault_dir:`
+  key). This is the only authoritative source for the vault root.
+- `<area>` and `<name>` come from the registry entry for that project — the
+  `area` field and the `name` field respectively.
+
+Example: `~/dev/anon-tools/multitor` → `/mnt/vault/Portfolio/anon-tools/multitor/`.
+
+### What lives under a project's vault home
+
+| Path (relative to vault home) | Contents |
+|---|---|
+| `plans/` | The project's staged plans, moved from `<repo>/docs/plans/`. |
+| `backlog.md` | Moved from `<repo>/docs/backlog.md`, or born here on the first `unify` run. |
+| `MATURITY.md` | Moved from `<repo>/docs/MATURITY.md`. |
+| `integration.md` | Declared inter-project edges — dependencies and consumers. |
+
+### Sidecar cache: `.claude/vault-context.md`
+
+Each repo's `.claude/vault-context.md` records:
+
+```
+portfolio_home: <absolute resolved path>
+```
+
+This allows a session opened inside the repo to know its vault home immediately,
+without querying the registry on every invocation.
+
+The sidecar value is a **cache**. The registry + the mapping convention above is
+**authoritative**. If the two disagree, the tool must recompute from the registry,
+update the sidecar, and emit a warning to the user noting the discrepancy.
+
+### HARD RULE: fails loudly — no silent fallback
+
+If `vault_dir` is unset (the key is absent or empty) in
+`~/.claude/portfolio-config.yaml`, every tool that would resolve a vault home
+**must refuse to write** and print a clear error such as:
+
+```
+portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml
+```
+
+The tool must **never** fall back to writing into `<repo>/docs/` as a
+substitute. Doing so would re-fragment the docs that were just centralized into
+the vault — exactly the outcome this migration exists to prevent. The tool
+**fails loudly** and stops. There is **no silent fallback**.
+
+### Auto-create on first write
+
+A registered project whose vault home directory does not yet exist gets
+`Portfolio/<area>/<name>/` created automatically on the first write
+(`mkdir -p`), analogous to the backlog skill's auto-create-on-first-write
+behavior. This means onboarding a new project requires no manual vault setup —
+the directory materializes the moment any portfolio tool first writes to it.
