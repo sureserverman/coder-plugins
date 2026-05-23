@@ -516,3 +516,11 @@ Full idempotency sweep — all four tools 0-write on re-run:
 Backlog reconcile: this plan opened NO `Closes BL-NNN` (it CREATES backlogs across
 63 projects, doesn't close items). Nothing to remove.
 Workflow-spec audit: no docs/workflows/ at this repo — skipped per spec.
+
+## Follow-up — registered the 3 infra/installers nested sub-projects
+Added installers-android / installers-linux / installers-mac (area: infra) to the
+registry (now 66 projects). Ran their full pipeline: migrated 2 plans each into
+Portfolio/infra/installers-{android,linux,mac}/ (sha256-verified), sparse-init
+MATURITY.md (repo: evidence), git-informed unify (android 0, linux 19, mac 17
+candidates), rebuild (3 sidecars created, globals updated). No stray installers
+plans remain in-repo. Re-migrate idempotent (all 3 skip).
