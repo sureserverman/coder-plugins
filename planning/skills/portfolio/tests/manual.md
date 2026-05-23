@@ -472,3 +472,21 @@ no repo docs/ writes (resolver guard held).
 
 KNOWN-NUANCE: git stage attribution is coarse (commit msgs don't name the plan);
 addressed going forward by the planning-skills precision rewrite (see below).
+
+## Stage 6 — integration model
+
+### Task 6.1 — seeded 7 integration.md (4 evidenced symmetric edges):
+  appimage-control→multitor (port API), action-matrix→bootstrapscripts (deploy),
+  and-hole→nice-dns + nice-dns-android→nice-dns (resolver schema lineage). All parse.
+### Task 6.2 — portfolio-integrate.py builds integration-graph.md (adjacency +
+  Asymmetries section). 0 asymmetries on clean symmetric seeds; symmetry detection
+  proven on an inline one-way fixture (flagged). `integrate` documented in SKILL.md.
+### Task 6.3 — added an integration-tagged BL item to appimage-control
+  (from=[[multitor]] edge=consumes-port-api); rollup → integration-backlog.md groups
+  it under "edge: consumes-port-api"; 0 auto-unified noise leaked.
+### Task 6.4 — created Portfolio/integrations/multitor-port-api-v2/{plan.md,status.md}
+  (spans multitor + appimage-control, 3 cross-project stages); added Integration:
+  plan=<arc> pointer to each spanned project's backlog; both surface in the rollup
+  grouped under the arc.
+
+Stage 6 gate: GREEN.

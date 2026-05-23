@@ -125,6 +125,17 @@ Dry-run (`--all` without `--write`) prints, per project, the copy set and resolv
 
 **Rollback** (per project): copy `vault_home`'s docs back to `<repo>/docs/` and `git checkout` the repo deletion (originals are in the repo's git history). Reversible because the vault keeps the files and the repo git keeps the deletions.
 
+### `integrate` — roll up inter-project edges + integration backlog
+
+Inputs: optional `--write` (off by default).
+
+1. Read every `<vault>/Portfolio/<area>/<name>/integration.md` (schema in `references/integration-format.md`).
+2. Build `Portfolio/integration-graph.md`: the `depends_on → upstream` adjacency, plus a `## Asymmetries (review)` section. **Symmetry rule:** if A declares `impacts: [[B]]`, B must declare `depends_on: [[A]]` (and vice-versa). Asymmetries are reported, **never auto-fixed** — the user resolves by editing one side. Targets that aren't registered projects are flagged under `## Unresolved targets` (dangling) but don't block the rollup.
+3. Build `Portfolio/integration-backlog.md`: scan every project's `backlog.md` for entries tagged `integration` (or carrying an `Integration:` line); group them by `edge=<slug>` / `plan=<arc>`. Cross-project rollup view; the items themselves stay in their project's backlog.
+4. Integration plans live under `Portfolio/integrations/<arc>/` (schema in `references/integration-plan-format.md`); each spanned project's backlog carries an `Integration: plan=<arc>` pointer, which this rollup surfaces.
+
+Dry-run by default; `--write` persists the two generated files.
+
 ### `rebuild` — regenerate the two global roll-up files
 
 Inputs: optional `--globals-dir <path>` (default `~/.claude/`; override for testing); optional `--vault-dir <path>` (default: read from `~/.claude/portfolio-config.yaml` if present, else skip the vault mirror).
