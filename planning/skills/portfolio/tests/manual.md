@@ -506,3 +506,13 @@ Stage 6 gate: GREEN.
 
 Stage 7 gate: GREEN. 63/63 sidecars v2; Portfolio globals canonical+wikilinked+
 idempotent; old copies gone; sidecar ⬆Depends matches integration-graph edge.
+
+## Close-out (2026-05-23)
+Full idempotency sweep — all four tools 0-write on re-run:
+- migrate --all: 63 skip, 0 migrated
+- unify --write: 0 new, 897 dedup
+- integrate --write: integration-graph + integration-backlog byte-identical
+- rebuild --write: 0 sidecars, 0 global writes
+Backlog reconcile: this plan opened NO `Closes BL-NNN` (it CREATES backlogs across
+63 projects, doesn't close items). Nothing to remove.
+Workflow-spec audit: no docs/workflows/ at this repo — skipped per spec.
