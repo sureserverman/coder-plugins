@@ -148,7 +148,7 @@ Operation:
 1. Read `docs/backlog.md` and locate the `## BL-NNN` block. If absent: report `BL-NNN not found` and abort.
 2. Capture the block's title from the heading line (`## BL-NNN — <title>`).
 3. Slugify the title for the filename: lowercase, alnum + `-`, max 40 chars.
-4. Write a new file at `docs/plans/YYYY-MM-DD-<slug>-done.md` (today's date) with this template:
+4. Write a new file at `<portfolio_home>/plans/YYYY-MM-DD-<slug>-done.md` (today's date; same vault home as the backlog) with this template:
    ```markdown
    # Done: <title>
    Date: <YYYY-MM-DD>
@@ -163,14 +163,14 @@ Operation:
    - **Tags:** <Tags field from BL block, if present>
    ```
 5. Invoke the existing `remove` op on `BL-NNN` to delete the block from `docs/backlog.md`.
-6. Report: `Completed BL-NNN — wrote docs/plans/<filename>-done.md, removed from backlog.`
+6. Report: `Completed BL-NNN — wrote <portfolio_home>/plans/<filename>-done.md, removed from backlog.`
 
 **Hard rules for `complete`:**
 
 - `--summary` is required and must be non-empty after whitespace trim. Reject the call otherwise.
 - One BL-ID per call. Never batch.
 - The commit that lands this work should include `Closes BL-NNN` so the audit trail in `git log` is consistent with the existing convention.
-- The `*-done.md` file lives in `docs/plans/` so it is co-located with active plans but visually distinguished by the `-done.md` suffix. It is *not* an active plan; orchestrator tools should treat it as a historical record (parsers may skip files matching `*-done.md`).
+- The `*-done.md` file lives in `<portfolio_home>/plans/` (vault) so it is co-located with active plans but visually distinguished by the `-done.md` suffix. It is *not* an active plan; orchestrator tools should treat it as a historical record (parsers may skip files matching `*-done.md`).
 - Never re-open: if a `*-done.md` exists for a slug and `complete` is invoked again with the same slug, append a numeric suffix (`-done-2.md`) rather than overwriting.
 
 ---

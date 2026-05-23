@@ -62,7 +62,7 @@ If an Obsidian vault is linked (check `vault-context:status`), search it for:
 - Architecture notes that constrain the approach
 - Related past work — what was tried, what worked, what didn't
 
-Even if no vault is linked, check `docs/plans/` and `docs/` in the project for existing design documents and ADRs.
+Check the project's existing plans for prior design decisions: `<portfolio_home>/plans/` in the vault (the canonical location), falling back to `<repo>/docs/plans/` and `docs/` only if no `vault_dir` is configured or the project predates migration.
 
 ### Backlog scan
 
@@ -201,9 +201,20 @@ If a stage has more than 7 tasks, it's too large. Split it. Large stages hide in
 
 ---
 
+## Output location (vault-canonical)
+
+Plans live in the vault, not the repo. Before writing, resolve the project's portfolio home:
+
+1. Read `vault_dir` from `~/.claude/portfolio-config.yaml`. **If unset**, fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo (no vault configured) — then skip the rest of these steps.
+2. Compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`, deriving `<area>`/`<name>` from the project's `~/dev/<area>/<name>` path.
+3. **Auto-register if new:** if the project isn't in `~/.claude/projects-registry.yaml`, append an entry (`path`, `name`, `area`, `enabled: true`, `added: <today>`). This is how a brand-new project joins the portfolio — no separate step.
+4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `portfolio_home` pointer in its `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`). `mkdir -p` the vault `plans/` dir.
+
+Then save the plan to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md`. (The design doc from `brainstorming` lands beside it via the same resolution.)
+
 ## Plan Document Format
 
-Output the plan as a markdown document following this structure. Save it to `docs/plans/YYYY-MM-DD-<topic>-plan.md`.
+Output the plan as a markdown document following this structure. Save it to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` (vault), or `docs/plans/` only in the no-`vault_dir` fallback above.
 
 ```markdown
 # Project Plan: [Name]
@@ -422,7 +433,7 @@ Before showing the plan to the user, verify:
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files
-- [ ] The plan is saved to `docs/plans/`
+- [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar refreshed); or `docs/plans/` only in the no-`vault_dir` fallback
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
 

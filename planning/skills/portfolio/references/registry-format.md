@@ -139,3 +139,21 @@ A registered project whose vault home directory does not yet exist gets
 (`mkdir -p`), analogous to the backlog skill's auto-create-on-first-write
 behavior. This means onboarding a new project requires no manual vault setup —
 the directory materializes the moment any portfolio tool first writes to it.
+
+## Auto-registration on first plan
+
+A brand-new project does not need a manual registry step. When `brainstorming`
+or `planning-projects` runs in `~/dev/<area>/<name>` and that path is not yet in
+the registry, the planner:
+
+1. Appends a registry entry derived from the path (`path`, `name` = final
+   segment, `area` = first segment under `~/dev/`, `enabled: true`,
+   `added: <today>`).
+2. Creates/refreshes the repo sidecar `.claude/vault-context.md` with the
+   resolved `portfolio_home`.
+3. Writes the design + plan into `<portfolio_home>/plans/`.
+
+This is the on-ramp: a project joins the portfolio the first time it is planned,
+so its plans/backlog/maturity are vault-canonical from day one (never a stray
+`<repo>/docs/plans/`). The only exception is the no-`vault_dir` fallback, where
+the planner warns and writes to `<repo>/docs/plans/` instead.
