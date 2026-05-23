@@ -8,6 +8,22 @@ the minimum state is for a project to count that axis as green in the
 audit` subcommand runs every rule in this file deterministically — no LLM
 judgement in the loop.
 
+## Sparse-file principle
+
+Per-project `docs/MATURITY.md` is **sparse**. It lists only items that are
+either auto-detected, manually claimed, or universal-basic-applicable
+(README, LICENSE, app icon, test suite, CI). The full catalog of detectable
+items lives in this reference doc — but a per-project file never contains
+the full catalog. A packaging target that doesn't apply (e.g. AUR for a
+browser extension) is simply absent from the file — not listed as `[ ]`
+or `[N/A]`. This prevents the per-axis denominator from being a fictitious
+"could ship to 10 stores" and keeps the global dashboard honest.
+
+`audit` ADDS lines for newly-detected items; it never adds a line for a
+detector that didn't fire. The user adds `[N/A]` lines manually only when
+they want to be explicit about an opt-out (e.g. `[N/A] english-only-tool`
+on the i18n axis).
+
 ## Tick-state syntax
 
 Every sub-item in a `docs/MATURITY.md` checklist uses exactly one of three
@@ -50,17 +66,33 @@ audit`. The reason should be terse but unambiguous, e.g.
 ## ship_ready aggregation
 
 A project is ship-ready (`ship_ready: true` in the registry and a green row in
-the global dashboard) if and only if every one of the six axes meets its own
-ship-ready threshold as defined in the `### Ship-ready threshold` subsection
-below.
+the global dashboard) if and only if **every line present in the file is
+ticked** (`[x] auto:` or `[x] claim:`) AND each axis meets the per-axis
+minimum defined below.
 
-No axis may be absent from `docs/MATURITY.md` and no axis may be in the
-`[?] stale-detector` state (see "Auto-detector failure handling" at the bottom
-of this document). A missing or errored axis blocks ship-ready regardless of
-the other five.
+Per-axis minimums in the sparse model:
 
-An axis whose threshold says "or N/A" counts as green when it is marked
-`[N/A] <reason>` with a non-empty reason.
+- **Documentation** — must contain a `[x]` for README AND for LICENSE. The
+  other two basics (CHANGELOG, CONTRIBUTING) are optional; the audit doesn't
+  add lines for them unless detected, and the user can manually omit them.
+- **Security** — must contain a `[x]` for sec-audit-clean (auto or manual
+  claim acceptable). If the project has no attack surface, the user can
+  explicitly add `[N/A] no-attack-surface` and that satisfies the axis.
+- **Packaging** — must contain at least one `[x]` line OR an explicit
+  `[N/A] not-distributed`. An entirely empty Packaging section satisfies
+  the axis IFF the `[N/A] not-distributed` line is present in the section.
+- **UI/UX** — must contain a `[x]` for icon (or `[N/A] headless-cli`).
+  Theming and accessibility lines are optional (user adds via manual claim
+  when verified).
+- **i18n** — must contain at least one `[x]` line (a detected locale set)
+  OR `[N/A] english-only-tool`.
+- **Testing & CI** — must contain `[x]` for both "test suite present" AND
+  "CI configured" (auto-detected; user can `[N/A] research-throwaway` if
+  this isn't applicable).
+
+No axis may be in the `[?] stale-detector` state (see "Auto-detector failure
+handling" at the bottom of this document). Stale detectors block ship-ready
+regardless of all other state.
 
 ---
 

@@ -35,11 +35,11 @@ carries one of three tick states:
 
 - `[x] auto:<evidence>`     — auto-detected by `project-maturity audit`
 - `[x] claim:<YYYY-MM-DD>`  — manually asserted by the maintainer
-- `[N/A] <reason>`          — does not apply to this project
+- `[N/A] <reason>`          — does not apply to this project (rare — preferred is to omit the line entirely)
 
-Re-run `project-maturity audit` after any change to refresh auto-ticks.
-The portfolio orchestrator's global-maturity.md rolls these up across
-all registered projects.
+Per-project MATURITY.md is **sparse**: it only lists items that are auto-detected, manually claimed, or universally applicable basics. Packaging targets you don't ship to (and i18n if you're english-only) are omitted entirely — not listed as `[ ]` or `[N/A]`. Re-run `project-maturity audit` after any change; the audit will ADD newly-detected items as lines and re-evaluate existing ones.
+
+The full catalog of detectable items lives in `../portfolio/references/maturity-axes.md`. The portfolio orchestrator's global-maturity.md rolls these up across all registered projects.
 
 ---
 
@@ -47,8 +47,6 @@ all registered projects.
 
 - [ ] README at project root
 - [ ] LICENSE file
-- [ ] CHANGELOG
-- [ ] CONTRIBUTING
 
 ## Security
 
@@ -56,44 +54,29 @@ all registered projects.
 
 ## Packaging
 
-Tick only the targets that apply; mark the rest `[N/A]`.
-
-- [ ] Debian `.deb`
-- [ ] macOS `.pkg` / `.dmg`
-- [ ] Homebrew tap
-- [ ] Flathub
-- [ ] AUR
-- [ ] Snap
-- [ ] Chrome Web Store
-- [ ] Firefox AMO
-- [ ] Google Play
-- [ ] F-Droid
+<!-- audit will ADD a line per detected packaging target. To mark a target as PLANNED, add the line manually with `[ ] claim:planned-<date>`. To opt out of a detected target, replace with `[N/A] <reason>`. -->
 
 ## UI/UX
 
 - [ ] App icon present
-- [ ] Theming consistent (manual claim)
-- [ ] Accessibility audit passed (manual claim, reference the audit report)
 
 ## i18n
 
-- [ ] At least one non-default locale present
+<!-- audit will add a line if a non-default locale is detected (Android values-*, browser ext _locales, gettext po/, Flutter .arb). Omit this whole axis with `[N/A] english-only-tool` if you don't intend to translate. -->
 
 ## Testing & CI
 
 - [ ] Test suite present
 - [ ] CI configured (`.github/workflows/`)
-- [ ] CI green on main (manual claim)
-- [ ] Coverage threshold met (manual claim, state the threshold)
 
 ---
 
 ## Notes
 
-Free-form context that doesn't fit a checkbox (waivers, why an axis is N/A, links to publishing-target tracking issues, etc.).
+Free-form context that doesn't fit a checkbox (waivers, planned packaging targets, links to publishing-target tracking issues, why an axis is N/A, etc.).
 ```
 
-After write, report: `Scaffolded docs/MATURITY.md for <project-name>. Run 'project-maturity audit' to populate auto-ticks.`
+After write, report: `Scaffolded docs/MATURITY.md for <project-name>. Run 'project-maturity audit' to populate auto-ticks and add detected packaging/i18n items.`
 
 ### `audit` — re-run auto-detectors and refresh the file
 
@@ -142,16 +125,18 @@ Operation:
    - CI configured: at least one `.github/workflows/*.yml` OR `.gitlab-ci.yml` OR `.circleci/config.yml` → `[x] auto:<path>`
    - CI green / Coverage: manual claim only (auto-verification would require remote API calls; out of scope for v1)
 
-3. Compute the diff between existing state and detector results. For each detector:
-   - If it would set a fresh `[x] auto:` tick where the line was previously `[ ]` → apply.
-   - If it would change an existing `[x] auto:<old>` to a different evidence path → apply (file moved/renamed).
-   - If it would clear an `[x] auto:` because the evidence disappeared → mark as `[?] stale-detector previously had: <old evidence>`. Never silently un-tick.
-   - If the detector errored (malformed JSON, unreadable file) → keep existing line, append `[?] stale-detector: <error reason>` as an inline marker. Never silently fail.
-   - Manually-claimed lines (`[x] claim:<date>`) are NEVER overwritten by audit. If a manual claim is >90 days old, prepend an inline `[STALE-90D]` marker so the global dashboard renders it yellow.
+3. Compute the diff between existing state and detector results. The audit can:
+   - **Tick an existing `[ ]` line** → flip to `[x] auto:<evidence>`.
+   - **ADD a new line** for a detector that fired but has no matching line in the file yet (this is the primary behavior for the Packaging and i18n axes — those start empty and grow). Add the new line at the bottom of its axis section, preserving the section's existing lines.
+   - **Update an existing `[x] auto:<old>`** to a different evidence path → apply (file moved/renamed).
+   - **Mark `[?] stale-detector`** if a previously-`[x] auto:` line's evidence has disappeared. Never silently un-tick.
+   - **Append `[?] stale-detector: <error>`** inline if the detector errored (malformed JSON, unreadable file). Never silently fail.
+   - **NEVER overwrite `[x] claim:<date>` lines.** If a manual claim is >90 days old, prepend an inline `[STALE-90D]` marker so the global dashboard renders it yellow.
+   - **NEVER add a line for a detector that didn't fire.** Items that don't apply stay out of the file (no `[N/A]` line written by audit). The user adds `[N/A]` manually only if they want to be explicit about an opt-out (e.g. `[N/A] english-only-tool` for the i18n axis).
 
-4. If `--write`, persist the new file (preserving every comment, blank line, and the `## Notes` section byte-for-byte). Otherwise, print a unified-diff-style preview.
+4. If `--write`, persist the new file (preserving every comment, blank line, and the `## Notes` section byte-for-byte). Otherwise, print a unified-diff-style preview including the new lines that would be added.
 
-5. Report a one-line summary per axis: `Documentation: 3/4 ✓ | Security: 1/1 ✓ | Packaging: 2/10 ✓ (6 N/A) | UI/UX: 1/3 | i18n: 0/1 | Testing: 2/4`.
+5. Report a one-line summary per axis showing `<ticked>/<total-in-file>` (the denominator is the number of lines actually present in that axis section, not a hypothetical max): `Documentation: 2/2 ✓ | Security: 1/1 ✓ | Packaging: 1/1 ✓ | UI/UX: 1/1 ✓ | i18n: 1/1 ✓ | Testing: 2/2 ✓`.
 
 ### `get` — emit machine-readable state for the orchestrator
 
@@ -167,9 +152,9 @@ Operation:
    - `stale` — boolean; `true` if `state == "claim"` and the claim date is >90 days old
 
 3. Compute per-axis aggregates:
-   - `ticked: int` — count of `auto` + `claim` + `na` items
-   - `total: int` — total sub-items in the axis
-   - `axis_ship_ready: bool` — per the per-axis threshold in `../portfolio/references/maturity-axes.md` (e.g. Documentation requires README + LICENSE; Packaging requires ≥1 applicable target ticked or all `[N/A]`)
+   - `ticked: int` — count of `auto` + `claim` lines in the axis
+   - `total: int` — number of lines actually present in the axis (excluding `[N/A]` lines)
+   - `axis_ship_ready: bool` — true iff every present line is `[x]` (auto or claim) OR the entire axis is empty/N/A-only (no required minimum). The sparse model means an axis with no lines is treated as "nothing-to-do-here": ship-ready by vacuity. The per-axis specifics in `../portfolio/references/maturity-axes.md` may add extra requirements (e.g. Documentation README + LICENSE are minimums even in the sparse model).
    - `stale_count: int` — count of `[STALE-90D]` markers
 
 4. Compute overall `ship_ready: bool` — true iff every axis's `axis_ship_ready` is true AND there are no `stale-detector` markers anywhere in the file.
