@@ -388,3 +388,36 @@ No 13th wiki category added.
 - (Bounded equivalent of a full 371-page lint sweep — the schema exclusion is the input lint obeys.)
 
 Stage 1 gate: GREEN.
+
+## Stage 2 (reordered) — resolver + migrate + retarget
+All five tasks green (spec edits to three SKILL.md + migrate spec). Verified by grep:
+resolver mapping + no-silent-fallback in portfolio; backlog file resolves to
+<portfolio_home>/backlog.md + unify --target vault; project-maturity checklist in
+vault + detectors scan repo with repo: prefix; migrate spec with copy/verify/delete +
+dry-run + refuse-if-populated; re-fragmentation guard in all three. Ops intact
+(backlog 6, maturity 3, portfolio 5).
+
+## Stage 3 (reordered) — canary migration (telebots/to-do)
+
+Canary chosen: telebots/to-do (git repo, 2 plans, a stray docs/plans/backlog.md,
+untracked MATURITY.md). Exercised three real wrinkles → migrate-tool refinements:
+1. Dirty-guard refined: skip only on tracked uncommitted MODS in the migrate set;
+   untracked-new files (our generated MATURITY.md) migrate fine.
+2. Non-git repos + gitignored files: delete falls back to plain rm when git rm fails;
+   non-git repos flagged no-git-fallback.
+3. Stray docs/plans/backlog.md (a backlog kept in the gitignored plans dir) is
+   migrated as <home>/backlog.md, not plans/backlog.md.
+
+### Task 3.1 — dry-run: 4 files (2 plans + backlog + MATURITY) → vault, nothing moved. PASS.
+### Task 3.2 — migrate --write: sha256(vault)==sha256(source) for all 4 files. PASS.
+  repo docs/plans + MATURITY removed; docs/ kept (has deploy.md); sidecar Home: written;
+  MATURITY evidence rewritten auto: → auto:repo: (legend line untouched).
+### Task 3.3 — retargeted skills resolve to /mnt/vault/Portfolio/telebots/to-do;
+  backlog add targets the vault file; repo has no docs/backlog.md. PASS.
+### Task 3.4 — idempotency: re-run migrate → SKIP, 0 writes. PASS.
+  Rollback drill: restored repo docs from vault; plans+backlog byte-identical to
+  pre-migration sha256; MATURITY.md differs BY DESIGN (step-8 repo: rewrite) — expected,
+  not a failure (regenerable via audit). Re-migrated cleanly → vault repopulated. PASS.
+
+Stage 3 gate: GREEN (sha256 verify clean; skills resolve to vault; idempotent +
+reversible; Portfolio/ files excluded from lint).
