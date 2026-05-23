@@ -26,7 +26,7 @@ regenerated on `portfolio rebuild`.
 <repeated block, one per registered+enabled project that has docs/backlog.md>
 ### <area>/<name> — <COUNT> open
 - **Path:** `<absolute path>/docs/backlog.md`
-- **3 newest:** <comma-sep top-3 BL-NNN titles or "none">
+- **3 newest:** <comma-sep top-3 entry titles or "none">
 </repeated block>
 
 ---
@@ -40,6 +40,31 @@ regenerated on `portfolio rebuild`.
 
 <!-- END PRESERVE -->
 ```
+
+### Entry-counting rule
+
+Real-world `docs/backlog.md` files use three header conventions; the counter
+must tolerate all three (count `COUNT` and pick the "3 newest" titles from
+whichever matches):
+
+1. **Canonical** (the `backlog` skill's own format): `## BL-NNN — title` (h2).
+2. **Sectioned**: `### BL-NNN — title` (h3, usually nested under an `## Open`
+   section). Seen in e.g. `android/and-hole`.
+3. **Legacy freeform**: `## <title>` (h2) with no `BL-NNN` ID, where `<title>`
+   is not a structural header. Seen in e.g. `anon-tools/kloak-ubuntu`.
+
+Counting procedure:
+
+- Match `^#{2,3}\s+BL-\d+\b` → these are ID'd entries (conventions 1 + 2).
+- If zero ID'd entries match, fall back to legacy freeform: count `^##\s+`
+  headers, **excluding** the structural headers `Backlog`, `Open`, `Closed`,
+  `Done`, `Archive`, `Cross-project items`, and any header that is the file's
+  H1-equivalent title line.
+- "3 newest" = first three matched entry titles in file order (backlog files
+  list newest-first by convention). Strip the `BL-NNN — ` prefix when present.
+
+Never report `0 open` for a file that visibly contains entries — that is the
+bug this rule exists to prevent.
 
 ### Preservation rule
 
