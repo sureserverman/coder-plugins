@@ -136,34 +136,37 @@ Inputs: optional `--write` (off by default).
 
 Dry-run by default; `--write` persists the two generated files.
 
-### `rebuild` — regenerate the two global roll-up files
+### `rebuild` — regenerate the global roll-ups (in the vault) + enrich sidecars
 
-Inputs: optional `--globals-dir <path>` (default `~/.claude/`; override for testing); optional `--vault-dir <path>` (default: read from `~/.claude/portfolio-config.yaml` if present, else skip the vault mirror).
+Inputs: optional `--write` (off by default). Reads `vault_dir` from `~/.claude/portfolio-config.yaml`; refuses if unset (no silent fallback).
+
+The global roll-ups are **canonical in the vault** at `<vault_dir>/Portfolio/`. There is no `~/.claude/` or `Projects/` copy (those were retired when storage went vault-canonical).
 
 Operation:
 
-1. Load the registry (enabled-only — `enabled: false` projects are excluded from both globals).
-2. Build `<globals-dir>/global-backlog.md` per `references/global-formats.md`:
-   - For each project that has a `docs/backlog.md`, read the file. Emit a per-project section with the project's `area/name`, link to the backlog file path, open-entry count, and 3 newest titles.
-   - **Preserve the `<! BEGIN PRESERVE !>` ... `<! END PRESERVE !>` block** from the existing file byte-for-byte. If the file doesn't exist (first rebuild), insert an empty preserve block.
-   - Sort per-project sections by `area/name` ascending.
-   - Render the `**Last rebuilt:**` timestamp ONLY if the regenerated content (excluding that line and the preserve block) differs from the prior file. This keeps reruns byte-identical when nothing changed — the §5 idempotency guarantee.
-3. Build `<globals-dir>/global-maturity.md`:
-   - For each project that has a `docs/MATURITY.md`, invoke `project-maturity get --format json` and render a table row per the template.
-   - Cells use the legend in `references/global-formats.md` (🟢 auto, 🟡 claim, ⚪ N/A, 🔴 unticked, ❓ stale-detector).
-   - `ship_ready` column from the `get` output's overall field.
-4. **If a `--vault-dir` is configured**, mirror both files to `<vault-dir>/Projects/global-backlog.md` and `<vault-dir>/Projects/global-maturity.md` with one transformation: every project's `area/name` becomes `[[name]]` (Obsidian wikilink syntax), so clicking in Obsidian opens that project's vault page (if it exists) or shows a stub-link otherwise. Same Cross-project PRESERVE rule applies in the vault copy. Same idempotency timestamp rule.
-5. **Sidecar enrichment** — for every project in the registry that has a `.claude/vault-context.md` file (the vault-context plugin's sidecar), update a sentinel-delimited Portfolio block:
+1. Load the registry (enabled-only — `enabled: false` projects are excluded).
+2. Build `<vault_dir>/Portfolio/global-backlog.md` per `references/global-formats.md`:
+   - For each project whose vault home has a `backlog.md`, emit a per-project section: `### <area>/[[<name>]] — N open`, the absolute backlog path, and the 3 newest entry titles. Project names are `[[wikilinks]]`.
+   - Use the format-tolerant entry counter (h2/h3 `BL-NNN` + legacy freeform; see `references/global-formats.md`).
+   - **Preserve the `<!-- BEGIN PRESERVE -->` ... `<!-- END PRESERVE -->` block** (the hand-curated `## Cross-project items`) byte-for-byte.
+   - Sort by `area/name`. Render `**Last rebuilt:**` only when the rest of the content changed (idempotency).
+3. Build `<vault_dir>/Portfolio/global-maturity.md`: a table row per project that has a vault `MATURITY.md`, names as `[[wikilinks]]`, cells per the sparse-model legend, `ship_ready` from the per-axis thresholds.
+4. **Sidecar enrichment (v2)** — for every registered project, write the sentinel-delimited block into `<repo>/.claude/vault-context.md` (create the file if absent) per `references/sidecar-format.md`:
    ```
    <!-- PORTFOLIO-STATUS-BEGIN — managed by /planning:portfolio rebuild; do not hand-edit -->
    ## Portfolio status
-   - **Backlog:** N open entries — see [docs/backlog.md](<absolute path>)
-   - **Maturity:** <per-axis emoji row> — see [docs/MATURITY.md](<absolute path>)
-   - **Ship-ready:** ✅ yes / ❌ no — see [global dashboard](<vault path or ~/.claude path>)
+
+   - **Home:** `<portfolio_home>`   (plans/backlog/maturity live here, not in this repo's docs/)
+   - **Backlog:** N open — see [backlog.md](<portfolio_home>/backlog.md)
+   - **Maturity:** <per-axis emoji row> — see [MATURITY.md](<portfolio_home>/MATURITY.md)
+   - **Ship-ready:** ✅/❌ — see [global dashboard](<vault_dir>/Portfolio/global-maturity.md)
+   - **⬆ Depends on:** [[X]] (why), …          (from this project's integration.md, if any)
+   - **⬇ Impacts:** [[B]] (why), …             (from integration.md, if any)
+   - **Inbound integration debt:** K items — see [integration-backlog.md](<vault_dir>/Portfolio/integration-backlog.md)
    <!-- PORTFOLIO-STATUS-END -->
    ```
-   If the block already exists between sentinels, replace its contents byte-for-byte. If absent, append at end of file with a blank line before. Sidecars without sentinels are never auto-modified outside the block range — the rest of the sidecar stays exactly as the vault-context plugin wrote it.
-6. Report: `Rebuilt: global-backlog.md (N projects), global-maturity.md (M projects), vault-mirror: <yes|skipped>, sidecars enriched: K. <X> writes` (0 writes if everything matches prior content).
+   Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
+5. Report: `Rebuilt: global-backlog.md (N), global-maturity.md (M), sidecars enriched: K. <X> writes` (0 writes when everything matches prior content).
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
 

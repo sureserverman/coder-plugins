@@ -490,3 +490,19 @@ addressed going forward by the planning-skills precision rewrite (see below).
   grouped under the arc.
 
 Stage 6 gate: GREEN.
+
+## Stage 7 — sidecar v2 + globals into Portfolio/ + cleanup
+
+### Task 7.1 — portfolio-rebuild.py enriched 63 sidecars with v2 block (Home +
+  backlog/maturity counts + ⬆depends_on/⬇impacts from integration.md + inbound debt).
+  Spot-check: multitor ⬇Impacts [[appimage-control]]; appimage-control ⬆Depends
+  [[multitor]] + inbound debt 1. PASS.
+### Task 7.2 — globals rebuilt into Portfolio/global-{backlog,maturity}.md with
+  [[wikilinks]], format-tolerant counter. 2nd rebuild byte-identical (idempotent). PASS.
+### Task 7.3 — retired /mnt/vault/Projects/global-*.md + ~/.claude/global-*.md;
+  updated portfolio-config comment (globals canonical in Portfolio/); fixed stale
+  rebuild-op spec that still referenced Projects/ + repo docs/ paths. No skill
+  references old paths. PASS.
+
+Stage 7 gate: GREEN. 63/63 sidecars v2; Portfolio globals canonical+wikilinked+
+idempotent; old copies gone; sidecar ⬆Depends matches integration-graph edge.
