@@ -285,6 +285,76 @@ under `tests/fixtures/` use `sample-plans/`. The Stage 5 real-run uses real
 
 ---
 
+## Stage 5 — Real-run validation against `~/dev/`
+
+### Task 5.1 (2026-05-23) — first-run registry seed
+
+- Walked `~/dev/` per the SKILL.md `scan` first-run rule.
+- Found 41 candidate project roots (40 distinct after user excluded `~/dev/ai-tools` as a meta-parent).
+- Per-area counts: ai-tools 7, android 10, anon-tools 10, big-projects 2, browsers 4, containers 1, infra 2, servers 1, telebots 1, web 1, whonix 1.
+- Wrote `~/.claude/projects-registry.yaml` (v1 schema) with 40 enabled entries; parses cleanly via `python3 -c "import yaml; yaml.safe_load(open(...))"`.
+- **PASS** — gate threshold ≥20 exceeded (40).
+
+### Task 5.2 (2026-05-23) — unify dry-run + spot-check 3 random projects
+
+- Random sample (seed=42): `android/and-hole`, `ai-tools/basic-harness`, `anon-tools/appimage-control`.
+- Raw `- [ ]` counts (includes gate items the parser excludes): 32, 29, 98. Real-world workload looks healthy; not a noise pile.
+- Spot-checked: every counted bullet corresponds to a real unchecked line in a real plan file (verified `grep -c '^- \[ \]'`).
+- **Dry-run guarantee held**: `find ~/dev -name backlog.md -newer ~/.claude/projects-registry.yaml` returned empty.
+- **PASS**.
+
+### Task 5.3 (2026-05-23) — `init` + audit-detector dry-run on 3 pilots
+
+Pilots picked per the plan's per-type guidance:
+
+- `anon-tools/multitor` — has Debian `.deb` packaging
+- `browsers/matrix-user-manager` — has `_locales` (browser extension)
+- `android/and-hole` — Android project with `res/mipmap-*/ic_launcher*`
+
+`init` wrote `docs/MATURITY.md` into each (6-axis template, untracked in their respective repos for the maintainer to commit when ready).
+
+Audit-detector dry-run results:
+
+```
+multitor               (4 auto-ticks across 3 axes):
+  documentation         README.md, LICENSE
+  packaging             deb/package/DEBIAN/control
+  i18n                  10 gettext .po files (ar/de/es/fr/hi/ja/pt/ru/uk/zh_CN)
+
+matrix-user-manager    (9 auto-ticks across 5 axes — most mature):
+  documentation         README.md, LICENSE.md
+  packaging             chrome/manifest.json, mozilla/manifest.json, moz-mobile/manifest.json
+  ui_ux                 icon.png
+  i18n                  10 chrome _locales + 10 mozilla _locales (de/es/fr/it/ja/pt_BR/ru/uk/zh_CN/zh_TW)
+  testing               .github/workflows/
+
+and-hole               (1 auto-tick across 1 axis):
+  ui_ux                 res/mipmap-*/ic_launcher*
+```
+
+Every pilot produces ≥1 auto-tick. **PASS**.
+
+### Task 5.4 (2026-05-23) — idempotency re-run
+
+- Re-walked `~/dev/`; diff vs first walk: identical (no disk drift).
+- Drift vs registry: `found_not_in_registry: ['/home/user/dev/ai-tools']` — expected (user-excluded meta-parent); `registered_but_missing: []`. Scan correctly reports the drift on every run.
+- Registry mtime unchanged (no `--write` accepted during the re-run).
+- First rebuild: wrote both globals (2 backlogs indexed, 3 MATURITY rows).
+- Second rebuild immediately after: both files unchanged, `**Last rebuilt:**` line not bumped per the spec rule. `md5sum` matches first-rebuild output byte-for-byte. **Idempotency PASS**.
+
+### Stage 5 gate summary
+
+| Check | Threshold | Observed | Result |
+|-------|-----------|----------|--------|
+| Registry project count           | ≥20       | 40                            | OK |
+| `global-backlog.md` exists+rows  | ≥1 section| 2 per-project sections        | OK |
+| `global-maturity.md` exists+rows | ≥1 row    | 3 project rows                | OK |
+| Projects with MATURITY.md        | ≥3        | 3 pilots                      | OK |
+| 2nd rebuild zero writes (md5sum) | identical | identical                     | OK |
+| No backlog.md written w/o accept | 0 writes  | 0 writes (dry-run respected)  | OK |
+
+---
+
 ## Stage 1 hand-test summary
 
 | Task | Result | Notes                                                            |
