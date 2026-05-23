@@ -5,9 +5,19 @@ description: Use to read, append, or remove entries in `docs/backlog.md` — the
 
 # Backlog
 
-The backlog is a single file — `docs/backlog.md` — that holds work the project chose not to do *right now*. Items are appended when deferred, removed when implemented, and consulted when a new plan is being researched.
+The backlog is a single file — `backlog.md` — that holds work the project chose not to do *right now*. Items are appended when deferred, removed when implemented, and consulted when a new plan is being researched.
 
-**Announce at start:** "Using the backlog skill — <add|list|remove|read> on docs/backlog.md."
+## Where the file lives (resolver)
+
+The backlog does **not** live in the repo. It lives in the Obsidian vault at the project's portfolio home:
+
+```
+<portfolio_home>/backlog.md   where  portfolio_home = <vault_dir>/Portfolio/<area>/<name>/
+```
+
+Resolve `portfolio_home` per `../portfolio/references/registry-format.md` (resolver section): read `vault_dir` from `~/.claude/portfolio-config.yaml`, combine with the project's `area`/`name` from `~/.claude/projects-registry.yaml`; the repo's `.claude/vault-context.md` caches it as `portfolio_home`. **If `vault_dir` is unset, refuse and fail loudly — never fall back to `<repo>/docs/backlog.md`** (that would re-fragment the centralized docs). Every `docs/backlog.md` reference below means `<portfolio_home>/backlog.md`.
+
+**Announce at start:** "Using the backlog skill — <add|list|remove|read|unify|complete> on <portfolio_home>/backlog.md."
 
 ---
 
@@ -90,7 +100,9 @@ For ingestion by other skills (e.g. `planning-projects` Phase 0 research). Retur
 
 ### `unify` — derive backlog candidates from this project's plans
 
-Inputs: `<project-path>` (absolute), optional `--plans-dir <relative-dir>` (default `docs/plans`), optional `--include-stale` (off by default), optional `--write` (off by default — dry-run is the default behavior).
+Inputs: `<project-path>` (absolute), optional `--plans-dir <relative-dir>`, optional `--target vault|repo` (default `vault`), optional `--include-stale` (off by default), optional `--write` (off by default — dry-run is the default behavior).
+
+**Plans source.** With `--target vault` (default), plans are read from `<portfolio_home>/plans/` (resolver). `--plans-dir` overrides the subdir under `portfolio_home` (default `plans`). With `--target repo` (legacy / pre-migration only), plans are read from `<project-path>/<plans-dir>` (default `docs/plans`) and the backlog written to `<project-path>/docs/backlog.md` — used only before a project has been migrated into the vault. After migration, always use `--target vault`.
 
 Returns a structure of the shape:
 

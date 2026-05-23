@@ -5,13 +5,25 @@ description: Use to scaffold, audit, and read a per-project `docs/MATURITY.md` c
 
 # Project Maturity
 
-`docs/MATURITY.md` is a per-project checklist tracking publishing readiness across six axes. Each axis has sub-items; each sub-item carries one of three tick states:
+`MATURITY.md` is a per-project checklist tracking publishing readiness across six axes. Each axis has sub-items; each sub-item carries one of three tick states:
 
 - `[x] auto:<evidence-path>` — auto-detected by a deterministic rule (file exists, regex matches, count above threshold)
 - `[x] claim:<YYYY-MM-DD>` — manually claimed by the user on this date (yellow in the global dashboard if >90 days old)
 - `[N/A] <reason>` — not applicable to this project
 
-**Announce at start:** "Using the project-maturity skill — `<init|audit|get>` on `<project-path>`."
+## Where the file lives + what gets scanned (resolver)
+
+The checklist does **not** live in the repo. It lives in the vault at `<portfolio_home>/MATURITY.md`, where `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/` (resolve per `../portfolio/references/registry-format.md`). **If `vault_dir` is unset, refuse and fail loudly — never write `<repo>/docs/MATURITY.md`.**
+
+But the **detectors scan the repo**, not the vault — README, packaging recipes, locale dirs, CI workflows all live in `<project-path>` (the repo). So:
+
+- The checklist is read from / written to `<portfolio_home>/MATURITY.md`.
+- Detector inputs are globbed from `<project-path>` (the repo working tree).
+- Every auto-tick's evidence path is recorded with a `repo:` prefix (e.g. `[x] auto:repo:deb/package/DEBIAN/control`) so a reader of the vault checklist knows the evidence lives in the repo, not beside the checklist.
+
+Every `docs/MATURITY.md` reference below means `<portfolio_home>/MATURITY.md`; every detector path is `repo:`-relative to `<project-path>`.
+
+**Announce at start:** "Using the project-maturity skill — `<init|audit|get>` on `<portfolio_home>/MATURITY.md` (detectors scan `<project-path>`)."
 
 The six axes, the per-axis auto-detect rules, and the ship-ready thresholds are defined in `../portfolio/references/maturity-axes.md`. Read that file before invoking `audit`.
 

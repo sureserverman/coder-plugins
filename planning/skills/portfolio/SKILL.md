@@ -1,19 +1,32 @@
 ---
 name: portfolio
-description: Use to manage backlog and maturity across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "unify plans and backlog", "maturity dashboard", "ship readiness across projects", "what's parked across projects", "what's missing before I can publish anything", "rebuild global backlog", "scan all my projects", "first-time portfolio setup". Default flow: scan registry drift → unify each project's plans into its backlog (dry-run) → audit per-project maturity → rebuild global roll-ups. Four subcommands: `scan`, `unify`, `maturity`, `rebuild`.
+description: Use to manage backlog and maturity across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "unify plans and backlog", "maturity dashboard", "ship readiness across projects", "what's parked across projects", "what's missing before I can publish anything", "rebuild global backlog", "scan all my projects", "first-time portfolio setup", "migrate docs to vault", "integration graph", "what does this project impact". Default flow: scan registry drift → unify each project's plans into its backlog (dry-run) → audit per-project maturity → integrate edges → rebuild global roll-ups. Subcommands: `scan`, `unify`, `maturity`, `migrate`, `integrate`, `rebuild`.
 ---
 
 # Portfolio Orchestrator
 
-Single user-facing skill that ties three things together across every project in `~/dev/`:
+Single user-facing skill that ties together every project in `~/dev/`:
 
 1. A canonical **registry** at `~/.claude/projects-registry.yaml` listing every tracked project. Schema in `references/registry-format.md`.
-2. **Per-project unification** of `docs/plans/` ↔ `docs/backlog.md` via the `backlog` skill's `unify` subcommand. Parser rules in `references/plan-parser.md`.
+2. **Per-project unification** of plans ↔ backlog via the `backlog` skill's `unify` subcommand. Parser rules in `references/plan-parser.md`.
 3. **Per-project maturity audit** + roll-up via the `project-maturity` skill. Axes in `references/maturity-axes.md`.
+4. **Inter-project integration** edges, symmetry, and cross-project arcs. Formats in `references/integration-format.md` and `references/integration-plan-format.md`.
 
-Roll-up writes land at `~/.claude/global-backlog.md` and `~/.claude/global-maturity.md`. Format templates in `references/global-formats.md`.
+**Vault-canonical storage.** Operational docs do NOT live in repos. Each project's plans, backlog, maturity, and integration edges live in the Obsidian vault under `<vault_dir>/Portfolio/<area>/<name>/`. Global roll-ups live at `<vault_dir>/Portfolio/global-{backlog,maturity}.md` plus `integration-graph.md` and `integration-backlog.md`. Format templates in `references/global-formats.md`.
 
-**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|rebuild|default>`."
+## Resolver (read this before any read/write)
+
+Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md`:
+
+```
+repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
+```
+
+- `vault_dir` is read from `~/.claude/portfolio-config.yaml`.
+- The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
+- **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
+
+**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|default>`."
 
 ---
 
@@ -87,6 +100,27 @@ Operation:
 4. Prompt the user to refresh/keep stale claims (per project).
 
 `--init-missing` exists for the staged maturity rollout (see `## Staged rollout`). Default behavior is to skip projects without a MATURITY.md so first-time portfolio runs aren't a hard prerequisite of "scaffold 30 maturity files at once."
+
+### `migrate` — move a project's operational docs from its repo into the vault (one-time)
+
+Inputs: `--project <abs-path>` (one project) or `--all` (every enabled project); `--write` (off by default — dry-run prints the plan and moves nothing).
+
+Moves `<repo>/docs/plans/*`, `<repo>/docs/backlog.md`, and `<repo>/docs/MATURITY.md` into the resolved `<vault_dir>/Portfolio/<area>/<name>/`. The vault is **not git-tracked** (NFS-shared Obsidian), so this is a filesystem move with a verification gate — never `git mv`, never a bare `mv`.
+
+Per-project procedure (all-or-nothing):
+
+1. Resolve `vault_home` via the resolver; `mkdir -p vault_home/plans`.
+2. **Preflight the project:** if the repo has uncommitted changes under `docs/`, SKIP with `repo has uncommitted docs/ changes; commit or stash first`. If `vault_home` already holds `plans/` or `backlog.md` or `MATURITY.md`, SKIP with `vault home already populated; resolve manually` (never overwrite/merge).
+3. **COPY** each source file → its vault destination (plans into `plans/`, `backlog.md` and `MATURITY.md` at the project root). Migrate set = whatever exists: plans always; `backlog.md` and `MATURITY.md` only if present.
+4. **VERIFY** — for every copied file, assert `sha256(source) == sha256(destination)`. This is the load-bearing gate; over NFS a truncated write is the realistic failure. Any mismatch → abort this project, delete the partial vault copies, leave the repo untouched, report.
+5. Only after ALL files verify: `git rm` the sources from the repo. The repo source is the **last** thing removed — an interruption before this step always leaves the repo intact (copy→verify→delete invariant).
+6. If `<repo>/docs/` is now empty, remove it. If other files remain, leave `docs/` and report what's left. **No tombstone** — the sidecar is the only pointer.
+7. Write/refresh the repo sidecar `portfolio_home: <abs vault_home>`.
+8. Rewrite the migrated `MATURITY.md` detector evidence paths with a `repo:` prefix (they point at repo files, now read from the vault checklist).
+
+Dry-run (`--all` without `--write`) prints, per project, the copy set and resolved target, flags already-populated targets as SKIP, and moves nothing. `--write` executes the procedure. Report: `migrated N, skipped M, failed K` with per-project sha256-verify status.
+
+**Rollback** (per project): copy `vault_home`'s docs back to `<repo>/docs/` and `git checkout` the repo deletion (originals are in the repo's git history). Reversible because the vault keeps the files and the repo git keeps the deletions.
 
 ### `rebuild` — regenerate the two global roll-up files
 
