@@ -7,7 +7,7 @@ Deferred items from plan execution, code review, or ad-hoc capture. Entries are 
 ## BL-001 — Implement bar
 
 - **Opened:** 2026-04-20
-- **Source:** docs/plans/2026-04-15-partial-with-deferred-plan.md — Stage 2 / Task 2.1
+- **Source:** docs/sample-plans/2026-04-15-partial-with-deferred-plan.md — Stage 2 / Task 2.1
 - **Reason:** Deferred while we figure out the backend; tracked here so it isn't lost.
 - **Next step:** Pick up after the schema discussion lands.
 - **Tags:** fixture, bar

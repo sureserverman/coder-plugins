@@ -21,10 +21,10 @@ A Task N.N section is considered "unchecked" (and therefore a candidate) when ei
 
 A section with a mix of `- [ ]` and `- [x]` bullets is partially done; each remaining `- [ ]` bullet is its own candidate, attributed to that Task N.N section.
 
-Stage gate sections follow the same rule:
+Stage gate sections are **excluded** as candidate sources by design.
 
-- **Stage gate header:** `^### Stage \d+ Gate`
-- Same unchecked/checked bullet patterns apply; unchecked gate bullets are candidates with `source_locator` of the form `Stage N Gate / bullet K`.
+- **Stage gate header:** `^### Stage \d+ Gate` — its bullets are integration checks that restate task completion. Emitting them as separate backlog items would double-count work whose root task is already (or will be) a candidate.
+- Treat the gate block as terminating the previous Task N.N's scope and otherwise skip its bullets entirely. If a stage gate's bullets are all unchecked, that signals the stage isn't done — but the unchecked Task N.N sections within the same stage already surface that.
 
 ### 2. Explicit Deferred sections
 
@@ -66,11 +66,10 @@ Field definitions:
 - **`source_plan`** — path relative to the project root (never absolute). Always starts with `docs/plans/`. Example: `docs/plans/2026-05-22-foo-plan.md`.
 - **`source_locator`** — human-readable pointer to the exact location within the plan. Format varies by signal:
   - Task checkbox: `Stage N / Task N.N` (if a stage grouping is detectable from context) or `Task N.N` alone.
-  - Stage gate bullet: `Stage N Gate / bullet K` (K is 1-based index within the gate block).
   - Deferred bullet: `Deferred / bullet K` (K is 1-based index within the Deferred block).
 - **`title`** — the item text, stripped of its structural prefix. For a task header the `### Task N.N: ` prefix is removed; for a bullet the `- [ ] ` or `- ` prefix is removed. No further transformation.
 - **`signal`** — one of three values:
-  - `unchecked-task` — emitted by signal 1 (unchecked checkbox in a Task N.N or Stage Gate section).
+  - `unchecked-task` — emitted by signal 1 (unchecked checkbox in a Task N.N section). Stage Gate bullets are NOT a source.
   - `deferred-section` — emitted by signal 2 (any bullet under an explicit Deferred heading).
   - `stale-plan-unchecked` — emitted by signal 3 (stale plan, `--include-stale` active).
 
