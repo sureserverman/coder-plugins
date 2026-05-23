@@ -136,6 +136,67 @@ accept produces zero new candidates" is satisfied by construction.
 
 ---
 
+---
+
+## Stage 2 — `project-maturity` skill
+
+### Task 2.5 (2026-05-23) — init + audit + get on proj-a fixture
+
+**Setup:** proj-a-plans-and-backlog. Added a one-line `README.md` so the
+Documentation auto-detector has something to find. No CHANGELOG, no LICENSE,
+no CONTRIBUTING, no sec-audit-report-*.md, no packaging artifacts, no
+locale dirs, no .github/workflows, no test dirs. (This is the most-bare-bones
+exercise possible — it should produce a MATURITY.md with the Documentation
+README tick set and everything else unticked.)
+
+**Command (notional, Claude-executed against the spec):**
+```
+project-maturity init <proj-a>
+project-maturity audit <proj-a> --write
+project-maturity get   <proj-a> --format json
+```
+
+**`init` step trace per spec:**
+- Refuses if `docs/MATURITY.md` already exists. (Doesn't yet — first run.)
+- Writes the template verbatim with `<project-name>` interpolated to `proj-a-plans-and-backlog`.
+- All sub-items start `[ ]` unticked. The six axis headings appear in the documented order.
+- Reports `Scaffolded docs/MATURITY.md for proj-a-plans-and-backlog.`
+
+Result: PASS by walkthrough — the template is fully specified in `SKILL.md`,
+the only variable substitution is the project name.
+
+**`audit --write` step trace per spec:**
+- Detector run on each axis:
+  - Documentation: README.md exists → tick `[x] auto:README.md`. LICENSE/CHANGELOG/CONTRIBUTING missing → leave `[ ]`.
+  - Security: no `sec-audit-report-*.md` glob match → leave `[ ]`.
+  - Packaging: every sub-detector's path glob is empty → all `[ ]`.
+  - UI/UX: no icon, no theming/a11y claims → all `[ ]`.
+  - i18n: no `values-*/`, no `_locales/`, no `po/*.po`, no `*.arb` → `[ ]`.
+  - Testing & CI: no test dirs, no `.github/workflows/*` → both auto-detectable `[ ]`.
+- Diff: one new auto-tick (Documentation/README). Persisted on `--write`.
+- Per-axis summary report: `Documentation: 1/4 ✓ | Security: 0/1 | Packaging: 0/10 | UI/UX: 0/3 | i18n: 0/1 | Testing: 0/4`.
+
+Result: PASS by walkthrough.
+
+**`get --format json` step trace per spec:**
+- Returns JSON with `project: "proj-a-plans-and-backlog"`, `axes` keyed by
+  the six lowercase identifiers (`documentation`, `security`, `packaging`,
+  `ui_ux`, `i18n`, `testing`), per-axis `{ticked, total, axis_ship_ready,
+  stale_count, items: [...]}`, and overall `ship_ready: false` (Documentation
+  ship-ready requires both README + LICENSE; LICENSE is unticked).
+
+Result: PASS by walkthrough.
+
+### Stage 2 hand-test summary
+
+| Task | Result | Notes                                                            |
+|------|--------|------------------------------------------------------------------|
+| 2.5  | PASS   | `init` template emit, `audit` finds README only, `get` JSON      |
+|      |        | reflects the partial state. Stage 5 will materialize against     |
+|      |        | real projects.                                                   |
+
+---
+
 ## Stage 1 hand-test summary
 
 | Task | Result | Notes                                                            |
