@@ -363,3 +363,28 @@ Every pilot produces ≥1 auto-tick. **PASS**.
 |      |        | Source string. Net 2 candidates as fixture README predicts.      |
 | 1.4  | PASS   | Spec walkthrough confirms `complete` writes done-md + removes.   |
 | 1.5  | PASS   | Idempotency holds by construction (Source-equality dedup).       |
+
+---
+
+# Vault-Portfolio migration plan (2026-05-23) — manual tests
+
+## Stage 1 — Vault schema change
+
+### Task 1.1 (2026-05-23) — schema diff approved
+User approved the two surgical edits to `/mnt/vault/CLAUDE.md`:
+1. Add `Portfolio/` row to the infrastructure table (after `.obsidian/`).
+2. Lint Orphans exclusion: "Excludes Home.md and raw/" → "...Home.md, raw/, and the Portfolio/ infrastructure tree."
+No 13th wiki category added.
+
+### Task 1.2 (2026-05-23) — applied via vault-schema-maintain
+- `grep 'Portfolio/' /mnt/vault/CLAUDE.md` → present (infra table + lint exclusion). PASS
+- `/mnt/vault/log.md` gained `[2026-05-23] schema | Add Portfolio/ infrastructure tree` with Section + Reason. PASS
+- Category-row count = 12 (unchanged). PASS
+
+### Task 1.3 (2026-05-23) — wiki tools ignore Portfolio/
+- Created `/mnt/vault/Portfolio/.probe.md` (zero inbound links).
+- Simulated lint's orphan rule under the UPDATED schema: probe path matches the `Portfolio/` exclusion prefix → NOT flagged. PASS.
+- Probe removed.
+- (Bounded equivalent of a full 371-page lint sweep — the schema exclusion is the input lint obeys.)
+
+Stage 1 gate: GREEN.
