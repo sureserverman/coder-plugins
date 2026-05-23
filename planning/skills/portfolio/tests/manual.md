@@ -445,3 +445,30 @@ plans + 63 MATURITY + 63 project dirs, 0 in-scope strays, 0 failures.
 Known residual (out of scope): infra/installers has 3 nested sub-projects
 (android/linux/mac) not in the registry — their plans stay in-repo pending a
 registry decision.
+
+## Stage 5 (reordered) — unify accept-all IN VAULT (git-informed MIDDLE)
+
+Signal evolved through diagnosis (the corpus has no reliable per-task done-marker):
+- NARROW (Deferred + in-task [ ]) = 37 — too sparse.
+- BROAD (every Task N.N) = ~1500 — can't tell done from undone.
+- MIDDLE raw (every unchecked [ ] excl Preflight) = ~1775 — dominated by unflipped
+  stage-gate acceptance criteria.
+Per user directive: mine repo git logs for executed stages, EXCLUDE them, then MIDDLE
+the remainder. portfolio-unify.py git_stage_evidence() collects (commit-date, StageN)
+refs; a plan's StageN is treated executed if a commit dated >= the plan's date refs it
+(conservative; over-excludes on ambiguous shared stage numbers → fewer false rows).
+
+### Task 5.1 — git-filtered dry-run: 897 candidates across 63 (1775 raw → 897 after
+  git exclusion). PASS.
+### Task 5.2 — --write: 897 entries across 28 projects (others 0-candidate), all tagged
+  auto-unified. Spot-checks exact (multitor 68, bootstrapscripts 82, exit-node-flag 53).
+### Task 5.3 — idempotency: FAILED first (re-run +81) → root cause: Source string had a
+  trailing space from text[:50] mid-word cut, but existing_sources strips on read →
+  dedup miss. Fixed: rstrip the snippet. De-duped the 82 stray entries + renumbered.
+  Re-run after fix: 0 new, 897 dedup'd, counts stable. PASS.
+
+Stage 5 gate: GREEN. 897 git-informed backlog entries in the vault; idempotent;
+no repo docs/ writes (resolver guard held).
+
+KNOWN-NUANCE: git stage attribution is coarse (commit msgs don't name the plan);
+addressed going forward by the planning-skills precision rewrite (see below).
