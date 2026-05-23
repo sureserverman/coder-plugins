@@ -70,10 +70,13 @@ def migrate_set(repo: Path):
     root_backlog = repo / "docs" / "backlog.md"
     stray_backlog = plans / "backlog.md"
     if plans.is_dir():
-        for f in sorted(plans.glob("*.md")):
-            if f.name == "backlog.md":
-                continue  # handled below, not a plan
-            items.append((f, f"plans/{f.name}"))
+        # recurse so nested plan groups (e.g. plans/apple-container-migration/*.md)
+        # migrate too, preserving their subdir structure under the vault plans/.
+        for f in sorted(plans.rglob("*.md")):
+            if f.name == "backlog.md" and f.parent == plans:
+                continue  # top-level stray backlog handled below, not a plan
+            rel = f.relative_to(plans)
+            items.append((f, f"plans/{rel.as_posix()}"))
     # backlog: prefer root docs/backlog.md; else a stray docs/plans/backlog.md
     if root_backlog.is_file():
         items.append((root_backlog, "backlog.md"))

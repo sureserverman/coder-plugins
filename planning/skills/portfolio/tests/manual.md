@@ -421,3 +421,27 @@ untracked MATURITY.md). Exercised three real wrinkles → migrate-tool refinemen
 
 Stage 3 gate: GREEN (sha256 verify clean; skills resolve to vault; idempotent +
 reversible; Portfolio/ files excluded from lint).
+
+## Stage 4 (reordered) — batch migration (62 projects)
+
+### Task 4.1 — dry-run --all: 62 dry, 1 skip (canary), 0 fail; 250 files. PASS.
+  Finding surfaced: plans are gitignored AND never-committed ecosystem-wide
+  (gitignore template ignores docs/plans/), so post-migration the vault is the
+  SOLE home for plans — recovery is NFS-host snapshots + the copy→verify gate,
+  NOT repo git. User confirmed proceed.
+### Task 4.2 — migrate --all --write: migrated=62 skipped=1 failed=0. sha256 verify
+  clean (per-project, in-tool). 6 non-git repos flagged no-git-fallback.
+### Task 4.3 — integrity sweep: found 20 residual docs/plans strays →
+  - 6 in ai-tools/docs/plans = the EXCLUDED meta-parent (correct, stays).
+  - 6 in infra/installers/{android,linux,mac} = unregistered SUB-projects
+    (separate docs/ roots, out of scope; flagged for a future registry decision).
+  - 8 in containers/nice-dns = REAL BUG: non-recursive plans/*.md glob missed a
+    nested plan group docs/plans/apple-container-migration/. Fixed glob to rglob
+    preserving subdir structure; migrated the 8 nested files (sha256 clean).
+  After fix: 0 strays from registered in-scope projects.
+
+Stage 4 gate: GREEN. 63/63 migrated, all sidecars carry Home:, vault has 196
+plans + 63 MATURITY + 63 project dirs, 0 in-scope strays, 0 failures.
+Known residual (out of scope): infra/installers has 3 nested sub-projects
+(android/linux/mac) not in the registry — their plans stay in-repo pending a
+registry decision.
