@@ -86,7 +86,7 @@ Operation:
 
 ### `rebuild` — regenerate the two global roll-up files
 
-Inputs: optional `--globals-dir <path>` (default `~/.claude/`; override for testing).
+Inputs: optional `--globals-dir <path>` (default `~/.claude/`; override for testing); optional `--vault-dir <path>` (default: read from `~/.claude/portfolio-config.yaml` if present, else skip the vault mirror).
 
 Operation:
 
@@ -100,7 +100,18 @@ Operation:
    - For each project that has a `docs/MATURITY.md`, invoke `project-maturity get --format json` and render a table row per the template.
    - Cells use the legend in `references/global-formats.md` (🟢 auto, 🟡 claim, ⚪ N/A, 🔴 unticked, ❓ stale-detector).
    - `ship_ready` column from the `get` output's overall field.
-4. Report: `Rebuilt: global-backlog.md (N projects), global-maturity.md (M projects). 0 writes` if both files are byte-identical to prior versions; otherwise list the changes.
+4. **If a `--vault-dir` is configured**, mirror both files to `<vault-dir>/Projects/global-backlog.md` and `<vault-dir>/Projects/global-maturity.md` with one transformation: every project's `area/name` becomes `[[name]]` (Obsidian wikilink syntax), so clicking in Obsidian opens that project's vault page (if it exists) or shows a stub-link otherwise. Same Cross-project PRESERVE rule applies in the vault copy. Same idempotency timestamp rule.
+5. **Sidecar enrichment** — for every project in the registry that has a `.claude/vault-context.md` file (the vault-context plugin's sidecar), update a sentinel-delimited Portfolio block:
+   ```
+   <!-- PORTFOLIO-STATUS-BEGIN — managed by /planning:portfolio rebuild; do not hand-edit -->
+   ## Portfolio status
+   - **Backlog:** N open entries — see [docs/backlog.md](<absolute path>)
+   - **Maturity:** <per-axis emoji row> — see [docs/MATURITY.md](<absolute path>)
+   - **Ship-ready:** ✅ yes / ❌ no — see [global dashboard](<vault path or ~/.claude path>)
+   <!-- PORTFOLIO-STATUS-END -->
+   ```
+   If the block already exists between sentinels, replace its contents byte-for-byte. If absent, append at end of file with a blank line before. Sidecars without sentinels are never auto-modified outside the block range — the rest of the sidecar stays exactly as the vault-context plugin wrote it.
+6. Report: `Rebuilt: global-backlog.md (N projects), global-maturity.md (M projects), vault-mirror: <yes|skipped>, sidecars enriched: K. <X> writes` (0 writes if everything matches prior content).
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
 
@@ -134,6 +145,19 @@ This prevents the default flow from dumping 30 unfilled checklist scaffolds in f
 Disabled by default; opt-in via `--include-maturity` during the staged rollout window.
 
 ---
+
+## Configuration: `~/.claude/portfolio-config.yaml`
+
+Optional config sidecar to the registry. Holds settings that aren't per-project:
+
+```yaml
+# ~/.claude/portfolio-config.yaml
+version: 1
+vault_dir: /mnt/vault         # if set, rebuild mirrors globals to <vault_dir>/Projects/
+include_maturity: false       # default flow opts out of maturity until staging window ends
+```
+
+All keys optional. Missing file → all defaults (no vault mirror, maturity opt-out). If `vault_dir` is set but the directory doesn't exist, the rebuild logs a one-line warning and continues with `~/.claude/` writes only — never aborts.
 
 ## File conflicts and write discipline
 
