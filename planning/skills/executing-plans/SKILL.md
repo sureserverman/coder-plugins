@@ -93,7 +93,8 @@ Every task follows this loop. No task is "done" until its test is green.
 2. **Diagnose before fixing.** Read the actual error. Form a hypothesis. Confirm against the code. Then write the fix.
 3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
-5. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`).
+5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work.
+6. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`). The commit includes both the work and the flipped `Status: [x]`.
 
 ### Step 3.4 — Propagate unblock
 
@@ -144,7 +145,7 @@ When every stage is green:
 
 1. Run the **full** test suite one more time from a clean state (don't trust the per-stage runs)
 2. Run any integration / e2e tests the plan flagged
-3. Update the plan document with a closing note: "Completed YYYY-MM-DD. Commits: <list>."
+3. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 4. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
 5. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
 6. Report to the user with:

@@ -150,6 +150,12 @@ Stage N: [Name]
     - [ ] No regressions in existing tests
 ```
 
+### Status marking (per-task done-state)
+
+Every task carries a **Status** checkbox as its first field: `- **Status:** [ ]` when planned, flipped to `- **Status:** [x]` by `executing-plans` the moment the task's test goes green (and committed in the same commit). This is the **single source of truth for task completion** — it removes the ambiguity that arises when done-ness is inferred only from stage gates or git archaeology. A downstream tool (e.g. `portfolio unify`) can read `Status: [x]` vs `[ ]` to know exactly what was executed, with no guessing.
+
+When the whole plan is finished, `executing-plans` appends a close-out line at the end of the plan: `**Completed:** YYYY-MM-DD — commits: <list>`. A plan with that line and all `Status: [x]` is unambiguously done; absent the line, any `Status: [ ]` task is genuinely unexecuted.
+
 ### Dependency marking
 
 Every task and stage carries two dependency fields — this makes the graph navigable in both directions:
@@ -230,6 +236,7 @@ Date: [YYYY-MM-DD]
 **Rollback:** [what to undo and how]
 
 ### Task 1.1: [description]
+- **Status:** [ ]
 - **Depends on:** none
 - **Blocks:** Task 1.2
 - **Parallel:** YES
@@ -237,6 +244,7 @@ Date: [YYYY-MM-DD]
 - **Red-Green max cycles:** 3
 
 ### Task 1.2: [description]
+- **Status:** [ ]
 - **Depends on:** Task 1.1
 - **Blocks:** Task 1.3, Task 2.1
 - **Parallel:** NO (blocked by 1.1)

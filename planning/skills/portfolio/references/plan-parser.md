@@ -100,3 +100,18 @@ Field definitions:
    ```
 
    The run continues with all other plan files and projects. Skipped-plan counts are aggregated into the final report summary. The parser never raises an exception that stops the enclosing `unify` or `portfolio` run.
+
+## Authoritative signal: per-task `Status:` (plans from planning-projects v0.5.1+)
+
+Plans produced after the precision rewrite carry a per-task `- **Status:** [ ]`
+field that `executing-plans` flips to `[x]` on green. When a plan has `Status:`
+fields, they are **authoritative** — no heuristic, no git archaeology:
+
+- Task with `- **Status:** [x]` → DONE, never a candidate.
+- Task with `- **Status:** [ ]` → unexecuted → candidate (title = the task description).
+- A plan with a `**Completed:** <date>` close-out line and all `[x]` is fully done.
+
+The heuristic signals below (unchecked `[ ]` bullets, Deferred sections,
+git-stage evidence) remain the fallback for **legacy plans** that predate the
+`Status:` field. Detection: if a plan contains any `- **Status:**` line, use the
+authoritative path for its tasks; otherwise fall back to the heuristic + git path.
