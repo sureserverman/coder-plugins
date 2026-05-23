@@ -1,6 +1,14 @@
 # Portfolio test fixtures
 
-Three fake project trees used by `unify` / `maturity` / `portfolio` hand-tests:
+Three fake project trees used by `unify` / `maturity` / `portfolio` hand-tests.
+
+**Layout note:** real projects keep plans under `docs/plans/`. Fixture plans
+live under `docs/sample-plans/` because the repo-wide pre-commit hook (sourced
+from `~/.git-templates/gitignore`) unconditionally un-tracks anything under
+a literal `plans/` directory. Hand-tests of `unify` therefore must pass
+`--plans-dir docs/sample-plans` (or set `PORTFOLIO_PLANS_DIR=docs/sample-plans`)
+when invoked against these fixtures. Production runs on `~/dev/` use the
+default `docs/plans`.
 
 - `proj-a-plans-and-backlog/` — two plans (one fully-checked, one with 2
   unchecked tasks + a Deferred entry) and an existing `docs/backlog.md`
@@ -29,4 +37,4 @@ Expected from a unify pass over `proj-b-plans-only`:
 Expected from a scan over the fixtures dir:
 
 - `proj-a-...` and `proj-b-...` classified as projects.
-- `proj-c-bare/` NOT classified (no `docs/plans/` and no `docs/backlog.md`).
+- `proj-c-bare/` NOT classified (no `docs/sample-plans/` and no `docs/backlog.md`).
