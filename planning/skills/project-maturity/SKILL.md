@@ -122,7 +122,7 @@ Operation:
    - F-Droid: `metadata/<applicationId>.yml` OR `fastlane/metadata/android/` directory → `[x] auto:<path>`
 
    **UI/UX**
-   - Icon: glob `icon.{png,svg,ico,icns}` OR `app-icon.*` at root OR `res/mipmap-*/ic_launcher*` (Android) → `[x] auto:<path>` (first match wins for evidence)
+   - Icon: glob `icon.{png,svg,ico,icns}` OR `app-icon.*` at root OR `res/mipmap-*/ic_launcher*` (Android) OR `<dir>/icons/icon*.{png,svg}` beside a `manifest.json` (browser extension; e.g. `mozilla/icons/`, `chrome/icons/`) → `[x] auto:<path>` (first match wins for evidence)
    - Theming / Accessibility: manual claim only
 
    **i18n**

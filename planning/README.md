@@ -1,6 +1,6 @@
 # planning
 
-A nine-skill pipeline (v0.5.0) that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A nine-skill pipeline (v0.5.1) that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -90,6 +90,8 @@ Scaffolds and audits a per-project `docs/MATURITY.md` checklist across six publi
 - `get <project-path>` — return parsed state as JSON for the portfolio orchestrator.
 
 **Triggers:** "scaffold maturity", "is this ready to publish", "ship-readiness", "init MATURITY.md".
+
+**v0.5.1:** the UI/UX icon auto-detector now recognizes the WebExtension layout — an `icons/` dir holding `icon*.{png,svg}` beside a `manifest.json` (e.g. `mozilla/icons/`, `chrome/icons/`, or root `icons/`) — in addition to root-level `icon.*`/`app-icon.*` and Android `res/mipmap-*`.
 
 ### `portfolio` (NEW in v0.5.0)
 

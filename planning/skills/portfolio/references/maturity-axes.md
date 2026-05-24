@@ -284,6 +284,12 @@ an application launcher, app store, or browser extension store.
   - `app-icon.*` (any extension) at project root
   - For Android projects: any `res/mipmap-*/ic_launcher*` file under the
     project tree (glob; use the first match as evidence, note count if > 1)
+  - For browser extensions: an `icons/` directory holding at least one
+    `icon*.{png,svg}` located beside a `manifest.json` (e.g.
+    `mozilla/icons/`, `chrome/icons/`, or a root-level `icons/`) → use the
+    first matched icon file as evidence. Store-listed extensions always ship
+    icons, so this path catches the common WebExtension layout where icons
+    live under the manifest dir rather than at project root.
 
 All other UI/UX sub-items (theming, accessibility audit) cannot be reliably
 auto-detected across platforms and require manual claims.
