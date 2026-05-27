@@ -1,7 +1,7 @@
 {
   "name": "planning",
   "description": "Nine-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time); executing-plans drives the plan with stage-gate checks, opens/closes backlog entries, and audits workflow specs at close-out; dispatching-parallel-agents fans out independent tasks marked Parallel YES; no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI); portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/. Skills hand off to each other and were designed as a unit.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"

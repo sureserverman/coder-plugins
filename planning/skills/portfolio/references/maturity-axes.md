@@ -83,9 +83,11 @@ Per-axis minimums in the sparse model:
   the axis IFF the `[N/A] not-distributed` line is present in the section.
 - **UI/UX** — must contain a `[x]` for icon (or `[N/A] headless-cli`).
   Theming and accessibility lines are optional (user adds via manual claim
-  when verified).
+  when verified). **Waived for AI-agent tooling projects** — see the
+  project-type section below; the axis is auto-`[N/A] ai-tool`.
 - **i18n** — must contain at least one `[x]` line (a detected locale set)
-  OR `[N/A] english-only-tool`.
+  OR `[N/A] english-only-tool`. **Waived for AI-agent tooling projects** —
+  auto-`[N/A] ai-tool`.
 - **Testing & CI** — must contain `[x]` for both "test suite present" AND
   "CI configured" (auto-detected; user can `[N/A] research-throwaway` if
   this isn't applicable).
@@ -93,6 +95,48 @@ Per-axis minimums in the sparse model:
 No axis may be in the `[?] stale-detector` state (see "Auto-detector failure
 handling" at the bottom of this document). Stale detectors block ship-ready
 regardless of all other state.
+
+## Project-type detection: AI-agent tooling
+
+Some repos are not apps, services, or libraries — they are **AI-agent
+tooling**: a Claude Code plugin, a subagent/skill/command bundle, an MCP
+server, a Cursor ruleset, a Codex agent, an OpenCode config. For these, two
+of the six axes do not apply: there is no GUI surface (UI/UX) and no
+user-facing localized strings (i18n). The maturity model adapts the axis set
+for them rather than forcing perpetual red.
+
+**Deterministic fingerprint** (any one match ⇒ the repo is an AI-agent
+tooling project; mirrors the sec-audit `ai-tools` lane so the two stay in
+lockstep):
+
+- `.claude-plugin/plugin.json` or `.claude-plugin/marketplace.json`
+- `.mcp.json` (any depth)
+- `.cursorrules` at root, or any `.cursor/rules/*.mdc`
+- `AGENTS.md` (any depth), `.codex/config.toml`, or any `.codex/agents/*.md`
+- `opencode.json` at root, or a `.opencode/` directory
+- `agents/*.md` whose frontmatter has both `name:` and `description:`;
+  `skills/**/SKILL.md` with the same; or `commands/*.md` with frontmatter
+
+**Consequences** when the fingerprint matches:
+
+1. **Packaging** is satisfied by the AI-agent distribution channels (the last
+   six rows of the Packaging table) — the plugin/skill/MCP manifest *is* the
+   package. No distro/store packaging is expected.
+2. **UI/UX** and **i18n** are **not applicable**. `audit` auto-writes
+   `[N/A] ai-tool` for each (converting a bare `[ ]` icon line, or adding the
+   line to an empty axis). This is the one sanctioned case where `audit`
+   writes an `[N/A]` line itself — everywhere else N/A is user-only. An
+   `[N/A]`-only axis is ship-ready by the standard aggregation rule, so the
+   two axes render N/A (⚪) in the dashboard instead of red.
+3. The other four axes (Documentation, Security, Packaging, Testing & CI)
+   are evaluated exactly as for any other project.
+
+A repo that is *both* an app and ships agent tooling (e.g. a desktop app that
+also vendors a Cursor ruleset) is still an app: the fingerprint is a
+sufficient condition for the waiver only when the repo has no other UI
+surface. If the project genuinely has a GUI, the maintainer overrides the
+auto-`[N/A] ai-tool` with a real icon `[x]` or a different `[N/A]` reason and
+the audit preserves that manual decision.
 
 ---
 
@@ -232,6 +276,21 @@ Each target below is independent. Check only those that apply; mark the rest
 | Firefox/AMO extension | `mozilla/manifest.json` OR `moz-mobile/manifest.json` exists | `auto:mozilla/manifest.json` or `auto:moz-mobile/manifest.json` |
 | F-Droid | `metadata/<applicationId>.yml` in an fdroiddata fork directory OR a `fastlane/metadata/android/` directory exists | `auto:metadata/<id>.yml` or `auto:fastlane/metadata/android/` |
 | Google Play (Android) | Cannot be auto-detected. Play submission cannot be verified from local files alone. | Manual claim required — see below. |
+| Claude Code plugin | `.claude-plugin/plugin.json` exists | `auto:.claude-plugin/plugin.json` |
+| Claude Code marketplace | `.claude-plugin/marketplace.json` exists | `auto:.claude-plugin/marketplace.json` |
+| MCP server | `.mcp.json` exists (any depth) | `auto:<path>/.mcp.json` |
+| Cursor rules pack | `.cursorrules` at root OR any `.cursor/rules/*.mdc` | `auto:.cursorrules` or `auto:.cursor/rules/<file>.mdc` |
+| Codex agents | `AGENTS.md` (any depth) OR `.codex/config.toml` OR any `.codex/agents/*.md` | `auto:<path>` |
+| OpenCode | `opencode.json` at root OR a `.opencode/` directory | `auto:opencode.json` or `auto:.opencode/` |
+
+The last six rows are **AI-agent tooling distribution channels**: an agent
+plugin / skill / ruleset / MCP server ships *as* the repo (installed by a
+marketplace or copied into a tool's config dir), so the presence of its
+manifest IS its packaging. They fire independently and universally — a non-AI
+project simply won't have these files, so they need no project-type gate. Any
+one ticking satisfies the Packaging minimum. These same files are the
+fingerprint for the "Project-type detection: AI-agent tooling" rules above,
+which additionally waive the UI/UX and i18n axes for such repos.
 
 For the Chrome extension check, the detector reads `chrome/manifest.json` and
 asserts the JSON field `manifest_version` equals `3`. If the file is malformed
@@ -262,7 +321,10 @@ handling").
 At least one applicable packaging target must be auto-ticked. If every target
 is marked N/A except Google Play, then the Google Play manual claim must be
 present. If the entire axis is marked `[N/A] not-distributed`, that counts as
-green. An axis with no ticks and no N/A blocks ship-ready.
+green. An axis with no ticks and no N/A blocks ship-ready. For AI-agent tooling
+projects, an auto-ticked AI-agent distribution channel (Claude plugin /
+marketplace / MCP / Cursor / Codex / OpenCode) satisfies this minimum — those
+repos need no distro or app-store packaging.
 
 ---
 
@@ -317,13 +379,18 @@ auto-detected across platforms and require manual claims.
   is uncommon — extension stores and app stores all require icons.
 - N/A on the full axis is appropriate only for projects that have zero user
   interface of any kind.
+- **AI-agent tooling projects** (Claude plugin / skill / MCP / Cursor / Codex
+  / OpenCode — see the project-type section) have no GUI surface; `audit`
+  auto-marks the axis `[N/A] ai-tool`. The maintainer overrides this with a
+  real icon `[x]` or a different `[N/A]` reason if the repo does ship a GUI.
 
 ### Ship-ready threshold
 
 The icon sub-item must be auto-ticked (or `[N/A] no-launcher-presence` with
 documented rationale). Theming and accessibility must each be manually claimed
 or marked N/A — they may not be left with no tick of any kind. A bare unchecked
-`[ ]` on any sub-item blocks ship-ready.
+`[ ]` on any sub-item blocks ship-ready. For AI-agent tooling projects the
+axis is auto-`[N/A] ai-tool` and does not block.
 
 ---
 
@@ -377,13 +444,17 @@ A manual claim is appropriate when:
   made a deliberate, documented decision not to support additional locales.
 - Do not mark N/A simply because no translations have been done yet — that is
   an open task, not an N/A.
+- **AI-agent tooling projects** have no user-facing localized strings (their
+  surface is prompts and config consumed by the agent); `audit` auto-marks the
+  axis `[N/A] ai-tool`. See the project-type section.
 
 ### Ship-ready threshold
 
 At least one non-default locale must be auto-ticked using any of the patterns
 above, OR the axis must be marked `[N/A] english-only-tool` or
 `[N/A] english-only-by-design`. A project with internationalized UI that has
-not yet shipped any locale files does not meet the threshold.
+not yet shipped any locale files does not meet the threshold. For AI-agent
+tooling projects the axis is auto-`[N/A] ai-tool` and does not block.
 
 ---
 

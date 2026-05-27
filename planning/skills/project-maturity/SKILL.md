@@ -99,6 +99,18 @@ Operation:
 1. Read `docs/MATURITY.md`. If missing, abort with `No MATURITY.md found. Run 'project-maturity init' first.` (Never auto-scaffold during audit — that's the orchestrator's separate concern.)
 2. For each axis, run the auto-detectors documented in `../portfolio/references/maturity-axes.md`:
 
+   **Project type — AI-agent tooling (pre-pass, v0.5.2+)**
+   Before the axis detectors, set an `is_ai_tool` flag: true iff ANY of these
+   exist under `<project-path>` (same fingerprint as the Packaging AI-agent
+   rows and the sec-audit `ai-tools` lane):
+   `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json`,
+   `.mcp.json` (any depth), `.cursorrules` or `.cursor/rules/*.mdc`,
+   `AGENTS.md` (any depth) / `.codex/config.toml` / `.codex/agents/*.md`,
+   `opencode.json` / `.opencode/`, or `agents/*.md` · `skills/**/SKILL.md` ·
+   `commands/*.md` carrying YAML frontmatter with both `name:` and
+   `description:`. When `is_ai_tool` is true the UI/UX and i18n axes are
+   waived (see those axes below and step 3's auto-`[N/A] ai-tool` rule).
+
    **Documentation**
    - `README` exists at project root (case-insensitive glob `README*`) → `[x] auto:README.md` (or whatever the actual filename is)
    - `LICENSE` / `LICENSE.md` / `LICENSE.txt` at root → `[x] auto:<filename>`
@@ -120,10 +132,17 @@ Operation:
    - Firefox AMO: `mozilla/manifest.json` OR `moz-mobile/manifest.json` → `[x] auto:<path>`
    - Google Play: requires manual claim (no reliable auto-detect of Play submission status)
    - F-Droid: `metadata/<applicationId>.yml` OR `fastlane/metadata/android/` directory → `[x] auto:<path>`
+   - Claude Code plugin: `.claude-plugin/plugin.json` → `[x] auto:.claude-plugin/plugin.json`
+   - Claude Code marketplace: `.claude-plugin/marketplace.json` → `[x] auto:.claude-plugin/marketplace.json`
+   - MCP server: `.mcp.json` (any depth) → `[x] auto:<path>/.mcp.json`
+   - Cursor: `.cursorrules` at root OR any `.cursor/rules/*.mdc` → `[x] auto:<path>`
+   - Codex: `AGENTS.md` (any depth) OR `.codex/config.toml` OR any `.codex/agents/*.md` → `[x] auto:<path>`
+   - OpenCode: `opencode.json` at root OR `.opencode/` directory → `[x] auto:<path>`
 
    **UI/UX**
    - Icon: glob `icon.{png,svg,ico,icns}` OR `app-icon.*` at root OR `res/mipmap-*/ic_launcher*` (Android) OR `<dir>/icons/icon*.{png,svg}` beside a `manifest.json` (browser extension; e.g. `mozilla/icons/`, `chrome/icons/`) → `[x] auto:<path>` (first match wins for evidence)
    - Theming / Accessibility: manual claim only
+   - **If `is_ai_tool` and the icon detector did NOT fire**: axis is waived — apply step 3's auto-`[N/A] ai-tool` rule instead of leaving a bare `[ ]`.
 
    **i18n**
    - Android: count entries matching `res/values-*/` (excluding the default `values/`) → if ≥1, `[x] auto:res/values-<comma-sep-list>`
@@ -131,6 +150,7 @@ Operation:
    - Gettext: count `po/*.po` files that aren't `messages.pot` → if ≥1, `[x] auto:po/<list>`
    - Flutter: count `*.arb` files with `_<lang>` suffix where `<lang>` ≠ `en` → if ≥1, `[x] auto:<paths>`
    - Otherwise: leave unticked; N/A acceptable for english-only-tool
+   - **If `is_ai_tool` and no locale fired**: axis is waived — apply step 3's auto-`[N/A] ai-tool` rule.
 
    **Testing & CI**
    - Test suite: any of `tests/`, `test/`, `spec/`, `src/test/`, or files matching `*_test.go` / `*Test.kt` / `*_test.py` / `*.test.{js,ts,jsx,tsx}` → `[x] auto:<earliest match>`
@@ -145,6 +165,7 @@ Operation:
    - **Append `[?] stale-detector: <error>`** inline if the detector errored (malformed JSON, unreadable file). Never silently fail.
    - **NEVER overwrite `[x] claim:<date>` lines.** If a manual claim is >90 days old, prepend an inline `[STALE-90D]` marker so the global dashboard renders it yellow.
    - **NEVER add a line for a detector that didn't fire.** Items that don't apply stay out of the file (no `[N/A]` line written by audit). The user adds `[N/A]` manually only if they want to be explicit about an opt-out (e.g. `[N/A] english-only-tool` for the i18n axis).
+   - **AI-agent tooling waiver — the one exception to the rule above.** When the step-2 `is_ai_tool` flag is true, the audit DOES write `[N/A] ai-tool` for the **UI/UX** and **i18n** axes, but only when the axis is not already satisfied by a real signal: i.e. the icon detector did not fire / no locale fired AND the maintainer has not set their own `[x]` or `[N/A]` on that axis. Concretely: convert a bare `[ ] App icon present` to `[N/A] ai-tool`; if the UI/UX or i18n axis is empty, add an `[N/A] ai-tool` line. NEVER overwrite a real `[x] auto:`/`[x] claim:` icon tick or a user's existing `[N/A] <reason>` — a maintainer who ships a GUI keeps their icon tick and the waiver does not apply. (Packaging is NOT waived: AI-agent projects tick it via the Claude-plugin / marketplace / MCP / Cursor / Codex / OpenCode detectors above.)
 
 4. If `--write`, persist the new file (preserving every comment, blank line, and the `## Notes` section byte-for-byte). Otherwise, print a unified-diff-style preview including the new lines that would be added.
 
@@ -212,6 +233,6 @@ YAML output uses the same shape.
 ## Remember
 
 - `init` scaffolds, `audit` refreshes, `get` reports.
-- Three tick states: `auto`, `claim`, `na`. `audit` only touches the first.
+- Three tick states: `auto`, `claim`, `na`. `audit` writes `auto` — and, only for AI-agent tooling projects (`is_ai_tool`), `[N/A] ai-tool` on the waived UI/UX + i18n axes.
 - Detectors fail loudly (`[?] stale-detector`), never silently.
 - Manual claims expire visually after 90 days; the global dashboard yellows them.
