@@ -275,7 +275,11 @@ Each target below is independent. Check only those that apply; mark the rest
 | Chrome extension | `chrome/manifest.json` exists AND contains `"manifest_version": 3` | `auto:chrome/manifest.json` |
 | Firefox/AMO extension | `mozilla/manifest.json` OR `moz-mobile/manifest.json` exists | `auto:mozilla/manifest.json` or `auto:moz-mobile/manifest.json` |
 | F-Droid | `metadata/<applicationId>.yml` in an fdroiddata fork directory OR a `fastlane/metadata/android/` directory exists | `auto:metadata/<id>.yml` or `auto:fastlane/metadata/android/` |
-| Google Play (Android) | Cannot be auto-detected. Play submission cannot be verified from local files alone. | Manual claim required — see below. |
+| GitHub Releases (Android APK) | Any `.github/workflows/*.yml` file whose content contains the literal `.apk` AND one of: `gh release create`, `softprops/action-gh-release`, `ncipollo/release-action` | `auto:<workflow-path>` |
+| Google Play (Android) | Cannot be auto-detected. Play submission cannot be verified from local files alone. | Manual claim — **optional**. See "Android distribution channels are peers" below. |
+| IzzyOnDroid (Android) | Cannot be auto-detected reliably (the project's `fastlane/metadata/android/` layout is shared with F-Droid). | Manual claim once the app is listed at `apt.izzysoft.de/fdroid`. |
+| Obtainium (Android) | Cannot be auto-detected from local files (Obtainium pulls from arbitrary release sources). | Manual claim once the app appears in the Obtainium known-app list, or a maintainer-published Obtainium config URL is documented in the repo's README. |
+| Accrescent (Android) | Cannot be auto-detected from local files (Accrescent acceptance is a service-side state). | Manual claim once the app is live on Accrescent. |
 | Claude Code plugin | `.claude-plugin/plugin.json` exists | `auto:.claude-plugin/plugin.json` |
 | Claude Code marketplace | `.claude-plugin/marketplace.json` exists | `auto:.claude-plugin/marketplace.json` |
 | MCP server | `.mcp.json` exists (any depth) | `auto:<path>/.mcp.json` |
@@ -292,6 +296,30 @@ one ticking satisfies the Packaging minimum. These same files are the
 fingerprint for the "Project-type detection: AI-agent tooling" rules above,
 which additionally waive the UI/UX and i18n axes for such repos.
 
+#### Android distribution channels are peers
+
+Google Play, F-Droid, IzzyOnDroid, GitHub Releases (signed APK), Obtainium, and
+Accrescent are **peer** channels for Android apps. No single one is canonical;
+the maturity model treats any one ticking as satisfying the Android-packaging
+minimum. An Android project that deliberately does not ship to Google Play (an
+F-Droid-only release, a privacy-focused app refusing Play, an internal/sideload
+build) is fully legitimate — it has the same ship-ready status as a Play-only
+release, provided at least one of its actual channels is ticked.
+
+Maintainers may use these explicit `[N/A]` reasons on individual Android-channel
+sub-items to make the choice visible to reviewers (in addition to the generic
+`[N/A] not-applicable`):
+
+- `[N/A] not-distributing-to-play` — neutral opt-out from Google Play.
+- `[N/A] fdroid-only` — F-Droid is the only consumer channel.
+- `[N/A] sideload-only` — distribution is signed APK on GitHub Releases (or
+  similar direct-from-source channel) only.
+- `[N/A] private-distribution` — internal MDM, internal Play track, or
+  enterprise sideload only; not a public-consumer release.
+
+These reasons are documentary — they do not change tick semantics. Any one
+peer channel auto-ticked or manually claimed still satisfies the axis minimum.
+
 For the Chrome extension check, the detector reads `chrome/manifest.json` and
 asserts the JSON field `manifest_version` equals `3`. If the file is malformed
 JSON, this triggers a stale-detector error (see "Auto-detector failure
@@ -302,7 +330,14 @@ handling").
 - **Google Play**: claim `[x] claim:<date>` once the app has been accepted
   and is live on the Play Store. The user should note the Play Store URL or
   package name in a comment. Detection would require a Play Developer API
-  call, which is out of scope for v1.
+  call, which is out of scope for v1. Optional — see "Android distribution
+  channels are peers" above; an Android project may legitimately skip Play.
+- **IzzyOnDroid**: claim once the app is listed at `apt.izzysoft.de/fdroid`.
+  Note the IzzyOnDroid app URL in a comment.
+- **Obtainium**: claim once the app appears in the Obtainium known-app list
+  OR the repo documents an Obtainium configuration URL that users can paste.
+- **Accrescent**: claim once the app is live on Accrescent. Note the
+  Accrescent app URL.
 - **Any other target**: use a manual claim if the packaging artifact lives at
   a non-standard path not covered by the rule above. Note the actual path.
 
@@ -318,13 +353,20 @@ handling").
 
 ### Ship-ready threshold
 
-At least one applicable packaging target must be auto-ticked. If every target
-is marked N/A except Google Play, then the Google Play manual claim must be
-present. If the entire axis is marked `[N/A] not-distributed`, that counts as
-green. An axis with no ticks and no N/A blocks ship-ready. For AI-agent tooling
-projects, an auto-ticked AI-agent distribution channel (Claude plugin /
-marketplace / MCP / Cursor / Codex / OpenCode) satisfies this minimum — those
-repos need no distro or app-store packaging.
+At least one applicable packaging target must be auto-ticked OR manually
+claimed. If the entire axis is marked `[N/A] not-distributed`, that counts as
+green. An axis with no ticks and no N/A blocks ship-ready.
+
+For **Android** projects: any one peer channel suffices (Play, F-Droid,
+IzzyOnDroid, GitHub Releases APK, Obtainium, Accrescent). Google Play is not
+required — a project shipping only via F-Droid or only via signed APK on
+GitHub Releases is ship-ready on the Packaging axis. Maintainers who want to
+make the Play choice visible can add the explicit `[N/A]` reason from "Android
+distribution channels are peers" above, but it is not required.
+
+For **AI-agent tooling** projects: an auto-ticked AI-agent distribution channel
+(Claude plugin / marketplace / MCP / Cursor / Codex / OpenCode) satisfies this
+minimum — those repos need no distro or app-store packaging.
 
 ---
 

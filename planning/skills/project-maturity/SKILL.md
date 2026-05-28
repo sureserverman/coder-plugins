@@ -66,7 +66,7 @@ The full catalog of detectable items lives in `../portfolio/references/maturity-
 
 ## Packaging
 
-<!-- audit will ADD a line per detected packaging target. To mark a target as PLANNED, add the line manually with `[ ] claim:planned-<date>`. To opt out of a detected target, replace with `[N/A] <reason>`. -->
+<!-- audit will ADD a line per detected packaging target. To mark a target as PLANNED, add the line manually with `[ ] claim:planned-<date>`. To opt out of a detected target, replace with `[N/A] <reason>`. Android maintainers: Google Play is OPTIONAL — F-Droid, GitHub Releases (signed APK), IzzyOnDroid, Obtainium, and Accrescent are peer channels. Any one satisfies the axis. Use `[N/A] fdroid-only` / `[N/A] sideload-only` / `[N/A] not-distributing-to-play` / `[N/A] private-distribution` if you want to make the Play choice explicit. -->
 
 ## UI/UX
 
@@ -130,8 +130,12 @@ Operation:
    - Snap: `snapcraft.yaml` at root → `[x] auto:snapcraft.yaml`
    - Chrome Web Store: `chrome/manifest.json` with `"manifest_version": 3` (parse JSON, check field) → `[x] auto:chrome/manifest.json`
    - Firefox AMO: `mozilla/manifest.json` OR `moz-mobile/manifest.json` → `[x] auto:<path>`
-   - Google Play: requires manual claim (no reliable auto-detect of Play submission status)
    - F-Droid: `metadata/<applicationId>.yml` OR `fastlane/metadata/android/` directory → `[x] auto:<path>`
+   - GitHub Releases (Android APK): any `.github/workflows/*.yml` whose file content contains the literal `.apk` AND one of: `gh release create`, `softprops/action-gh-release`, `ncipollo/release-action` → `[x] auto:<workflow-path>`
+   - Google Play: optional, manual claim only (no reliable auto-detect of Play submission status). Android projects do NOT have to ship to Play — F-Droid, GitHub Releases (signed APK), IzzyOnDroid, Obtainium, or Accrescent are peer channels and any one satisfies the Android-packaging minimum. See `references/maturity-axes.md` "Android distribution channels are peers" for the sanctioned `[N/A]` reasons (`fdroid-only`, `sideload-only`, `not-distributing-to-play`, `private-distribution`).
+   - IzzyOnDroid: manual claim only (the `fastlane/metadata/android/` layout is shared with F-Droid; no distinct signal)
+   - Obtainium: manual claim only (Obtainium pulls from arbitrary release sources; no local file signal)
+   - Accrescent: manual claim only (acceptance is a service-side state)
    - Claude Code plugin: `.claude-plugin/plugin.json` → `[x] auto:.claude-plugin/plugin.json`
    - Claude Code marketplace: `.claude-plugin/marketplace.json` → `[x] auto:.claude-plugin/marketplace.json`
    - MCP server: `.mcp.json` (any depth) → `[x] auto:<path>/.mcp.json`
