@@ -100,6 +100,15 @@
       "strict": false
     },
     {
+      "name": "i18n",
+      "source": "./i18n",
+      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source — TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. Commands: /i18n-audit, /i18n-fill-gaps (parallel per-locale dispatch), /i18n-add-locale (scaffold + first-pass translate). Nothing autocommits.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": ["i18n", "l10n", "internationalization", "localization", "translation", "gettext", "po", "i18next", "react-intl", "formatjs", "vue-i18n", "next-intl", "android-strings", "ios-strings", "stringsdict", "xcstrings", "flutter-arb", "rails-yaml", "django", "qt-ts", "resx", "java-properties", "icu-message-format", "cldr", "plurals", "placeholders", "rtl"],
+      "strict": false
+    },
+    {
       "name": "game-dev",
       "source": "./game-dev",
       "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
