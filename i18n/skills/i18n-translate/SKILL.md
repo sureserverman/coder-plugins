@@ -61,6 +61,8 @@ Use the `translator` subagent. Pass it:
 
 For large catalogs (>200 entries), dispatch multiple `translator` agents in parallel — one per locale, NOT one per entry. Translation context within a locale matters.
 
+The translator agent is instructed to consult established translation memories (Microsoft Language Portal, Mozilla Transvision, MyMemory) for short common UI strings before inventing a translation — `Save`, `Cancel`, `Settings`, etc. should land on canonical industry-standard variants for the target locale. If the project is offline or the user wants to suppress network lookups (privacy, deterministic builds, air-gapped), pass `--no-tm-lookup` in the dispatch prompt and the agent will translate from its own knowledge only.
+
 ### Step 5 — Validate (script)
 
 Before writing back, run:

@@ -33,18 +33,46 @@ Before translating anything, write down (in your head, not in output):
 - Style guide formality.
 - Do-not-translate list.
 
-### 2. Translate
+### 2. Consult established translation memories (when applicable)
+
+Before translating short, common UI strings (≤ 4 words, no project-specific jargon — e.g. `Save`, `Cancel`, `Settings`, `Sign in`, `File not found`, `Are you sure?`), look them up in established public translation memories. Localized UIs across the industry converge on the same canonical variants for these strings; inventing a fresh translation when one already exists in Windows / macOS / GNOME / Firefox is a quality regression.
+
+Use WebFetch against these sources, in this order. Stop as soon as you have two corroborating hits or one hit from a tier-1 source (Microsoft / Apple / Mozilla):
+
+1. **Microsoft Language Portal Terminology Search** (tier-1, vendor-authoritative for the Microsoft ecosystem; broadly used as the de-facto Windows convention):
+   `https://www.microsoft.com/en-us/language/Search?&searchTerm={url-encoded-term}&langID={target-locale-tag}&Source=true&productid=0`
+   The page lists the term with translations and the product context (Windows, Office, Visual Studio). Prefer the most generic OS-level variant.
+
+2. **Mozilla Transvision** (tier-1, open translation memory of the entire Firefox / Thunderbird / MDN corpus, free JSON API, no auth):
+   `https://transvision.flod.org/api/v1/tm/{target-locale}/?text={url-encoded-term}&max_results=5`
+   Returns a JSON array of {source, target, quality} entries. Take the highest-quality match whose source equals (case-insensitively) the entry's source.
+
+3. **MyMemory translation memory** (tier-2, aggregates open TMs including EU institutions, OpenOffice, KDE — large recall, more noise; useful as a corroborator):
+   `https://api.mymemory.translated.net/get?q={url-encoded-term}&langpair=en|{target-locale}`
+   Use only the `matches[]` entries with `match >= 0.95` AND `created-by` from a known TM (not anonymous), AND ignore entries where `usage-count == 1`.
+
+**When NOT to consult**:
+- The caller passed `--no-tm-lookup` (offline / air-gapped / deterministic build) — skip all of §2 and note "tm-lookup: disabled" in the report.
+- Long sentences, paragraphs, marketing copy, error messages with project-specific context — these are project-voice and lookups produce mismatched register.
+- Strings already covered by the user-supplied style guide / glossary (the style guide wins, no lookup).
+- Entries marked do-not-translate.
+- When the target locale's CLDR plural categories would be expanded — look up the singular form only, then expand plurals manually per [[#3 Translate]].
+- If two consecutive WebFetches fail or rate-limit, fall back to your own translation for the rest of the batch and note it in the report. Do not loop.
+
+Record per-entry which source backed each lookup (`source: "microsoft" | "mozilla" | "mymemory" | "own"`). The report needs this so reviewers can spot-check.
+
+### 3. Translate
 
 For each entry:
 
 1. **Parse placeholders** — every `{name}`, `{{name}}`, `%s`, `%1$s`, `%@`, `{count, plural, …}`, `<b>…</b>` must appear in the translation with identical syntax.
-2. **Translate the natural-language content** around the placeholders. If the placeholder is wrapped in a noun phrase that doesn't translate idiomatically, restructure the sentence — but the placeholder set MUST be identical.
+2. **Translate the natural-language content** around the placeholders. If a lookup from §2 returned a verbatim match for the placeholder-free portion, use that wording and re-thread the placeholders into it. Otherwise translate from scratch. If the placeholder is wrapped in a noun phrase that doesn't translate idiomatically, restructure the sentence — but the placeholder set MUST be identical.
 3. **For plurals (`{count, plural, …}`)** — emit all required CLDR categories for the target locale, not just the source's two. Russian needs four; English source's `one`/`other` must expand to Russian's `one`/`few`/`many`/`other`.
 4. **For HTML/XML tags** — preserve them exactly. `<b>Save</b>` becomes `<b>Guardar</b>`, not `<strong>Guardar</strong>`.
 5. **For do-not-translate items** — brand names, code identifiers, units (KB, MB), file paths — leave verbatim.
 6. **Mind the locale conventions** — date/number formats stay as placeholders, BUT honorifics, capitalization rules (German nouns capitalized, Spanish lowercase for days/months), and punctuation (French nbsp before `: ; ! ?`, Japanese full-width punctuation) follow the target locale.
 
-### 3. Self-validate before reporting
+### 4. Self-validate before reporting
 
 Build the translator-output JSON in the shape:
 
@@ -67,7 +95,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/i18n-translate/scripts/validate-placeholder
 
 If it reports defects, fix them yourself BEFORE writing back. Do not pass defective translations to the caller — that's what you exist to prevent.
 
-### 4. Write back
+### 5. Write back
 
 Edit the target catalog file directly. Per-format rules:
 
@@ -84,7 +112,7 @@ Edit the target catalog file directly. Per-format rules:
 - **.NET .resx**: `<data name="key"><value>…</value></data>`. Sibling `.es.resx`, `.fr.resx` files per locale.
 - **Java .properties**: `key=value`, one per line. Use `\uXXXX` for non-Latin-1 chars if the project targets Java < 9; UTF-8 otherwise.
 
-### 5. Report
+### 6. Report
 
 Return:
 
@@ -101,6 +129,8 @@ Notes for review:
   - Brand names left verbatim: [...]
   - Plural categories emitted: [one, few, many, other]
   - Style guide applied: <formal/informal/...>
+  - Established-variant lookups: microsoft=A mozilla=B mymemory=C own=D (out of N entries)
+  - Lookups that disagreed across sources (worth a human spot-check): [key1, key2, ...]
   - <anything else the user should sanity-check>
 ```
 
@@ -118,4 +148,9 @@ If any entry could not be translated with confidence (ambiguous source string, m
 
 ## Tooling
 
-You have Edit and Write — author files directly. You have Bash for `python3` to run the validator. You have WebFetch for looking up specific terms in style guides (Microsoft Style Guide for the target locale, government style guides) when the user supplies a URL — never invent style rules.
+You have Edit and Write — author files directly. You have Bash for `python3` to run the validator. You have WebFetch for two purposes:
+
+1. **Established translation memories** for short common UI strings — Microsoft Language Portal, Mozilla Transvision, MyMemory. See [[#2 Consult established translation memories]] for the exact URL templates and the stop conditions.
+2. **Style guides** — Microsoft Style Guide for the target locale, government style guides, vendor glossaries — when the user supplies a URL. Never invent style rules.
+
+Cache hits in your own working memory across a batch: if `Save` resolved to `Guardar` from Microsoft for `es-ES` in entry 3, do not re-fetch for entry 47. One fetch per (term, locale) per session is the budget.
