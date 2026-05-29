@@ -1,7 +1,7 @@
 {
   "name": "infra-build",
-  "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
-  "version": "0.1.0",
+  "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift. A deterministic validation lane (scripts/validate.sh → validate-deb.sh + validate-readiness.sh, on a shared JSON finding contract) owns the mechanical deb-tree and source-repo checks; the skills add the cross-repo registration-sync judgment.",
+  "version": "0.2.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"

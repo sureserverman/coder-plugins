@@ -1,7 +1,7 @@
 {
   "name": "browser-extensions",
-  "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter.",
-  "version": "0.1.0",
+  "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter. The mechanical AMO checks also emit findings on the plugin-dev shared JSON contract via `scripts/validate.sh` (the `validate-amo.sh` lane).",
+  "version": "0.2.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"

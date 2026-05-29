@@ -80,6 +80,22 @@ Next actions:
   - For format-specific gotchas, read skills/i18n-formats
 ```
 
+## Determinism boundary
+
+The mechanical lane now emits the shared plugin-dev finding contract. For catalog
+parity and placeholder/CLDR-plural integrity, prefer running the deterministic
+orchestrator over re-deriving gaps in prose:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <project-root> --json
+```
+
+It discovers `validate-catalog-diff.sh` (`i18n-missing-key` / `i18n-stale-key` /
+`i18n-extra-key`) and `validate-placeholders.sh` (`i18n-placeholder-mismatch`,
+`i18n-missing-plural-categories`, …), wrapping the same Python the phases above
+call. Report its findings verbatim. Framework detection, hardcoded-string triage,
+and any translation/judgment stay LLM work.
+
 ## Notes
 
 - For format gotchas (Android quoting, ARB metadata, gettext plural headers), consult the `i18n-formats` skill. Do not invent escape rules from memory.

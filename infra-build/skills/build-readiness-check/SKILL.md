@@ -16,6 +16,16 @@ description: >
 
 Read-only audit. Never edits, scaffolds, or registers anything — that's what `utils-register`, `build-for-mac-register`, and `publish-images-register` are for. This skill answers one question for each of the three pipelines: **what specifically is missing before this project can be built and published?**
 
+> **Determinism boundary.** The mechanical file/field checks below are owned by the
+> deterministic lane — run it first and report its findings verbatim:
+> `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh" <project-root> --json`.
+> `validate-deb.sh` covers the deb/ tree + control fields (Pipeline 1);
+> `validate-readiness.sh` covers the source-repo mac/ + Docker signals (Pipelines 2–3).
+> Your judgment layer is the **cross-repo registration sync** — confirming a project
+> is consistently registered across `programs.txt` / `images.yml` and the workflow
+> YAML in the infra repos (that spans other repos and punctuation conventions, so it
+> stays here, not in a script).
+
 ## Inputs
 
 - **Required:** the project being audited. Default to the current working directory's project name (last path segment of the repo root, or `metapacks/<sub>` if the repo lives under `~/dev/metapacks/`).

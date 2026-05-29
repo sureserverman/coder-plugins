@@ -23,6 +23,14 @@ directory.
 
 It covers: YAML parse via `yaml.safe_load`, required `on:`/`runs-on:`/`uses:` structure, action-version currency via GitHub `releases/latest` redirect-scrape (flags outdated major versions and mutable branch refs like `@main`), expression-injection detection for `github.event.*`/`inputs.*`/`github.head_ref` in `run:` blocks, secret-echo patterns, possible hardcoded credentials, `permissions: write-all` and missing permissions blocks, malformed `if:` comparisons, same-step `GITHUB_ENV` reads, missing `needs:` targets, missing `timeout-minutes`/`concurrency`, and unreferenced reusable workflows. Findings are printed as a severity-sorted table. Exit 1 if any ERROR was found.
 
+**Determinism boundary.** The mechanical workflow checks are also exposed on
+git-github's shared finding contract via
+`${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <repo-root> --json` (it discovers
+`scripts/validate-workflows.sh`, a thin wrapper over the same
+`audit-workflows.py`). Prefer that when an agent or command needs structured,
+mergeable findings (stable `gha-*` rule-ids). Cross-workflow parity and
+reusable-workflow input/secret judgment stay here in the LLM lane below.
+
 **After the script, still read the sections below** — they remain the source of truth for what's checked and cover the pieces that need human judgment: section 1 (reusable-workflow input/secret parity between callers and callees), section 4 (artifact-name uniqueness across jobs, `continue-on-error` intent, input type correctness), section 5 (cross-workflow consistency beyond what parsing can verify), and section 6 (parallelization opportunities, run-block extraction). Use the numbered sections as both the script's spec and your manual-pass checklist. Offer to fix all issues at the end.
 
 <details>

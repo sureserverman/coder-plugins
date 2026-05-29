@@ -5,6 +5,13 @@ description: Use when creating, updating, or validating the Debian `.deb` layout
 
 # Debian Package Reference
 
+> **Determinism boundary.** The `references/validation.md` checklist is executable:
+> `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-deb.sh" <project-root>` checks the
+> deb/ structure, control fields, maintainer-script shebang/exec bits, the
+> `systemctl --global` and `${SUDO_USER:-$USER}` footguns, and `Architecture: all`
+> on a compiled package — on the shared JSON contract. Run it first; reserve your
+> attention for authoring the control/postinst content and systemd wiring.
+
 > **WARNING:** Many projects have BOTH `deb/` and `mac/` directories. The `mac/` directory (with its own `Makefile`, `payload/`, `scripts/`) belongs to the macOS .pkg installer. **Do NOT modify, move, delete, or reorganize anything under `mac/`** when working on deb packaging. They are independent packaging pipelines that happen to share the same repo.
 
 ## Project Directory Structure
