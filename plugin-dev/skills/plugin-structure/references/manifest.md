@@ -115,6 +115,35 @@ Overrides or supplements auto-discovery. Rarely needed — use only when you wan
 
 When this field is present, its entries are loaded in order before auto-discovery runs for any paths not already listed.
 
+### `commands`, `agents`, `hooks`, `mcpServers`
+
+Type: array of path strings (`commands`, `agents`) or a path string / inline object (`hooks`, `mcpServers`)
+
+Like `skills`, these **supplement** default discovery — they do not replace it. You only need them to add component directories outside the standard tree, or to point at a non-default config file. Defaults if omitted:
+
+| Field | Default | Form |
+|---|---|---|
+| `commands` | `./commands` | extra command directories |
+| `agents` | `./agents` | extra agent directories |
+| `hooks` | `./hooks/hooks.json` | path to a hooks file, or an inline hooks object |
+| `mcpServers` | `./.mcp.json` | path to an MCP config, or an inline `mcpServers` object |
+
+```json
+"hooks": "./hooks/hooks.json",
+"mcpServers": "./.mcp.json"
+```
+
+### Path resolution rules
+
+Every path in `plugin.json` (and bundled config) follows the same rules:
+
+- **Relative only** — must start with `./`; absolute paths break on other machines.
+- **No `..`** — paths may not escape the plugin root.
+- **Forward slashes** — even authored on Windows.
+- Bundled scripts referenced from hooks/MCP use the `${CLAUDE_PLUGIN_ROOT}` variable, which the runtime expands to the plugin's install directory at run time.
+
+Common manifest errors: a `name` with spaces/underscores (must be kebab-case), an absolute or `../` path, a missing `./` prefix, or a non-semver `version` like `"1.0"` instead of `"1.0.0"`. The deterministic `validate-manifest.sh` catches all of these.
+
 ## Complete example
 
 ```json

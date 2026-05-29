@@ -12,6 +12,31 @@ Anthropic ships a [`plugin-dev`](https://github.com/anthropics/claude-plugins-of
 
 If you want maximum coverage with examples, install Anthropic's. If you want a fast on-ramp that won't ship you a leaky skill, install this.
 
+## Balanced by design — the determinism boundary
+
+Plugin work splits cleanly into two lanes, and this plugin keeps them apart instead of asking an LLM to do everything:
+
+- **Deterministic lane → bash scripts.** Anything decidable by a rule — JSON/YAML parse, required fields, `name`↔directory match, enum/whitelist checks (model, color, hook events, MCP transport), line/char caps, reference nesting, `${CLAUDE_PLUGIN_ROOT}` usage, the Stop-loop guard, `$ARGUMENTS` quoting, plaintext-secret detection — is checked by `scripts/`, fast and reproducibly, emitting a shared JSON finding contract.
+- **Semantic lane → the LLM.** Judgment calls — confirming a description leak and rewriting it, prompt-injection risk, whether a description will actually trigger, design coherence, model-tier fit — stay with the skills and agents, which **consume** the script output rather than re-deriving the rules.
+
+The validator agent runs the suite, reports its findings verbatim, then adds only the judgment layer. Creation works the same way: scaffolders generate guaranteed-valid structure; you (the LLM) write the content. See [`scripts/README.md`](scripts/README.md) for the contract and how to extend it.
+
+### Deterministic suite (`scripts/`)
+
+| Script | Does |
+|---|---|
+| `validate-plugin.sh <root> [--json]` | Orchestrator — discovers components, runs each per-domain validator, merges findings, prints one verdict. The single entry point. |
+| `validate-{manifest,skill,command,agent,hooks,mcp,settings}.sh` | Per-domain validators; each emits the shared JSON contract and a human report. |
+| `scaffold-{plugin,skill,command,hook}.sh` | Generate valid skeletons (correct frontmatter/layout), idempotent, self-validating. |
+| `lib/findings.sh` | Shared finding accumulator + renderer — the one place the JSON contract lives. |
+
+```bash
+# deterministic gate (fast, free, reproducible)
+bash scripts/validate-plugin.sh path/to/plugin --json | jq .
+# scaffold a component, guaranteed to pass the gate
+bash scripts/scaffold-skill.sh path/to/plugin my-skill
+```
+
 ## Installation
 
 ```bash
@@ -43,14 +68,14 @@ If you want maximum coverage with examples, install Anthropic's. If you want a f
 
 | Agent | Model | Tools | Purpose |
 |---|---|---|---|
-| `plugin-validator` | haiku | Read, Grep, Glob, Bash | Static validation of manifest, structure, frontmatter, hooks. Read-only. |
+| `plugin-validator` | haiku | Read, Grep, Glob, Bash | Runs the deterministic suite (`scripts/validate-plugin.sh`), reports its findings, then adds the semantic layer (leak confirmation, injection, triggering, design). Read-only. |
 | `skill-reviewer` | haiku | Read, Grep, Glob | Description leak-audit + injection scan + best-practice review on a SKILL.md. Read-only. |
 | `agent-creator` | sonnet | Write, Read | Generates a new agent file from a brief. |
 | `session-analyzer` | haiku | Bash, Read, Write, Grep, Glob | Parses Claude Code session JSONL files into ranked skill candidates. Driven by `skill-workshop`. |
 
 ### Commands (1)
 
-- `/create-plugin` — guided flow: discover intent, draft components via skills, dispatch `agent-creator` for each agent, finish with a `plugin-validator` pass.
+- `/create-plugin` — guided flow: discover intent, **scaffold** structure with `scripts/scaffold-*.sh`, write content via the matching skills, dispatch `agent-creator` for each agent, then gate on `scripts/validate-plugin.sh` before a semantic `plugin-validator` pass.
 
 ## Anti-patterns this plugin will catch
 

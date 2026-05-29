@@ -7,6 +7,8 @@ description: Use when authoring Claude Code subagents. Triggers on "agent frontm
 
 Decision rules for writing Claude Code subagents: how to structure the file, what frontmatter fields do, how to pick a model and tool set, and how to write a body that produces structured output.
 
+> **Determinism boundary.** `name`↔filename, `model`/`color` enums, and frontmatter/system-prompt presence are owned by `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-agent.sh" <agent.md>`. Note it deliberately does **not** require `<example>` blocks or "Use this agent when…" phrasing — those conflict with leak-safe, third-person descriptions. Run it first; bring judgment to routing quality, tool-set minimalism, and model tier. (Generate write-capable agents with the `agent-creator` subagent.)
+
 ## Reference map
 
 | When you need… | Read first |

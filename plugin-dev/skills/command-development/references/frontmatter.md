@@ -102,9 +102,23 @@ If `model` is omitted, behavior is implementation-defined — do not rely on it.
 
 ---
 
+### `disable-model-invocation`
+
+**Optional, boolean (default `false`).** When `true`, the command runs only when the user types `/name` explicitly — the model cannot trigger it through the `SlashCommand` tool.
+
+```yaml
+disable-model-invocation: true   # e.g. a deploy/approval command you never want auto-run
+```
+
+Use it for destructive or approval-gated commands. Leave it off for everyday helper commands you want the model to reach for.
+
+---
+
 ## Body mechanics
 
 **`$ARGUMENTS`** — verbatim string the user typed after the command name, substituted into the body at invocation time. `/my-command src/main.rs` → `$ARGUMENTS` is `src/main.rs`.
+
+**`$1`, `$2`, …** — individual whitespace-separated arguments. `/deploy staging v2` → `$1` is `staging`, `$2` is `v2`. Use these when the command has distinct positional slots; use `$ARGUMENTS` when you want the whole raw string. Quote them in bash blocks just like `$ARGUMENTS`.
 
 Shell injection rule: always quote inside bash blocks.
 

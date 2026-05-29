@@ -8,6 +8,8 @@ description: Use when authoring or auditing a SKILL.md. Triggers on "create a SK
 Canonical rules for authoring, reviewing, and security-auditing Claude Code `SKILL.md` files.
 Consult the `references/` files when a topic goes deep.
 
+> **Determinism boundary.** The mechanical checks — frontmatter parse, `name` matches the directory, description length, SKILL.md ≤500 lines, reference nesting — are owned by the deterministic suite: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-skill.sh" <skill-dir>`. It only *flags* description POV/leak candidates; confirming and rewriting them is your judgment (see `references/leak-and-injection.md`). Run the script first, then spend attention on what it cannot decide.
+
 ## Reference map
 
 | When you're… | Read first |

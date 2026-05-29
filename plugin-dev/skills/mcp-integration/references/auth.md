@@ -198,3 +198,19 @@ Use OAuth when the service requires it or the token represents a user identity. 
 | Token stored in `.claude-plugin/` config files | May be committed; check `.gitignore` first |
 | OAuth client secret in committed file | Keep in credential store only; treat like a password |
 | Logging env vars in server output | Secrets appear in Claude Code's debug log |
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Check |
+|---|---|---|
+| `401 Unauthorized` | token missing or not expanded | Is the `${VAR}` actually set in the shell that launched Claude Code? `echo $VAR` in that shell. |
+| `403 Forbidden` | token valid but lacks scope | Re-issue the token / OAuth grant with the required scopes; document them in the README. |
+| "token not found" at startup | env var unset or named differently | Confirm the `.mcp.json` key matches the exported var name exactly (prefix included). |
+| Works once, then fails | short-lived/expiring token | Don't bake it into `env:` — use the local proxy sidecar to fetch/refresh per request. |
+| OAuth loop (re-prompts every call) | token store not persisting | Verify the credential store is writable; re-run the consent flow once. |
+
+For static debugging, hit the remote directly with `curl -H "Authorization: Bearer $VAR" <url>` to isolate whether the problem is the token or the MCP wiring.
+
+**Dynamic / expiring tokens:** when a credential must be minted per request (HMAC signatures, short TTLs, time-based auth), the `env:` block can't help — it's evaluated once at launch. Use the local proxy sidecar (above): the proxy mints the header on each call and forwards over stdio.

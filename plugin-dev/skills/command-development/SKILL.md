@@ -7,6 +7,8 @@ description: Use when authoring Claude Code slash commands. Triggers on "command
 
 Decision rules for authoring slash commands that are tight, secure, and well-scoped. Consult `references/frontmatter.md` when you need the full field reference.
 
+> **Determinism boundary.** Frontmatter fields, the `model` enum, `allowed-tools` scoping, `$ARGUMENTS` quoting, and hardcoded-path checks are owned by `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-command.sh" <command.md>`. Scaffold a valid skeleton with `scripts/scaffold-command.sh`. Run the validator first; reserve your attention for prompt tightness and whether the tool set and model actually fit the job.
+
 ## Reference map
 
 | When you're… | Read first |

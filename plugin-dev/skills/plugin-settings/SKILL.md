@@ -423,87 +423,26 @@ Settings files should be:
 
 ## Real-World Examples
 
-### multi-agent-swarm Plugin
-
-**.claude/multi-agent-swarm.local.md:**
-```markdown
----
-agent_name: auth-implementation
-task_number: 3.5
-pr_number: 1234
-coordinator_session: team-leader
-enabled: true
-dependencies: ["Task 3.4"]
-additional_instructions: Use JWT tokens, not sessions
----
-
-# Task: Implement Authentication
-
-Build JWT-based authentication for the REST API.
-Coordinate with auth-agent on shared types.
-```
-
-**Hook usage (agent-stop-notification.sh):**
-- Checks if file exists (line 15-18: quick exit if not)
-- Parses frontmatter to get coordinator_session, agent_name, enabled
-- Sends notifications to coordinator if enabled
-- Allows quick activation/deactivation via `enabled: true/false`
-
-### ralph-loop Plugin
-
-**.claude/ralph-loop.local.md:**
-```markdown
----
-iteration: 1
-max_iterations: 10
-completion_promise: "All tests passing and build successful"
----
-
-Fix all the linting errors in the project.
-Make sure tests pass after each fix.
-```
-
-**Hook usage (stop-hook.sh):**
-- Checks if file exists (line 15-18: quick exit if not active)
-- Reads iteration count and max_iterations
-- Extracts completion_promise for loop termination
-- Reads body as the prompt to feed back
-- Updates iteration count on each loop
+Two worked examples — the `multi-agent-swarm` plugin (agent coordination state) and
+the `ralph-loop` plugin (iteration counter + completion promise driving a Stop hook)
+— live in full in `references/real-world-examples.md`, including their settings files
+and the hook code that reads them.
 
 ## Quick Reference
-
-### File Location
 
 ```
 project-root/
 └── .claude/
-    └── plugin-name.local.md
+    └── plugin-name.local.md          # YAML frontmatter + markdown body
 ```
-
-### Frontmatter Parsing
 
 ```bash
-# Extract frontmatter
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$FILE")
-
-# Read field
-VALUE=$(echo "$FRONTMATTER" | grep '^field:' | sed 's/field: *//' | sed 's/^"\(.*\)"$/\1/')
+# quick-exit when not configured
+[ -f ".claude/my-plugin.local.md" ] || exit 0
 ```
 
-### Body Parsing
-
-```bash
-# Extract body (after second ---)
-BODY=$(awk '/^---$/{i++; next} i>=2' "$FILE")
-```
-
-### Quick Exit Pattern
-
-```bash
-if [[ ! -f ".claude/my-plugin.local.md" ]]; then
-  exit 0  # Not configured
-fi
-```
+Frontmatter and body parsing snippets: see `references/parsing-techniques.md` (the
+canonical reference) or the `scripts/parse-frontmatter.sh` helper.
 
 ## Additional Resources
 
@@ -524,10 +463,8 @@ Working examples in `examples/`:
 
 ### Utility Scripts
 
-Development tools in `scripts/`:
-
-- **`validate-settings.sh`** - Validate settings file structure
-- **`parse-frontmatter.sh`** - Extract frontmatter fields
+- **`scripts/parse-frontmatter.sh`** - Extract frontmatter fields (helper for hooks/commands that read settings)
+- **Validation** is deterministic and lives in the canonical suite: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-settings.sh" <file>.local.md` checks settings-file structure and emits the shared JSON finding contract.
 
 ## Implementation Workflow
 

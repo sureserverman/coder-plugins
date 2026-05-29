@@ -8,6 +8,8 @@ description: Use when authoring or debugging Claude Code hooks. Triggers on "Pre
 Rules for writing correct, well-scoped Claude Code hooks. Read `references/events.md` for full
 input/output schemas. Read `references/feedback-vs-blocking.md` before choosing to block.
 
+> **Determinism boundary.** `hooks.json` structure, the 2026 event whitelist, `${CLAUDE_PLUGIN_ROOT}` usage, the Stop-loop guard, and timeout sanity are owned by `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-hooks.sh" <hooks.json>` (it absorbed the old hook-linter + schema scripts). Scaffold a guarded hook with `scripts/scaffold-hook.sh`; exercise behavior with `scripts/test-hook.sh`. Run those first; reserve judgment for the feedback-vs-blocking decision.
+
 > **Version compatibility — verify before shipping.** A handful of fields and env vars referenced
 > in this skill and in `references/events.md` evolve between Claude Code releases. Confirm
 > against `code.claude.com/docs/en/hooks` for your installed SDK version, in particular:

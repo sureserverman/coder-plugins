@@ -1,7 +1,7 @@
 ---
 description: Guided end-to-end Claude Code plugin scaffold — discover intent, draft components, validate.
 argument-hint: [plugin-name] (optional)
-allowed-tools: ["Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestion", "Skill", "Agent", "Bash(jq:*)", "Bash(find:*)", "Bash(ls:*)", "Bash(mkdir:*)", "Bash(python3:*)", "Bash(test:*)"]
+allowed-tools: ["Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestion", "Skill", "Agent", "Bash(bash:*)", "Bash(jq:*)", "Bash(find:*)", "Bash(ls:*)", "Bash(mkdir:*)", "Bash(python3:*)", "Bash(test:*)"]
 model: inherit
 ---
 
@@ -10,6 +10,15 @@ model: inherit
 Scaffolds a new Claude Code plugin under a marketplace directory the user names. Walks the user through the high-leverage decisions, drafts each component using the relevant `plugin-dev:*` skill, dispatches `agent-creator` for any agents, and finishes with a `plugin-validator` pass.
 
 The user invoked this command with: `$ARGUMENTS`
+
+## Determinism boundary
+
+Structure is deterministic — generate it with the `scripts/scaffold-*.sh` tools
+(they emit valid frontmatter/layout and self-validate). Content is judgment —
+write descriptions and bodies yourself, guided by the matching skill. Validation
+is deterministic first (`scripts/validate-plugin.sh`), semantic second (the
+`plugin-validator` / `skill-reviewer` agents). Let `${SCRIPTS}` mean
+`${CLAUDE_PLUGIN_ROOT}/scripts` below.
 
 ## Phase 1 — Discover intent
 
@@ -31,50 +40,61 @@ Don't overplan. The user can add more later.
 
 ## Phase 2 — Foundation (always)
 
-Create the plugin skeleton:
+Generate the skeleton deterministically — do not hand-write these files:
 
-```
-<marketplace-root>/<plugin-name>/
-├── .claude-plugin/plugin.json
-├── README.md
-└── LICENSE
+```bash
+bash "${SCRIPTS}/scaffold-plugin.sh" <marketplace-root> <plugin-name>
 ```
 
-`plugin.json` template:
+This writes `.claude-plugin/plugin.json` (version `0.1.0`), a `README.md` stub,
+a `LICENSE` copied from a sibling plugin, and self-validates the manifest. Then
+**edit the generated `plugin.json`** to fill the `description` (one-line,
+third-person), `author` (from the marketplace owner), and `keywords` (3–8
+lowercase tags) — that content is yours to write.
 
-```json
-{
-  "name": "<plugin-name>",
-  "description": "<one-line purpose>",
-  "version": "0.1.0",
-  "author": {"name": "<from marketplace owner>", "email": "<from marketplace owner>"},
-  "license": "MIT",
-  "keywords": ["<3-8 lowercase tags>"]
-}
-```
-
-Register the plugin in the marketplace's `marketplace.json` `plugins:` array. Match the existing entries' shape (category, tags, source, strict).
+Register the plugin in the marketplace's `marketplace.json` `plugins:` array.
+Match the existing entries' shape (category, tags, source, strict).
 
 ## Phase 3 — Components (per user choice)
 
-For each component type the user picked, **load the matching skill via the Skill tool** and follow its guidance to draft files. The skills are:
+For each component, **scaffold the structure with a script, then write the content
+guided by the matching skill**:
 
-| Component | Load this skill |
-|---|---|
-| Skills | `plugin-dev:skill-development` |
-| Commands | `plugin-dev:command-development` |
-| Agents | `plugin-dev:agent-development` (then dispatch `plugin-dev:agent-creator` per agent) |
-| Hooks | `plugin-dev:hook-development` |
-| MCP | `plugin-dev:mcp-integration` |
-| Layout / manifest questions | `plugin-dev:plugin-structure` |
+| Component | Scaffold (structure) | Then load (content) |
+|---|---|---|
+| Skills | `bash "${SCRIPTS}/scaffold-skill.sh" <root> <name>` | `plugin-dev:skill-development` |
+| Commands | `bash "${SCRIPTS}/scaffold-command.sh" <root> <name>` | `plugin-dev:command-development` |
+| Hooks | `bash "${SCRIPTS}/scaffold-hook.sh" <root> <event> [matcher]` | `plugin-dev:hook-development` |
+| Agents | (dispatch `agent-creator`, below) | `plugin-dev:agent-development` |
+| MCP | (hand-write `.mcp.json`) | `plugin-dev:mcp-integration` |
+| Layout / manifest questions | — | `plugin-dev:plugin-structure` |
 
-For agents specifically: after the user lists the agents they want, dispatch the `agent-creator` agent (Agent tool, `subagent_type: agent-creator`) once per agent with a tight brief: target path, purpose, scope, model preference. Don't write agent files inline — that's `agent-creator`'s job.
+Each scaffolder emits valid frontmatter/layout and self-validates; you fill the
+`description` (when, not how) and body afterward. Don't hand-create these files —
+the scaffolder guarantees they pass the deterministic gate from the start.
 
-## Phase 4 — Self-validate
+For agents specifically: dispatch the `agent-creator` agent (Agent tool,
+`subagent_type: agent-creator`) once per agent with a tight brief: target path,
+purpose, scope, model preference. Don't write agent files inline — that's
+`agent-creator`'s job.
 
-Run the `plugin-validator` agent (Agent tool, `subagent_type: plugin-validator`) on the new plugin root. Address any **errors**. Surface **warnings** to the user — let them decide whether to fix now.
+## Phase 4 — Self-validate (deterministic gate, then semantic)
 
-For each new skill, run `plugin-dev:skill-reviewer` and triage its critical findings.
+1. **Deterministic gate** — run the suite directly and fix every error before
+   going further:
+
+   ```bash
+   bash "${SCRIPTS}/validate-plugin.sh" <plugin-root> --json
+   ```
+
+   This is fast, free, and reproducible. Address all `error`-severity findings;
+   surface `warn`/`info` to the user.
+
+2. **Semantic pass** — dispatch the `plugin-validator` agent (Agent tool,
+   `subagent_type: plugin-validator`) on the plugin root. It re-runs the gate and
+   adds judgment-level findings (leak confirmation, injection, triggering,
+   design). For each new skill, also run `plugin-dev:skill-reviewer` and triage
+   its critical findings.
 
 ## Phase 5 — Wrap up
 
