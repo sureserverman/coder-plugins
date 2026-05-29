@@ -37,6 +37,21 @@ bash scripts/validate-plugin.sh path/to/plugin --json | jq .
 bash scripts/scaffold-skill.sh path/to/plugin my-skill
 ```
 
+### Make another plugin balanced — the determinism kit
+
+The same boundary is portable. The validators above check *plugin structure*
+(plugin-dev's domain). A different plugin has its **own** mechanical work — its
+configs, its invariants — that deserves the same treatment. The kit vendors a
+self-contained deterministic lane into any plugin:
+
+- `/refactor-plugin <path>` — survey a plugin, classify its work, vendor the kit, generate its domain validators, and rewire its agents/commands to run them. Brownfield.
+- `/create-plugin` — vendors the kit into new plugins so they're balanced from birth.
+- `determinism-boundary` skill — teaches the script-vs-judgment split (used by both).
+- `scripts/install-kit.sh <plugin>` + `scripts/scaffold-validator.sh <scripts-dir> <domain>` — the deterministic primitives; each target gets `lib/findings.sh` (the shared contract, verbatim) + a generic `validate.sh` orchestrator + its own `validate-<domain>.sh` files.
+
+Structure validation stays plugin-dev's external job; the kit gives a plugin its
+*domain* lane on the same JSON contract.
+
 ## Installation
 
 ```bash
@@ -46,11 +61,12 @@ bash scripts/scaffold-skill.sh path/to/plugin my-skill
 
 ## Components
 
-### Skills (13)
+### Skills (14)
 
 | Skill | Triggers when you ask |
 |---|---|
 | `plugin-structure` | "how do I lay out a plugin", "what goes in `.claude-plugin/`", "marketplace.json schema" |
+| `determinism-boundary` | "script vs judgment split", "add a deterministic lane", "make this plugin self-validating", "deterministic scripts vs LLM" |
 | `skill-development` | "write a skill", "improve this SKILL.md", "skill description triggering" |
 | `command-development` | "create a slash command", "command frontmatter", "$ARGUMENTS in commands" |
 | `agent-development` | "create a subagent", "agent frontmatter", "model pinning for agents" |
@@ -73,9 +89,10 @@ bash scripts/scaffold-skill.sh path/to/plugin my-skill
 | `agent-creator` | sonnet | Write, Read | Generates a new agent file from a brief. |
 | `session-analyzer` | haiku | Bash, Read, Write, Grep, Glob | Parses Claude Code session JSONL files into ranked skill candidates. Driven by `skill-workshop`. |
 
-### Commands (1)
+### Commands (2)
 
-- `/create-plugin` — guided flow: discover intent, **scaffold** structure with `scripts/scaffold-*.sh`, write content via the matching skills, dispatch `agent-creator` for each agent, then gate on `scripts/validate-plugin.sh` before a semantic `plugin-validator` pass.
+- `/create-plugin` — guided flow: discover intent, **scaffold** structure with `scripts/scaffold-*.sh`, write content via the matching skills, dispatch `agent-creator` for each agent, then gate on `scripts/validate-plugin.sh` before a semantic `plugin-validator` pass. Vendors the determinism kit into the new plugin.
+- `/refactor-plugin` — make an existing plugin balanced: survey, vendor the kit, generate its domain validators, rewire its agents/commands to consume them.
 
 ## Anti-patterns this plugin will catch
 

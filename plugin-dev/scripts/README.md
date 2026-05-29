@@ -34,8 +34,27 @@ scripts/
 ├── validate-hooks.sh        # hooks/hooks.json + bundled hook scripts
 ├── validate-mcp.sh          # .mcp.json
 ├── validate-settings.sh     # .claude/<plugin>.local.md settings files
-└── scaffold-{plugin,skill,command,hook}.sh
+├── scaffold-{plugin,skill,command,hook}.sh
+├── install-kit.sh           # vendor the determinism kit into ANOTHER plugin
+├── scaffold-validator.sh    # generate a domain validator on the contract (in any kit'd plugin)
+└── kit/                     # the portable kit source (vendored by install-kit.sh)
+    ├── validate.sh          #   generic domain-agnostic orchestrator
+    └── README.md            #   boundary-doc template (__PLUGIN__ placeholder)
 ```
+
+### Component validators vs domain validators
+
+The `validate-*.sh` here check **plugin structure** (manifest, skills, commands,
+agents, hooks, MCP) — that is plugin-dev's *own* domain, and it runs on any
+plugin from outside via `validate-plugin.sh`.
+
+A different concern is a target plugin's **own** deterministic lane — checks about
+*its* domain (rust-dev → Cargo.toml; i18n → catalog parity). That lane is the
+portable **kit**: `install-kit.sh` vendors `lib/findings.sh` + `kit/validate.sh`
+into the target's `scripts/`, and `scaffold-validator.sh` adds `validate-<domain>.sh`
+files on the same JSON contract. The target's generic `validate.sh` auto-discovers
+them. `/refactor-plugin` and `/create-plugin` drive this; `determinism-boundary`
+is the skill that teaches the split. Same contract, two scopes.
 
 ## The JSON contract
 

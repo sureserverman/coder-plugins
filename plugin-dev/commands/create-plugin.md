@@ -55,6 +55,17 @@ lowercase tags) — that content is yours to write.
 Register the plugin in the marketplace's `marketplace.json` `plugins:` array.
 Match the existing entries' shape (category, tags, source, strict).
 
+If the plugin will do any mechanical domain work (parsing its configs, checking
+invariants), give it a deterministic lane from birth — vendor the kit:
+
+```bash
+bash "${SCRIPTS}/install-kit.sh" <marketplace-root>/<plugin-name>
+```
+
+Then, guided by `plugin-dev:determinism-boundary`, add a domain validator per
+mechanical slice with `scaffold-validator.sh <plugin>/scripts <domain>` and fill
+its checks. Skip the kit for a pure-judgment plugin.
+
 ## Phase 3 — Components (per user choice)
 
 For each component, **scaffold the structure with a script, then write the content
