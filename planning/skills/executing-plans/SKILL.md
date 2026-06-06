@@ -108,6 +108,16 @@ When every task in the stage is green, run the stage gate:
 - Run them in order; stop at the first failure
 - Run the full existing test suite as part of the gate (regressions check)
 
+**Independent evaluator for non-command checks.** Command checks are
+deterministic — run them yourself. But when a gate contains any check that
+requires judgment ("manual verification", "reads coherently", "flow works
+end-to-end"), dispatch a fresh evaluator agent for those checks, briefed ONLY
+with the stage goal and the gate's pass criteria — never the implementation
+transcript or your own summary of the work. The session that wrote the code
+grades its own work too generously; external judgment catches what
+self-assessment misses. Skip the evaluator only if the user opts out or every
+check in the gate is a command.
+
 **If the gate fails:**
 
 1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
@@ -145,16 +155,17 @@ When every stage is green:
 
 1. Run the **full** test suite one more time from a clean state (don't trust the per-stage runs)
 2. Run any integration / e2e tests the plan flagged
-3. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
-4. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-5. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
-6. Report to the user with:
+3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail. A FAIL here is a stop condition: surface it to the user before merge. Skip only on explicit user opt-out.
+4. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
+5. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
+6. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
+7. Report to the user with:
    - Stages completed
    - Total commits
    - Plan location for future reference
    - Backlog items closed (by ID) and any new ones opened during execution
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
-7. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
+8. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
 
 ---
 
@@ -185,6 +196,7 @@ When every stage is green:
 - **Preflight as hard gate** — aviation checklist tradition; Atul Gawande, *The Checklist Manifesto* (2009)
 - **Commit per green task** — frequent, small commits; *The Pragmatic Programmer* Ch. 7; Linus Torvalds on "each commit should be a single logical change"
 - **Never skip the test** — Beck (TDD), Fowler ("Continuous Integration"); the test is the only signal that says "done"
+- **Independent evaluator, context resets** — Anthropic Engineering, "Harness design for long-running application development" (https://www.anthropic.com/engineering/harness-design-long-running-apps); generators grade their own work too generously, and structured handoffs into fresh context outperform one degrading context
 
 ## Integration
 
@@ -192,5 +204,5 @@ When every stage is green:
 - **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
-- **code-reviewer agent** — optional; invoke between stages for an independent review of stage changes before the gate
+- **code-reviewer / evaluator agent** — default at Phase Close-out and at any gate with non-command checks (briefed with goals + criteria only, never the implementation transcript); skip only when the user opts out or every check is a command. Optionally also between stages for review of stage diffs
 - **testing-expert agent** — invoke when a task's test is ambiguous, flaky, or the plan's coverage is thin
