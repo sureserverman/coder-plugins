@@ -5,7 +5,7 @@ description: Use when the user asks to change, design, or restyle Android UI —
 
 # Android UI Design and Figma Workflow
 
-End-to-end workflow: **standard-first implementation → analyze app → design (spec + Figma when needed) → feedback → amend → apply to app.**
+End-to-end workflow: **standard-first implementation → analyze app → design (spec + Figma when needed) → feedback → amend → apply to app → verify visually (screenshot-grade loop).**
 
 ## Core principle: Standard first, DIY only when necessary
 
