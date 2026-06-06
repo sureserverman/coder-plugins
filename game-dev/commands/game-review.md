@@ -59,6 +59,7 @@ A markdown report in the **Game Design Review** schema from the agent's spec:
 - Stack header.
 - Findings severity-ranked: HARD (ship-blocking) / SOFT (recommended) / POLISH (nice-to-have).
 - Each finding cites source by name (Nesky / Schell / Sylvester / Swink / Hodent / Nystrom / Unity docs / Godot docs / Unreal docs / GAG).
+- Each finding carries a `reviewed live` or `static-only` provenance tag (see Live play above).
 - Sources-cited section at the bottom.
 
 ## Don'ts
