@@ -64,7 +64,35 @@ Apply this at every step: theming, components, layout, navigation, motion, acces
    - **Screens and components**: Prefer Material 3 / Compose Material / AndroidX components; extend or customize via parameters and theme. Create new composables or views only when no standard fits.
    - **Consistency**: Apply the same spacing scale, type scale, and color usage across the app using the chosen standard system.
 3. **Figma-to-code (when Figma URL is provided)**: Use the implement-design workflow adapted for Android: call `get_design_context(fileKey, nodeId)` and optionally `get_variable_defs` for tokens. Map Figma elements to standard Android/Compose components where possible; translate only the rest. Use `get_screenshot` to validate visually.
-4. **Verify**: Run `./gradlew :app:compileDebugKotlin` (or equivalent) and fix any build issues. Run relevant UI or instrumented tests. Do not mark the task complete with failing tests.
+4. **Verify (build + tests)**: Run `./gradlew :app:compileDebugKotlin` (or equivalent) and fix any build issues. Run relevant UI or instrumented tests. Do not mark the task complete with failing tests.
+5. **Verify (visual, against the spec)**: A compile proves nothing about whether the rendered UI matches the approved spec — stubs and broken layouts build fine. After build and tests pass, run the screenshot-evaluation loop below before presenting the result.
+
+## Phase 5: Visual verification loop (screenshot → grade → iterate)
+
+Generation and evaluation are separated on purpose: the session that wrote the
+code grades its own work too generously. The evaluator sees only the approved
+spec, the rubric, and the captured screenshots — never the implementation
+transcript.
+
+1. **Capture**: Build the debug APK, then bring up the emulator stack and
+   capture screenshots of every changed screen following the
+   android-mcp-orchestrator skill (`scripts/run.sh` is the canonical
+   entrypoint; honor its lifecycle rules — every up is paired with a down).
+   Typical tool sequence: `start-android-tablet-emulators` →
+   `install-app-on-emulators` → `capture-emulator-screenshots`.
+2. **Grade**: Evaluate the captures against the approved design spec using
+   [references/ui-grading-rubric.md](references/ui-grading-rubric.md) — four
+   weighted dimensions, pass threshold, and fix-list format are defined there.
+3. **Iterate**: On a below-threshold verdict, apply the fix list (smallest
+   change that addresses the lowest-scoring dimension), rebuild, re-capture,
+   re-grade. Max 3 iterations; if still below threshold, present to the user
+   with the scores and remaining fix list instead of looping.
+4. **Present**: Only a passing (or escalated) result goes to the user, with
+   the screenshots and per-dimension scores attached.
+
+Skip this phase only when the change cannot be visible in a screenshot (e.g. a
+pure refactor with no rendered difference) or no emulator stack is available —
+say so explicitly rather than silently skipping.
 
 ## Launcher icon (adaptive — mandatory)
 
@@ -88,6 +116,7 @@ Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons
 - **Spec over vague intent**: Every design change in the spec must be implementable (values, not only descriptions).
 - **One source of truth**: Keep the design spec and any Figma file in sync; when the user amends in Figma, update the spec or re-fetch context before changing code.
 - **Android stack**: Apply changes in the project’s actual stack (Compose, Views, or mixed). Follow the project’s architecture and the android-gradle-build skill for builds, tests, and F-Droid/store publishing (metadata, fastlane, pipeline).
+- **Visual verification before presenting**: A green build is not a verified design. Run the Phase 5 screenshot-evaluation loop (capture → grade against [references/ui-grading-rubric.md](references/ui-grading-rubric.md) → iterate, max 3) for any visible change; the evaluator never sees the implementation, only spec + rubric + screenshots.
 
 ## Summary Checklist
 
@@ -98,6 +127,7 @@ Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons
 - [ ] User feedback gathered and spec (and Figma, if used) updated until approved.
 - [ ] Design applied in code using standard components/APIs where possible; Figma context used when URL provided.
 - [ ] Build and tests pass before considering the task complete.
+- [ ] Visual verification passed: changed screens captured on the emulator stack and graded ≥ threshold against the rubric (or capture explicitly skipped with the reason stated).
 
 ## Delegation (Claude Code only)
 
@@ -122,3 +152,10 @@ generation job. If you are on Opus, delegate the code-write phase to the
 
 Keep app analysis, the design spec itself, the user-feedback loop, and any
 Figma work in this session — those are where the design judgment lives.
+
+For the Phase 5 grading step, dispatch a separate subagent (e.g.
+`general-purpose`) briefed ONLY with: the approved design spec, the rubric at
+`references/ui-grading-rubric.md`, and the screenshot paths. Do not pass it
+the implementation diff or this session's transcript — the point of the
+evaluator is judgment uncontaminated by the generator's view of its own work.
+Apply the returned fix list in this session, then re-dispatch for re-grading.
