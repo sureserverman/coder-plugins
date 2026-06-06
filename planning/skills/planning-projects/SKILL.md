@@ -342,6 +342,7 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Integration**: The tasks in this stage interact correctly (e.g., the API endpoint serves data from the database schema that was just created)
 - **Regressions**: The full existing test suite still passes — the new work didn't break old work
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
+- **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
 
 ### When a stage gate fails
 
@@ -428,6 +429,7 @@ Before showing the plan to the user, verify:
 - [ ] Every stage has a rollback note
 - [ ] Every stage has a gate with specific checks
 - [ ] No stage has more than 7 tasks
+- [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
@@ -448,6 +450,7 @@ Before showing the plan to the user, verify:
 | Skipping research | You plan around an API that was deprecated last month, or a config format that changed | 20 minutes of research prevents hours of rework. Check the current docs |
 | Monolith stages | A 12-task stage where one failing gate is impossible to diagnose | Split stages at natural boundaries. 3-5 tasks per stage |
 | Vague stage gates | "Everything works" as a gate tells you nothing when it fails | Name the specific command or check. "Run `npm test` and all 47 tests pass" |
+| Static-only gates | Every gate is unit tests; a stubbed feature sails through all of them and ships broken | Gates on user-facing stages must run the artifact and drive the flow live, not just grep and test |
 | No rollback notes | Stage 3 fails, you've modified the database schema and 6 config files, and you don't know how to get back | Document rollback at planning time, not panic time |
 | Infinite Red-Green loops | Cycling through fixes without understanding the root cause | 3 cycles max. If 3 targeted fixes don't work, the approach — not just the code — needs rethinking |
 | Research-free planning | "I'll figure out the API as I go" | You won't. Research first, plan second, build third |
