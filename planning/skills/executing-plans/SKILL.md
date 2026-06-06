@@ -125,7 +125,35 @@ check in the gate is a command.
 3. Run that task through its Red-Green loop again
 4. Re-run the gate
 
-**If the gate passes:** mark the stage complete, commit with `"Stage N green"`, and start Step 3.1 for the next stage.
+**If the gate passes:** mark the stage complete, append the stage's handoff note to the plan (see Context resets below), commit with `"Stage N green"`, and start Step 3.1 for the next stage.
+
+---
+
+## Context resets at stage boundaries
+
+Long executions degrade: a context window filled with stage-1 diagnostics is
+worse at stage 4 than a fresh one, and automatic compaction loses unpredictable
+detail. Structured resets beat degraded context — and the plan file is already
+the handoff artifact.
+
+- **Stage gates are the reset points.** After each gate passes, append a short
+  note to the plan file under the stage:
+
+  ```
+  **Stage N handoff:** <deviations from plan, surprises found, decisions made,
+  anything a fresh context needs that the Status flips don't capture>
+  ```
+
+  Committed with the `"Stage N green"` commit. Keep it to a few lines — it is
+  a briefing, not a log.
+- **Resuming fresh:** a new session (or a post-compaction continuation) picks
+  up the plan by reading the Research Summary, the `Status:` flips, and the
+  handoff notes — never by needing the prior transcript. If you find yourself
+  unable to continue without the old transcript, the handoff notes were too
+  thin; that's the bug to fix.
+- **On large plans, prefer the reset.** When a stage closed with heavy
+  diagnostic noise (long Red-Green loops, big tool outputs), suggest the user
+  start the next stage in a fresh session pointed at the plan path.
 
 ---
 
@@ -185,6 +213,7 @@ When every stage is green:
 - Stage gates check integration, not just aggregate task success
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not
 - Commit each green task; never squash silently during execution
+- Append a handoff note at every passed gate — the plan file, not the transcript, is what survives a context reset
 
 ---
 
