@@ -1,7 +1,7 @@
 {
   "name": "game-dev",
-  "version": "0.1.0",
-  "description": "Game development plugin: opinionated, source-cited skills for game mechanics, game feel, navigation/camera, UX/onboarding, accessibility, and engine-agnostic architecture patterns, plus engine-specific skills for Godot 4, Unity 6, and Unreal 5. Ships a sonnet-pinned game-design-expert subagent and two slash commands.",
+  "version": "0.1.1",
+  "description": "Game development plugin: opinionated, source-cited skills for game mechanics, game feel, navigation/camera, UX/onboarding, accessibility, and engine-agnostic architecture patterns, plus engine-specific skills for Godot 4, Unity 6, and Unreal 5. Ships a sonnet-pinned game-design-expert subagent and two slash commands; /game-review plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only.",
   "author": {
     "name": "Sure Serverman",
     "url": "https://github.com/sureserverman/coder-plugins"
