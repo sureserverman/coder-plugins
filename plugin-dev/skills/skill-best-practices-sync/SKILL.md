@@ -98,6 +98,7 @@ For each target skill directory, enumerate `SKILL.md` files and read each. Recor
 - Approximate body length in lines
 - Presence of `references/`, `scripts/`, `assets/`
 - Any red flags against the Phase 2 patterns (e.g., workflow leak in the description, heavy `MUST`/`ALWAYS` usage, missing trigger phrases, body > 500 lines without hierarchy, no progressive disclosure for large content)
+- **Harness-assumption scaffolding**: components that encode a "the model can't X on its own" assumption — rigid retry/cycle caps, mandatory step-by-step decomposition the model may no longer need, model-tier pinning, hand-holding sequences for once-weak capabilities. "Every component in a harness encodes an assumption about what the model can't do on its own, and those assumptions are worth stress testing" as models improve (Anthropic Engineering, https://www.anthropic.com/engineering/harness-design-long-running-apps). Flag these for re-testing against the current model generation — they are candidates, not defects.
 
 Do not edit anything in this phase.
 
@@ -124,6 +125,7 @@ Rules for the proposal:
 - Show before/after snippets for anything you'd edit, not prose descriptions of changes — the user should be able to see the exact diff they're approving.
 - If a skill is already well-aligned with current practice, say so and list no changes for it. Padded reports erode trust; the user should be able to assume every bullet is load-bearing.
 - Flag uncertain recommendations with `CONFIDENCE: low` so the user can weight them against the high-confidence ones.
+- Prefix harness-assumption findings with `ASSUMPTION:` and propose an **experiment**, not a blind edit — e.g. "relax the 3-cycle cap on a branch and compare outcomes on the next two runs". Scaffolding that still earns its keep stays; the proposal is to test it, never to strip it on faith.
 
 ### Phase 5 — Confirm and apply
 
