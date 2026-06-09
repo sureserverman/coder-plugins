@@ -368,6 +368,15 @@ Provide a report.
 
 **Avoid > 10,000 words:** Too long, diminishing returns.
 
+## Frontmatter That Shrinks the Prompt
+
+Two frontmatter fields (Claude Code v2.1.170) move content out of the system prompt body:
+
+- **`skills:`** — preloads the full content of the named skills at agent startup. Do not paste a domain skill's reference material into the body; preload the skill and keep the body to role, invariants, and output contract.
+- **`memory:`** (`user` | `project` | `local`) — gives the agent a persistent directory that survives sessions. Recurring agents (audits, triage, review) accumulate learned context there instead of growing the system prompt. Tell the agent in the body what to record and when to consult it.
+
+Both work for plugin-shipped agents.
+
 ## Testing System Prompts
 
 ### Test Completeness

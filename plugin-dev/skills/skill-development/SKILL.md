@@ -33,17 +33,68 @@ skills/
     assets/           ← non-code resources (also: templates/)
 ```
 
-**`SKILL.md` frontmatter** (between `---` fences):
+**Skills ≡ slash commands.** Custom slash commands are merged into skills:
+`.claude/commands/x.md` and `.claude/skills/x/SKILL.md` are the same
+mechanism with the same frontmatter. Claude Code follows the agentskills.io
+open standard plus the extensions below. Every skill is `/name`-invocable
+(unless `user-invocable: false`) and model-invocable via the Skill tool
+(unless `disable-model-invocation: true`).
 
-| Field | Required | Rules |
-|---|---|---|
-| `name` | yes | Must match the directory name exactly. |
-| `description` | yes | Trigger-spec only — see §2. Hard cap 1024 chars. |
-| `allowed-tools` | no | Restricts tools when this skill is active. Use rarely. |
+### 1.1 Frontmatter (between `---` fences)
+
+All fields are optional upstream. This repo's validator still requires
+`name` (matching the directory) and `description`.
+
+| Field | Rules |
+|---|---|
+| `name` | Display name; sets the command name only for a plugin-root `SKILL.md`. Must match the directory name here (validator-enforced). |
+| `description` | Trigger-spec only — see §2. Combined with `when_to_use` in the listing, truncated at 1,536 chars. |
+| `when_to_use` | Extra trigger context, appended to `description` in the listing (same budget). |
+| `argument-hint` | Hint shown in the `/` menu, e.g. `[skill-dir]`. |
+| `arguments` | Named positional args; each becomes a `$name` substitution in the body. |
+| `disable-model-invocation` | `true` = user-only. Description removed from context entirely; also blocks preloading into subagents. |
+| `user-invocable` | `false` = hidden from the `/` menu. Does NOT block Skill-tool access — pair with `disable-model-invocation` for full lockdown. |
+| `allowed-tools` | Pre-approves tools (skips permission prompts); does **not** restrict the pool. Project-scope skills need workspace trust. |
+| `disallowed-tools` | (v2.1.152) Removes tools from the pool while the skill is active; clears on the next user message. |
+| `model` | Model override while the skill runs. |
+| `effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max`. |
+| `context` | `fork` = run in a forked subagent context; the body becomes the subagent's prompt. |
+| `agent` | Subagent type for `context: fork`: `Explore`, `Plan`, `general-purpose`, or a custom agent. |
+| `hooks` | Skill-scoped lifecycle hooks, active while the skill runs. |
+| `paths` | Glob gating — auto-activation only when matching files are in play. |
+| `shell` | `bash` (default) or `powershell` for dynamic-context commands. |
 
 No `version` field in frontmatter.
 
-**Body structure:**
+### 1.2 Substitutions & dynamic context
+
+Body substitutions: `$ARGUMENTS` (full arg string), `$ARGUMENTS[N]` / `$N`
+(positional), `$name` (from `arguments:`), `${CLAUDE_SESSION_ID}`,
+`${CLAUDE_EFFORT}`, `${CLAUDE_SKILL_DIR}`. Escape a literal dollar with
+`\$` (v2.1.157).
+
+Dynamic context: inline `` !`command` `` and multi-line fenced ```` ```! ````
+blocks run at invocation time (interpreter per `shell:`) and splice their
+output into the body. Orgs can kill all skill shell execution with the
+`disableSkillShellExecution` setting. Treat both forms as injection
+surface — see §4.
+
+### 1.3 Discovery, listing budget, invocation control
+
+- **Discovery:** project + parent + nested `.claude/skills/` dirs,
+  `~/.claude/skills/`, `--add-dir` trees, and plugin `skills/`.
+- **Listing budget:** the skill listing gets ~1% of the context window
+  (`skillListingBudgetFraction` tunable); each entry is truncated at
+  1,536 chars (`maxSkillDescriptionChars` tunable). On compaction, the
+  first 5,000 tokens per loaded skill are kept within a 25,000-token
+  shared budget.
+- **Live reload:** SKILL.md text edits are detected live; other plugin
+  components need `/reload-plugins`.
+- **Per-skill control:** the `skillOverrides` setting takes
+  `on` / `name-only` / `user-invocable-only` / `off`; permission rules
+  support `Skill(name)` matchers.
+
+### 1.4 Body structure
 
 1. One-sentence purpose (do not restate the description).
 2. Reference map table — one row per `references/` file, if any exist.
@@ -72,14 +123,18 @@ Pattern:
 ..., or [other concrete signal].
 ```
 
-Front-load the most discriminating trigger phrases — the harness allocates
-roughly 1536 chars per skill entry when many skills are loaded, and clips from
-the tail.
+Front-load the most discriminating trigger phrases — the listing combines
+`description` + `when_to_use` and truncates the entry at 1,536 chars,
+clipping from the tail. Overflow trigger context belongs in `when_to_use`,
+never in the body.
 
-### 2.3 Hard cap: 1024 characters
+### 2.3 Length budget
 
-Effective cap is tighter under load. Count characters before committing. If
-over cap, cut worked examples and summaries first — never cut trigger phrases.
+Upstream truncation: 1,536 chars per listing entry (`description` +
+`when_to_use` combined). This repo enforces a stricter 1024-char cap on
+`description` (validator error) for headroom. Effective cap is tighter
+under load. Count characters before committing. If over cap, cut worked
+examples and summaries first — never cut trigger phrases.
 
 ### 2.4 Description-leak hazard (silent failure)
 
@@ -145,7 +200,10 @@ content as potentially adversarial.
    skill body. Adversaries can plant instructions there.
 2. Never embed content fetched at runtime (API responses, file contents from
    user repos) directly into skill text.
-3. Skill body is static. Dynamic content belongs in tool output, not the body.
+3. Static text aside, the only dynamic content is `` !`command` `` /
+   ```` ```! ```` blocks — their output splices into context as trusted
+   text, so never feed user-controlled strings into them. Orgs can disable
+   them wholesale via `disableSkillShellExecution`.
 
 Pre-flight scanner: Repello SkillCheck (https://repello.ai/blog/claude-code-skill-security).
 
@@ -250,6 +308,16 @@ Use the grep tool to search for patterns.
 
 [Core content]
 
+## Reference map
+
+| When you're… | Read first |
+|---|---|
+| Doing X | `references/x.md` |
+```
+
+**Why good:** The reference map tells Claude the references exist and when
+to read them.
+
 ---
 
 ## 7. Iteration & evaluation (pointer)
@@ -275,7 +343,7 @@ in Anthropic's `skill-creator` plugin; install it from the
 
 ## Sources
 
-- https://code.claude.com/docs/en/skills
+- https://code.claude.com/docs/en/skills (verified 2026-06-09 against Claude Code v2.1.170)
 - https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 - https://repello.ai/blog/claude-code-skill-security
 - https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub

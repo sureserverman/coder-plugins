@@ -54,6 +54,10 @@ For skills with verifiable outputs:
    compare to the previous iteration. Stop when the user is happy, feedback
    is empty, or progress plateaus.
 
+SKILL.md text edits are picked up live (v2.1.x change detection) — no
+restart between iterations. Edits to other plugin components (hooks,
+agents, scripts) still need `/reload-plugins`.
+
 The exact viewer/aggregation tooling lives upstream in Anthropic's
 `skill-creator` plugin (clone the marketplace if the full automated harness
 is wanted). The methodology above is reproducible without it.
@@ -128,8 +132,24 @@ train overfits to the eval set itself.
 ## 5. How skill triggering actually works
 
 Skills appear in Claude's `available_skills` list as name + description
-only. Claude consults a skill when (a) the description matches the user
-request *and* (b) the task is complex enough that the skill would help.
+(+ `when_to_use`) only. Claude consults a skill when (a) the description
+matches the user request *and* (b) the task is complex enough that the
+skill would help.
+
+Budget mechanics (v2.1.170) that shape triggering:
+
+- The whole listing shares ~1% of the context window
+  (`skillListingBudgetFraction`); each entry is truncated at 1,536 chars.
+  Tail-loaded trigger phrases are invisible — front-load them.
+- On compaction, loaded skill content is retained as the first 5,000
+  tokens per skill within a 25,000-token shared budget. Long-session
+  evals can therefore behave differently from fresh-session evals.
+- `disable-model-invocation: true` removes a skill from the listing
+  entirely — such skills can never auto-trigger and are pointless to
+  trigger-tune.
+- `paths:` glob gating means a perfectly tuned description still won't
+  fire when no matching files are in play; include matching files in
+  eval fixtures.
 
 The corollary — **simple, one-step queries don't trigger skills regardless
 of description quality**. "Read this PDF" won't reliably trigger a PDF

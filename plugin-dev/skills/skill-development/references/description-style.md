@@ -127,10 +127,12 @@ Use when the user asks to analyze their codebase."
 
 ### Bad D — over-length, tail-clipped
 
-A description that runs to 1,400 characters will be clipped by the harness
-when multiple skills are loaded. If the most discriminating trigger phrases
-appear after character 1024, they are invisible to the model. The skill
-then only fires on its domain anchor, missing all specific triggers.
+The harness combines `description` + `when_to_use` into one listing entry
+and truncates it at 1,536 characters. If the most discriminating trigger
+phrases appear after the cut, they are invisible to the model. The skill
+then only fires on its domain anchor, missing all specific triggers. This
+repo's validator additionally errors above 1,024 chars of `description`
+to keep headroom.
 
 ---
 
@@ -211,14 +213,22 @@ PY
 
 Save the snippet as a script and invoke as `./check-desc.sh path/to/SKILL.md`.
 
-Hard cap: 1024 chars. Effective working limit: 800 chars when the plugin
-ships more than 6 skills.
+Budgets (Claude Code v2.1.170):
+- **1,536 chars** — upstream truncation per listing entry (`description` +
+  `when_to_use` combined; `maxSkillDescriptionChars` tunable).
+- **1,024 chars** — this repo's validator hard cap on `description`.
+- **800 chars** — effective working limit when the plugin ships more than
+  6 skills (the whole listing shares ~1% of the context window, tunable
+  via `skillListingBudgetFraction`).
 
 If over cap, trim in this order:
 1. Remove repetition (same trigger phrase listed twice).
 2. Consolidate similar phrases into one representative phrase.
 3. Remove the weakest signal phrases (generic terms that would match anything).
-4. Never trim the domain anchor or the most specific trigger phrases.
+4. Move secondary trigger *context* (not the core phrases) to `when_to_use` —
+   it is combined with the description in the listing but keeps the
+   description field itself lean.
+5. Never trim the domain anchor or the most specific trigger phrases.
 
 ---
 
@@ -246,7 +256,8 @@ Before shipping a description:
 - [ ] Contains at least 3 quoted trigger phrases.
 - [ ] No procedure, steps, or ordered instructions.
 - [ ] No first-person or second-person pronouns.
-- [ ] Under 1024 characters (run the counter).
+- [ ] Under 1024 characters (run the counter); combined with `when_to_use`
+      stays under the 1,536-char listing truncation.
 - [ ] Most discriminating phrases appear in the first 800 characters.
 - [ ] No user-controlled content (paths, env vars, URLs from user input).
 - [ ] Does not restate the first paragraph of the SKILL.md body.

@@ -27,13 +27,47 @@ agents/
 
 ### Frontmatter fields
 
-| Field | Required | Notes |
-|---|---|---|
-| `name` | Yes | kebab-case; must match the filename (without `.md`) |
-| `description` | Yes | Trigger-spec for the parent's auto-dispatch — same rules as skill descriptions |
-| `model` | No | `haiku`, `sonnet`, `opus`, `inherit`, or a full model ID. Default: `inherit` |
-| `tools` | No | Array of tool names; defaults to every tool available. Always constrain. |
-| `color` | No | IDE badge color: `red`, `yellow`, `green`, `cyan`, `blue`, `magenta` |
+Only `name` and `description` are required.
+
+| Field | Notes |
+|---|---|
+| `name` | kebab-case; must match the filename (without `.md`) |
+| `description` | Trigger-spec for the parent's auto-dispatch — same rules as skill descriptions |
+| `model` | `haiku`, `sonnet`, `opus`, `fable`, `inherit`, or a full model ID. Default: `inherit` |
+| `tools` | Array of tool names; defaults to every tool available. Always constrain. |
+| `disallowedTools` | Subtractive — removes tools from the inherited pool |
+| `permissionMode` | `default` \| `acceptEdits` \| `auto` \| `dontAsk` \| `bypassPermissions` \| `plan` — **ignored for plugin agents** |
+| `maxTurns` | Hard cap on agent turns |
+| `skills` | Skill names whose **full content** is preloaded at agent startup |
+| `mcpServers` | Server name refs or inline definitions — **ignored for plugin agents** |
+| `hooks` | Agent-scoped lifecycle hooks — **ignored for plugin agents** |
+| `memory` | `user` \| `project` \| `local` — persistent memory dir (e.g. `~/.claude/agent-memory/<name>/`) for cross-session learning |
+| `background` | `true` = always runs as a background task |
+| `effort` | Effort override for the agent's model |
+| `isolation` | `worktree` = runs in a temp git worktree off the default branch; auto-cleaned if unchanged |
+| `color` | Badge color, 8 named: `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, `cyan` |
+| `initialPrompt` | Auto-submitted first turn when the agent runs as the main session (`claude --agent <name>`) |
+
+> **Plugin-shipped agents: `hooks`, `mcpServers`, and `permissionMode` are
+> IGNORED** (security restriction). Plugin agents support
+> name/description/model/effort/maxTurns/tools/disallowedTools/skills/
+> memory/background/isolation. Never ship a plugin agent whose correctness
+> depends on the three ignored fields — it will validate, load, and then
+> silently run without them.
+
+### Locations and priority
+
+Highest wins on ID collision:
+
+1. Managed settings (org)
+2. `--agents` CLI JSON
+3. `.claude/agents/` (project)
+4. `~/.claude/agents/` (user)
+5. Plugin `agents/`
+
+Directories are scanned recursively; subfolders inside a plugin namespace
+the agent ID — `agents/review/security.md` in `my-plugin` becomes
+`my-plugin:review:security`.
 
 Minimal valid agent:
 
@@ -57,7 +91,7 @@ You are a link-audit specialist...
 | Complex reasoning, architecture decisions, plan synthesis, multi-hour agentic work | `opus` | Expensive — use sparingly |
 | Domain experts where parent tier already matches complexity | `inherit` | Use only when the parent is already calibrated for the work — `inherit` is contingent, not a default safe choice |
 
-**Never omit `model` on a heavy write agent.** Without a pin the agent inherits the parent's tier; on an Opus parent, that's up to ~5x the cost of a sonnet pin (and ~15x a haiku pin) per invocation.
+**Never omit `model` on a heavy write agent.** The default is `inherit`: without a pin the agent silently runs at the parent's tier; on an Opus or Fable parent, that's up to ~5x the cost of a sonnet pin (and ~15x a haiku pin) per invocation.
 
 ## Tool set — constrain by role
 
@@ -67,7 +101,7 @@ You are a link-audit specialist...
 | Write worker | above + `Write`, `Edit` |
 | Orchestrator | above + `Agent` (spawns sub-subagents — rarely needed) |
 
-Always list `tools:` explicitly. The default (all tools) exposes Write, Edit, and Agent to agents that should never touch files or spawn children.
+Always list `tools:` explicitly. The default (all tools) exposes Write, Edit, and Agent to agents that should never touch files or spawn children. When the inherited pool is mostly right, `disallowedTools` subtracts the few that aren't (e.g. keep everything but `Write`/`Edit`). For risky write workers, `isolation: worktree` confines edits to a throwaway git worktree — see `references/model-and-tools.md`.
 
 ## System prompt (body) design
 
@@ -110,10 +144,11 @@ Set a color when the plugin ships multiple agents that users may confuse in the 
 - **Agent doing too much** — A single agent that reads, generates, tests, and commits is impossible to constrain or test; split it.
 - **Body = user prompt verbatim** — System prompts define role and constraints; user prompts provide the specific task. Conflating them makes the agent context-insensitive.
 - **`name` / filename mismatch** — The runtime uses the filename for dispatch routing; the `name` field is used for display and deduplication. Divergence causes subtle bugs.
+- **Plugin agent depending on `hooks`, `mcpServers`, or `permissionMode`** — These fields are ignored for plugin-shipped agents (security restriction). The agent loads fine and silently runs without them.
 
 ## Related
 
 - Skill for plugin layout: `plugin-structure` (this plugin)
 - Skill for skill authoring: `skill-development` (this plugin)
 - Community agent canon: https://github.com/wshobson/agents (184 agents)
-- Sub-agent docs: https://code.claude.com/docs/en/sub-agents
+- Sub-agent docs: https://code.claude.com/docs/en/sub-agents (verified 2026-06-09 against Claude Code v2.1.170)

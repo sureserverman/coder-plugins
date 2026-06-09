@@ -11,9 +11,14 @@ Decision matrix for selecting a `model:` and `tools:` for a Claude Code subagent
 | Haiku | `haiku` | ~1x | Fastest |
 | Sonnet | `sonnet` | ~3x | Fast |
 | Opus | `opus` | ~5x | Slower |
-| Inherit | `inherit` (or omit) | Same as parent | Same as parent |
+| Fable | `fable` | Frontier tier | Slower |
+| Inherit | `inherit` (or omit — **inherit is the default**) | Same as parent | Same as parent |
 
 Cost ratios are approximate. Exact pricing: https://www.anthropic.com/pricing
+
+Note: this repo's `validate-agent.sh` enum is `{inherit, haiku, sonnet,
+opus, claude-*}` — pinning the bare `fable` alias produces a warn until the
+validator learns it; use the full `claude-fable-*` ID to stay clean.
 
 ### Decision matrix
 
@@ -56,6 +61,7 @@ When you need to pin to a specific model version (not just a tier alias):
 model: claude-haiku-4-5
 model: claude-sonnet-4-6
 model: claude-opus-4-7
+model: claude-fable-5
 ```
 
 Use tier aliases (`haiku`, `sonnet`, `opus`) unless you have a concrete reason to pin a version — aliases track the current recommended version of each tier. Verify exact model IDs against `platform.claude.com/docs/en/about-claude/models` before shipping.
@@ -116,6 +122,46 @@ When `tools:` is omitted, the agent receives every tool the parent has access to
 - Security review agents gain tools that could execute code or make network requests beyond their scope.
 
 Always list `tools:` explicitly. The cost of being explicit is one line of YAML. The cost of a misconfigured tool set can be irreversible file mutations.
+
+### `disallowedTools` — subtractive alternative
+
+When the inherited pool is mostly right, `disallowedTools` removes just the dangerous ones instead of enumerating everything:
+
+```yaml
+disallowedTools: [Write, Edit, Agent]
+```
+
+Prefer an explicit `tools:` allowlist for shipped plugin agents (new tools added upstream are excluded by default); use `disallowedTools` for quick local agents where enumerating MCP tool names is impractical.
+
+## Execution-shaping fields
+
+Fields beyond `model:`/`tools:` that change *how* the agent runs (all optional; all supported for plugin-shipped agents):
+
+| Field | Values | Use when |
+|---|---|---|
+| `effort` | effort level for the agent's model | Cheap model + high effort beats an expensive pin for some audit loops |
+| `maxTurns` | integer | Bound runaway loops on background or bulk agents |
+| `skills` | list of skill names | Preloads the **full skill content** at startup — the agent doesn't have to discover/load it; pair domain agents with their domain skill |
+| `memory` | `user` \| `project` \| `local` | Gives the agent a persistent memory directory (e.g. `~/.claude/agent-memory/<name>/`) that survives sessions — cross-session learning for recurring audits |
+| `background` | `true` | Agent always runs as a background task; pair with `maxTurns` |
+| `isolation` | `worktree` | Runs the agent in a temporary git worktree off the default branch; auto-cleaned if nothing changed. The right default for risky write workers — file mutations can't touch the user's checkout |
+| `initialPrompt` | string | Only meaningful when the agent runs as the main session (`claude --agent <name>`); auto-submitted as the first turn |
+
+> **Plugin-agent restriction:** `hooks`, `mcpServers`, and `permissionMode`
+> are ignored for plugin-shipped agents (security restriction). They work
+> only for project (`.claude/agents/`), user (`~/.claude/agents/`),
+> `--agents` CLI, and managed-settings agents.
+
+### Combining: safe write worker
+
+```yaml
+model: sonnet
+tools: [Read, Grep, Glob, Bash, Write, Edit]
+isolation: worktree
+maxTurns: 40
+```
+
+The worktree contains any bad edits; `maxTurns` bounds the spend; the explicit tool list keeps `Agent` out.
 
 ## Combined examples
 
@@ -180,15 +226,17 @@ You are a code-review specialist. You read code and produce structured, actionab
 ## Checklist before writing frontmatter
 
 - [ ] Is the agent read-only? → `haiku` + `[Read, Grep, Glob, Bash]`
-- [ ] Does the agent write files? → `sonnet` + add `Write`, `Edit`
+- [ ] Does the agent write files? → `sonnet` + add `Write`, `Edit` — and consider `isolation: worktree`
 - [ ] Does the agent need to spawn children? → add `Agent`, justify in body
 - [ ] Is this a domain expert where parent tier is already appropriate? → `inherit`
-- [ ] Is `tools:` explicit? (Never omit it)
-- [ ] Is `model:` pinned? (Never rely on the default)
+- [ ] Is `tools:` explicit? (Never omit it — the default is the parent's full pool)
+- [ ] Is `model:` pinned? (Never rely on the default — omitting means `inherit`)
+- [ ] Does the agent lean on a domain skill? → preload it via `skills:`
+- [ ] Shipping in a plugin? → confirm it does not depend on `hooks`, `mcpServers`, or `permissionMode` (ignored for plugin agents)
 
 ## Sources
 
-- https://code.claude.com/docs/en/sub-agents
+- https://code.claude.com/docs/en/sub-agents (verified 2026-06-09 against Claude Code v2.1.170)
 - https://platform.claude.com/docs/en/about-claude/models/choosing-a-model
 - https://www.anthropic.com/pricing
 - https://github.com/wshobson/agents (184 community agents — study model + tools patterns)

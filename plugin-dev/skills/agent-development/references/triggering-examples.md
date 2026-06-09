@@ -1,6 +1,6 @@
 # Agent Triggering Examples: Best Practices
 
-Complete guide to writing effective `<example>` blocks in agent descriptions for reliable triggering.
+Complete guide to writing effective `<example>` blocks for reliable agent triggering. Example blocks belong in the agent **body**, not the `description:` field — see `triggering.md` for placement rules and the description budget.
 
 ## Example Block Format
 

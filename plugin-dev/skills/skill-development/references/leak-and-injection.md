@@ -67,10 +67,16 @@ and never reads the SKILL.md body.
 
 1. **Description = trigger spec only.** No verbs that describe a process.
    "Covers X" and "Triggers on Y" are safe. "First does X, then Y" is not.
+   The same rules apply to `when_to_use` — it is combined with the
+   description in the listing and leaks the same way.
 2. **The test:** read only the description. Could a model execute the skill
    from the description alone? If yes, the description is leaking.
 3. **All procedures go in the body.** Reference files are acceptable for
    long procedures. The description is never the right location.
+4. **User-only skills cannot leak.** `disable-model-invocation: true`
+   removes the description from context entirely (and blocks preloading
+   into subagents) — the right setting for command-style skills whose
+   description would otherwise read like a procedure.
 
 ---
 
@@ -99,14 +105,20 @@ vulnerable):
 |---|---|---|
 | User-controlled file path in body | Skill body includes `$PROJECT_ROOT/config.yaml` | Critical |
 | Remote URL fetched and inlined | `curl https://user-specified-host/skill-ext.md` embedded | Critical |
+| Dynamic-context block over untrusted input | `` !`cat $USER_FILE` `` or a ```` ```! ```` block whose command touches user-controlled data | Critical |
 | Env-var expansion in frontmatter | `description: "Covers $SKILL_DOMAIN files..."` | High |
 | Shared `references/` written by hook | Hook writes `references/context.md` from user input | High |
 | Skill calls another skill that embeds input | Chained skill passes user string into body slot | Medium |
 
 ### Injection prevention rules
 
-1. **Skill body is static text.** No dynamic expansion, no fetched content,
-   no runtime file inclusion.
+1. **Skill body is static text** — with one sanctioned exception: dynamic
+   context via inline `` !`command` `` and fenced ```` ```! ```` blocks
+   (v2.1.x). These execute at invocation (interpreter per `shell:`) and
+   splice output into context as trusted text. Keep their commands fixed
+   strings over trusted inputs only; orgs can disable them entirely with
+   the `disableSkillShellExecution` setting. No other fetched content, no
+   runtime file inclusion.
 2. **Never embed user-controlled strings** — even partially. An adversary
    controls the part they can influence.
 3. **`references/` files must be committed, not generated.** A hook that writes
@@ -166,6 +178,8 @@ Run this checklist against any SKILL.md before shipping.
 - [ ] No `$VAR` expansions that could be influenced by user or environment.
 - [ ] No `curl`/`wget`/`fetch` calls whose output is embedded in the body.
 - [ ] No `cat $FILE` or `< $FILE` where `$FILE` is user-controlled.
+- [ ] Dynamic-context blocks (`` !`cmd` ``, ```` ```! ````) run only fixed
+      commands over trusted inputs — no user-controlled substitutions inside.
 - [ ] No template slots filled at runtime from external input.
 
 **`references/` directory:**
@@ -227,6 +241,10 @@ if m:
 PY
 ```
 
+Note: the 1024 figure is this repo's stricter cap; Claude Code itself
+truncates the combined `description` + `when_to_use` listing entry at
+1,536 chars.
+
 ### grep patterns for common injection markers
 
 ```bash
@@ -238,6 +256,9 @@ grep -n 'curl\|wget\|fetch\|http://' SKILL.md
 
 # File cat patterns
 grep -n 'cat \$\|< \$\|open(\$' SKILL.md
+
+# Dynamic-context shell blocks (review each hit by hand)
+grep -n '!`\|^```!' SKILL.md
 
 # Phase/step labels (leak risk in descriptions)
 grep -in 'phase [0-9]\|step [0-9]\|first,\|then,\|finally,' SKILL.md

@@ -6,7 +6,7 @@ How to write a Claude Code agent `description:` field so that auto-dispatch fire
 
 The `description:` field in an agent's frontmatter is the agent's **dispatch trigger**. When the parent model selects an agent to invoke via the Agent tool, it matches the user's intent against each available agent's description. A well-written description ensures the right agent fires on the right request — and not on unrelated ones.
 
-The description is also visible to users in `/agent list` and in IDE agent pickers. It must be both machine-matchable (for auto-dispatch) and human-readable (for user selection).
+The description is also visible to users in the `/agents` manager and in IDE agent pickers. It must be both machine-matchable (for auto-dispatch) and human-readable (for user selection).
 
 ## Rules for trigger-spec descriptions
 
@@ -44,7 +44,7 @@ echo -n "your description here" | wc -c
 
 ### 5. Leak-safe phrasing
 
-Do not name internal implementation details, secret file paths, API keys, or internal capability flags in the description. The description is surfaced in the IDE and `/agent list` — treat it as public.
+Do not name internal implementation details, secret file paths, API keys, or internal capability flags in the description. The description is surfaced in the IDE and the `/agents` manager — treat it as public.
 
 ## When auto-dispatch fires vs when the user must invoke explicitly
 
@@ -64,11 +64,12 @@ Do not name internal implementation details, secret file paths, API keys, or int
 
 Users can bypass auto-dispatch and invoke an agent directly:
 
-```
-/agent run link-checker
-```
+- Name it in the prompt: "use the link-checker agent on docs/".
+- Run it as the main session: `claude --agent link-checker` — if the agent
+  declares `initialPrompt`, that text is auto-submitted as the first turn.
+- Wrap it in a skill/slash command that dispatches the agent internally.
 
-or via a slash command wrapper that calls the agent internally.
+(`/agents` manages and inspects agents; it is not the invocation path.)
 
 When triggers are subtle or the agent name is not obvious from the task, add explicit invocation instructions in the agent body (not the description — the body is the system prompt the agent sees, not the dispatch signal).
 
@@ -126,5 +127,5 @@ description: Use when broken links have been identified and need to be replaced 
 
 ## Sources
 
-- https://code.claude.com/docs/en/sub-agents
+- https://code.claude.com/docs/en/sub-agents (verified 2026-06-09 against Claude Code v2.1.170)
 - https://github.com/wshobson/agents (184 community agents — read descriptions for patterns)
