@@ -1,6 +1,6 @@
 ---
 description: Guided end-to-end Claude Code plugin scaffold — discover intent, draft components, validate.
-argument-hint: [plugin-name] (optional)
+argument-hint: "[plugin-name] (optional)"
 allowed-tools: ["Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestion", "Skill", "Agent", "Bash(bash:*)", "Bash(jq:*)", "Bash(find:*)", "Bash(ls:*)", "Bash(mkdir:*)", "Bash(python3:*)", "Bash(test:*)"]
 model: inherit
 ---
