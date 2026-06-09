@@ -156,9 +156,9 @@ Install flow: `/plugin marketplace add <repo>` then `/plugin install <plugin>@<m
 
 ## Targeting Cowork? Distribution differs
 
-The plugin **format** is the same in Claude Code and Claude Cowork (same `plugin.json`, same skills / agents / commands directories, same discovery rules). What changes is **how users install**: Cowork has no `/plugin marketplace add` command — install is UI-only via Customize → Browse plugins → upload custom plugin file.
+The plugin **format** is the same in Claude Code and Claude Cowork (same `plugin.json`, same skills / agents / commands directories, same discovery rules). What changes is **how users install** (UI-only: official catalog, zip upload, marketplace by URL, org private marketplaces) and **which components run** (skills / connectors / agents / hooks only — no local stdio MCP, LSP, monitors, themes, or bin/).
 
-For Cowork distribution patterns — GitHub Actions release workflow, single-zip vs per-plugin tradeoff, README install-section shape — see the `cowork-plugin-development` skill in this plugin. The structure rules above still apply; only the install flow and a few platform-specific gotchas (broken plugin-scope hooks, optional Connectors / Scheduled Tasks / Routines) are different.
+For Cowork distribution patterns, package limits, and the component-support matrix, see the `cowork-dev` sibling plugin (`cowork-plugin-development` skill). The structure rules above still apply; only the install flow and platform support differ.
 
 ## References
 

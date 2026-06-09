@@ -1,6 +1,8 @@
 # plugin-dev
 
-Lean, security-aware authoring kit for **Claude Code AND Claude Cowork** plugins. Part of the [`coder-plugins`](..) marketplace.
+Lean, security-aware authoring kit for **Claude Code** plugins, plus the shared cross-host core (deterministic validation kit, SKILL.md standard, leak audit, cross-host subagent scaffolding) used by its sibling platform plugins. Part of the [`coder-plugins`](..) marketplace.
+
+**Sibling platform plugins** (split out 2026-06): [`cowork-dev`](../cowork-dev) (Claude Cowork), [`cursor-dev`](../cursor-dev), [`codex-dev`](../codex-dev), [`opencode-dev`](../opencode-dev), [`hermes-dev`](../hermes-dev), [`openclaw-dev`](../openclaw-dev). Each owns its platform's formats and validators; this plugin owns Claude Code and everything platform-independent.
 
 ## Why another plugin-dev?
 
@@ -61,7 +63,7 @@ Structure validation stays plugin-dev's external job; the kit gives a plugin its
 
 ## Components
 
-### Skills (14)
+### Skills (13)
 
 | Skill | Triggers when you ask |
 |---|---|
@@ -78,7 +80,6 @@ Structure validation stays plugin-dev's external job; the kit gives a plugin its
 | `skill-best-practices-sync` | "improve my skills", "sync skills with best practices", "what's new in skill authoring", "refresh skills from Karpathy/community advice" |
 | `creating-subagents` | "create a subagent that works on Claude Code + Codex + Cursor + OpenCode", "scaffold a cross-host agent", "port this agent to other tools" |
 | `skill-workshop` | "what should be a skill", "mine my sessions", "find patterns in my history", "discover skill candidates" — explicit-invocation only (`disable-model-invocation: true`); pairs with the `session-analyzer` agent |
-| `cowork-plugin-development` | "build a Cowork plugin", "ship to Cowork", "make this plugin Cowork-first", "Cowork zip upload", "GitHub Actions release plugin", "Cowork connectors / scheduled tasks / routines", "Cowork hooks not firing", "multilingual skill triggers", "connector-aware enrichment", "privacy posture for cloud Routines" |
 
 ### Agents (4)
 
