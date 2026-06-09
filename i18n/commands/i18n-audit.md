@@ -20,10 +20,10 @@ A summary table with:
 - Source locale / target locales
 - Hardcoded user-facing strings still in source (top 10 with file:line and suggested key)
 - Per-locale: missing / extra / placeholder-mismatch counts
-- Next-actions: `/i18n-fill-gaps` to translate missing keys, `/i18n-add-locale <code>` to scaffold a new locale, `i18n-formats` reference for format-specific gotchas
+- Next-actions: `/i18n-fill-gaps` to translate missing keys, `/i18n-add-locale <code>` to scaffold a new locale, the `i18n-formats` per-format references for format-specific gotchas
 
 ## Notes
 
 - Read-only — does not modify source files or catalogs.
-- For format-specific gotchas surfaced during the audit, defer to the `i18n-formats` skill.
+- For format-specific gotchas surfaced during the audit, defer to the matching `i18n-formats/references/<format>.md`.
 - For multi-module repos, the audit reports per-module.

@@ -20,7 +20,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/i18n-audit/scripts/detect-framework.py <project-roo
 Outputs JSON with detected framework(s), catalog file globs, source-language code, and target-language codes. Multiple frameworks can co-exist (e.g. Android `strings.xml` + a Flutter ARB sub-project). Report each one detected.
 
 If detection returns `{"framework": "none"}`:
-- Look at the project's language/runtime (Cargo.toml, package.json, build.gradle, pubspec.yaml, requirements.txt, go.mod, *.csproj) and consult `i18n-formats` to recommend a framework that matches the stack.
+- Look at the project's language/runtime (Cargo.toml, package.json, build.gradle, pubspec.yaml, requirements.txt, go.mod, *.csproj) and consult the `i18n-formats` dispatch table to recommend a framework that matches the stack.
 - Stop here unless the user wants to proceed with hardcoded-string scanning anyway.
 
 ### Phase 2 — Hardcoded string scan (script + LLM judgment)
@@ -77,7 +77,7 @@ Top 5 hardcoded strings to wrap:
 Next actions:
   - Run /i18n-fill-gaps to translate missing keys
   - Run /i18n-add-locale <code> to add a new target locale
-  - For format-specific gotchas, read skills/i18n-formats
+  - For format-specific gotchas, read the matching `skills/i18n-formats/references/<format>.md` (per the dispatch table in that skill)
 ```
 
 ## Determinism boundary
@@ -98,6 +98,6 @@ and any translation/judgment stay LLM work.
 
 ## Notes
 
-- For format gotchas (Android quoting, ARB metadata, gettext plural headers), consult the `i18n-formats` skill. Do not invent escape rules from memory.
+- For format gotchas (Android quoting, ARB metadata, gettext plural headers), consult the matching `i18n-formats/references/<format>.md` (`android.md`, `flutter-arb.md`, `gettext.md`). Do not invent escape rules from memory.
 - For multi-module projects (an Android repo with separate `app/`, `lib1/`, `lib2/` modules each with their own `res/values*/strings.xml`), the script runs per-module and reports per-module.
 - The diff script does NOT fix stale translations. Use `/i18n-fill-gaps` to re-translate them.

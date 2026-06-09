@@ -20,7 +20,7 @@ If the user uses a non-canonical form ("Spanish", "Simplified Chinese"), normali
 3. Create the new catalog file(s) at the framework-conventional path:
    - **Android**: `res/values-<code>/strings.xml` (note `values-es`, `values-zh-rCN`)
    - **Flutter**: `lib/l10n/intl_<code>.arb` or project-specific name (preserve `@@locale` and `@key` metadata blocks from source)
-   - **gettext**: `locale/<code>/LC_MESSAGES/messages.po` (initialize from `.pot` via `msginit -l <code>` if available; else handcraft the Plural-Forms header from `i18n-formats`)
+   - **gettext**: `locale/<code>/LC_MESSAGES/messages.po` (initialize from `.pot` via `msginit -l <code>` if available; else handcraft the Plural-Forms header from `i18n-formats/references/gettext.md`)
    - **iOS**: `<code>.lproj/Localizable.strings` and `Localizable.stringsdict` (or new locale block in `Localizable.xcstrings`)
    - **i18next / json-i18n**: `locales/<code>/translation.json` (or whatever the project's pattern is)
    - **react-intl**: `lang/<code>.json` (or `lang/<code>/messages.json`)
@@ -31,7 +31,7 @@ If the user uses a non-canonical form ("Spanish", "Simplified Chinese"), normali
    - **Java**: `messages_<code>.properties` sibling to `messages.properties`
 
 4. Run `extract-missing.py --target <code>` — every source key is "missing".
-5. **Unless `--copy-only`**, dispatch the `translator` subagent with the full workpacket and the `i18n-formats` section for the framework.
+5. **Unless `--copy-only`**, dispatch the `translator` subagent with the full workpacket and the `i18n-formats/references/<format>.md` for the framework.
 6. The agent validates with `validate-placeholders.py` before writing back.
 7. Report:
    - File(s) created

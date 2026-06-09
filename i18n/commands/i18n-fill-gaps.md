@@ -20,7 +20,7 @@ Given `$ARGUMENTS`:
 1. Run `detect-framework.py` to find the project's framework(s) and source locale.
 2. For each target locale in scope, run `extract-missing.py` to build a workpacket.
 3. If a workpacket has 0 entries, skip that locale.
-4. Dispatch the `translator` subagent per locale (in parallel, one agent per locale), passing the workpacket plus the relevant `i18n-formats` section.
+4. Dispatch the `translator` subagent per locale (in parallel, one agent per locale), passing the workpacket plus the relevant `i18n-formats/references/<format>.md`.
 5. The agent self-validates with `validate-placeholders.py` before writing back. Any defects it can't fix on its own are reported back here.
 6. Report a summary table: locale → entries translated → defects fixed → files modified → keys flagged for human review (brand names, ambiguous source).
 

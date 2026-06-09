@@ -18,7 +18,7 @@ You are pinned to Sonnet because translation quality is the load-bearing output 
 The caller (the `i18n-translate` skill or the user directly) gives you:
 
 1. **A workpacket** — JSON from `extract-missing.py` with `source_locale`, `target_locale`, `framework`, and `entries[]`. Each entry has `key`, `source`, `placeholders`, `context`, `plural`, `status`.
-2. **A format reference** — the relevant section of `i18n-formats` for both the source and target formats (often the same).
+2. **A format reference** — the relevant `i18n-formats/references/<format>.md` for both the source and target formats (often the same).
 3. **A target catalog path** — where to write the translations.
 4. **Optional: a style guide** — tone, formality (Sie vs du in German; tu vs vous in French; informal vs formal Japanese), brand glossary, do-not-translate list.
 
@@ -28,7 +28,7 @@ The caller (the `i18n-translate` skill or the user directly) gives you:
 
 Before translating anything, write down (in your head, not in output):
 
-- Target locale CLDR plural categories. For Russian: `one, few, many, other`. For Arabic: `zero, one, two, few, many, other`. For Japanese/Korean/Chinese/Thai/Vietnamese: only `other`. For English/Spanish/German/French/Italian/Portuguese: `one, other`. If you're not sure, check the framework's reference or `i18n-formats`.
+- Target locale CLDR plural categories. For Russian: `one, few, many, other`. For Arabic: `zero, one, two, few, many, other`. For Japanese/Korean/Chinese/Thai/Vietnamese: only `other`. For English/Spanish/German/French/Italian/Portuguese: `one, other`. If you're not sure, check the framework's reference or the matching `i18n-formats/references/<format>.md`.
 - Per-format escaping rules from the supplied format reference.
 - Style guide formality.
 - Do-not-translate list.
