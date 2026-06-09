@@ -1,5 +1,8 @@
 # Hook Events Reference
 
+Current event list: **32 events** as of Claude Code v2.1.170 (verified against
+`code.claude.com/docs/en/hooks`, 2026-06-09).
+
 Maturity labels used throughout:
 - **widely-used** — proven across many production plugins; stable API.
 - **documented** — covered in official docs; real-world coverage is thinner.
@@ -14,6 +17,40 @@ Maturity labels used throughout:
 > - The Stop-loop guard env var name — `STOP_HOOK_ACTIVE` vs `CLAUDE_STOP_HOOK_ACTIVE`. Bash examples use `STOP_HOOK_ACTIVE`; substitute if your SDK uses the prefixed form.
 >
 > Treat all bash snippets as templates, not drop-in code, until field names are confirmed.
+
+---
+
+## Handler types
+
+Five handler types as of v2.1.170:
+
+| Type | Runs | Default timeout | Notes |
+|---|---|---|---|
+| `command` | Shell command | 60s | The workhorse; deterministic, cheap |
+| `http` | POSTs the event JSON to a URL | — | Remote policy services, audit sinks |
+| `mcp_tool` | An MCP tool call | — | Reuse an already-configured MCP server |
+| `prompt` | Single LLM yes/no evaluation | 30s | Nuanced judgment; slower, costs tokens |
+| `agent` | Agentic verifier with tool access | 60s | Experimental; multi-step verification |
+
+`SessionStart` and `Setup` support only `command` and `mcp_tool`.
+
+Hooks can also be scoped per-skill and per-agent via `hooks` frontmatter in the SKILL.md /
+agent file (plugin-shipped **agents** ignore frontmatter hooks — see the `agent-development`
+skill).
+
+## Environment variables
+
+| Variable | Scope | Notes |
+|---|---|---|
+| `CLAUDE_PROJECT_DIR` | all hooks | Project root at invocation |
+| `CLAUDE_PLUGIN_ROOT` | plugin hooks | Install dir; **changes on plugin update** |
+| `CLAUDE_PLUGIN_DATA` | plugin hooks | Persistent data dir; survives updates |
+| `CLAUDE_ENV_FILE` | `SessionStart`, `Setup`, `CwdChanged`, `FileChanged` only | Write `KEY=VALUE` lines for session-persistent env vars |
+| `CLAUDE_EFFORT` | all hooks (~v2.1.141+) | `low`\|`medium`\|`high`\|`xhigh`\|`max` |
+| `CLAUDE_CODE_REMOTE` | all hooks | Set when running in a remote/cloud session |
+
+**Cross-event output field:** `terminalSequence` (v2.1.141+) — emit OSC escape sequences to
+the hosting terminal (titles, notifications) from any hook's JSON output.
 
 ---
 
@@ -35,6 +72,12 @@ Fires when a session begins (new or resumed).
 | Field | Type | Description |
 |---|---|---|
 | `env` | object | Key-value pairs to write to `$CLAUDE_ENV_FILE` for persistence |
+| `sessionTitle` | string | Set the session title (v2.1.152+) |
+| `initialUserMessage` | string | Pre-fill the first user message (v2.1.152+) |
+| `watchPaths` | array | Paths to watch for `FileChanged` events (v2.1.152+) |
+| `reloadSkills` | boolean | Force a skill re-scan (v2.1.152+) |
+
+Handler types: `command` and `mcp_tool` only.
 
 **Use-case:** Load per-project config, set `PROJECT_ROOT`, write auth tokens to the env file
 so downstream hooks can read them without re-computing.
@@ -53,6 +96,45 @@ jq -n --arg root "$PWD" '{"env": {"PROJECT_ROOT": $root}}'
 ```json
 { "event": "SessionStart", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-init.sh" }
 ```
+
+---
+
+### `Setup` — documented
+
+Fires when Claude Code runs with `--init-only`, `--init`, or `--maintenance` in `-p` mode —
+the one-shot environment-preparation entry point.
+
+**Matchers:** `init`, `maintenance`.
+**Handler types:** `command` and `mcp_tool` only.
+**Output:** Same env-file mechanism as `SessionStart` (`$CLAUDE_ENV_FILE` is available).
+
+**Use-case:** Install toolchains, warm caches, or run repo maintenance in CI before the
+real session starts.
+
+---
+
+### `InstructionsLoaded` — documented
+
+Fires when a `CLAUDE.md` or `.claude/rules` file is loaded into context.
+
+**Matchers:** `session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact`.
+**Input:** `path` (string), `trigger` (string, matches the matcher values).
+**Output:** `additionalContext` (string).
+
+**Use-case:** Audit which instruction files actually load, inject supplements when a
+specific rules file appears.
+
+---
+
+### `MessageDisplay` — documented (v2.1.152+)
+
+Fires before an assistant message is rendered. Display-only rewrite — the transcript and
+model context are unchanged.
+
+**Input:** `content` (string, the message about to display).
+**Output:** `displayContent` (string, replacement text for display only).
+
+**Use-case:** Redact secrets from displayed output, add display-side annotations.
 
 ---
 
@@ -291,6 +373,24 @@ in air-gapped sessions.
 
 ---
 
+### `PermissionDenied` — documented
+
+Fires when the auto-mode permission classifier denies a tool call (no user prompt shown).
+
+**Input:** `tool` (string), `input` (object), `denial_reason` (string).
+
+**Output fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `retry` | boolean | `true` re-attempts the tool call (e.g. after the hook fixed the precondition) |
+| `additionalContext` | string | Explain the denial to the model |
+
+**Use-case:** Recover from overzealous classifier denials in automation, log denied
+operations for policy tuning.
+
+---
+
 ### `Stop` — documented
 
 Fires when Claude finishes its turn (non-blocking by default).
@@ -301,6 +401,8 @@ Fires when Claude finishes its turn (non-blocking by default).
 |---|---|---|
 | `session_id` | string | Current session |
 | `turn_id` | string | Completed turn identifier |
+| `background_tasks` | array | Still-running background tasks (v2.1.149+) |
+| `session_crons` | array | Active session cron jobs (v2.1.149+) |
 
 **Output fields:** None.
 
@@ -387,6 +489,83 @@ Fires when a file is modified outside Claude's own tools (e.g., by another proce
 Fire at the start and end of a subagent's lifecycle.
 
 **Input:** `subagent_id` (string), `subagent_name` (string), `session_id` (string).
+`SubagentStop` additionally carries `background_tasks` and `session_crons` (v2.1.149+),
+same as `Stop`.
 **Output:** None.
 
 **Use-case:** Scope resource allocation/cleanup to subagent lifetime, emit tracing spans.
+
+---
+
+## Compaction events
+
+### `PreCompact` / `PostCompact` — documented
+
+Fire before and after context compaction.
+
+**Matchers:** `manual`, `auto`.
+**Input:** `session_id` (string), `trigger` (string: `manual` or `auto`).
+**Output:** `additionalContext` (string, `PostCompact` — re-inject must-keep context).
+
+**Use-case:** Snapshot state before compaction, re-prime critical context after it.
+
+---
+
+## Task and team events
+
+### `TaskCreated` / `TaskCompleted` — documented
+
+Fire when a tracked task is created or completed.
+
+**Input:** `task_id` (string), `description` (string), `session_id` (string).
+**Output:** `additionalContext` (string).
+
+**Use-case:** Mirror Claude's task list into an external tracker.
+
+---
+
+### `TeammateIdle` — documented
+
+Fires when an agent-team teammate goes idle (agent teams feature).
+
+**Input:** `teammate_id` (string), `session_id` (string).
+**Output:** `additionalContext` (string) — e.g. assign follow-up work.
+
+---
+
+## Config and workspace events
+
+### `ConfigChange` — documented
+
+Fires when Claude Code configuration changes mid-session (settings, enabled plugins).
+
+**Input:** `source` (string), `changes` (object).
+**Output:** `additionalContext` (string).
+
+---
+
+### `WorktreeCreate` / `WorktreeRemove` — documented
+
+Fire when a git worktree is created or removed (e.g. `EnterWorktree`/`ExitWorktree`).
+
+**Input:** `worktree_path` (string), `branch` (string), `session_id` (string).
+**Output:** None.
+
+**Use-case:** Provision per-worktree env files, clean up worktree-scoped caches.
+
+---
+
+## MCP user-input events
+
+### `Elicitation` / `ElicitationResult` — documented
+
+Fire when an MCP server requests user input (elicitation) and when the user responds.
+
+**Input:** `server` (string), `prompt` (string); `ElicitationResult` adds `response`.
+**Output:** None (observe-only); use for audit logging of MCP-driven prompts.
+
+---
+
+## Sources
+
+- code.claude.com/docs/en/hooks (canonical event reference; verified 2026-06-09, v2.1.170)

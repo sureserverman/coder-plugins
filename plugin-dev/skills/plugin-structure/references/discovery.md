@@ -13,6 +13,10 @@ How the Claude Code plugin runtime finds and validates each component type. "Aut
 - [LSP Servers — `.lsp.json`](#lsp-servers--lspjson)
 - [Monitors — `monitors/monitors.json`](#monitors--monitorsmonitorsjson)
 - [Executables — `bin/`](#executables--bin)
+- [Other surfaces](#other-surfaces) — themes/, output-styles/, settings.json
+- [Plugin data directory](#plugin-data-directory)
+- [How plugins themselves are discovered](#how-plugins-themselves-are-discovered) — marketplace source types (incl. git-subdir), skills-dir plugins, cache
+- [CLI workflow](#cli-workflow)
 
 ## Discovery summary
 
@@ -24,8 +28,13 @@ How the Claude Code plugin runtime finds and validates each component type. "Aut
 | Hooks | `hooks/hooks.json` | Yes | One file; array inside |
 | MCP servers | `.mcp.json` | **No** | One file; map inside |
 | LSP servers | `.lsp.json` | Yes | One file; map inside |
-| Monitors | `monitors/monitors.json` | Yes | One file; array inside |
+| Monitors | `monitors/monitors.json` | Yes (experimental, v2.1.105+) | One file; array inside |
 | Executables | `bin/*` | Yes | All files in dir |
+| Output styles | `output-styles/*.md` | Yes | One per file |
+| Themes | `themes/` | Yes (experimental) | Registered as `custom:<plugin>:<slug>` |
+| Settings | `settings.json` (plugin root) | Yes | Only `agent` + `subagentStatusLine` keys |
+
+A `CLAUDE.md` at the plugin root is **not** loaded — plugins cannot inject instructions that way; use skills or `SessionStart` hooks.
 
 ---
 
@@ -87,7 +96,7 @@ Typical structure:
 
 **Interpreter note:** Hook commands run under `/bin/sh`, not `/bin/bash`. Use `#!/bin/bash` as the first line of any hook script that uses bash-specific syntax, or write the hook as a separate script file.
 
-Recognized event names: `SessionStart`, `SessionEnd`, `CwdChanged`, `PreToolUse`, `PostToolUse`, `Stop`.
+32 recognized events as of v2.1.170 (`SessionStart`, `Setup`, `PreToolUse`, `PostToolUse`, `Stop`, `PreCompact`/`PostCompact`, `WorktreeCreate`/`WorktreeRemove`, …) — full catalogue with input/output schemas lives in the `hook-development` skill's `references/events.md`.
 
 ---
 
@@ -116,37 +125,42 @@ Typical file structure (for documentation purposes):
 
 **Valid when:**
 - File exists at `.lsp.json` at the plugin root.
-- Content is valid JSON with a `"servers"` object.
+- Each server entry has the two required fields: `command` and `extensionToLanguage`.
 
-Each entry names a language server the plugin provides. The runtime starts it when a file matching the registered language is opened.
+Each entry names a language server the plugin provides. The runtime starts it when a file matching a registered extension is opened. `transport` is `stdio` (default) or `socket`.
 
 ```json
 {
-  "servers": {
-    "my-lsp": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/my-lsp",
-      "filetypes": ["myext"]
-    }
+  "my-lsp": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/my-lsp",
+    "transport": "stdio",
+    "extensionToLanguage": { ".myext": "mylang" }
   }
 }
 ```
+
+The official marketplace ships LSP plugins for pyright, typescript, and rust-analyzer — prefer installing those over re-wrapping the same servers.
 
 ---
 
 ## Monitors — `monitors/monitors.json`
 
+**Experimental (v2.1.105+); requires `experimental.monitors` in plugin.json. Interactive CLI only, and monitor commands run unsandboxed.**
+
 **Valid when:**
 - File exists at `monitors/monitors.json`.
 - Content is a valid JSON array of monitor objects.
+- Each object has the three required fields: `name`, `command`, `description`.
 
-Monitors are background watchers that can emit events into the session. Each object must have at least `name` and `command`.
+Monitors are background watchers; each stdout line the command emits becomes a notification in the session. Optional `when` controls lifetime: `"always"` or `"on-skill-invoke:<skill>"`.
 
 ```json
 [
   {
     "name": "file-watcher",
+    "description": "Surfaces build-artifact changes",
     "command": "${CLAUDE_PLUGIN_ROOT}/bin/watch.sh",
-    "events": ["on_change"]
+    "when": "always"
   }
 ]
 ```
@@ -160,3 +174,62 @@ Monitors are background watchers that can emit events into the session. Each obj
 - File has the executable bit set (`chmod +x`).
 
 The entire `bin/` directory is prepended to the Bash `PATH` environment variable for the duration of the session while the plugin is active. This makes plugin-bundled tools available to hooks, commands, and any Bash tool calls without absolute paths — though within hook scripts you should still use `${CLAUDE_PLUGIN_ROOT}/bin/<name>` for clarity.
+
+---
+
+## Other surfaces
+
+- **`output-styles/*.md`** — output styles auto-discovered like commands; override dir with the `outputStyles` manifest field (which **replaces** the default).
+- **`themes/`** — experimental (requires `experimental.themes`); each theme registers as `custom:<plugin>:<slug>`.
+- **`settings.json` at the plugin root** — only two keys are honored: `agent` and `subagentStatusLine`. Anything else is ignored.
+
+---
+
+## Plugin data directory
+
+`${CLAUDE_PLUGIN_DATA}` resolves to `~/.claude/plugins/data/{id}/` — auto-created on first use, survives plugin updates (unlike `${CLAUDE_PLUGIN_ROOT}`, which changes on update), and is deleted when the plugin is uninstalled from its last scope unless `--keep-data` is passed.
+
+---
+
+## How plugins themselves are discovered
+
+### Marketplace entry source types
+
+A `marketplace.json` plugin entry's `source` is one of:
+
+| Type | Shape | Notes |
+|---|---|---|
+| relative path | `"./plugins/my-plugin"` | Resolved against `metadata.pluginRoot` if set |
+| github | `{ "source": "github", "repo": "owner/repo", "ref"?, "sha"? }` | |
+| url | `{ "source": "url", "url": "https://…/repo.git", "ref"?, "sha"? }` | Any git-cloneable URL |
+| git-subdir | `{ "source": "git-subdir", "url": "owner/repo", "path": "plugins/my-plugin", "ref"?, "sha"? }` | Sparse clone of one monorepo subdirectory; `url` accepts `owner/repo` shorthand or SSH |
+| npm | `{ "source": "npm", "package": "@scope/name", "version"?, "registry"? }` | |
+
+A full 40-character `sha` always wins over `ref` when both are present.
+
+### Skills-dir plugins (v2.1.157+)
+
+Any folder under `~/.claude/skills/` or `<cwd>/.claude/skills/` that contains `.claude-plugin/plugin.json` loads **in place** as `<name>@skills-dir` — no marketplace needed. Single root-level `SKILL.md` plugins are also valid (v2.1.142+). Enterprises can block the whole mechanism with `blockedMarketplaces: [{"source": "skills-dir"}]`.
+
+### Cache and symlinks
+
+Installed plugins live in `~/.claude/plugins/cache`; orphaned versions are kept 7 days after an update. Symlink handling on install: links **within the plugin** are preserved, links **within the marketplace** are dereferenced (copied), links pointing **outside** are skipped.
+
+---
+
+## CLI workflow
+
+```
+claude plugin init <name> [--with skills agents hooks mcp lsp output-style channel]
+claude plugin validate <dir>     # deterministic structure check
+claude plugin details <plugin>   # includes token-cost projection
+claude plugin tag <plugin>       # manage tags
+claude plugin prune              # remove no-longer-needed dependencies
+```
+
+---
+
+## Sources
+
+- code.claude.com/docs/en/plugins-reference (verified 2026-06-09, v2.1.170)
+- code.claude.com/docs/en/plugin-marketplaces (verified 2026-06-09)

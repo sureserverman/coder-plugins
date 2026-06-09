@@ -1,20 +1,24 @@
 # plugin.json — Full Field Reference
 
-Every field the Claude Code plugin runtime reads from `plugin.json`. The file lives at `.claude-plugin/plugin.json` inside the plugin directory.
+Every field the Claude Code plugin runtime (v2.1.170) reads from `plugin.json`. The file lives at `.claude-plugin/plugin.json` inside the plugin directory. The manifest itself is **optional** — a plugin without one takes its name from the directory — but always ship one for anything published.
 
 ## Contents
 
-- [Required fields](#required-fields) — `name`, `description`
-- [Optional fields](#optional-fields) — `version`, `author`, `homepage`, `repository`, `license`, `keywords`, `skills`
+- [Required fields](#required-fields) — `name` (the only required field)
+- [Optional fields](#optional-fields) — `$schema`, `displayName`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `defaultEnabled`, component paths, `experimental`, `userConfig`, `channels`, `dependencies`
 - [Complete example](#complete-example)
 - [marketplace.json — Full Schema](#marketplacejson--full-schema)
+  - [Top-level fields](#top-level-fields)
   - [Plugin entry fields](#plugin-entry-fields)
   - [Valid categories](#valid-categories)
   - [Tag guidance](#tag-guidance)
+  - [Governance](#governance)
 
 ## Required fields
 
 ### `name`
+
+The **only** required field.
 
 Type: string  
 Format: kebab-case  
@@ -24,24 +28,34 @@ Constraints: must be unique within any marketplace it is published to; becomes t
 "name": "rust-dev"
 ```
 
+## Optional fields
+
+### `$schema`
+
+Type: string (URL)  
+Points at the published plugin.json JSON Schema for editor validation/completion.
+
+### `displayName`
+
+Type: string (v2.1.143+)  
+Human-readable name shown in UI listings; `name` stays the machine identifier.
+
 ### `description`
 
 Type: string  
-One sentence. Shown in `/plugin list`, marketplace listings, and the install confirmation dialog.
+One sentence. Shown in `/plugin list`, marketplace listings, and the install confirmation dialog. Optional per the schema, but always set it for published plugins.
 
 ```json
 "description": "Idiomatic Rust authoring with skills, subagent, and slash commands."
 ```
 
-## Optional fields
-
 ### `version`
 
 Type: string  
 Format: semver (`MAJOR.MINOR.PATCH`)  
-Default: git commit SHA of the plugin directory at load time.
+Resolution chain when omitted: plugin.json `version` → marketplace entry `version` → git commit SHA → `"unknown"`.
 
-Set explicitly for any release that users will pin or reproduce. The commit-SHA fallback is adequate for local development but not for published plugins.
+Set explicitly for any release that users will pin or reproduce. The fallbacks are adequate for local development but not for published plugins.
 
 ```json
 "version": "1.4.2"
@@ -55,6 +69,7 @@ Type: object
 |---|---|---|
 | `name` | string | Display name |
 | `email` | string | Contact address |
+| `url` | string | Author website |
 
 ```json
 "author": {
@@ -101,37 +116,77 @@ Used for marketplace search. No enforced limit; keep to the most specific terms.
 "keywords": ["rust", "cargo", "linting", "refactor"]
 ```
 
+### `defaultEnabled`
+
+Type: boolean (v2.1.154+)  
+`false` installs the plugin disabled; the user opts in via `/plugin`. Use for heavyweight or niche plugins inside a bundle.
+
 ### `skills`
 
 Type: array of strings (paths relative to plugin root)  
-Overrides or supplements auto-discovery. Rarely needed — use only when you want to control load order or include skills outside the standard `skills/` tree.
+**Adds to** the default `skills/` auto-discovery — it does not replace it. Use to include skills outside the standard tree or control load order.
 
 ```json
 "skills": [
   "skills/rust-coding/SKILL.md",
-  "skills/rust-expert/SKILL.md"
+  "extra/special/SKILL.md"
 ]
 ```
 
-When this field is present, its entries are loaded in order before auto-discovery runs for any paths not already listed.
+### `commands`, `agents`, `outputStyles`
 
-### `commands`, `agents`, `hooks`, `mcpServers`
+Type: string or array of path strings  
+Unlike `skills`, these **replace** the default directories (`./commands`, `./agents`, `./output-styles`). If you set `"commands": ["./extra-commands"]`, the default `./commands` is no longer scanned — list it explicitly if you still want it.
 
-Type: array of path strings (`commands`, `agents`) or a path string / inline object (`hooks`, `mcpServers`)
+### `hooks`, `mcpServers`, `lspServers`
 
-Like `skills`, these **supplement** default discovery — they do not replace it. You only need them to add component directories outside the standard tree, or to point at a non-default config file. Defaults if omitted:
-
-| Field | Default | Form |
-|---|---|---|
-| `commands` | `./commands` | extra command directories |
-| `agents` | `./agents` | extra agent directories |
-| `hooks` | `./hooks/hooks.json` | path to a hooks file, or an inline hooks object |
-| `mcpServers` | `./.mcp.json` | path to an MCP config, or an inline `mcpServers` object |
+Type: string (path) | array of paths | inline object  
+Defaults if omitted: `./hooks/hooks.json`, `./.mcp.json`, `./.lsp.json`.
 
 ```json
 "hooks": "./hooks/hooks.json",
-"mcpServers": "./.mcp.json"
+"mcpServers": "./.mcp.json",
+"lspServers": "./.lsp.json"
 ```
+
+### `experimental`
+
+Type: object  
+Opt-in flags for experimental surfaces: `experimental.themes` (themes/ directory), `experimental.monitors` (monitors/monitors.json).
+
+### `userConfig`
+
+Type: object — declares user-facing plugin options. Each key maps to:
+
+| Subfield | Type | Notes |
+|---|---|---|
+| `type` | string | `string` \| `number` \| `boolean` \| `directory` \| `file` |
+| `title` | string | Label shown in the config UI |
+| `description` | string | Help text |
+| `sensitive` | boolean | Stored in the OS keychain, never plaintext |
+| `required` | boolean | Prompted at install/enable |
+| `default` | any | Default value |
+| `multiple` | boolean | Accept multiple values |
+| `min` / `max` | number | Bounds for `number` type |
+
+Values are substituted anywhere in plugin config via `${user_config.<key>}` and exported to hooks/commands as `CLAUDE_PLUGIN_OPTION_<KEY>` env vars.
+
+```json
+"userConfig": {
+  "api_endpoint": { "type": "string", "title": "API endpoint", "required": true },
+  "api_token":    { "type": "string", "title": "API token", "sensitive": true }
+}
+```
+
+### `channels`
+
+Type: array of `{ "server": "<mcpServers key>", "userConfig": { … } }`  
+Declares notification/communication channels backed by an MCP server. `server` must match a key in `mcpServers`.
+
+### `dependencies`
+
+Type: array of `{ "name": "<plugin>", "version": "<semver range>" }`  
+Other plugins this one requires; installed alongside it. `claude plugin prune` removes dependencies no longer needed by any installed plugin.
 
 ### Path resolution rules
 
@@ -149,6 +204,7 @@ Common manifest errors: a `name` with spaces/underscores (must be kebab-case), a
 ```json
 {
   "name": "rust-dev",
+  "displayName": "Rust Dev",
   "description": "Idiomatic Rust authoring with skills, subagent, and slash commands.",
   "version": "2.1.0",
   "author": {
@@ -170,14 +226,17 @@ Common manifest errors: a `name` with spaces/underscores (must be kebab-case), a
 
 ## marketplace.json — Full Schema
 
-Lives at the **marketplace repository root** (not inside any individual plugin). One file lists all plugins the marketplace distributes.
+Lives at `.claude-plugin/marketplace.json` in the **marketplace repository** (not inside any individual plugin). One file lists all plugins the marketplace distributes.
 
 ```json
 {
+  "name": "my-marketplace",
+  "owner": { "name": "Jane Developer" },
+  "metadata": { "pluginRoot": "./plugins" },
   "plugins": [
     {
       "name": "rust-dev",
-      "source": "https://github.com/you/rust-dev",
+      "source": "./rust-dev",
       "description": "Idiomatic Rust authoring with skills, subagent, and slash commands.",
       "version": "2.1.0",
       "category": "languages",
@@ -187,16 +246,36 @@ Lives at the **marketplace repository root** (not inside any individual plugin).
 }
 ```
 
+### Top-level fields
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `name` | Yes | string | Marketplace identifier (kebab-case) |
+| `owner` | Yes | object | At least `{ "name": … }` |
+| `plugins` | Yes | array | Plugin entries (below) |
+| `$schema` | No | string | JSON Schema URL for editor validation |
+| `description` | No | string | Marketplace description |
+| `version` | No | string | Pins the catalog version |
+| `metadata.pluginRoot` | No | string | Base directory that relative `source` paths resolve against |
+| `allowCrossMarketplaceDependenciesOn` | No | array | Allowlist of other marketplaces that plugin `dependencies` may resolve from |
+
 ### Plugin entry fields
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | Yes | string | Must match the plugin's `plugin.json` `name` |
-| `source` | Yes | string (URL) | Git-cloneable URL of the plugin repository |
-| `description` | Yes | string | One sentence; may differ from plugin.json for marketing copy |
-| `version` | Yes | string | Semver; pinned version the marketplace entry references |
-| `category` | Yes | string | One of the valid category values below |
-| `tags` | Yes | array | 4–8 lowercase strings |
+| `source` | Yes | string \| object | Where to fetch the plugin — see source types below |
+| `description` | No | string | One sentence; may differ from plugin.json for marketing copy |
+| `version` | No | string | Semver; used in the version-resolution chain |
+| `category` | No | string | One of the valid category values below |
+| `tags` | No | array | 4–8 lowercase strings |
+| `strict` | No | boolean | Fail install on validation warnings |
+| `defaultEnabled` | No | boolean | Install disabled when `false` |
+| `displayName` | No | string | UI name override |
+
+A marketplace entry may also carry **any plugin-manifest field** (it overlays the plugin's own `plugin.json`).
+
+**Source types:** relative path, `github {repo, ref?, sha?}`, `url {url, ref?, sha?}`, `git-subdir {url, path, ref?, sha?}`, `npm {package, version?, registry?}`. A full 40-char `sha` wins over `ref`. Details and examples in `discovery.md`.
 
 ### Valid categories
 
@@ -210,3 +289,13 @@ Mix technology identifiers with capability words. Examples:
 - `["security", "audit", "sast", "secrets", "cve"]`
 
 Avoid vague tags like `"tool"`, `"helper"`, `"utility"` — they do not aid search.
+
+### Governance
+
+- **Reserved names** — marketplace names like `claude-code-marketplace`, `anthropic-plugins`, `agent-skills` (and similar official-sounding names) are reserved; impersonating names are blocked.
+- **Managed settings** (enterprise): `pluginSuggestionMarketplaces` (v2.1.152+, marketplaces Claude may suggest), `strictKnownMarketplaces` (only allowlisted marketplaces install), `blockedMarketplaces` (denylist; `{"source": "skills-dir"}` blocks skills-dir plugins).
+
+## Sources
+
+- code.claude.com/docs/en/plugins-reference (verified 2026-06-09, v2.1.170)
+- code.claude.com/docs/en/plugin-marketplaces (verified 2026-06-09)

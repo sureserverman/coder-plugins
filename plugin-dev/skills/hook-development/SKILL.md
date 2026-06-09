@@ -63,16 +63,19 @@ plugin is installed outside the authoring directory.
 
 ## Event catalogue
 
-Maturity labels: **widely-used** = proven in production across many plugins;
-**documented** = in official docs, less battle-tested; **experimental** = subject to change.
+32 events as of v2.1.170. Maturity labels: **widely-used** = proven in production across many
+plugins; **documented** = in official docs, less battle-tested; **experimental** = subject to change.
 
 ### Lifecycle
 
 | Event | Maturity | Notes |
 |---|---|---|
-| `SessionStart` | widely-used | Fires on new session or resume. Write env vars to `$CLAUDE_ENV_FILE` for cross-turn persistence. |
+| `SessionStart` | widely-used | Fires on new session or resume. Write env vars to `$CLAUDE_ENV_FILE`; can return `sessionTitle`, `initialUserMessage`, `watchPaths`, `reloadSkills` (v2.1.152+). |
+| `Setup` | documented | Fires on `--init-only` / `--init` / `--maintenance` in `-p` mode. Matchers: `init`, `maintenance`. |
 | `SessionEnd` | widely-used | Fires on termination. Matcher: `reason` — one of `clear`, `resume`, `logout`, `prompt_input_exit`, `other`. |
 | `UserPromptSubmit` | widely-used | Fires when user submits a prompt. Can block, augment, or pass through. |
+| `InstructionsLoaded` | documented | CLAUDE.md / `.claude/rules` loads. Matchers: `session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact`. |
+| `MessageDisplay` | documented | Display-only rewrite of assistant output via `displayContent` (v2.1.152+). |
 
 ### Tool execution
 
@@ -88,7 +91,8 @@ Maturity labels: **widely-used** = proven in production across many plugins;
 | Event | Maturity | Notes |
 |---|---|---|
 | `PermissionRequest` | documented | User-side permission prompt. Hook can auto-approve or auto-deny. |
-| `Stop` | documented | Claude finished its turn. Non-blocking. **See infinite-loop gotcha below.** |
+| `PermissionDenied` | documented | Auto-mode classifier denial. Can return `{"retry": true}` to re-attempt. |
+| `Stop` | documented | Claude finished its turn. Input includes `background_tasks` + `session_crons` (v2.1.149+). **See infinite-loop gotcha below.** |
 | `StopFailure` | documented | Claude failed (rate limit, auth, billing). Good for alerting or retry logic. |
 | `Notification` | documented | Incoming event from a monitor or MCP server. |
 
@@ -99,12 +103,25 @@ Maturity labels: **widely-used** = proven in production across many plugins;
 | `UserPromptExpansion` | documented | Slash-command expansion. |
 | `CwdChanged` | documented | Working directory changed. |
 | `FileChanged` | documented | File modified outside Claude's tools. |
+| `ConfigChange` | documented | Settings / enabled-plugin changes mid-session. |
 | `SubagentStart` / `SubagentStop` | documented | Subagent lifecycle. |
+| `TaskCreated` / `TaskCompleted` | documented | Tracked-task lifecycle. |
+| `TeammateIdle` | documented | Agent-team teammate goes idle. |
+| `WorktreeCreate` / `WorktreeRemove` | documented | Git worktree lifecycle. |
+| `PreCompact` / `PostCompact` | documented | Context compaction. Matchers: `manual`, `auto`. |
+| `Elicitation` / `ElicitationResult` | documented | MCP server requests user input / user responds. |
 
-### Prompt-based hooks (experimental)
+### Handler types
 
-Instead of `command:` (bash), use `type: "prompt"` to have Claude evaluate a prompt as the
-hook decision. Slower and more expensive than bash hooks, but capable of nuanced judgment.
+Five handler types (`SessionStart` and `Setup` support only `command` + `mcp_tool`):
+
+| Type | Notes |
+|---|---|
+| `command` | Shell command — the default; deterministic and cheap |
+| `http` | POSTs the event JSON to a URL |
+| `mcp_tool` | Calls a tool on a configured MCP server |
+| `prompt` | LLM yes/no evaluation; 30s default timeout |
+| `agent` | Agentic verifier (experimental); 60s default timeout |
 
 ```json
 {
@@ -114,7 +131,18 @@ hook decision. Slower and more expensive than bash hooks, but capable of nuanced
 }
 ```
 
-Use only when bash decision logic is not expressive enough.
+Use `prompt`/`agent` only when bash decision logic is not expressive enough.
+
+Hooks can also be scoped per-skill / per-agent via `hooks` frontmatter (plugin-shipped agents
+ignore frontmatter hooks — see `agent-development`).
+
+### Environment variables
+
+`CLAUDE_PROJECT_DIR` (all hooks), `CLAUDE_PLUGIN_ROOT` (changes on update),
+`CLAUDE_PLUGIN_DATA` (survives updates), `CLAUDE_ENV_FILE` (`SessionStart`/`Setup`/
+`CwdChanged`/`FileChanged` only), `CLAUDE_EFFORT` (`low`–`max`, ~v2.1.141+),
+`CLAUDE_CODE_REMOTE`. Any hook can return `terminalSequence` (v2.1.141+) to emit OSC
+sequences to the terminal. Full table in `references/events.md`.
 
 ## Patterns
 
@@ -230,7 +258,7 @@ Full guidance — including the other Cowork-specific patterns (multilingual tri
 
 ## Sources
 
-- code.claude.com/docs/en/hooks (canonical event reference)
+- code.claude.com/docs/en/hooks (canonical event reference; verified 2026-06-09, v2.1.170)
 - code.claude.com/docs/en/hooks-guide
 - Community examples: github.com/wshobson/agents, github.com/obra/superpowers
 - Cowork hook bug: [anthropics/claude-code#27398](https://github.com/anthropics/claude-code/issues/27398)
