@@ -2,6 +2,7 @@
   "description": "Authoring a new Claude Code plugin/skill/agent inside another project.",
   "plugins": [
     "plugin-dev@coder-plugins",
+    "cowork-dev@coder-plugins",
     "context7@claude-plugins-official"
   ]
 }
