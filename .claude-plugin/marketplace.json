@@ -5,8 +5,8 @@
     "email": "holyfiremin@gmail.com"
   },
   "metadata": {
-    "description": "Opinionated Claude Code plugins for professional coding — language-specific authoring skills and expert subagents.",
-    "version": "0.1.0"
+    "description": "Opinionated Claude Code plugins for professional coding — language-specific authoring skills, expert subagents, and a seven-platform AI-tool-authoring family (plugin-dev for Claude Code + shared core, cowork-dev, cursor-dev, codex-dev, opencode-dev, hermes-dev, openclaw-dev), each with skills grounded in June 2026 platform docs and a deterministic validation lane.",
+    "version": "0.2.0"
   },
   "plugins": [
     {

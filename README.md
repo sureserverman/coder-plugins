@@ -50,15 +50,26 @@ Bundled `infrastructure/` ships the emulator containers, MCP server, and a refer
 
 Source: [`android-dev/`](./android-dev)
 
-### plugin-dev
+### plugin-dev — and the AI-tool authoring family
 
-Lean, security-aware authoring kit for **other** Claude Code plugins. Positioned as the 2026-current alternative to Anthropic's existing plugin-dev (~22k lines) — same surface area in ~3.6k lines, with description-leak audit and prompt-injection screening baked in.
+Lean, security-aware authoring kit for **other** Claude Code plugins, and the shared cross-host core of a seven-platform authoring family. Positioned as the 2026-current alternative to Anthropic's existing plugin-dev (~22k lines), with description-leak audit and prompt-injection screening baked in.
 
-- **10 skills** — `plugin-structure`, `skill-development`, `command-development`, `agent-development`, `hook-development` (covers 2026 events: `PostToolUseFailure`, `PostToolBatch`, `PermissionRequest`, `StopFailure`, `Notification`, `UserPromptExpansion`, `CwdChanged`, `FileChanged`, `SubagentStart/Stop`), `mcp-integration`, `mcp-server-development`, `plugin-settings`, plus `skill-description-leak-audit` (leak-proof an existing SKILL.md), `skill-best-practices-sync` (cached research → applied), and `creating-subagents` (one definition that works on Claude Code + Codex + Cursor + OpenCode). Each SKILL.md is ≤500 lines with one-level-deep `references/`.
-- **3 agents** — `plugin-validator` (haiku, read-only static checker), `skill-reviewer` (haiku, leak-audit + injection scan), `agent-creator` (sonnet, write-capable scaffolder).
-- **`/create-plugin`** — guided end-to-end scaffolding: discover intent, draft components via the relevant skill, dispatch `agent-creator` per agent, finish with a `plugin-validator` pass.
+- **13 skills** — `plugin-structure`, `determinism-boundary`, `skill-development`, `command-development`, `agent-development`, `hook-development` (32 events, five handler types, current to v2.1.170), `mcp-integration`, `mcp-server-development`, `plugin-settings`, `skill-description-leak-audit`, `skill-best-practices-sync`, `creating-subagents` (one definition that works on Claude Code + Codex + Cursor + OpenCode), and `skill-workshop` (session-history mining). Each SKILL.md is ≤500 lines with one-level-deep `references/`.
+- **4 agents** — `plugin-validator` (haiku, runs the deterministic suite then judges), `skill-reviewer` (haiku, leak-audit + injection scan), `agent-creator` (sonnet, write-capable scaffolder), `session-analyzer` (haiku, session mining).
+- **`/create-plugin` + `/refactor-plugin`** — scaffold new plugins balanced on the determinism boundary, or retrofit existing ones.
 
 Source: [`plugin-dev/`](./plugin-dev)
+
+**Platform siblings** — one authoring plugin per AI-tool platform, each with skills grounded in that platform's June-2026 docs plus a vendored deterministic validator (`validate-<platform>-artifact.sh` + good/bad fixtures), and a `dependencies` link back to `plugin-dev`:
+
+| Plugin | Target platform | Owns |
+|---|---|---|
+| [`cowork-dev/`](./cowork-dev) | Claude Cowork | install paths + package limits, component-support matrix, chat-native patterns |
+| [`cursor-dev/`](./cursor-dev) | Cursor 3.x | `.cursor-plugin` manifests + marketplace, `.mdc` rules, skills, camelCase hooks, subagents, MCP |
+| [`codex-dev/`](./codex-dev) | OpenAI Codex CLI/IDE | `.codex-plugin` manifests + marketplaces, skills + `agents/openai.yaml`, agent TOML, config.toml (post-0.134 profiles), hooks trust model |
+| [`opencode-dev/`](./opencode-dev) | OpenCode | JS/TS plugins + npm distribution, agents (`permission` model), commands, opencode.json, skills, themes |
+| [`hermes-dev/`](./hermes-dev) | Hermes Agent (Nous Research) | skills + bundles + taps, Python plugins (`plugin.yaml` + `register(ctx)`), SOUL.md/config.yaml, MCP both directions |
+| [`openclaw-dev/`](./openclaw-dev) | OpenClaw | skills (gated `metadata.openclaw`), TS plugins + channel plugins, HOOK.md hooks, cron/webhooks/heartbeat, ClawHub |
 
 ### release-promo
 

@@ -28,5 +28,10 @@
     "agentskills",
     "messaging-gateway",
     "validation"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }

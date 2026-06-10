@@ -28,5 +28,10 @@
     "profiles",
     "sandbox",
     "validation"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }

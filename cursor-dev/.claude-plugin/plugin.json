@@ -27,5 +27,10 @@
     "agents-md",
     "cursorrules-migration",
     "validation"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }

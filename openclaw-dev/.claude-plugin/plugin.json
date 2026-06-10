@@ -29,5 +29,10 @@
     "heartbeat",
     "gateway",
     "validation"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }

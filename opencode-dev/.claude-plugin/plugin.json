@@ -26,5 +26,10 @@
     "mcp",
     "themes",
     "validation"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }

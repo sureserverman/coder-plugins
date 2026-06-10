@@ -27,5 +27,10 @@
     "multilingual",
     "validation",
     "packaging"
+  ],
+  "dependencies": [
+    {
+      "name": "plugin-dev"
+    }
   ]
 }
