@@ -5,6 +5,9 @@
     "cowork-dev@coder-plugins",
     "cursor-dev@coder-plugins",
     "codex-dev@coder-plugins",
+    "opencode-dev@coder-plugins",
+    "hermes-dev@coder-plugins",
+    "openclaw-dev@coder-plugins",
     "context7@claude-plugins-official"
   ]
 }

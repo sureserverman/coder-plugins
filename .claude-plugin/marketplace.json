@@ -153,6 +153,74 @@
       "strict": false
     },
     {
+      "name": "opencode-dev",
+      "source": "./opencode-dev",
+      "description": "Authoring kit for OpenCode (the opencode.ai terminal agent) extensions, current as of June 2026, OpenCode v1.16. Owns the OpenCode-specific half of extension development: plugins (.opencode/plugins/*.{js,ts} auto-loaded TypeScript-native via Bun, the {project, client, $, directory, worktree} hook API, ~30 hook events rebuilt on an Effect core in v1.15, npm distribution through the \"plugin\" config key), custom tools (.opencode/tools/<name>.ts with tool() from @opencode-ai/plugin, filename-derived names, built-in shadowing), agents (markdown frontmatter or opencode.json, primary/subagent/all modes, the tools-to-permission deprecation with bash glob maps), commands ($ARGUMENTS/$1..$3 templates, !`cmd` shell injection, @file inlining), config (opencode.json $schema, the 8-layer merge order, {env:}/{file:} substitution, share replacing autoshare), native Agent Skills (.opencode/skills/ plus .claude/skills/ Claude Code compat), rules (AGENTS.md canonical, CLAUDE.md fallback, instructions array with globs and remote URLs), MCP servers (local/remote, automatic OAuth with RFC 7591 DCR, the context-bloat gotcha), and themes. Ships a deterministic lane: validate-opencode-artifact.sh checks an OpenCode-bound artifact directory for agent/command frontmatter parse, the deprecated tools: map, legacy singular directories (agent/ vs agents/), opencode.json unknown keys and the deprecated autoshare flag, plugins without exports, and skill frontmatter validity, on the shared JSON finding contract.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": [
+        "opencode",
+        "plugin",
+        "agents",
+        "commands",
+        "skills",
+        "custom-tools",
+        "npm",
+        "bun",
+        "mcp",
+        "themes",
+        "agentskills",
+        "validation"
+      ],
+      "strict": false
+    },
+    {
+      "name": "hermes-dev",
+      "source": "./hermes-dev",
+      "description": "Authoring kit for Hermes Agent (Nous Research's open-source autonomous agent harness — NOT the model family), current as of June 2026, Hermes Agent v0.16 'The Surface Release'. Owns the Hermes-specific half of extension development: skills (agentskills.io SKILL.md with the Hermes-required version field and metadata.hermes.* extras, the ~/.hermes/skills/<category>/ tree with its extra CATEGORY level, skills.external_dirs cross-tool sharing, skill bundles, hermes skills install + GitHub taps + /.well-known/skills endpoints, the install-time security scan, and machine edits via the autonomous skill_manage tool), Python plugins (plugin.yaml manifest + register(ctx) with register_tool/register_hook/register_command/register_skill, the args-dict-in/JSON-string-out/never-raise handler contract, pip entry points under hermes_agent.plugins, memory-provider and context-compression plugin types), and configuration (~/.hermes/config.yaml, SOUL.md/MEMORY.md/USER.md context files, auto-loaded .hermes.md/HERMES.md/AGENTS.md/CLAUDE.md/.cursorrules project context, mcp_servers stdio + HTTP/OAuth 2.1/mTLS wiring, hermes mcp serve, the 23-platform messaging gateway, Nous Portal's 300+ models, hermes claw migrate). Ships a deterministic lane: validate-hermes-artifact.sh checks plugin.yaml parse/fields/types, register(ctx) presence, SKILL.md frontmatter incl. the version field, metadata.hermes shape, config.yaml mcp_servers entries, and Python syntax, on the shared JSON finding contract. Hermes ships multiple minor releases per month — re-verify API specifics against current docs before shipping.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": [
+        "hermes",
+        "nous-research",
+        "plugin",
+        "skills",
+        "skill-bundles",
+        "taps",
+        "soul-md",
+        "mcp",
+        "python-plugin",
+        "clawhub",
+        "agentskills",
+        "validation"
+      ],
+      "strict": false
+    },
+    {
+      "name": "openclaw-dev",
+      "source": "./openclaw-dev",
+      "description": "Authoring kit for OpenClaw (the open-source personal AI assistant by Peter Steinberger, ex-Clawdbot/Moltbot) extensions, current as of June 2026, OpenClaw 2026.6.5. Owns the OpenClaw-specific half of extension development: AgentSkills SKILL.md skills (the single-line-JSON metadata.openclaw frontmatter block with emoji/os/always/requires gating, the six-level load precedence where same-name skills silently shadow instead of merging, session-start skill snapshots and the watcher, skills.entries config with the sandbox env-injection gotcha, Skill Workshop, ClawHub distribution via the clawhub CLI with commit-pinned installs), plugins (the DUAL manifest requirement — package.json openclaw field plus openclaw.plugin.json — definePluginEntry from focused SDK subpaths with the root barrel openclaw/plugin-sdk deprecated, api.registerTool contracts, channel plugins via defineChannelPluginEntry/createChatChannelPlugin, install via clawhub:/npm:/git:/local sources, the Gateway-restart-after-install gotcha, and the in-process trust doctrine), and automation (HOOK.md + handler.ts internal hooks with typed events, the Gateway cron scheduler with system-event/message/command payloads, /hooks webhooks with Bearer-only auth, HEARTBEAT.md periodic turns, workspace bootstrap files, and the strict-schema JSON5 openclaw.json where one unknown key prevents Gateway start). Ships a deterministic lane: validate-openclaw-artifact.sh checks dual manifests, extension pointers, root-barrel SDK imports, single-line skill metadata JSON, hook handler presence and events, and openclaw.json JSON5 parse, on the shared JSON finding contract.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": [
+        "openclaw",
+        "clawdbot",
+        "moltbot",
+        "plugin",
+        "skills",
+        "channel-plugin",
+        "hooks",
+        "cron",
+        "webhooks",
+        "heartbeat",
+        "clawhub",
+        "gateway",
+        "agentskills",
+        "validation"
+      ],
+      "strict": false
+    },
+    {
       "name": "release-promo",
       "source": "./release-promo",
       "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (subreddit-aware, including Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel. Never autoposts.",
