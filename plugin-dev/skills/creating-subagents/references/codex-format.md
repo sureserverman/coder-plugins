@@ -1,6 +1,8 @@
 # Codex CLI (OpenAI) subagent format
 
-Source of truth: `https://developers.openai.com/codex/subagents` and `https://developers.openai.com/codex/guides/agents-md`. Verify with WebFetch before writing if unsure — schema evolving.
+Source of truth: `https://developers.openai.com/codex/subagents` and `https://developers.openai.com/codex/guides/agents-md`. Facts below verified 2026-06-09 against Codex v0.139. Verify with WebFetch before writing if unsure — schema evolving. For Codex authoring depth beyond scaffolding, see the sibling `codex-dev` plugin.
+
+Subagents are GA since v0.115.0 (Mar 2026); the multi-agent v2 runtime landed across v0.137–v0.139 (Jun 2026). One TOML file per agent.
 
 ## Three mechanisms, one repo
 
@@ -26,11 +28,11 @@ Filename stem should match `name`.
 ```toml
 name = "agent-name"
 description = "One-paragraph routing blurb. When to spawn. Trigger phrases. Stance."
-model = "inherit"
 sandbox_mode = "workspace-write"
 nickname_candidates = ["Triager", "Reviewer"]
 
-# Optional:
+# Optional (inherit from the parent session if omitted):
+# model = "gpt-5.2-codex"
 # model_reasoning_effort = "medium"
 # [[mcp_servers]]
 # name = "..."
@@ -49,12 +51,14 @@ developer_instructions = """
 | `name`                  | yes      | The identifier used when spawning. Matches filename by convention but `name` is source of truth.                        |
 | `description`           | yes      | Human-facing guidance; also routing signal.                                                                            |
 | `developer_instructions`| yes      | The system prompt. Triple-quoted string. This is where `<!-- CORE -->` lives.                                          |
-| `model`                 | no       | Model ID or `inherit`.                                                                                                |
-| `model_reasoning_effort`| no       | Reasoning intensity.                                                                                                  |
-| `sandbox_mode`          | no       | `read-only`, `workspace-write`, or others. Controls what the agent can touch.                                         |
+| `model`                 | no       | Model ID. Inherits from the parent session if omitted.                                                                |
+| `model_reasoning_effort`| no       | Reasoning intensity. Inherits from the parent session if omitted.                                                     |
+| `sandbox_mode`          | no       | `read-only`, `workspace-write`, or others. Inherits from the parent session if omitted.                               |
 | `nickname_candidates`   | no       | Array of display names Codex cycles through for concurrent spawns.                                                   |
-| `mcp_servers`           | no       | Array of MCP server configs scoped to this agent.                                                                      |
-| `skills.config`         | no       | Skills configuration (evolving — check current docs).                                                                  |
+| `mcp_servers`           | no       | Array of MCP server configs scoped to this agent. Inherits from the parent session if omitted.                         |
+| `skills.config`         | no       | Skills configuration. Inherits from the parent session if omitted.                                                    |
+
+All optional fields inherit from the parent session when omitted — only set them when the subagent should diverge.
 
 ### Sandbox modes
 
@@ -100,7 +104,8 @@ Explicit invocation for a <name> session. Use when you want a focused <domain> s
 
 ## Invocation
 
-- Spawn a subagent: natural-language request, Codex routes based on description. Manage via `/agent` CLI command.
+- Spawn a subagent: Codex spawns subagents **only when explicitly asked** — it does not auto-delegate the way Claude Code or Cursor do. Tell the user to ask by name ("spawn <name> to …").
+- `/agent` inspects running subagent threads.
 - Slash-prompt: `/<name>` runs the prompt file as a one-shot.
 - `AGENTS.md`: implicit, attached when relevant.
 
@@ -110,8 +115,8 @@ In `~/.codex/config.toml`:
 
 ```toml
 [agents]
-max_threads = 6
-max_depth = 1
+max_threads = 6              # default 6
+max_depth = 1                # default 1
 job_max_runtime_seconds = 600
 ```
 

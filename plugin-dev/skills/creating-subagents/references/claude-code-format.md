@@ -1,6 +1,6 @@
 # Claude Code subagent format
 
-Source of truth: `https://code.claude.com/docs/en/sub-agents` (was `docs.claude.com/en/docs/claude-code/sub-agents`). Verify with WebFetch if something looks off — the schema has evolved.
+Source of truth: `https://code.claude.com/docs/en/sub-agents` (was `docs.claude.com/en/docs/claude-code/sub-agents`). Facts below verified 2026-06-09 against Claude Code v2.1.170. Verify with WebFetch if something looks off — the schema has evolved.
 
 ## File location
 
@@ -48,7 +48,7 @@ model: inherit
 | `color`           | no       | `red` / `blue` / `green` / `yellow` / `purple` / `orange` / `pink` / `cyan`.                        |
 | `initialPrompt`   | no       | Auto-submitted first user turn when running via `--agent`.                                           |
 
-Plugin agents cannot use `hooks`, `mcpServers`, or `permissionMode` — those are stripped on load.
+Plugin-shipped agents **ignore** `hooks`, `mcpServers`, and `permissionMode` — those fields are stripped on load. If the agent needs them, install to `~/.claude/agents/` or `.claude/agents/` instead of distributing via a plugin.
 
 ## Writing the description
 

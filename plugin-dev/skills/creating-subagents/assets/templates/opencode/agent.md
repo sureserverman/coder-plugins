@@ -17,8 +17,9 @@ permission:
 
 ## Host affordances
 
+- Installed at `.opencode/agents/<AGENT_NAME>.md` (project) or `~/.config/opencode/agents/<AGENT_NAME>.md` (global) — plural `agents/` dir; the singular `agent/` form is legacy and may be silently ignored.
 - TUI-first with client/server architecture; sub-sessions are navigable via arrow keys.
-- Use the `permission:` block for fine-grained control instead of blanket denies.
+- Use the `permission:` block for fine-grained control (the old `tools:` boolean map is deprecated).
 - Temperature kept low for analysis; bump for generative work.
 
 <!-- CORE -->

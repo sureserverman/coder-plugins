@@ -1,6 +1,6 @@
 # Cursor subagent / rule format
 
-Source of truth: `https://cursor.com/docs` (see sections on rules and custom agents). Verify with WebFetch if in doubt — Cursor's agent/rule distinction has changed over versions.
+Source of truth: `https://cursor.com/docs/subagents` and `https://cursor.com/docs` (rules). Facts below verified 2026-06-09 against Cursor 3.7. Verify with WebFetch if in doubt — Cursor's agent/rule distinction has changed over versions. For Cursor authoring depth beyond scaffolding, see the sibling `cursor-dev` plugin.
 
 ## Two mechanisms
 
@@ -17,6 +17,10 @@ Ship both. The rule auto-attaches in-editor when the user is in a relevant file;
 | Project | `.cursor/rules/<name>.mdc`  | `.cursor/agents/<name>.md`       |
 
 Some testing-expert-style bundles also drop `<name>.mdc` at `.cursor/` root for historical compatibility.
+
+### Compatibility reads (Cursor 3.7)
+
+Cursor also reads agent files from other hosts' directories: `.claude/agents/`, `.codex/agents/`, `~/.claude/agents/`, and `~/.codex/agents/`. On a name conflict, the project-level file wins. Practical consequence for this bundle: a Claude Code agent file often needs **no porting at all** for Cursor — ship a dedicated `.cursor/agents/<name>.md` only when you want Cursor-specific frontmatter (`readonly`, `is_background`) or host affordances.
 
 ## `.mdc` rule frontmatter
 
@@ -77,17 +81,21 @@ is_background: false
 
 | Field           | Notes                                                                   |
 | :-------------- | :---------------------------------------------------------------------- |
-| `name`          | `@<name>` handle.                                                        |
-| `description`   | Routing text. Include "Use proactively" to encourage auto-delegation.    |
-| `model`         | `inherit` or a Cursor-supported model ID.                                |
+| `name`          | Optional — defaults to the filename stem. Lowercase + hyphens.           |
+| `description`   | Routing signal. "Use proactively" phrasing nudges auto-delegation.       |
+| `model`         | Inherits the session default if omitted, or a model ID like `composer-2`. |
 | `readonly`      | Boolean. `true` = no file writes.                                        |
 | `is_background` | Boolean. `true` = runs without blocking the chat.                        |
 
-## Invocation
+**No `tools` field.** Unlike Claude Code, Cursor agents cannot allowlist individual tools — the only tool restriction is the blanket `readonly` flag. Don't copy a `tools:` line from a Claude Code agent file; Cursor ignores it.
 
-- Auto-dispatch based on description match when agent mode is active.
-- Explicit: `@<name> <task>` in chat.
+## Invocation & runtime
+
+- Auto-dispatch based on description match (auto-delegation).
+- Explicit: `/<name>` or natural language ("ask the <name> agent to …").
 - Rules attach automatically when the user is in a file matching their globs.
+- Agents run in **parallel**, each with its own context window.
+- Built-in subagents: `Explore`, `Bash`, `Browser`.
 
 ## Host-affordance hints for the wrapper
 

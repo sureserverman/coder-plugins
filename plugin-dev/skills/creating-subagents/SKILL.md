@@ -13,6 +13,14 @@ If you are a user invoking this skill, tell me the agent name and 2–3 sentence
 
 Each host's agent system has different strengths and a different config language. Writing four parallel agent files by hand drifts — the Claude Code version gets a fix that never makes it to the Codex TOML. The fix: one `_core.md` holds the identity, operating model, rules, and output schemas; each host file is a thin wrapper with **only** host-specific framing (invocation style, tool list, sandbox mode, globs). A small `build.sh` embeds the core into every wrapper so they stay in lockstep. Adapted from the testing-expert bundle at `/home/user/dev/ai-tools/agents/agents/testing-expert/` — review it before starting if unfamiliar.
 
+## Sibling platform plugins
+
+This skill is the cross-host **scaffolding** workflow — one core, thin wrappers, build/install/verify scripts. Per-platform authoring depth (host-specific idioms, advanced config, debugging) now lives in the sibling plugins: `cursor-dev` (Cursor), `codex-dev` (Codex CLI), `opencode-dev` (OpenCode), and `cowork-dev` (Claude Cowork). Use them when the user wants to go deep on one host; stay here when the job is "one agent, many hosts".
+
+## Hosts without subagents
+
+Hermes Agent and OpenClaw have **no subagent surface** — there is nothing to scaffold for them here. Their unit of reuse is skills (agentskills.io format) and platform plugins. If the user wants this agent's behavior on those hosts, point them at the `hermes-dev` and `openclaw-dev` plugins and consider distilling `_core.md` into a skill instead.
+
 ## Do not hardcode the output path
 
 Write the new bundle into the current working directory the user invoked this skill from. A sensible default is `./<agent-name>/`. Ask before writing if the directory already exists.
