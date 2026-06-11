@@ -20,6 +20,25 @@ Opinionated decision rules for writing high-quality Rust. Consult the matching `
 | Optimizing a hot path or reading a flamegraph | `references/performance.md` |
 | Migrating a crate edition or reading 2024 features | `references/edition-2024.md` |
 
+## Determinism boundary
+
+The mechanically detectable slice of the rules below is script-owned, not
+prose-owned. When *auditing* existing code (not authoring new code), run the
+plugin's deterministic lane instead of grepping by hand:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh" <project-root> --json
+```
+
+`validate-cargo.sh` decides manifest invariants (edition enum, edition↔MSRV
+consistency, wildcard deps, workspace members, lockfile, toolchain channel).
+`validate-safety.sh` flags *candidates* for rules 1–7 below by stable rule id
+(`rust-unsafe-missing-safety-comment`, `rust-unwrap-outside-tests`,
+`rust-unbounded-channel`, `rust-sync-lock-in-async-candidate`,
+`rust-box-dyn-error-in-pub-api`, `rust-serde-missing-deny-unknown`) — confirming
+each candidate and writing the fix is judgment and stays here.
+`stack-report.sh` produces the project Stack Report. See `scripts/README.md`.
+
 ## Non-negotiable rules
 
 These apply to every Rust change. No exceptions without an explicit `// NOTE:` explaining why.

@@ -8,6 +8,19 @@ Pairs a progressive-disclosure **skill** that fires on any Rust work with a seni
 
 Opinionated defaults: no locks across `.await`, `// SAFETY:` on every `unsafe`, `thiserror` in libraries / `anyhow` in applications, iterators over index loops, `&str`/`&[T]` at API boundaries, `cargo clippy -- -D warnings` in CI.
 
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from
+the plugin-dev determinism kit); judgment stays with the skill and agent, which
+run the scripts and consume their JSON instead of re-deriving rules in prose.
+
+- `scripts/validate-cargo.sh` — manifest invariants: TOML parse, edition enum, edition↔MSRV consistency, wildcard deps, workspace members on disk, lockfile, toolchain channel.
+- `scripts/validate-safety.sh` — regex *candidates* for the house rules over `.rs` sources (unsafe without `// SAFETY:`, `.unwrap()` outside tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub APIs, `Deserialize` without `deny_unknown_fields`). Candidates are `warn`; rust-expert confirms or dismisses each.
+- `scripts/stack-report.sh` — deterministic Stack Report (edition, MSRV, runtime, test layout, risk surfaces, CI invocations) consumed by rust-expert's Protocol 1.
+
+Run the lane: `bash scripts/validate.sh <rust-project-root> [--json]`. Rule ids
+and severities are documented in [`scripts/README.md`](scripts/README.md).
+
 ## Installation
 
 ```bash

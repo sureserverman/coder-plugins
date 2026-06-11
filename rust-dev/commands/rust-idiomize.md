@@ -5,6 +5,7 @@ description: >
   remove unnecessary clones, add `// SAFETY:` comments, fix lock-across-await,
   modernize error handling.
 argument-hint: "<path-to-file-or-directory>"
+allowed-tools: Bash(bash:*)
 ---
 
 # /rust-idiomize
@@ -19,9 +20,10 @@ Delegates a behavior-preserving refactor to the **rust-expert** subagent (Protoc
 
 Call the rust-expert subagent with:
 
-1. **Protocol 1 (Stack detection)** — understand edition, MSRV, runtime, test invocation.
-2. **Record baseline** — run `cargo test` on the relevant package; require green before proceeding.
-3. **Protocol 3 (Refactor)** — apply idiom fixes ONE at a time, re-running `cargo test` + `cargo clippy -- -D warnings` after each change.
+1. **Protocol 1 (Stack detection)** — run `scripts/stack-report.sh` for edition, MSRV, runtime, test invocation.
+2. **Record baseline** — run `cargo test` on the relevant package (require green) and `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-safety.sh" <root> --json` to enumerate mechanical idiom candidates by rule id.
+3. **Protocol 3 (Refactor)** — triage the script's candidates (confirm or dismiss each), add judgment-only idioms, then apply fixes ONE at a time, re-running `cargo test` + `cargo clippy -- -D warnings` after each change.
+4. **Re-run the safety scan** at the end — confirmed candidates should be gone; anything remaining is listed as deferred with a reason.
 
 ## Constraints (enforced by the agent)
 
@@ -40,6 +42,7 @@ Call the rust-expert subagent with:
    - Final test result
    - Any deferred items the user should review separately
 4. **Diff** — the actual changes applied (can be reviewed via `git diff`).
+5. **Safety re-scan** — `validate-safety.sh` candidate counts before vs after.
 
 ## Common targets
 

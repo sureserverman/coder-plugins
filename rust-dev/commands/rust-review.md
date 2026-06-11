@@ -1,6 +1,7 @@
 ---
 description: Dispatch the rust-expert subagent to review a scoped Rust diff (uncommitted changes, a file, a commit, or a PR) for idiom, safety, concurrency, and performance.
 argument-hint: "[optional: file path | commit SHA | PR number]"
+allowed-tools: Bash(bash:*), Bash(git diff:*), Bash(git show:*), Bash(gh pr diff:*)
 ---
 
 # /rust-review
@@ -19,24 +20,38 @@ Given arguments `$ARGUMENTS`, resolve scope in this order:
 
 If the scope is empty after resolution (no diff, no file), report that and stop.
 
+## Deterministic pre-pass
+
+Before dispatching, run rust-dev's deterministic lane on the repo root:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh" <repo-root> --json
+```
+
+Pass the resulting findings JSON to the subagent verbatim. The scripts are the
+authority on the mechanical checks (manifest invariants, house-rule regex
+candidates); neither this command nor the agent re-derives them in prose.
+
 ## Dispatch
 
 Call the rust-expert subagent with:
 
-- **Stack Report first.** Ask it to run Protocol 1 on the repo before reviewing — the review must be framed in terms of the project's edition, MSRV, runtime, and test layout.
+- **The deterministic findings JSON** from the pre-pass, to fold in and triage (confirm or dismiss each `warn` candidate).
+- **Stack Report first.** Ask it to run Protocol 1 (`scripts/stack-report.sh`) on the repo before reviewing — the review must be framed in terms of the project's edition, MSRV, runtime, and test layout.
 - **Then Protocol 4 (Review)** on the resolved scope.
 - Ask it to return findings in the **Rust Review** schema — severity-ranked with category, file:line, Why (cited rule), Fix (code snippet).
 
 ## Expected output
 
 1. **Stack Report** (from Protocol 1)
-2. **Rust Review** — findings grouped by severity:
+2. **Deterministic lane** — script findings keyed by rule id, each confirmed or dismissed
+3. **Rust Review** — findings grouped by severity:
    - Blocker (soundness, UB, data race, security)
    - Major (API smell, perf bug, concurrency smell)
    - Minor (idiom nit)
    - Nit (style)
-3. **Closing verdict** — `merge | merge-with-nits | request-changes | block`
-4. **Optional patches** — if there are obvious trivial fixes (≤5 lines each), the agent may apply them directly via Edit; list applied patches and leave the rest for the human.
+4. **Closing verdict** — `merge | merge-with-nits | request-changes | block`
+5. **Optional patches** — if there are obvious trivial fixes (≤5 lines each), the agent may apply them directly via Edit; list applied patches and leave the rest for the human.
 
 ## Notes
 
