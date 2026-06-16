@@ -199,4 +199,5 @@ Return to `executing-plans` (or the calling session) with:
 
 - **planning-projects** — the upstream skill producing the plan with Parallel and dependency fields this skill consumes
 - **executing-plans** — the usual caller; decides when to invoke this skill during stage execution
+- **stack-routing reference** (`references/stack-routing.md`) — the source of truth for Phase 4's `subagent_type` + stack-skill choice; maps stacks to real agents (`rust-expert`, `ui-android` *(if installed)*, `game-design-expert`, `translator`, `testing-expert`, `code-generator`, `skill-rewriter`, `readonly-scanner`) with a `general-purpose` fallback. Shared with `executing-plans` Step 3.2
 - **code-reviewer agent** — optional between dispatch rounds if integrated diffs need independent review before the stage gate

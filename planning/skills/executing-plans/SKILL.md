@@ -330,7 +330,7 @@ When every stage is green:
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes
-- **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts
+- **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts; its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **code-reviewer / evaluator agent** — default at Phase Close-out and at any gate with non-command checks (briefed with goals + criteria only, never the implementation transcript); skip only when the user opts out or every check is a command. Optionally also between stages for review of stage diffs
