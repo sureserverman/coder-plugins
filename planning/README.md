@@ -1,6 +1,6 @@
 # planning
 
-A nine-skill pipeline (v0.5.1) that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A nine-skill pipeline (v0.7.0) that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -51,6 +51,8 @@ Produces a staged plan for a non-trivial project with phase gates before executi
 ### `executing-plans`
 
 Takes a plan file produced by `planning-projects` and executes it. Drives Red-Green loops, respects the stage-gate model, and dispatches independent tasks through `dispatching-parallel-agents`.
+
+Preflight includes a **git bootstrap** — if the project isn't a repo it runs `git init` (and offers a GitHub remote) so the per-task commits have somewhere to land. Execution **runs to completion**: stage gates are checkpoints, not approval gates, so it doesn't pause between green stages to ask permission — only the documented stop conditions halt it. At each stage gate it invokes a matching **platform stage-verify skill** (Android → `android-stage-verify`: build the debug APK, and if an adb device is attached, install + smoke-launch + run instrumented tests). At close-out it **bumps versions** for whatever the plan changed, across every mirror of the version string (e.g. a plugin's `plugin.json` and the root `marketplace.json`).
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 

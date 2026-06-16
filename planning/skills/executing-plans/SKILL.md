@@ -38,6 +38,34 @@ Create a task for each, work them in order:
 
 ---
 
+## Run to completion — don't stop until you have to
+
+Once Preflight passes, **drive the plan straight through to close-out.** Stage
+boundaries are checkpoints, not approval gates: when a stage gate passes,
+commit it and start the next stage without pausing to ask "should I continue?"
+The plan is the approval. Burning a turn to ask permission between green stages
+is the failure mode this skill exists to prevent.
+
+Keep going through:
+
+- a task that goes green (→ next task / unblock)
+- a stage gate that passes (→ next stage, immediately)
+- a Red-Green cycle that fails but still has budget (→ diagnose and retry)
+- a recoverable surprise you can resolve from the plan + evidence (→ resolve, note it, continue)
+
+**Only the documented Stop conditions below halt execution** — they are real
+blockers (exhausted cycle budget, failed gate that a re-run didn't fix, a
+destructive/secret/shared-infra action needing consent, an instruction you
+genuinely can't parse). Everything else is work to push through, not a reason to
+hand back. When you do stop, it's because continuing would be guessing or unsafe
+— say which, with evidence, and what you need to resume.
+
+The context-reset guidance below is an efficiency tactic for very large plans,
+**not** a license to stop early: prefer a fresh session over a *degraded* one,
+but never over *finishing the work*.
+
+---
+
 ## Phase 1 — Load and critique
 
 1. Read the plan file in full
@@ -56,6 +84,30 @@ Run every check in the Preflight section and report pass/fail:
 - APIs reachable, keys valid
 - Access / permissions verified
 - Baseline test suite passes
+- **Version control is live** — see below
+
+### Git bootstrap (hard prerequisite for commit-per-task)
+
+Every task commits its own work (Step 3.3 rule 6), so a working repo must exist
+before Stage 1:
+
+```
+git rev-parse --is-inside-work-tree  →  is this a repo?
+├── NO → `git init`, ensure a sane .gitignore, and make an initial commit of the
+│        current tree ("chore: initial commit before plan execution") so the
+│        first task has a parent. Then offer to create a GitHub remote
+│        (`gh repo create <name> --private --source=. --remote=origin`) — create
+│        it only on user confirmation; never push a repo public without consent.
+│        Execution proceeds locally whether or not a remote is created.
+└── YES ↓
+On main / master?  → do NOT execute here. Create a feature branch (or worktree)
+                     per the Safety rails before Stage 1.
+Working tree dirty with unrelated changes? → surface them; don't sweep them into
+                     the first task's commit.
+```
+
+A missing remote is **not** a stop condition — local commits are the unit of
+record. Only an un-initializable repo (e.g. read-only filesystem) blocks here.
 
 **If Preflight fails, stop.** Report which check failed and how it failed. Do not proceed to Stage 1. A broken baseline makes every downstream Red-Green loop noise.
 
@@ -94,7 +146,7 @@ Every task follows this loop. No task is "done" until its test is green.
 3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work.
-6. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`). The commit includes both the work and the flipped `Status: [x]`.
+6. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`). The commit includes both the work and the flipped `Status: [x]`. This is non-negotiable and assumes the Preflight git bootstrap ran — the per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed stage gate then adds its own `"Stage N green"` commit (Step 3.5): you keep **both** granularities, the per-task commits *and* the per-stage marker — never collapse to only one.
 
 ### Step 3.4 — Propagate unblock
 
@@ -107,6 +159,18 @@ When every task in the stage is green, run the stage gate:
 - Each gate check has a specific pass criterion (a command output, a test result, a manual verification)
 - Run them in order; stop at the first failure
 - Run the full existing test suite as part of the gate (regressions check)
+
+**Platform stage-verify hook.** After the stage's own gate checks pass, if the
+project's platform ships a stage-verify skill, invoke it as the final gate step
+— it proves the stage on the real artifact, not just the test suite. A failure
+there is a gate failure (handle it like any other below). Match by project type:
+
+| Project type (detector) | Stage-verify skill |
+|-------------------------|--------------------|
+| Android — `settings.gradle{,.kts}` / `app/build.gradle{,.kts}` present | `android-stage-verify` (android-dev plugin) — builds the debug APK, and if an adb device is attached, installs + smoke-launches + runs instrumented tests |
+
+If no matching skill is installed, note it and rely on the regular gate checks —
+the absence of a platform verifier is not itself a gate failure.
 
 **Independent evaluator for non-command checks.** Command checks are
 deterministic — run them yourself. But when a gate contains any check that
@@ -184,16 +248,36 @@ When every stage is green:
 1. Run the **full** test suite one more time from a clean state (don't trust the per-stage runs)
 2. Run any integration / e2e tests the plan flagged
 3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail. A FAIL here is a stop condition: surface it to the user before merge. Skip only on explicit user opt-out.
-4. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
-5. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-6. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
-7. Report to the user with:
+4. **Bump versions for what changed.** A completed plan almost always shifts a
+   shippable version somewhere — bump it as part of close-out, don't leave it for
+   later. Walk the artifacts the plan touched and apply a SemVer bump to each
+   versioned manifest:
+   - **breaking / removed behavior** → major; **new feature / capability** →
+     minor; **fix / docs / internal only** → patch.
+   - Bump the version field wherever the project records it — and **every place
+     that mirrors it.** Common pairs: a package/plugin manifest *and* a registry
+     or marketplace entry that restates its version; a workspace member *and* the
+     lockfile; a `CHANGELOG.md` *and* the manifest. Grep for the old version
+     string to catch mirrors. (For this repo: a plugin's
+     `.claude-plugin/plugin.json` **and** the root `.claude-plugin/marketplace.json`
+     entry; bump the marketplace `metadata.version` when the marketplace set
+     itself changed.)
+   - If the project keeps a `CHANGELOG.md`, add an entry for the new version.
+   - Commit the bumps (`"chore: bump <component> to <version>"`); they ride with
+     the close-out, not a follow-up.
+   - When the correct bump is genuinely ambiguous (e.g. unclear if a change is
+     breaking), state your call and let the user override — don't silently skip.
+5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
+6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
+7. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
+8. Report to the user with:
    - Stages completed
    - Total commits
+   - Version bumps applied (component → old → new)
    - Plan location for future reference
    - Backlog items closed (by ID) and any new ones opened during execution
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
-8. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
+9. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
 
 ---
 
@@ -207,13 +291,15 @@ When every stage is green:
 ## Remember
 
 - Critique the plan before starting
-- Preflight is a hard gate
+- Preflight is a hard gate — and it includes a live git repo (init one if missing)
+- Run to completion: stage gates are checkpoints, not approval gates — don't stop between green stages to ask permission
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
-- Stage gates check integration, not just aggregate task success
+- Stage gates check integration, not just aggregate task success; invoke the platform stage-verify skill there when one matches the project
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not
 - Commit each green task; never squash silently during execution
 - Append a handoff note at every passed gate — the plan file, not the transcript, is what survives a context reset
+- Bump versions at close-out for whatever the plan changed, including every mirror of the version string
 
 ---
 
@@ -235,3 +321,4 @@ When every stage is green:
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **code-reviewer / evaluator agent** — default at Phase Close-out and at any gate with non-command checks (briefed with goals + criteria only, never the implementation transcript); skip only when the user opts out or every check is a command. Optionally also between stages for review of stage diffs
 - **testing-expert agent** — invoke when a task's test is ambiguous, flaky, or the plan's coverage is thin
+- **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
