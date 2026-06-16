@@ -31,6 +31,12 @@ Four-phase build management with decision trees and security hard gates. Covers 
 
 **Triggers:** Add a module, fix build error, set up Hilt/Compose, add a dependency, run tests, edit version catalog, wire Retrofit/Room.
 
+### `android-stage-verify`
+
+The per-stage on-device gate. Builds the debug APK, checks `adb devices`, and when a device is attached installs it (`-r`), smoke-launches it (verifies the launcher Activity survives start-up), and runs `connectedDebugAndroidTest` if an `androidTest/` suite exists. Device-conditional: with no device attached it degrades to a build-only gate and reports the skip rather than claiming a pass. Invoked automatically by the `planning` plugin's `executing-plans` at each Android stage gate.
+
+**Triggers:** Verify this stage on device, build and install on my phone, run the on-device gate, did this stage break the app.
+
 ### `android-ui-design-figma`
 
 End-to-end UI workflow: app analysis, design spec (with optional Figma), feedback loop, then apply to code. Standard-first approach using Material 3 / Compose Material / AndroidX.

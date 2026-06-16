@@ -97,6 +97,12 @@ Instrumented tests exist (src/androidTest/)?
     └── PASSES → Test Verification complete.
 ```
 
+> **At a stage/milestone boundary, prove it on a device too.** This phase gates
+> the *authoring* (config compiles, tests pass). The **android-stage-verify**
+> skill is the on-device counterpart: it assembles the debug APK, detects an
+> adb device, then installs + smoke-launches + runs instrumented tests on it.
+> `executing-plans` invokes it automatically at each Android stage gate.
+
 **Never:**
 - Mark task complete with failing tests — downstream work assumes the gate held and debugging compounds.
 - Use `--quiet` — Gradle output is how you find the first failing test; suppressing it hides the root cause.
