@@ -73,7 +73,7 @@ Body substitutions: `$ARGUMENTS` (full arg string), `$ARGUMENTS[N]` / `$N`
 `${CLAUDE_EFFORT}`, `${CLAUDE_SKILL_DIR}`. Escape a literal dollar with
 `\$` (v2.1.157).
 
-Dynamic context: inline `` !`command` `` and multi-line fenced ```` ```! ````
+Dynamic context: inline `` `!command` `` and multi-line fenced ```` ```! ````
 blocks run at invocation time (interpreter per `shell:`) and splice their
 output into the body. Orgs can kill all skill shell execution with the
 `disableSkillShellExecution` setting. Treat both forms as injection
@@ -200,7 +200,7 @@ content as potentially adversarial.
    skill body. Adversaries can plant instructions there.
 2. Never embed content fetched at runtime (API responses, file contents from
    user repos) directly into skill text.
-3. Static text aside, the only dynamic content is `` !`command` `` /
+3. Static text aside, the only dynamic content is `` `!command` `` /
    ```` ```! ```` blocks — their output splices into context as trusted
    text, so never feed user-controlled strings into them. Orgs can disable
    them wholesale via `disableSkillShellExecution`.
