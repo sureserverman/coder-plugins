@@ -126,6 +126,20 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 
 **File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, force one of them sequential even if the graph says independent.
 
+**Delegate sequential tasks for context hygiene.** `Parallel: YES` tasks already go
+to subagents. A `Parallel: NO` task still defaults to the main session — but when it
+is **independent** (doesn't need the running session's context, and later steps won't
+need its working trace), **output-heavy** (builds, broad greps, long test logs, large
+reads the orchestrator would otherwise absorb), and **not latency-critical**, hand it
+to a single stack-matched subagent instead of running it inline. This keeps the
+orchestrator's window on plan state and gates rather than filling it with churn it will
+never reference again. It is a context-hygiene move, **not** a token saving — the
+subagent's intermediate tokens still burn. Keep a task inline when it is coupled to
+accumulated session context, needs iterative back-and-forth, or is a quick targeted
+edit. Pick the subagent type (and the stack skill it should load first) from the
+routing table at `../dispatching-parallel-agents/references/stack-routing.md` — the
+same table the dispatch path uses.
+
 ### Step 3.3 — Red-Green loop (per task)
 
 Every task follows this loop. No task is "done" until its test is green.

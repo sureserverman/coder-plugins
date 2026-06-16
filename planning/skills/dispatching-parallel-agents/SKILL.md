@@ -81,6 +81,9 @@ You are a sub-agent executing Task <N.M> from plan <plan-path>.
 <Extract from Research Summary the 2-4 bullets that bear on this task.
 Do NOT paste the entire research summary.>
 
+## Stack skill — invoke first (omit if the routing table names none)
+<Stack skill name from references/stack-routing.md, e.g. rust-coding — load it before editing>
+
 ## Execution model (Red-Green loop)
 1. Attempt the implementation described by the task
 2. Run the Test:
@@ -114,13 +117,12 @@ Agent(description: "Task 2.4: validate schema", prompt: <per task 2.4>)
 Agent(description: "Task 2.5: write config file", prompt: <per task 2.5>)
 ```
 
-Match each Agent's `subagent_type` to the work:
-
-- `code-generator` — scaffolding, boilerplate, well-specified file writes
-- `code-simplifier` — targeted refactor with preserved functionality
-- `Explore` / `general-purpose` — investigations where the task is "find and fix"
-- `testing-expert` — test-authoring tasks
-- Leave unset / `general-purpose` when no specialist fits
+Match each Agent's `subagent_type` — **and the stack skill it should load first** — using
+the routing table in `references/stack-routing.md`. That table is the source of truth (it
+covers Rust → `rust-expert`, Android UI → `ui-android`, tests → `testing-expert`, game
+design → `game-design-expert`, i18n → `translator`, scaffolding → `code-generator`,
+markdown rewrites → `skill-rewriter`, bulk read-only scans → `readonly-scanner`, and a
+`general-purpose` fallback). Read it before dispatch; don't reinvent the mapping here.
 
 ## Phase 5 — Collect
 
