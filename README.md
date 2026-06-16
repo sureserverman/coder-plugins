@@ -41,6 +41,7 @@ Source: [`rust-dev/`](./rust-dev)
 Android development toolkit. Bundles 4 skills, 1 command, and a complete bundled emulator stack under `infrastructure/`:
 
 - **`android-gradle-build`** — module wiring, Hilt/Compose/Room/Retrofit setup, test execution, security hard gates.
+- **`android-stage-verify`** — per-stage on-device gate: build the debug APK, detect an adb device, then install + smoke-launch + run instrumented tests. Invoked by `planning`'s `executing-plans` at each Android stage gate.
 - **`android-ui-design-figma`** — Material 3 + Compose, optional Figma workflow, standard-first implementation.
 - **`android-mcp-orchestrator`** — multi-container emulator stack (phone 6", tablet 7", tablet 10") via bundled `infrastructure/` compose root; one-command `up.sh --mock` / `down.sh`.
 - **`mock-server-from-app-sources`** — analyzes app code (Retrofit/Ktor/OkHttp/fetch + DTOs) to scaffold a mock backend container.
@@ -87,7 +88,7 @@ Four-skill pipeline that turns a vague idea into executed work. The skills hand 
 
 - **`brainstorming`** — vague idea → validated design via question-driven exploration (purpose, constraints, alternatives, risks).
 - **`planning-projects`** — staged plan with phase gates, `Depends on` / `Blocks` / `Parallel` task fields, Red-Green max cycles, Stage gates.
-- **`executing-plans`** — drives a plan file; Red-Green loops; respects stage gates; dispatches independent tasks for parallel run.
+- **`executing-plans`** — drives a plan file; Red-Green loops; respects stage gates; dispatches independent tasks for parallel run. Git-bootstraps a non-repo at Preflight, runs to completion without pausing between green stages, fires a platform stage-verify hook at each gate (Android → `android-stage-verify`), and bumps versions across every mirror at close-out.
 - **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
 
 Source: [`planning/`](./planning)
