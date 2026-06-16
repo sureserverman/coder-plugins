@@ -361,6 +361,7 @@ When executing the plan, use sub-agents to run independent tasks concurrently. T
 3. **Never dispatch a task whose dependencies aren't all green.** The Parallel field in the plan is the initial state — during execution, a task becomes dispatchable only when its actual dependencies have passed
 4. **Each sub-agent runs one task's Red-Green loop independently.** The sub-agent attempts the task, runs the test, and if RED, diagnoses and fixes within the 3-cycle limit. It reports back GREEN or ESCALATE
 5. **Stage gate runs only after all tasks in the stage are green.** Don't start the gate while any task is still in its Red-Green loop
+6. **Match each sub-agent to the task's stack.** Pick the sub-agent type — and the stack skill it should load first — from the shared routing table at `../dispatching-parallel-agents/references/stack-routing.md` (Rust → `rust-expert`, Android UI → `ui-android`, tests → `testing-expert`, … with a `general-purpose` fallback). The same table governs `executing-plans` and `dispatching-parallel-agents`, so dispatch decisions stay consistent from planning through execution
 
 ### Dispatch flow
 
@@ -408,6 +409,7 @@ Each sub-agent needs enough context to work independently:
 - Relevant research findings from Phase 0 (not the entire research summary — just what this task needs)
 - File paths and patterns from the project context
 - The Red-Green loop rules (attempt, test, diagnose, fix, retest, max 3 cycles)
+- The stack skill to invoke first, if the routing table names one for this task's stack — so the agent authors to that stack's conventions instead of generic defaults
 - What to do on failure: report back with the error and diagnosis, don't keep looping silently
 
 ### Guardrails
