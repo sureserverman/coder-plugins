@@ -30,7 +30,7 @@ permission:
 | When you need… | Read first |
 |---|---|
 | Agent file locations, the full frontmatter field set, modes (primary/subagent/all), overriding built-ins `build`/`plan`, the permission model, JSON-config form, modes→agents history | `references/opencode-agents.md` |
-| Command file locations, frontmatter (`description`, `agent`, `model`, `subtask`), `$ARGUMENTS`/`$1..$3`, `` !`cmd` `` shell injection, `@file` inlining, JSON-config form | `references/opencode-commands.md` |
+| Command file locations, frontmatter (`description`, `agent`, `model`, `subtask`), `$ARGUMENTS`/`$1..$3`, `` `!cmd` `` shell injection, `@file` inlining, JSON-config form | `references/opencode-commands.md` |
 
 ## Decision rules
 
@@ -64,11 +64,11 @@ agent: build
 subtask: true
 ---
 Run tests for $ARGUMENTS.
-Current branch: !`git branch --show-current`
+Current branch: ! `git branch --show-current`
 Follow the conventions in @docs/testing.md
 ```
 
-`/test unit` substitutes `$ARGUMENTS` (or positionals `$1`..`$3`); `` !`cmd` `` executes **at parse time** and inlines stdout; `@path` inlines a file reference. Details and pitfalls in `opencode-commands.md`.
+`/test unit` substitutes `$ARGUMENTS` (or positionals `$1`..`$3`); `` `!cmd` `` executes **at parse time** and inlines stdout; `@path` inlines a file reference. Details and pitfalls in `opencode-commands.md`.
 
 ## Anti-patterns this skill catches
 
@@ -77,7 +77,7 @@ Follow the conventions in @docs/testing.md
 - Broken YAML frontmatter — the agent/command loads wrong or not at all (`opencode-frontmatter`).
 - `description` missing on an agent — it's the required field; subagents without one can't be auto-dispatched.
 - Calling agents "modes" and looking for a `mode:` config block — 0.x terminology; agents replaced modes (legacy `modes/` dir still acknowledged, don't author new ones).
-- `` !`cmd` `` with side effects — it runs at parse time, *before* the user confirms anything; keep injections read-only (`git status`, not `git push`).
+- `` `!cmd` `` with side effects — it runs at parse time, *before* the user confirms anything; keep injections read-only (`git status`, not `git push`).
 - A bash permission map without a `"*"` fallback — unmatched commands need an explicit default.
 
 ## Sources
