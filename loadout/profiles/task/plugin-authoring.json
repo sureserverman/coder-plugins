@@ -1,13 +1,13 @@
 {
   "description": "Authoring a new Claude Code plugin/skill/agent inside another project.",
   "plugins": [
-    "plugin-dev@coder-plugins",
-    "cowork-dev@coder-plugins",
-    "cursor-dev@coder-plugins",
-    "codex-dev@coder-plugins",
-    "opencode-dev@coder-plugins",
-    "hermes-dev@coder-plugins",
-    "openclaw-dev@coder-plugins",
+    "plugin-dev@agent-tooling",
+    "cowork-dev@agent-tooling",
+    "cursor-dev@agent-tooling",
+    "codex-dev@agent-tooling",
+    "opencode-dev@agent-tooling",
+    "hermes-dev@agent-tooling",
+    "openclaw-dev@agent-tooling",
     "context7@claude-plugins-official"
   ]
 }

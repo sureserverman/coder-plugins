@@ -5,8 +5,8 @@
     "email": "holyfiremin@gmail.com"
   },
   "metadata": {
-    "description": "Opinionated Claude Code plugins for professional coding — language-specific authoring skills, expert subagents, and a seven-platform AI-tool-authoring family (plugin-dev for Claude Code + shared core, cowork-dev, cursor-dev, codex-dev, opencode-dev, hermes-dev, openclaw-dev), each with skills grounded in June 2026 platform docs and a deterministic validation lane.",
-    "version": "0.3.0"
+    "description": "Opinionated Claude Code plugins for professional coding \u2014 language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
+    "version": "0.4.0"
   },
   "plugins": [
     {
@@ -55,172 +55,6 @@
       "strict": false
     },
     {
-      "name": "plugin-dev",
-      "source": "./plugin-dev",
-      "description": "Lean, security-aware authoring kit for Claude Code plugins and the shared cross-host core of the platform-authoring family (cowork-dev, cursor-dev, codex-dev, opencode-dev, hermes-dev, openclaw-dev), with a balanced deterministic/LLM split: a deterministic bash validation suite (validate-plugin.sh orchestrating per-domain validators on a shared JSON finding contract) plus scaffolders own mechanical structure and checks, while the LLM lane owns judgment (leak/injection review, triggering, design). The boundary is portable: install-kit.sh + scaffold-validator.sh vendor a self-contained deterministic lane into ANY plugin, the determinism-boundary skill teaches the split, and create-plugin / refactor-plugin make new and existing plugins balanced like plugin-dev itself. Skills for plugin structure / skill / command / agent / hook / MCP authoring, cross-host subagent scaffolding (Claude Code, Codex, Cursor, OpenCode), leak-audit and best-practices-sync passes, plus skill-workshop which mines session JSONL history (via the session-analyzer Haiku subagent) for skill candidates; agents for validation, skill review, agent generation, and session mining. Current to June 2026: 32 hook events, five handler types, userConfig/channels/dependencies manifest fields, monitors/bin/LSP surfaces.",
-      "version": "0.7.0",
-      "category": "development",
-      "tags": [
-        "claude-code",
-        "plugin",
-        "meta",
-        "skills",
-        "agents",
-        "hooks",
-        "mcp",
-        "marketplace",
-        "scaffolding",
-        "validation",
-        "deterministic",
-        "determinism-kit",
-        "refactor",
-        "leak-audit",
-        "best-practices",
-        "cross-host",
-        "codex",
-        "cursor",
-        "opencode",
-        "skill-workshop",
-        "session-mining"
-      ],
-      "strict": false
-    },
-    {
-      "name": "cowork-dev",
-      "source": "./cowork-dev",
-      "description": "Authoring kit for Claude Cowork plugins, current as of June 2026. Owns the Cowork-specific half of plugin development: the four install paths (Anthropic catalog, direct ZIP upload, marketplace by URL, org private marketplaces) with their real limits (200 MB / 5,000 files per plugin, 50 MB manual ZIP, npm/pip marketplace sources unsupported, reserved-name list), component support (skills surface in Cowork + Claude chat; hooks and sub-agents run only in Cowork; connectors via Anthropic's cloud — local stdio MCP is NOT supported), org distribution states (Required / Installed by default / Available / Not available), and chat-native design patterns (multilingual skill triggers, connector-aware enrichment, privacy posture for cloud Routines, refuse-without-prerequisites, save-and-resume). Ships a deterministic lane: validate-cowork-artifact.sh checks a Cowork-bound plugin package for name/reserved-name violations, package-size and file-count limits, npm/pip marketplace sources, and stdio MCP servers, on the shared JSON finding contract.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "claude-cowork",
-        "cowork",
-        "plugin",
-        "skills",
-        "connectors",
-        "hooks",
-        "zip-upload",
-        "private-marketplace",
-        "github-sync",
-        "marketplace",
-        "packaging",
-        "validation",
-        "multilingual"
-      ],
-      "strict": false
-    },
-    {
-      "name": "cursor-dev",
-      "source": "./cursor-dev",
-      "description": "Authoring kit for Cursor (the AI editor) extensions, current as of June 2026, Cursor 3.7. Owns the Cursor-specific half of extension development: plugins (.cursor-plugin/plugin.json manifest, marketplace.json multi-plugin repos, cursor.com/marketplace publishing with its open-source requirement, Team Marketplaces from private GitHub repos), rules (.cursor/rules/*.mdc only — plain .md is silently ignored — with the four application types and Team > Project > User precedence), skills (agentskills.io standard with Cursor's extra discovery paths including legacy .claude/skills/ and .codex/skills/, the paths glob-visibility key, disable-model-invocation, and the commands-to-skills migration), hooks (~22 camelCase events in hooks.json with version field, prompt-type LLM hooks, permission allow/deny/ask protocol — deliberately NOT Claude Code's schema), subagents (.cursor/agents/ plus .claude/.codex compat reads, no tools field), and MCP (mcp.json transports, OAuth, ${env:NAME} interpolation, install deeplinks, permissions.json). Ships a deterministic lane: validate-cursor-artifact.sh checks a Cursor-bound artifact directory for manifest validity, .mdc frontmatter parse and rule-type combos, ignored plain-.md rules, skill name/directory mismatches, and unknown hook event names, on the shared JSON finding contract.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "cursor",
-        "plugin",
-        "rules",
-        "mdc",
-        "skills",
-        "subagents",
-        "hooks",
-        "mcp",
-        "marketplace",
-        "team-marketplace",
-        "agentskills",
-        "validation"
-      ],
-      "strict": false
-    },
-    {
-      "name": "codex-dev",
-      "source": "./codex-dev",
-      "description": "Authoring kit for OpenAI Codex (CLI + IDE extension) extensions, current as of June 2026, Codex CLI v0.139. Owns the Codex-specific half of extension development: plugins (.codex-plugin/plugin.json manifest, skills + hooks + MCP + app bundling, repo and personal marketplaces under .agents/plugins/, codex marketplace add, curated first-party plugins), skills (agentskills.io SKILL.md plus the Codex-only agents/openai.yaml sidecar, the five-tier discovery order, the ~2%-of-context catalog cap, custom-prompt deprecation and migration), subagents (one-TOML-per-agent custom agents with required developer_instructions, [agents] runtime limits, explicit-only spawning), config.toml (user + project layering, the v0.134.0 BREAKING removal of [profiles.*] and top-level profile= in favor of standalone overlay files, model/provider keys, approval and sandbox policies, [features], [tools], MCP server tables), the hooks engine (10 lifecycle events, hooks.json/TOML locations and precedence, exit-code and JSON output contracts, the /hooks trust model for non-managed command hooks), and AGENTS.md discovery (override files, git-root-to-cwd walk, project_doc_max_bytes). Ships a deterministic lane: validate-codex-artifact.sh checks .codex-plugin manifests and component pointers, SKILL.md frontmatter, agent TOML required fields, legacy [profiles.*]/profile= residue in config.toml (codex-legacy-profile), and hooks.json event names, on the shared JSON finding contract.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "codex",
-        "openai",
-        "plugin",
-        "skills",
-        "subagents",
-        "hooks",
-        "config-toml",
-        "mcp",
-        "agents-md",
-        "marketplace",
-        "agentskills",
-        "validation"
-      ],
-      "strict": false
-    },
-    {
-      "name": "opencode-dev",
-      "source": "./opencode-dev",
-      "description": "Authoring kit for OpenCode (the opencode.ai terminal agent) extensions, current as of June 2026, OpenCode v1.16. Owns the OpenCode-specific half of extension development: plugins (.opencode/plugins/*.{js,ts} auto-loaded TypeScript-native via Bun, the {project, client, $, directory, worktree} hook API, ~30 hook events rebuilt on an Effect core in v1.15, npm distribution through the \"plugin\" config key), custom tools (.opencode/tools/<name>.ts with tool() from @opencode-ai/plugin, filename-derived names, built-in shadowing), agents (markdown frontmatter or opencode.json, primary/subagent/all modes, the tools-to-permission deprecation with bash glob maps), commands ($ARGUMENTS/$1..$3 templates, !`cmd` shell injection, @file inlining), config (opencode.json $schema, the 8-layer merge order, {env:}/{file:} substitution, share replacing autoshare), native Agent Skills (.opencode/skills/ plus .claude/skills/ Claude Code compat), rules (AGENTS.md canonical, CLAUDE.md fallback, instructions array with globs and remote URLs), MCP servers (local/remote, automatic OAuth with RFC 7591 DCR, the context-bloat gotcha), and themes. Ships a deterministic lane: validate-opencode-artifact.sh checks an OpenCode-bound artifact directory for agent/command frontmatter parse, the deprecated tools: map, legacy singular directories (agent/ vs agents/), opencode.json unknown keys and the deprecated autoshare flag, plugins without exports, and skill frontmatter validity, on the shared JSON finding contract.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "opencode",
-        "plugin",
-        "agents",
-        "commands",
-        "skills",
-        "custom-tools",
-        "npm",
-        "bun",
-        "mcp",
-        "themes",
-        "agentskills",
-        "validation"
-      ],
-      "strict": false
-    },
-    {
-      "name": "hermes-dev",
-      "source": "./hermes-dev",
-      "description": "Authoring kit for Hermes Agent (Nous Research's open-source autonomous agent harness — NOT the model family), current as of June 2026, Hermes Agent v0.16 'The Surface Release'. Owns the Hermes-specific half of extension development: skills (agentskills.io SKILL.md with the Hermes-required version field and metadata.hermes.* extras, the ~/.hermes/skills/<category>/ tree with its extra CATEGORY level, skills.external_dirs cross-tool sharing, skill bundles, hermes skills install + GitHub taps + /.well-known/skills endpoints, the install-time security scan, and machine edits via the autonomous skill_manage tool), Python plugins (plugin.yaml manifest + register(ctx) with register_tool/register_hook/register_command/register_skill, the args-dict-in/JSON-string-out/never-raise handler contract, pip entry points under hermes_agent.plugins, memory-provider and context-compression plugin types), and configuration (~/.hermes/config.yaml, SOUL.md/MEMORY.md/USER.md context files, auto-loaded .hermes.md/HERMES.md/AGENTS.md/CLAUDE.md/.cursorrules project context, mcp_servers stdio + HTTP/OAuth 2.1/mTLS wiring, hermes mcp serve, the 23-platform messaging gateway, Nous Portal's 300+ models, hermes claw migrate). Ships a deterministic lane: validate-hermes-artifact.sh checks plugin.yaml parse/fields/types, register(ctx) presence, SKILL.md frontmatter incl. the version field, metadata.hermes shape, config.yaml mcp_servers entries, and Python syntax, on the shared JSON finding contract. Hermes ships multiple minor releases per month — re-verify API specifics against current docs before shipping.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "hermes",
-        "nous-research",
-        "plugin",
-        "skills",
-        "skill-bundles",
-        "taps",
-        "soul-md",
-        "mcp",
-        "python-plugin",
-        "clawhub",
-        "agentskills",
-        "validation"
-      ],
-      "strict": false
-    },
-    {
-      "name": "openclaw-dev",
-      "source": "./openclaw-dev",
-      "description": "Authoring kit for OpenClaw (the open-source personal AI assistant by Peter Steinberger, ex-Clawdbot/Moltbot) extensions, current as of June 2026, OpenClaw 2026.6.5. Owns the OpenClaw-specific half of extension development: AgentSkills SKILL.md skills (the single-line-JSON metadata.openclaw frontmatter block with emoji/os/always/requires gating, the six-level load precedence where same-name skills silently shadow instead of merging, session-start skill snapshots and the watcher, skills.entries config with the sandbox env-injection gotcha, Skill Workshop, ClawHub distribution via the clawhub CLI with commit-pinned installs), plugins (the DUAL manifest requirement — package.json openclaw field plus openclaw.plugin.json — definePluginEntry from focused SDK subpaths with the root barrel openclaw/plugin-sdk deprecated, api.registerTool contracts, channel plugins via defineChannelPluginEntry/createChatChannelPlugin, install via clawhub:/npm:/git:/local sources, the Gateway-restart-after-install gotcha, and the in-process trust doctrine), and automation (HOOK.md + handler.ts internal hooks with typed events, the Gateway cron scheduler with system-event/message/command payloads, /hooks webhooks with Bearer-only auth, HEARTBEAT.md periodic turns, workspace bootstrap files, and the strict-schema JSON5 openclaw.json where one unknown key prevents Gateway start). Ships a deterministic lane: validate-openclaw-artifact.sh checks dual manifests, extension pointers, root-barrel SDK imports, single-line skill metadata JSON, hook handler presence and events, and openclaw.json JSON5 parse, on the shared JSON finding contract.",
-      "version": "0.1.0",
-      "category": "development",
-      "tags": [
-        "openclaw",
-        "clawdbot",
-        "moltbot",
-        "plugin",
-        "skills",
-        "channel-plugin",
-        "hooks",
-        "cron",
-        "webhooks",
-        "heartbeat",
-        "clawhub",
-        "gateway",
-        "agentskills",
-        "validation"
-      ],
-      "strict": false
-    },
-    {
       "name": "release-promo",
       "source": "./release-promo",
       "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (subreddit-aware, including Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel. Never autoposts.",
@@ -264,7 +98,7 @@
     {
       "name": "infra-build",
       "source": "./infra-build",
-      "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
+      "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust \u2192 macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker \u2192 DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
       "version": "0.2.0",
       "category": "development",
       "tags": [
@@ -316,7 +150,7 @@
     {
       "name": "planning",
       "source": "./planning",
-      "description": "Nine-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time, with live-artifact gate checks on user-facing stages); executing-plans drives the plan with stage-gate checks, a default independent-evaluator pass at gates and close-out, stage-boundary handoff notes for context resets, opens/closes backlog entries, and audits workflow specs at close-out — now with a git-bootstrap preflight (inits a repo when missing), run-to-completion execution that doesn't pause between green stages, a platform stage-verify hook at each gate (e.g. android-dev's android-stage-verify), and SemVer version bumps across every mirror at close-out; dispatching-parallel-agents fans out independent tasks marked Parallel YES and routes each to a stack-matched subagent (rust-expert, ui-android, testing-expert, …) via a shared stack-routing reference that executing-plans also uses to delegate independent, output-heavy sequential tasks off the orchestrator's context; no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI) — v0.5.3 treats Google Play, F-Droid, IzzyOnDroid, GitHub Releases (signed APK, auto-detected), Obtainium, and Accrescent as peer Android distribution channels so projects that deliberately skip Play remain ship-ready; portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/. Skills hand off to each other and were designed as a unit.",
+      "description": "Nine-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time, with live-artifact gate checks on user-facing stages); executing-plans drives the plan with stage-gate checks, a default independent-evaluator pass at gates and close-out, stage-boundary handoff notes for context resets, opens/closes backlog entries, and audits workflow specs at close-out \u2014 now with a git-bootstrap preflight (inits a repo when missing), run-to-completion execution that doesn't pause between green stages, a platform stage-verify hook at each gate (e.g. android-dev's android-stage-verify), and SemVer version bumps across every mirror at close-out; dispatching-parallel-agents fans out independent tasks marked Parallel YES and routes each to a stack-matched subagent (rust-expert, ui-android, testing-expert, \u2026) via a shared stack-routing reference that executing-plans also uses to delegate independent, output-heavy sequential tasks off the orchestrator's context; no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI) \u2014 v0.5.3 treats Google Play, F-Droid, IzzyOnDroid, GitHub Releases (signed APK, auto-detected), Obtainium, and Accrescent as peer Android distribution channels so projects that deliberately skip Play remain ship-ready; portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/. Skills hand off to each other and were designed as a unit.",
       "version": "0.8.1",
       "category": "development",
       "tags": [
@@ -368,7 +202,7 @@
     {
       "name": "loadout",
       "source": "./loadout",
-      "description": "Per-project + per-task plugin scoping. Layers a sticky tech baseline (android/rust/web-ext/python/plugin-dev/...) with on-demand task overlays (security-audit/release/wiki/refactor/...) and writes the resulting enabledPlugins map to .claude/settings.local.json — so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically on first entry to a project via SessionStart hook; toggle overlays with /loadout +<task> and /loadout -<task>.",
+      "description": "Per-project + per-task plugin scoping. Layers a sticky tech baseline (android/rust/web-ext/python/plugin-dev/...) with on-demand task overlays (security-audit/release/wiki/refactor/...) and writes the resulting enabledPlugins map to .claude/settings.local.json \u2014 so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically on first entry to a project via SessionStart hook; toggle overlays with /loadout +<task> and /loadout -<task>.",
       "version": "0.1.0",
       "category": "development",
       "tags": [
@@ -389,7 +223,7 @@
     {
       "name": "i18n",
       "source": "./i18n",
-      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source — TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. Commands: /i18n-audit, /i18n-fill-gaps (parallel per-locale dispatch), /i18n-add-locale (scaffold + first-pass translate). Nothing autocommits.",
+      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source \u2014 TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. Commands: /i18n-audit, /i18n-fill-gaps (parallel per-locale dispatch), /i18n-add-locale (scaffold + first-pass translate). Nothing autocommits.",
       "version": "0.2.1",
       "category": "development",
       "tags": [
@@ -426,7 +260,7 @@
     {
       "name": "game-dev",
       "source": "./game-dev",
-      "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
+      "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from \u2014 Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
       "version": "0.1.1",
       "category": "development",
       "tags": [

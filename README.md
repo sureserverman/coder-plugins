@@ -13,7 +13,6 @@ Then install individual plugins:
 ```
 /plugin install rust-dev@coder-plugins
 /plugin install android-dev@coder-plugins
-/plugin install plugin-dev@coder-plugins
 /plugin install release-promo@coder-plugins
 /plugin install stingy-agents@coder-plugins
 /plugin install infra-build@coder-plugins
@@ -21,7 +20,15 @@ Then install individual plugins:
 /plugin install planning@coder-plugins
 /plugin install browser-extensions@coder-plugins
 /plugin install game-dev@coder-plugins
+/plugin install i18n@coder-plugins
+/plugin install loadout@coder-plugins
 ```
+
+> **Authoring plugins for AI coding agents** (Claude Code, Cursor, Codex,
+> OpenCode, Cowork, Hermes, OpenClaw) lives in the sibling
+> [`agent-tooling`](https://github.com/sureserverman/agent-tooling) marketplace —
+> `plugin-dev` and its six platform siblings moved there. Add it with
+> `/plugin marketplace add sureserverman/agent-tooling`.
 
 ## Plugins
 
@@ -51,26 +58,20 @@ Bundled `infrastructure/` ships the emulator containers, MCP server, and a refer
 
 Source: [`android-dev/`](./android-dev)
 
-### plugin-dev — and the AI-tool authoring family
+### AI-tool authoring family — moved to `agent-tooling`
 
-Lean, security-aware authoring kit for **other** Claude Code plugins, and the shared cross-host core of a seven-platform authoring family. Positioned as the 2026-current alternative to Anthropic's existing plugin-dev (~22k lines), with description-leak audit and prompt-injection screening baked in.
+`plugin-dev` (the Claude Code authoring kit + shared cross-host determinism
+core) and its six platform siblings — `cowork-dev`, `cursor-dev`, `codex-dev`,
+`opencode-dev`, `hermes-dev`, `openclaw-dev` — now live in the sibling
+[`agent-tooling`](https://github.com/sureserverman/agent-tooling) marketplace.
+They form one tightly-coupled family (each sibling declares a `dependencies`
+link to `plugin-dev` and vendors its deterministic validation lane), so they
+ship and version together there.
 
-- **13 skills** — `plugin-structure`, `determinism-boundary`, `skill-development`, `command-development`, `agent-development`, `hook-development` (32 events, five handler types, current to v2.1.170), `mcp-integration`, `mcp-server-development`, `plugin-settings`, `skill-description-leak-audit`, `skill-best-practices-sync`, `creating-subagents` (one definition that works on Claude Code + Codex + Cursor + OpenCode), and `skill-workshop` (session-history mining). Each SKILL.md is ≤500 lines with one-level-deep `references/`.
-- **4 agents** — `plugin-validator` (haiku, runs the deterministic suite then judges), `skill-reviewer` (haiku, leak-audit + injection scan), `agent-creator` (sonnet, write-capable scaffolder), `session-analyzer` (haiku, session mining).
-- **`/create-plugin` + `/refactor-plugin`** — scaffold new plugins balanced on the determinism boundary, or retrofit existing ones.
-
-Source: [`plugin-dev/`](./plugin-dev)
-
-**Platform siblings** — one authoring plugin per AI-tool platform, each with skills grounded in that platform's June-2026 docs plus a vendored deterministic validator (`validate-<platform>-artifact.sh` + good/bad fixtures), and a `dependencies` link back to `plugin-dev`:
-
-| Plugin | Target platform | Owns |
-|---|---|---|
-| [`cowork-dev/`](./cowork-dev) | Claude Cowork | install paths + package limits, component-support matrix, chat-native patterns |
-| [`cursor-dev/`](./cursor-dev) | Cursor 3.x | `.cursor-plugin` manifests + marketplace, `.mdc` rules, skills, camelCase hooks, subagents, MCP |
-| [`codex-dev/`](./codex-dev) | OpenAI Codex CLI/IDE | `.codex-plugin` manifests + marketplaces, skills + `agents/openai.yaml`, agent TOML, config.toml (post-0.134 profiles), hooks trust model |
-| [`opencode-dev/`](./opencode-dev) | OpenCode | JS/TS plugins + npm distribution, agents (`permission` model), commands, opencode.json, skills, themes |
-| [`hermes-dev/`](./hermes-dev) | Hermes Agent (Nous Research) | skills + bundles + taps, Python plugins (`plugin.yaml` + `register(ctx)`), SOUL.md/config.yaml, MCP both directions |
-| [`openclaw-dev/`](./openclaw-dev) | OpenClaw | skills (gated `metadata.openclaw`), TS plugins + channel plugins, HOOK.md hooks, cron/webhooks/heartbeat, ClawHub |
+```
+/plugin marketplace add sureserverman/agent-tooling
+/plugin install plugin-dev@agent-tooling
+```
 
 ### release-promo
 
@@ -148,11 +149,6 @@ coder-plugins/
 │   ├── skills/
 │   ├── commands/
 │   └── infrastructure/           # bundled emulator + MCP + mock-synapse compose stack
-├── plugin-dev/
-│   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   ├── agents/
-│   └── commands/
 ├── release-promo/
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/
@@ -167,10 +163,13 @@ coder-plugins/
 
 ## Contributing a new plugin
 
-The fastest path is to use the `plugin-dev` plugin's own scaffolding:
+The fastest path is to use the `plugin-dev` plugin's own scaffolding (it now
+lives in the sibling [`agent-tooling`](https://github.com/sureserverman/agent-tooling)
+marketplace):
 
 ```
-/plugin install plugin-dev@coder-plugins
+/plugin marketplace add sureserverman/agent-tooling
+/plugin install plugin-dev@agent-tooling
 /create-plugin <new-plugin-name>
 ```
 

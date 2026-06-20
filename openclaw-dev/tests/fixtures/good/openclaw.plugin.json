@@ -1,7 +1,0 @@
-{
-  "id": "weather",
-  "name": "Weather",
-  "contracts": { "tools": ["weather_lookup"] },
-  "toolMetadata": { "weather_lookup": { "optional": true } },
-  "activation": { "onStartup": true }
-}

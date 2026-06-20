@@ -1,4 +1,0 @@
-# Invalid Codex custom agent: developer_instructions is missing (required).
-name = "broken"
-description = "An agent fixture missing its developer_instructions."
-model_reasoning_effort = "low"

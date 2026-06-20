@@ -41,6 +41,9 @@ DEFAULTS=$(cat <<'JSON'
     "coder-plugins": {
       "source": { "source": "github", "repo": "sureserverman/coder-plugins" }
     },
+    "agent-tooling": {
+      "source": { "source": "github", "repo": "sureserverman/agent-tooling" }
+    },
     "obsidian-wiki": {
       "source": { "source": "github", "repo": "sureserverman/obsidian-wiki-plugin" },
       "autoUpdate": true
@@ -52,7 +55,6 @@ DEFAULTS=$(cat <<'JSON'
   "enabledPlugins": {
     "rust-dev@coder-plugins": true,
     "android-dev@coder-plugins": true,
-    "plugin-dev@coder-plugins": true,
     "git-github@coder-plugins": true,
     "release-promo@coder-plugins": true,
     "stingy-agents@coder-plugins": true,
@@ -83,11 +85,11 @@ mv "$SETTINGS.tmp" "$SETTINGS"
 info "merged recommended defaults into $SETTINGS"
 info ""
 info "Defaults applied for keys you did not already have:"
-info "  - 3 marketplaces registered (coder-plugins, obsidian-wiki, sec-audit-marketplace)"
-info "  - 10 coder-plugins enabled (rust-dev, android-dev, plugin-dev, git-github,"
+info "  - 4 marketplaces registered (coder-plugins, agent-tooling, obsidian-wiki, sec-audit-marketplace)"
+info "  - 9 coder-plugins enabled (rust-dev, android-dev, git-github,"
 info "    release-promo, stingy-agents, browser-extensions, infra-build, planning, loadout)"
-info "  - obsidian-wiki and sec-audit-marketplace are registered but their plugins"
-info "    are not enabled — flip them on per-machine with /plugin or per-project"
-info "    with /loadout once installed."
+info "  - agent-tooling (plugin-dev + platform siblings), obsidian-wiki, and"
+info "    sec-audit-marketplace are registered but their plugins are not enabled —"
+info "    flip them on per-machine with /plugin or per-project with /loadout once installed."
 info ""
 info "Restart Claude Code (or /reload-plugins in an active session) to apply."

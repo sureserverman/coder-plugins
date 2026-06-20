@@ -1,7 +1,7 @@
 {
   "description": "Authoring Claude Code plugins, skills, agents, or hooks.",
   "plugins": [
-    "plugin-dev@coder-plugins",
+    "plugin-dev@agent-tooling",
     "context7@claude-plugins-official"
   ]
 }

@@ -1,7 +1,0 @@
-{
-  "$schema": "https://opencode.ai/config.json",
-  "autoshare": true,
-  "agents": {
-    "reviewer": { "description": "typo: should be 'agent', not 'agents'" }
-  }
-}
