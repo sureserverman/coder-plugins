@@ -56,29 +56,48 @@ Match by what the task touches. Pick the most specific row that fits; fall throu
 marketplace — if the agent type isn't available, note it and fall back to the generic
 worker named in the row.
 
+Agent names are written as Claude Code dispatches them: plugin-provided agents use
+their `plugin:agent` form, built-ins (`general-purpose`, `Explore`) are bare, and
+agents this marketplace does **not** ship are tagged `*(if installed)*` with a
+built-in fallback.
+
 | Task / stack signal | Subagent type | Stack skill the subagent loads first |
 |---|---|---|
-| Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-expert` | `rust-coding` (authoring) or `rust-project` (audit) |
+| Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring) or `rust-project` (audit) |
 | Android build / Kotlin / Gradle | `general-purpose` | `android-gradle-build` |
 | Android UI — Compose / Material 3 screens | `ui-android` *(if installed)* → else `general-purpose` | `android-ui-layout-patterns`, `android-ui-design-figma` |
-| Android tests — Compose/Espresso/MockWebServer | `testing-expert` | `kotlin-compose-testing-patterns` |
+| Android tests — Compose/Espresso/MockWebServer | `testing-expert` *(if installed)* → else `general-purpose` | `kotlin-compose-testing-patterns` |
 | GNOME / GTK4 / libadwaita UI | `ui-gnome` *(if installed)* → else `general-purpose` | — |
 | Web UI / a11y / WCAG | `ui-web` *(if installed)* → else `general-purpose` | — |
 | macOS (SwiftUI/AppKit) UI | `ui-macos` *(if installed)* → else `general-purpose` | — |
 | Windows (WinUI/WPF) UI | `ui-windows` *(if installed)* → else `general-purpose` | — |
-| Game mechanics / feel / camera / FTUE design | `game-design-expert` | — |
-| i18n catalog translation | `translator` | — |
-| Test authoring / triage / coverage (any stack) | `testing-expert` | — |
-| Scaffolding / boilerplate from a concrete spec | `code-generator` | — |
-| Rewrite existing skill / agent / README markdown to a spec | `skill-rewriter` | — |
-| Bulk read-only scan / enumerate / grep many files | `readonly-scanner` | — |
+| Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
+| i18n catalog translation | `i18n:translator` | — |
+| Test authoring / triage / coverage (any stack) | `testing-expert` *(if installed)* → else `general-purpose` | — |
+| Scaffolding / boilerplate from a concrete spec | `stingy-agents:code-generator` | — |
+| Rewrite existing skill / agent / README markdown to a spec | `stingy-agents:skill-rewriter` | — |
+| Bulk read-only scan / enumerate / grep many files | `stingy-agents:readonly-scanner` | — |
 | Find-and-fix investigation, unknown location | `Explore` then `general-purpose` | — |
-| Independent review of an integrated diff | `code-reviewer` | — |
+| Independent review of an integrated diff | `code-reviewer` *(if installed)* → else `general-purpose` | — |
 | Nothing above fits | `general-purpose` | — |
 
 When the table names a stack skill, put it in the dispatched agent's prompt
 (`## Stack skill — invoke <skill> first`) so the delegate authors to the stack's
 conventions instead of generic defaults.
+
+---
+
+## Keeping this table honest
+
+Every agent and skill named above must resolve to a built-in, a marketplace-shipped
+agent/skill, or an agent tagged `*(if installed)*`. `scripts/validate-stack-routing.py`
+checks this and fails on drift (renamed/removed agent, typo, undeclared external dep).
+It runs in CI (`.github/workflows/validate-stack-routing.yml`) on any edit to this
+file, the script, or any plugin agent/skill; run it locally with:
+
+```
+python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py
+```
 
 ---
 

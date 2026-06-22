@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding \u2014 language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "plugins": [
     {
       "name": "rust-dev",
       "source": "./rust-dev",
-      "description": "Idiomatic Rust authoring: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
-      "version": "0.2.0",
+      "description": "Idiomatic Rust authoring: rust-coding progressive-disclosure skill, rust-project whole-project audit skill, rust-expert authoring subagent, and slash commands for review and refactor.",
+      "version": "0.3.0",
       "category": "languages",
       "tags": [
         "rust",
@@ -30,8 +30,8 @@
     {
       "name": "android-dev",
       "source": "./android-dev",
-      "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), multi-device emulator orchestration via bundled MCP stack, mock server generation, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
-      "version": "1.3.0",
+      "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), Compose layout patterns and Compose/Espresso/MockWebServer testing patterns, multi-device emulator orchestration via bundled MCP stack, mock server generation, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
+      "version": "1.4.0",
       "category": "development",
       "tags": [
         "android",
@@ -150,8 +150,8 @@
     {
       "name": "planning",
       "source": "./planning",
-      "description": "Nine-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time, with live-artifact gate checks on user-facing stages); executing-plans drives the plan with stage-gate checks, a default independent-evaluator pass at gates and close-out, stage-boundary handoff notes for context resets, opens/closes backlog entries, and audits workflow specs at close-out \u2014 now with a git-bootstrap preflight (inits a repo when missing), run-to-completion execution that doesn't pause between green stages, a platform stage-verify hook at each gate (e.g. android-dev's android-stage-verify), and SemVer version bumps across every mirror at close-out; dispatching-parallel-agents fans out independent tasks marked Parallel YES and routes each to a stack-matched subagent (rust-expert, ui-android, testing-expert, \u2026) via a shared stack-routing reference that executing-plans also uses to delegate independent, output-heavy sequential tasks off the orchestrator's context; no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI) \u2014 v0.5.3 treats Google Play, F-Droid, IzzyOnDroid, GitHub Releases (signed APK, auto-detected), Obtainium, and Accrescent as peer Android distribution channels so projects that deliberately skip Play remain ship-ready; portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/. Skills hand off to each other and were designed as a unit.",
-      "version": "0.8.1",
+      "description": "Nine-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time, with live-artifact gate checks on user-facing stages); executing-plans drives the plan with stage-gate checks, a default independent-evaluator pass at gates and close-out, stage-boundary handoff notes for context resets, opens/closes backlog entries, and audits workflow specs at close-out \u2014 now with a git-bootstrap preflight (inits a repo when missing), run-to-completion execution that doesn't pause between green stages, a platform stage-verify hook at each gate (e.g. android-dev's android-stage-verify), and SemVer version bumps across every mirror at close-out; dispatching-parallel-agents fans out independent tasks marked Parallel YES and routes each to a stack-matched subagent (rust-expert, ui-android, testing-expert, \u2026) via a shared stack-routing reference that executing-plans also uses to delegate independent, output-heavy sequential tasks off the orchestrator's context — guarded by a CI-enforced validate-stack-routing.py check that fails when the routing table names an agent/skill the marketplace no longer ships; no-fafo-debugging enforces evidence-first root-cause analysis when plans hit failures; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI) \u2014 v0.5.3 treats Google Play, F-Droid, IzzyOnDroid, GitHub Releases (signed APK, auto-detected), Obtainium, and Accrescent as peer Android distribution channels so projects that deliberately skip Play remain ship-ready; portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/. Skills hand off to each other and were designed as a unit.",
+      "version": "0.9.0",
       "category": "development",
       "tags": [
         "planning",

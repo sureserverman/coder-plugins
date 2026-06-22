@@ -1,7 +1,7 @@
 {
   "name": "rust-dev",
-  "version": "0.2.0",
-  "description": "Idiomatic Rust authoring: progressive-disclosure skill plus rust-expert authoring subagent and slash commands for review and refactor.",
+  "version": "0.3.0",
+  "description": "Idiomatic Rust authoring: rust-coding progressive-disclosure skill, rust-project whole-project audit skill, rust-expert authoring subagent, and slash commands for review and refactor.",
   "author": {
     "name": "agents repo",
     "url": "https://github.com/"

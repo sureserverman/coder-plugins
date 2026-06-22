@@ -1,0 +1,32 @@
+name: validate-stack-routing
+
+# Guards the planning plugin's stack-routing table against drift: every subagent
+# type and stack skill it names must resolve to a built-in, a marketplace-shipped
+# agent/skill, or an agent explicitly marked "(if installed)". Catches renamed or
+# removed agents, typos, and undeclared external dependencies before merge.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/dispatching-parallel-agents/references/stack-routing.md'
+      - 'planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py'
+      - '**/agents/*.md'
+      - '**/skills/*/SKILL.md'
+  pull_request:
+    paths:
+      - 'planning/skills/dispatching-parallel-agents/references/stack-routing.md'
+      - 'planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py'
+      - '**/agents/*.md'
+      - '**/skills/*/SKILL.md'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate stack-routing table
+        run: python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py

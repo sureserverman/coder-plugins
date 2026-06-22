@@ -30,13 +30,14 @@ and severities are documented in [`scripts/README.md`](scripts/README.md).
 
 ## Components
 
-### Skill
+### Skills
 
 | Skill | Triggers when |
 |---|---|
 | `rust-coding` | greenfield Rust requests, `*.rs`/`Cargo.toml` edits, `unsafe`/async/FFI changes, clippy warnings, borrow-checker errors, edition migration, idiom questions |
+| `rust-project` | auditing or improving an existing Rust project — dependency updates, `cargo audit` advisories, clippy lints, unused crates, test coverage, `aarch64-apple-darwin` cross-compile validation |
 
-The skill body is lean; depth lives in `references/` (one level deep) covering API design, error handling, async, unsafe, FFI, performance, and CI policy.
+`rust-coding` is the authoring lane; `rust-project` is the whole-project audit lane (5 passes via `scripts/analyze.sh`, report-first). The `rust-coding` body is lean; depth lives in `references/` (one level deep) covering API design, error handling, async, unsafe, FFI, performance, and CI policy.
 
 ### Agent
 

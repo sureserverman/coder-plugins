@@ -45,6 +45,18 @@ Includes reference files for M3 best practices, adaptive layouts, a component lo
 
 **Triggers:** Redesign a screen, change color scheme, update theme, add bottom nav, implement Figma design, fix spacing, add dark theme, Material 3 components, adaptive launcher icon, themed icon, monochrome layer.
 
+### `android-ui-layout-patterns`
+
+Jetpack Compose layout and Material 3 styling rules — spacing, cards, grids, alignment. The decision-rule companion to `android-ui-design-figma`'s full design workflow; routed to for Compose-screen tasks during plan execution.
+
+**Triggers:** Build or fix a Compose layout, spacing/padding, cards, grids, alignment, Material 3 styling.
+
+### `kotlin-compose-testing-patterns`
+
+Testing patterns for Kotlin Android apps with Compose, Espresso, and MockWebServer. Covers UI tests, instrumented tests, and test-infrastructure setup.
+
+**Triggers:** Write Android tests, UI/instrumented tests, set up test infrastructure, MockWebServer, Espresso, Compose test.
+
 ### `android-mcp-orchestrator`
 
 Manages the multi-container emulator stack lifecycle: build, start, run operations, shut down. 3 emulators (phone + tablets) + MCP server + optional mock backend.
