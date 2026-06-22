@@ -1,0 +1,10 @@
+--- a/api/users.py
++++ b/api/users.py
+@@ -10,3 +10,8 @@ def healthcheck():
+     return "ok"
++
++def get_user(request):
++    uid = request.GET["id"]
++    query = "SELECT * FROM users WHERE id = '%s'" % uid
++    row = db.execute(query).fetchone()
++    return row["name"].upper()
