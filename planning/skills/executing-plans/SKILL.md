@@ -202,6 +202,19 @@ grades its own work too generously; external judgment catches what
 self-assessment misses. Skip the evaluator only if the user opts out or every
 check in the gate is a command.
 
+**Deep code review (Tier 2).** The evaluator above verifies *goals* (black-box,
+briefed only on criteria). Add a complementary *white-box* pass: dispatch
+`git-github:code-reviewer` (read-only) over the **full stage diff** (`git diff`
+across the stage's commits) **plus the collected Tier-1 advisory notes**
+(`**Review notes (Task N.M):**` lines accumulated during the stage). This is a
+gate criterion, not advisory — a **Critical** finding here is a **gate failure**
+(handle it via the "If the gate fails" steps below). Important/Suggestion findings
+are surfaced for the user's triage at the gate, not auto-fixed. This is the only
+point where findings are reviewed against the *coherent stage*, so cross-task
+issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
+abstraction that should have been shared) surface here. Skip only on the same
+opt-out as Tier 1.
+
 **If the gate fails:**
 
 1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
