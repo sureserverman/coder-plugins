@@ -18,6 +18,18 @@ Everyday git/GitHub operations for Claude Code: draft commits and PRs that match
 
 All nine skills auto-trigger on the phrases above. There is no umbrella slash command — each skill stands alone.
 
+## Agent
+
+| Agent | Model | Tools | Purpose |
+|---|---|---|---|
+| `code-reviewer` | sonnet | Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate | **Read-only** white-box reviewer. Runs six protocols (context detection, plan-alignment, structural, Fowler code-smell, OWASP security, testability) and returns a **Critical / Important / Suggestion** triage with `file:line` citations and a Final Verdict. Reports findings — never edits, commits, or merges; the caller acts. |
+
+The `code-review` skill dispatches this agent for an authoritative local review, and
+the `planning` plugin's `executing-plans` consumes it for its two-tier review
+(per-task quick review where a **Critical** blocks within the Red-Green budget, and a
+per-stage deep review at the gate). Because it ships here, both consumers resolve it
+as `git-github:code-reviewer` with no "if installed" fallback.
+
 ## Install
 
 ```

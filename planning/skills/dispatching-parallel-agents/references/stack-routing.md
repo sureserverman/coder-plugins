@@ -78,7 +78,7 @@ built-in fallback.
 | Rewrite existing skill / agent / README markdown to a spec | `stingy-agents:skill-rewriter` | — |
 | Bulk read-only scan / enumerate / grep many files | `stingy-agents:readonly-scanner` | — |
 | Find-and-fix investigation, unknown location | `Explore` then `general-purpose` | — |
-| Independent review of an integrated diff | `code-reviewer` *(if installed)* → else `general-purpose` | — |
+| Independent review of an integrated diff | `git-github:code-reviewer` | — |
 | Nothing above fits | `general-purpose` | — |
 
 When the table names a stack skill, put it in the dispatched agent's prompt

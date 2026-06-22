@@ -64,7 +64,7 @@ If scope is ambiguous, ask. Don't guess between "staged" and "uncommitted"
 ```
 Agent({
   description: "Code review of <scope>",
-  subagent_type: "code-reviewer",
+  subagent_type: "git-github:code-reviewer",
   prompt: """Review the following <scope> in this repo.
 
 Intent: <1-3 sentence summary of what this change is meant to do>
@@ -115,5 +115,6 @@ Fowler smells, OWASP/CWE) where relevant."""
   Method, Feature Envy, Shotgun Surgery, etc.) the agent uses by name.
 - **OWASP Top 10 / ASVS / CWE** — the security baseline applied in the
   agent's security-review protocol.
-- **code-reviewer agent protocols** — `~/dev/agents/agents/code-reviewer/_core.md`
-  (the 6 protocols, 12 house rules, and output schemas this skill consumes)
+- **code-reviewer agent protocols** — `${CLAUDE_PLUGIN_ROOT}/agents/code-reviewer.md`
+  (the 6 protocols, 12 house rules, and output schemas this skill consumes; shipped
+  in this plugin, read-only)
