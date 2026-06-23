@@ -5,6 +5,8 @@ description: Use when creating, updating, or validating the `mac/` layout that t
 
 # macOS Package Reference
 
+> **WARNING:** Many projects have BOTH `mac/` and `deb/` directories. The `deb/` directory (with its own `package/DEBIAN/`, control, `postinst`/`prerm` scripts) belongs to the Debian `.deb` pipeline. **Do NOT modify, move, delete, or reorganize anything under `deb/`** when working on macOS packaging. They are independent packaging pipelines that happen to share the same repo.
+
 ## Canonical Directory Structure
 
 ```

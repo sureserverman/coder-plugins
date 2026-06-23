@@ -1,6 +1,6 @@
 ---
 name: browser-extensions
-description: Use when creating, improving, or packaging browser extensions (WebExtensions) for Chrome, Firefox, or Firefox for Android. Trigger on "my extension won't load", "manifest v3 migration", "chrome store rejected me", "AMO submission", "add a content script", "request a new permission", or any WebExtension work for Chrome/Firefox/Firefox-for-Android.
+description: Use when creating, improving, or packaging browser extensions (WebExtensions) for Chrome, Firefox, or Firefox for Android. Trigger on "my extension won't load", "manifest v3 migration", "chrome store rejected me", "AMO submission", "add a content script", "request a new permission", "background service worker", or any WebExtension work for Chrome/Firefox/Firefox-for-Android.
 ---
 
 # Browser Extensions — Creation and Improvement

@@ -1,6 +1,6 @@
 ---
 name: portfolio
-description: Use to manage backlog and maturity across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "unify plans and backlog", "maturity dashboard", "ship readiness across projects", "what's parked across projects", "what's missing before I can publish anything", "rebuild global backlog", "scan all my projects", "first-time portfolio setup", "migrate docs to vault", "integration graph", "what does this project impact". Default flow: scan registry drift → unify each project's plans into its backlog (dry-run) → audit per-project maturity → integrate edges → rebuild global roll-ups. Subcommands: `scan`, `unify`, `maturity`, `migrate`, `integrate`, `rebuild`.
+description: Use to manage backlog and maturity across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "unify plans and backlog", "maturity dashboard", "ship readiness across projects", "what's parked across projects", "what's missing before I can publish anything", "rebuild global backlog", "scan all my projects", "first-time portfolio setup", "migrate docs to vault", "integration graph", "what does this project impact". Subcommands: `scan`, `unify`, `maturity`, `migrate`, `integrate`, `rebuild`.
 ---
 
 # Portfolio Orchestrator
