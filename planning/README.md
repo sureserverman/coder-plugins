@@ -64,9 +64,9 @@ Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel 
 
 ### `no-fafo-debugging`
 
-The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculative patches that make the symptom go away without explaining root cause. Use when a plan task fails red and the fix is non-obvious, or any time you're tempted to propose a fix without first answering *what*, *why*, and *how*.
+The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculative patches that make the symptom go away without explaining root cause. Fires at the **start of any debugging or diagnostic work**, not just when a plan task fails red: the moment a symptom, error, failing test, crash, or "it's not working" shows up, before the first hypothesis. Also drives evidence-first **autonomy** — Claude reads logs, runs read-only diagnostics, reproduces failures, and builds interceptors/probes *itself*, escalating to the user only when genuinely blocked (access it lacks, a world-action only the user can take, or a decision only they can make) — and when it must ask, it asks once, batched and specific.
 
-**Triggers:** "debug this", "why is X broken", "fix this bug", any diagnostic request where evidence-first root-cause analysis is expected over speculative patches.
+**Triggers:** "debug this", "why is X broken", "fix this bug", "diagnose", "investigate", "it's not working", "tests are failing", a stack trace / error / crash / hang / regression — any diagnostic request where evidence-first root-cause analysis is expected over speculative patches.
 
 ### `backlog` (v0.4.0+; v0.5.0 adds `unify` + `complete`)
 
