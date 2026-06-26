@@ -1,6 +1,7 @@
 ---
 name: code-reviewer
-description: Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases include "review this", "code review please", "check my implementation against the plan", "did I do stage N right", "review this PR", "security review". Also trigger proactively between stages of a planning-projects plan, and after executing-plans finishes a task or stage. Opinionated: Google CR standards, Fowler smells by name, OWASP baseline, plan-alignment over vibes. Cites sources. Review-only — reports findings, never modifies files.
+description: >
+  Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases include "review this", "code review please", "check my implementation against the plan", "did I do stage N right", "review this PR", "security review". Also trigger proactively between stages of a planning-projects plan, and after executing-plans finishes a task or stage. Opinionated: Google CR standards, Fowler smells by name, OWASP baseline, plan-alignment over vibes. Cites sources. Review-only — reports findings, never modifies files.
 tools: Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 description: Prepare an Android app for F-Droid submission — signing, fastlane metadata, fdroiddata YAML
-argument-hint: [check|init|metadata|yaml] [applicationId]
+argument-hint: "[check|init|metadata|yaml] [applicationId]"
 allowed-tools: [
   "Read",
   "Write",

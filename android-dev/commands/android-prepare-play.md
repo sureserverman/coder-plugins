@@ -1,6 +1,6 @@
 ---
 description: Prepare an Android app for Google Play submission — signing, AAB build, store listing, App content checklist
-argument-hint: [check|init|aab|listing] [applicationId]
+argument-hint: "[check|init|aab|listing] [applicationId]"
 allowed-tools: [
   "Read",
   "Write",

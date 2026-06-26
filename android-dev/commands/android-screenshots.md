@@ -1,6 +1,6 @@
 ---
 description: Capture Play Store screenshots across all emulators (phone + tablets)
-argument-hint: [login|capture|full] [--tabs "Accounts,Rooms,Info,Config"]
+argument-hint: '[login|capture|full] [--tabs "Accounts,Rooms,Info,Config"]'
 allowed-tools: [
   "Read",
   "Write",

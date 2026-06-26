@@ -1,7 +1,7 @@
 {
   "name": "android-dev",
   "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), multi-device emulator orchestration via MCP, mock server generation from app sources, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": {
     "name": "quietsecurity",
     "email": "ruler@quietsecurity.dev"

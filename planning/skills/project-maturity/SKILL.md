@@ -1,6 +1,7 @@
 ---
 name: project-maturity
-description: Use to scaffold, audit, and read a per-project `docs/MATURITY.md` checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers on "scaffold maturity", "audit project maturity", "is this ready to publish", "ready for publishing", "check ship-readiness", "init MATURITY.md", "what's missing before I can ship X", "publishing readiness for this repo". Three subcommands: `init` writes the template, `audit` re-runs auto-detectors, `get` returns parsed state for the portfolio orchestrator.
+description: >
+  Use to scaffold, audit, and read a per-project `docs/MATURITY.md` checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers on "scaffold maturity", "audit project maturity", "is this ready to publish", "ready for publishing", "check ship-readiness", "init MATURITY.md", "what's missing before I can ship X", "publishing readiness for this repo". Three subcommands: `init` writes the template, `audit` re-runs auto-detectors, `get` returns parsed state for the portfolio orchestrator.
 ---
 
 # Project Maturity
