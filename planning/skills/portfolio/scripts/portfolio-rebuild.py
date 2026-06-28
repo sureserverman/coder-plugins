@@ -2,8 +2,10 @@
 """portfolio-rebuild — sidecar v2 enrichment + global rollups into the vault.
 
 - Sidecar v2: writes the PORTFOLIO-STATUS block into each registered project's
-  .claude/vault-context.md with Home, backlog/maturity counts, ⬆depends_on /
-  ⬇impacts (from integration.md), and inbound integration-debt count.
+  .claude/vault-context.md with Home plus pointer links to plans/, backlog,
+  maturity, ship-readiness and inbound integration-debt (counts/verdicts are
+  NOT snapshotted here — they'd go stale against the live vault), and the
+  ⬆depends_on / ⬇impacts edges (from integration.md).
 - Globals: Portfolio/global-backlog.md + Portfolio/global-maturity.md, project
   names as [[wikilinks]], reading from the vault Portfolio tree.
 
@@ -128,20 +130,22 @@ def maturity_row_emoji(axes):
 
 def write_sidecar(repo, home, vd, write):
     sc = Path(repo) / ".claude" / "vault-context.md"
-    n_bl, _ = count_backlog(home)
-    axes = maturity_axes(home)
     dep, imp = integration_edges(home)
-    debt = inbound_debt(home)
+    # Pointer-only: counts/verdicts (backlog, maturity, ship-ready, debt) are
+    # NOT embedded here. The repo-committed sidecar lags the vault, so an inline
+    # value goes stale the moment the vault's backlog/MATURITY change. The block
+    # therefore links to the live source files instead of snapshotting them.
     lines = [BEGIN, "## Portfolio status", "",
              f"- **Home:** `{home}`   (plans/backlog/maturity live here, not in this repo's docs/)",
-             f"- **Backlog:** {n_bl} open — see [backlog.md]({home}/backlog.md)",
-             f"- **Maturity:** {maturity_row_emoji(axes)} — see [MATURITY.md]({home}/MATURITY.md)",
-             f"- **Ship-ready:** {'✅ yes' if ship_ready(axes) else '❌ no'} — see [global dashboard]({vd}/Portfolio/global-maturity.md)"]
+             f"- **Plans:** see [plans/]({home}/plans/)",
+             f"- **Backlog:** see [backlog.md]({home}/backlog.md)",
+             f"- **Maturity:** see [MATURITY.md]({home}/MATURITY.md)",
+             f"- **Ship-ready:** see [global dashboard]({vd}/Portfolio/global-maturity.md)"]
     if dep:
         lines.append("- **⬆ Depends on:** " + ", ".join(f"[[{t}]] ({w})" for t, w in dep))
     if imp:
         lines.append("- **⬇ Impacts:** " + ", ".join(f"[[{t}]] ({w})" for t, w in imp))
-    lines.append(f"- **Inbound integration debt:** {debt} items — see [integration-backlog.md]({vd}/Portfolio/integration-backlog.md)")
+    lines.append(f"- **Inbound integration debt:** see [integration-backlog.md]({vd}/Portfolio/integration-backlog.md)")
     lines += ["", END]
     block = "\n".join(lines)
 

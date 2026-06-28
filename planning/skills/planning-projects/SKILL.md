@@ -218,7 +218,7 @@ Plans live in the vault, not the repo. Before writing, resolve the project's por
 1. Read `vault_dir` from `~/.claude/portfolio-config.yaml`. **If unset**, fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo (no vault configured) — then skip the rest of these steps.
 2. Compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`, deriving `<area>`/`<name>` from the project's `~/dev/<area>/<name>` path.
 3. **Auto-register if new:** if the project isn't in `~/.claude/projects-registry.yaml`, append an entry (`path`, `name`, `area`, `enabled: true`, `added: <today>`). This is how a brand-new project joins the portfolio — no separate step.
-4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `portfolio_home` pointer in its `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`). `mkdir -p` the vault `plans/` dir.
+4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`) — run `/planning:portfolio rebuild` (or `scripts/portfolio-rebuild.py`) for the canonical writer rather than hand-editing the block. `mkdir -p` the vault `plans/` dir. The block's **Plans:** line points at `<portfolio_home>/plans/`, so the plan you save in the next step is discoverable from the sidecar the instant it lands — no per-plan write into vault-context is needed (the link is to the directory, and never goes stale). On a project that already has the block, the existing pointer already covers the new plan; you only need to (re)generate the block for a brand-new project that has none yet.
 
 Then save the plan to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md`. (The design doc from `brainstorming` lands beside it via the same resolution.)
 
@@ -447,7 +447,7 @@ Before showing the plan to the user, verify:
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files
-- [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar refreshed); or `docs/plans/` only in the no-`vault_dir` fallback
+- [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
 

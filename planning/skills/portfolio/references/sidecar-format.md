@@ -33,26 +33,44 @@ receives a fresh appended block.
 ## Portfolio status
 
 - **Home:** `<portfolio_home absolute path>`   (plans/backlog/maturity live here, not in this repo's docs/)
-- **Backlog:** N open — see [backlog.md](<portfolio_home>/backlog.md)
-- **Maturity:** Docs:🟢 Sec:🔴 Pkg:🟢 UI:🔴 i18n:🟢 Tests:🟡 — see [MATURITY.md](<portfolio_home>/MATURITY.md)
-- **Ship-ready:** ❌ no — see [global dashboard](<vault>/Portfolio/global-maturity.md)
+- **Plans:** see [plans/](<portfolio_home>/plans/)
+- **Backlog:** see [backlog.md](<portfolio_home>/backlog.md)
+- **Maturity:** see [MATURITY.md](<portfolio_home>/MATURITY.md)
+- **Ship-ready:** see [global dashboard](<vault>/Portfolio/global-maturity.md)
 - **⬆ Depends on:** [[X]] (why), [[Y]] (why)        ← upstreams this project relies on
 - **⬇ Impacts:** [[B]] (why), [[C]] (why)            ← downstreams a change here may break
-- **Inbound integration debt:** K items — see [integration-backlog.md](<vault>/Portfolio/integration-backlog.md)
+- **Inbound integration debt:** see [integration-backlog.md](<vault>/Portfolio/integration-backlog.md)
 <!-- PORTFOLIO-STATUS-END -->
 ```
+
+### Pointer-only, not snapshotted
+
+The `Plans`, `Backlog`, `Maturity`, `Ship-ready`, and `Inbound integration
+debt` lines are **links, not values**. The sidecar is committed in the repo and
+therefore lags the live vault — any count or verdict embedded here (`N open`,
+the maturity emoji row, `❌ no`, `K items`) goes stale the moment the vault's
+`backlog.md` / `MATURITY.md` change, and a rebuild only re-syncs it on demand. A
+reader who needs the current number opens the linked file, which is always
+authoritative. Only the structural `Depends on` / `Impacts` wikilinks carry
+inline content, because edges change rarely and are themselves the payload.
+
+The `Plans` line points at `<portfolio_home>/plans/` (the directory, not
+individual files), so every plan `planning-projects` saves there is discoverable
+from the sidecar the instant it lands — no per-plan enumeration to maintain and
+nothing to regenerate.
 
 ## Field sources
 
 | Field | Source |
 |---|---|
 | `Home` | Resolver output: registry `area` + `name` fields mapped through `vault_dir` from `~/.claude/portfolio-config.yaml` → `<vault_dir>/Portfolio/<area>/<name>/`. This is the absolute `portfolio_home`. See registry-format.md, "Resolver" section, for the full mapping rule. |
-| Backlog count | Read from `<portfolio_home>/backlog.md`. Count open items using the same entry-counting rule defined in global-formats.md. |
-| Maturity row | Read from `<portfolio_home>/MATURITY.md`. Each axis cell follows the same rendering rule as global-maturity.md (highest tick state, emoji + fraction). |
-| Ship-ready | Derived from the Maturity row per the ship_ready aggregation rule in maturity-axes.md. |
+| `Plans` | Static link to `<portfolio_home>/plans/` (the directory). Not enumerated — the link is constant for a project, so any plan saved into that dir (e.g. by `planning-projects`) is reachable without a rebuild. |
+| `Backlog` | Static link to `<portfolio_home>/backlog.md`. Pointer only — the open-item count is **not** read or embedded (it would go stale against the live file). |
+| `Maturity` | Static link to `<portfolio_home>/MATURITY.md`. Pointer only — the per-axis emoji row is **not** read or embedded. |
+| `Ship-ready` | Static link to `<vault>/Portfolio/global-maturity.md`. Pointer only — the ✅/❌ verdict is **not** derived or embedded; the dashboard is authoritative. |
 | `Depends on` | Read from this project's `<portfolio_home>/integration.md`, `depends_on:` section. Each entry is an Obsidian wikilink to the upstream project plus a one-phrase reason. Cross-checked for consistency against `<vault>/Portfolio/integration-graph.md`. |
 | `Impacts` | Read from this project's `<portfolio_home>/integration.md`, `impacts:` section. Each entry is an Obsidian wikilink to the downstream project plus a one-phrase reason. Cross-checked against `integration-graph.md`. |
-| Inbound integration debt | Count of items in this project's `<portfolio_home>/backlog.md` that carry the `integration` tag and have a `from=<other-project>` field — work this project must do because an upstream changed. |
+| `Inbound integration debt` | Static link to `<vault>/Portfolio/integration-backlog.md`. Pointer only — the item count is **not** embedded. |
 
 ## Why impacts/deps in the sidecar
 
