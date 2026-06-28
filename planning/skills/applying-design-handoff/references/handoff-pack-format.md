@@ -25,8 +25,14 @@ for a directory containing a manifest-like file:
 - `**/handoff/`, `**/design-handoff/`, `**/.design/`, `**/design/handoff*`
 - a manifest at the pack root: `handoff.json`, `manifest.json`, `design.json`, or
   `_ds_manifest.json`
-- failing a manifest, a directory that contains *both* a tokens file and a
-  components/ or screens/ subtree (see below)
+- failing a manifest, a directory that contains *at least one* recognizable
+  section — a tokens file, a `components/` subtree, or a `screens/`/`layouts/`
+  subtree (see below). Detection is tolerant: one gradeable section is enough.
+
+When several candidate directories qualify, the linter prefers, in order: a
+directory named `handoff/` / `design-handoff/` / `.design/`, then one carrying a
+manifest, then the shallowest match — so a stray `src/components/` never masks a
+real pack root.
 
 Typical (tolerant) layout:
 
@@ -44,6 +50,11 @@ handoff/
 
 Any of `tokens`, `components`, `layout`/`screens`, `assets` may be absent; normalize
 what exists. A pack with only `tokens` + `screens` is still valid input.
+
+The linter is name-tolerant. Beyond the names above it also recognizes: tokens as
+`tokens.json|js|css|yaml|yml`; components in `components/` or `component/`; layout in
+`screens/`, `layouts/`, `layout/`, or `frames/` (and a manifest `frames` key); assets
+in `assets/`, `asset/`, or `media/`.
 
 `scripts/validate-handoff-pack.py` is the deterministic structural linter for this
 path: it locates the pack root, confirms at least one recognizable section, and emits
