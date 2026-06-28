@@ -71,6 +71,7 @@ built-in fallback.
 | Web UI / a11y / WCAG | `ui-web` *(if installed)* → else `general-purpose` | — |
 | macOS (SwiftUI/AppKit) UI | `ui-macos` *(if installed)* → else `general-purpose` | — |
 | Windows (WinUI/WPF) UI | `ui-windows` *(if installed)* → else `general-purpose` | — |
+| Garmin Connect IQ / Monkey C watch UI — `*.mc`, `monkey.jungle`, `manifest.xml`, watch face / data field / widget / glance | `ui-garmin` *(if installed)* → else `general-purpose` | — |
 | Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
 | i18n catalog translation | `i18n:translator` | — |
@@ -91,6 +92,12 @@ The **design-handoff redesign** row composes with the platform rows: the
 `planning:design-handoff-reproducer` for precise per-slice reproduction, while the
 matching `ui-*` row supplies platform best-practice judgment for the same stack. Use
 both — the reproducer enforces spec fidelity, the `ui-*` agent enforces platform idiom.
+
+**Exception — `ui-garmin`.** A Claude Design handoff pack is a visual HTML/component
+spec; it does **not** map onto Monkey C's resource-layout / `Dc` model. Route Garmin
+Connect IQ work to `ui-garmin` for general design/review/facelift, but do **not** drive
+it through `applying-design-handoff` for precise reproduction — treat a handoff pack there
+as loose visual inspiration, not a fidelity target.
 
 ---
 
