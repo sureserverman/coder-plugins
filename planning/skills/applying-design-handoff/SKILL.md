@@ -24,7 +24,8 @@ allowed to change functionality to fit the design.
   behavior inventory, the design→app fidelity map, the reconciliation report and its
   sign-off gate, platform-aware delegation, and the fidelity verify loop.
 - **It delegates the code:** platform best-practice implementation goes to the matching
-  `ui-*` agent (`ui-web`, `ui-android`, `ui-gnome`, `ui-macos`, `ui-windows`); precise
+  `ui-*` agent (`ui-design:ui-web`, `android-dev:ui-android`, `ui-design:ui-gnome`,
+  `ui-design:ui-macos`, `ui-design:ui-windows`); precise
   reproduction of a normalized spec slice goes to the `planning:design-handoff-reproducer`
   subagent. Routing is the shared table at
   [../dispatching-parallel-agents/references/stack-routing.md](../dispatching-parallel-agents/references/stack-routing.md).
@@ -132,9 +133,10 @@ Apply the design in code, standard-components-first within each platform.
 
 1. **Pick the platform agent** from
    [../dispatching-parallel-agents/references/stack-routing.md](../dispatching-parallel-agents/references/stack-routing.md):
-   web→`ui-web`, Android→`ui-android` (+ `android-ui-design-figma`, `android-ui-layout-patterns`),
-   GNOME→`ui-gnome`, macOS→`ui-macos`, Windows→`ui-windows`. Each is `(if installed)`;
-   fall back to `general-purpose` when absent, noting the fallback.
+   web→`ui-design:ui-web`, Android→`android-dev:ui-android` (+ `android-ui-design-figma`,
+   `android-ui-layout-patterns`), GNOME→`ui-design:ui-gnome`, macOS→`ui-design:ui-macos`,
+   Windows→`ui-design:ui-windows`. These ship in this marketplace (the `ui-design` plugin,
+   and android-dev for Android); fall back to `general-purpose` only if a plugin is absent.
 2. **Tokens first.** Realize the pack's tokens as the project's theme tokens (not
    one-off hardcoded values) so every component inherits them.
 3. **Per component/screen**, dispatch `planning:design-handoff-reproducer` with the
@@ -201,8 +203,8 @@ reconciliation report, and its sign-off in this session — that's where the jud
 lives. Delegate:
 
 - **Code reproduction** → `planning:design-handoff-reproducer` (sonnet) per spec slice.
-- **Platform best-practice** → the matching `ui-*` agent `(if installed)` per the
-  routing table.
+- **Platform best-practice** → the matching `ui-*` agent (`ui-design:*`, or
+  `android-dev:ui-android` for Android) per the routing table.
 - **Fidelity grading** → a fresh evaluator briefed ONLY with the normalized pack, the
   rubric, and the captures — never the implementation diff or this transcript.
 
