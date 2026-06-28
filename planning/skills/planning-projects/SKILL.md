@@ -83,6 +83,16 @@ If `docs/workflows/` exists, read the files whose scope touches the plan. They a
 
 Plans that touch the codebase without referencing any in-scope WF-ID either (a) genuinely don't change documented behavior, or (b) are missing a declaration. Be explicit about which.
 
+**Redesign-from-handoff plans** (reproducing a Claude Design handoff pack via the
+`applying-design-handoff` skill) make behavior changes *the rule, not the exception* —
+the design is the source of truth and reshapes functionality to fit. Plan them so the
+design wins but every behavior change is gated: each task that alters or drops a flow to
+match the design declares it (`Changes WF-NNN` / `Removes WF-NNN`), each new design screen
+adds a capture step, and the stage carries a **reconciliation/sign-off task** that
+presents the conflict report and gets the user's explicit approval before any destructive
+behavior change is applied. A redesign plan with no WF declarations is almost certainly
+missing them.
+
 ### Project context
 
 Read the codebase before planning against it:

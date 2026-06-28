@@ -71,6 +71,7 @@ built-in fallback.
 | Web UI / a11y / WCAG | `ui-web` *(if installed)* → else `general-purpose` | — |
 | macOS (SwiftUI/AppKit) UI | `ui-macos` *(if installed)* → else `general-purpose` | — |
 | Windows (WinUI/WPF) UI | `ui-windows` *(if installed)* → else `general-purpose` | — |
+| Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
 | i18n catalog translation | `i18n:translator` | — |
 | Test authoring / triage / coverage (any stack) | `testing-expert` *(if installed)* → else `general-purpose` | — |
@@ -84,6 +85,12 @@ built-in fallback.
 When the table names a stack skill, put it in the dispatched agent's prompt
 (`## Stack skill — invoke <skill> first`) so the delegate authors to the stack's
 conventions instead of generic defaults.
+
+The **design-handoff redesign** row composes with the platform rows: the
+`applying-design-handoff` skill orchestrates the redesign and dispatches
+`planning:design-handoff-reproducer` for precise per-slice reproduction, while the
+matching `ui-*` row supplies platform best-practice judgment for the same stack. Use
+both — the reproducer enforces spec fidelity, the `ui-*` agent enforces platform idiom.
 
 ---
 

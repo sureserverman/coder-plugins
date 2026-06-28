@@ -1,6 +1,6 @@
 # planning
 
-A nine-skill pipeline (v0.7.0) that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A ten-skill pipeline (v0.12.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -56,6 +56,12 @@ Preflight includes a **git bootstrap** — if the project isn't a repo it runs `
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
+### `applying-design-handoff`
+
+Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the spec bundle from claude.ai/design — tokens, components, layout, assets), reshaping functionality to fit the design where they conflict. Auto-detects the input (a local exported bundle or a live claude.ai design-system project via the `DesignSync` tool), inventories the app and its `workflow-spec` contracts, builds a design→app fidelity map, and writes a **reconciliation report** — the design wins, but every behavior change is declared via `workflow-spec` (`Changes`/`Removes WF-*`) and destructive changes require user sign-off. Implementation is cross-platform: it delegates to the matching `ui-*` agent for platform idiom and to the **`design-handoff-reproducer`** subagent for precise per-slice reproduction, then runs a fidelity verify loop (separate evaluator, rubric-graded, max 3 iterations). `executing-plans` drives it for a design-handoff/redesign task and fires the fidelity loop as a stage-gate hook.
+
+**Triggers:** "reproduce this design", "apply the handoff pack", "redesign to match the design", "implement the Claude Design spec".
+
 ### `dispatching-parallel-agents`
 
 Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel YES` and all their dependencies are green. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
@@ -110,7 +116,7 @@ Default flow composes the four in order: `scan → unify (dry-run) → maturity 
 
 ## Why a separate plugin
 
-All nine skills reference each other by name (handoffs from brainstorming → planning-projects → executing-plans → dispatching-parallel-agents; planning-projects/executing-plans ↔ backlog and workflow-spec; portfolio → backlog + project-maturity + dispatching-parallel-agents). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All ten skills reference each other by name (handoffs from brainstorming → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; portfolio → backlog + project-maturity + dispatching-parallel-agents). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 
