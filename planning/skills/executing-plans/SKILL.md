@@ -192,6 +192,15 @@ there is a gate failure (handle it like any other below). Match by project type:
 If no matching skill is installed, note it and rely on the regular gate checks —
 the absence of a platform verifier is not itself a gate failure.
 
+**Design-fidelity verify hook (redesign stages).** A stage whose tasks reproduce a
+Claude Design handoff pack (a *design-handoff* / *redesign* task — driven by the
+`applying-design-handoff` skill) carries its own gate step: run that skill's
+**fidelity verify loop** (capture → grade against its fidelity rubric with a separate
+evaluator → iterate, max 3) as the final gate check, exactly as the platform
+stage-verify hook proves a platform stage. A below-threshold verdict that doesn't
+recover within the loop is a gate failure. This is the design analogue of the
+stage-verify hook: a green build is not a reproduced design.
+
 **Independent evaluator for non-command checks.** Command checks are
 deterministic — run them yourself. But when a gate contains any check that
 requires judgment ("manual verification", "reads coherently", "flow works
@@ -354,6 +363,15 @@ When every stage is green:
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only when the user opts out or every check is a command.
 - **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, advisories are surfaced for triage). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
+- **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
+  handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
+  reshapes functionality to fit (behavior changes gated through `workflow-spec` with
+  sign-off), and dispatches the `planning:design-handoff-reproducer` agent per slice. Its
+  fidelity verify loop is the design-fidelity gate hook (Step 3.5).
+- **design-handoff-reproducer agent** — the per-slice reproducer the redesign path
+  dispatches: reproduces one normalized spec slice (component/screen + tokens + assets)
+  faithfully in the target stack, self-checks against the fidelity rubric, and FLAGs
+  behavior changes back instead of applying them.
 - **testing-expert agent** — invoke when a task's test is ambiguous, flaky, or the plan's coverage is thin
 - **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
 

@@ -85,11 +85,13 @@ Source: [`release-promo/`](./release-promo)
 
 ### planning
 
-Four-skill pipeline that turns a vague idea into executed work. The skills hand off to each other and were designed as a unit.
+Pipeline that turns a vague idea into executed work, including redesigning an app to a Claude Design handoff. The skills hand off to each other and were designed as a unit.
 
 - **`brainstorming`** — vague idea → validated design via question-driven exploration (purpose, constraints, alternatives, risks).
 - **`planning-projects`** — staged plan with phase gates, `Depends on` / `Blocks` / `Parallel` task fields, Red-Green max cycles, Stage gates.
 - **`executing-plans`** — drives a plan file; Red-Green loops; respects stage gates; dispatches independent tasks for parallel run. Git-bootstraps a non-repo at Preflight, runs to completion without pausing between green stages, fires a platform stage-verify hook at each gate (Android → `android-stage-verify`), and bumps versions across every mirror at close-out.
+- **`applying-design-handoff`** — redesigns an app to precisely reproduce a Claude Design handoff pack (tokens, components, layout, assets), reshaping functionality to fit. Auto-detects a local pack or a live claude.ai design project (`DesignSync`), gates behavior changes through `workflow-spec` with sign-off, delegates to the `ui-*` agents and the `design-handoff-reproducer` subagent, and verifies fidelity with a separate-evaluator rubric loop. Driven by `executing-plans` for redesign tasks.
+- **`design-handoff-reproducer`** (agent) — sonnet-pinned worker that reproduces one normalized handoff-pack slice (component/screen + tokens + assets) faithfully in the target stack, self-checks against the fidelity rubric, and flags behavior changes back instead of applying them.
 - **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
 
 Source: [`planning/`](./planning)
