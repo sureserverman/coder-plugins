@@ -158,15 +158,16 @@ Operation:
    ## Portfolio status
 
    - **Home:** `<portfolio_home>`   (plans/backlog/maturity live here, not in this repo's docs/)
-   - **Backlog:** N open — see [backlog.md](<portfolio_home>/backlog.md)
-   - **Maturity:** <per-axis emoji row> — see [MATURITY.md](<portfolio_home>/MATURITY.md)
-   - **Ship-ready:** ✅/❌ — see [global dashboard](<vault_dir>/Portfolio/global-maturity.md)
+   - **Plans:** see [plans/](<portfolio_home>/plans/)
+   - **Backlog:** see [backlog.md](<portfolio_home>/backlog.md)
+   - **Maturity:** see [MATURITY.md](<portfolio_home>/MATURITY.md)
+   - **Ship-ready:** see [global dashboard](<vault_dir>/Portfolio/global-maturity.md)
    - **⬆ Depends on:** [[X]] (why), …          (from this project's integration.md, if any)
    - **⬇ Impacts:** [[B]] (why), …             (from integration.md, if any)
-   - **Inbound integration debt:** K items — see [integration-backlog.md](<vault_dir>/Portfolio/integration-backlog.md)
+   - **Inbound integration debt:** see [integration-backlog.md](<vault_dir>/Portfolio/integration-backlog.md)
    <!-- PORTFOLIO-STATUS-END -->
    ```
-   Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
+   Pointer-only: counts/verdicts (backlog, maturity, ship-ready, debt) are NOT snapshotted into the block — the repo-committed sidecar lags the live vault, so the lines link to the source files instead. The static **Plans:** pointer makes any plan saved under `<portfolio_home>/plans/` discoverable without a rebuild. Full contract in `references/sidecar-format.md`. Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
 5. Report: `Rebuilt: global-backlog.md (N), global-maturity.md (M), sidecars enriched: K. <X> writes` (0 writes when everything matches prior content).
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
