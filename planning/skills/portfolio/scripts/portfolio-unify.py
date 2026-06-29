@@ -10,8 +10,10 @@ Candidate signals (accept-all policy):
   - unchecked Task N.N tasks       (### Task N.N: with an unchecked `- [ ]` body
                                      bullet, or no `- [x]` in its body)
   - Deferred-section bullets       (## Deferred / ### Deferred blocks)
-Excluded: Stage Gate bullets (restate task completion); *-done.md historical
-summaries; stale-plan items unless --include-stale (off by default).
+Excluded: Preflight bullets; Stage Gate bullets (acceptance criteria that restate
+a stage's definition-of-done — `### Stage N Gate` headers and `**Stage Gate:**`
+bold markers — NOT deferred work); *-done.md historical summaries; stale-plan
+items unless --include-stale (off by default).
 
 See backlog/SKILL.md `### unify` + references/plan-parser.md for the spec.
 """
@@ -57,6 +59,14 @@ H2 = re.compile(r"^##\s+")
 SECTION = re.compile(r"^##+\s+")
 HR = re.compile(r"^---\s*$")
 BULLET = re.compile(r"^\s*-\s+(.+)$")
+# Stage-gate acceptance criteria are NOT deferred work. They appear either as a
+# header naming a "Gate" (### Stage N Gate, #### … Gate) or as a bold marker
+# (**Stage Gate:**, **Acceptance Criteria:**) above a list of `- [ ]` checks.
+GATE_WORD = re.compile(r"\bGate\b", re.I)
+GATE_BOLD = re.compile(
+    r"^\s*\*\*\s*(?:stage\s+)?"
+    r"(?:gate|acceptance(?:\s+criteria)?|verification|exit\s+criteria|success\s+criteria)\b.*\*\*",
+    re.I)
 
 
 def vault_dir():
@@ -82,6 +92,7 @@ def parse_plan(text, plan_rel, done_stages):
     cur_stage = None
     in_preflight = False
     in_deferred = False
+    in_gate = False
     defer_n = 0
     i = 0
     while i < len(lines):
@@ -89,6 +100,13 @@ def parse_plan(text, plan_rel, done_stages):
         if SECTION.match(line):
             in_preflight = bool(PREFLIGHT_RE.match(line))
             in_deferred = bool(DEFERRED_RE.match(line))
+            # A header naming a "Gate" opens an acceptance-criteria block; any
+            # other header (a Task, a new Stage, Deferred, …) closes it.
+            in_gate = bool(GATE_WORD.search(line))
+        elif GATE_BOLD.match(line):
+            in_gate = True            # bold marker form, e.g. **Stage Gate:**
+        elif HR.match(line):
+            in_gate = False
         sh = STAGEHDR_RE.match(line) or GATEHDR_RE.match(line)
         if sh:
             cur_stage = int(sh.group(1))
@@ -102,7 +120,7 @@ def parse_plan(text, plan_rel, done_stages):
             i += 1
             continue
         um = UNCHECKED.match(line)
-        if um and not in_preflight:
+        if um and not in_preflight and not in_gate:
             # exclude if this stage was git-confirmed executed
             if cur_stage is None or cur_stage not in done_stages:
                 loc = f"Stage {cur_stage}" if cur_stage else "checklist"
