@@ -1,7 +1,7 @@
 ---
 name: project-maturity
 description: >
-  Use to scaffold, audit, and read a per-project `docs/MATURITY.md` checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers on "scaffold maturity", "audit project maturity", "is this ready to publish", "ready for publishing", "check ship-readiness", "init MATURITY.md", "what's missing before I can ship X", "publishing readiness for this repo". Three subcommands: `init` writes the template, `audit` re-runs auto-detectors, `get` returns parsed state for the portfolio orchestrator.
+  Use to scaffold, audit, and read a per-project `docs/MATURITY.md` checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers on "scaffold maturity", "audit project maturity", "is this ready to publish", "ready for publishing", "check ship-readiness", "init MATURITY.md", "what's missing before I can ship X", "publishing readiness for this repo". Three subcommands: `init` writes the template, `audit` re-runs the auto-detectors via a deterministic `scripts/audit-detectors.py` lane (no LLM in detection) and refreshes the file, `get` returns parsed state for the portfolio orchestrator.
 ---
 
 # Project Maturity
@@ -98,69 +98,41 @@ Inputs: `<project-path>` (absolute), optional `--write` (off by default — dry-
 Operation:
 
 1. Read `docs/MATURITY.md`. If missing, abort with `No MATURITY.md found. Run 'project-maturity init' first.` (Never auto-scaffold during audit — that's the orchestrator's separate concern.)
-2. For each axis, run the auto-detectors documented in `../portfolio/references/maturity-axes.md`:
+2. Run the deterministic detector lane and consume its JSON — do **not** re-run
+   the detectors by hand:
 
-   **Project type — AI-agent tooling (pre-pass, v0.5.2+)**
-   Before the axis detectors, set an `is_ai_tool` flag: true iff ANY of these
-   exist under `<project-path>` (same fingerprint as the Packaging AI-agent
-   rows and the sec-audit `ai-tools` lane):
-   `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json`,
-   `.mcp.json` (any depth), `.cursorrules` or `.cursor/rules/*.mdc`,
-   `AGENTS.md` (any depth) / `.codex/config.toml` / `.codex/agents/*.md`,
-   `opencode.json` / `.opencode/`, or `agents/*.md` · `skills/**/SKILL.md` ·
-   `commands/*.md` carrying YAML frontmatter with both `name:` and
-   `description:`. When `is_ai_tool` is true the UI/UX and i18n axes are
-   waived (see those axes below and step 3's auto-`[N/A] ai-tool` rule).
+   ```
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-maturity/scripts/audit-detectors.py" <project-path>
+   ```
 
-   **Documentation**
-   - `README` exists at project root (case-insensitive glob `README*`) → `[x] auto:README.md` (or whatever the actual filename is)
-   - `LICENSE` / `LICENSE.md` / `LICENSE.txt` at root → `[x] auto:<filename>`
-   - `CHANGELOG` / `CHANGELOG.md` at root → `[x] auto:<filename>` (otherwise leave unticked; manual claim or N/A acceptable)
-   - `CONTRIBUTING` / `CONTRIBUTING.md` at root → `[x] auto:<filename>` (N/A allowed for solo projects)
+   The script implements every auto-detect rule defined in
+   `../portfolio/references/maturity-axes.md` (file-existence, glob, JSON-field,
+   and regex checks only — no LLM, no remote calls). It prints one JSON object:
 
-   **Security**
-   - Glob `sec-audit-report-*.md` at project root; sort lexically; take newest by filename (the YYYYMMDD-HHMM stamp makes lexical sort equivalent to chronological).
-   - Parse the header line with regex `^\*\*Findings:\*\*\s*(\d+)\s+CRITICAL,\s*(\d+)\s+HIGH`. If both groups are `0`, tick `[x] auto:<filename>`. Otherwise leave unticked; the maintainer can manual-claim with a waiver if intentional.
+   - **`is_ai_tool`** — the AI-agent-tooling fingerprint (any of
+     `.claude-plugin/plugin.json` · `.claude-plugin/marketplace.json`,
+     `.mcp.json` at any depth, `.cursorrules` / `.cursor/rules/*.mdc`,
+     `AGENTS.md` at any depth / `.codex/config.toml` / `.codex/agents/*.md`,
+     `opencode.json` / `.opencode/`, or an `agents/*.md` · `skills/**/SKILL.md` ·
+     `commands/*.md` frontmatter bundle with `name:` + `description:`). When
+     true, the UI/UX and i18n axes are waived — apply step 3's auto-`[N/A]
+     ai-tool` rule.
+   - **`detectors`** — per axis (`documentation`, `security`, `packaging`,
+     `ui_ux`, `i18n`, `testing`), the list of fired items, each with an evidence
+     path. Each fired item becomes an `[x] auto:repo:<evidence>` line in step 3.
+   - **`notes`** — informational lines for a detector whose input exists but does
+     not satisfy the tick (e.g. a `sec-audit-report-*.md` with open
+     CRITICAL/HIGH). Surface these in the step-5 terminal summary; do not tick.
+   - **`errors`** — malformed inputs (unparseable `chrome/manifest.json`, a
+     sec-audit header that doesn't match the `**Findings:**` regex). Each maps to
+     a `[?] stale-detector` annotation in step 3 on the affected item.
 
-   **Packaging** — for each sub-item:
-   - Debian: `deb/package/DEBIAN/control` exists → `[x] auto:deb/package/DEBIAN/control`
-   - macOS: `pkg/` directory exists OR `*.pkg` anywhere under `releases/` → `[x] auto:<path>`
-   - Homebrew: any `Formula/*.rb` anywhere in the tree → `[x] auto:<path>`
-   - Flathub: `*.flatpak.yaml` OR `flatpak/` directory → `[x] auto:<path>`
-   - AUR: `PKGBUILD` at root → `[x] auto:PKGBUILD`
-   - Snap: `snapcraft.yaml` at root → `[x] auto:snapcraft.yaml`
-   - Chrome Web Store: `chrome/manifest.json` with `"manifest_version": 3` (parse JSON, check field) → `[x] auto:chrome/manifest.json`
-   - Firefox AMO: `mozilla/manifest.json` OR `moz-mobile/manifest.json` → `[x] auto:<path>`
-   - F-Droid: `metadata/<applicationId>.yml` OR `fastlane/metadata/android/` directory → `[x] auto:<path>`
-   - GitHub Releases (Android APK): any `.github/workflows/*.yml` whose file content contains the literal `.apk` AND one of: `gh release create`, `softprops/action-gh-release`, `ncipollo/release-action` → `[x] auto:<workflow-path>`
-   - Google Play: optional, manual claim only (no reliable auto-detect of Play submission status). Android projects do NOT have to ship to Play — F-Droid, GitHub Releases (signed APK), IzzyOnDroid, Obtainium, or Accrescent are peer channels and any one satisfies the Android-packaging minimum. See `references/maturity-axes.md` "Android distribution channels are peers" for the sanctioned `[N/A]` reasons (`fdroid-only`, `sideload-only`, `not-distributing-to-play`, `private-distribution`).
-   - IzzyOnDroid: manual claim only (the `fastlane/metadata/android/` layout is shared with F-Droid; no distinct signal)
-   - Obtainium: manual claim only (Obtainium pulls from arbitrary release sources; no local file signal)
-   - Accrescent: manual claim only (acceptance is a service-side state)
-   - Claude Code plugin: `.claude-plugin/plugin.json` → `[x] auto:.claude-plugin/plugin.json`
-   - Claude Code marketplace: `.claude-plugin/marketplace.json` → `[x] auto:.claude-plugin/marketplace.json`
-   - MCP server: `.mcp.json` (any depth) → `[x] auto:<path>/.mcp.json`
-   - Cursor: `.cursorrules` at root OR any `.cursor/rules/*.mdc` → `[x] auto:<path>`
-   - Codex: `AGENTS.md` (any depth) OR `.codex/config.toml` OR any `.codex/agents/*.md` → `[x] auto:<path>`
-   - OpenCode: `opencode.json` at root OR `.opencode/` directory → `[x] auto:<path>`
-
-   **UI/UX**
-   - Icon: glob `icon.{png,svg,ico,icns}` OR `app-icon.*` at root OR `res/mipmap-*/ic_launcher*` (Android) OR `<dir>/icons/icon*.{png,svg}` beside a `manifest.json` (browser extension; e.g. `mozilla/icons/`, `chrome/icons/`) → `[x] auto:<path>` (first match wins for evidence)
-   - Theming / Accessibility: manual claim only
-   - **If `is_ai_tool` and the icon detector did NOT fire**: axis is waived — apply step 3's auto-`[N/A] ai-tool` rule instead of leaving a bare `[ ]`.
-
-   **i18n**
-   - Android: count entries matching `res/values-*/` (excluding the default `values/`) → if ≥1, `[x] auto:res/values-<comma-sep-list>`
-   - Browser extension: count `_locales/<lang>/` (excluding `en` / `en_US`) → if ≥1, `[x] auto:_locales/<list>`
-   - Gettext: count `po/*.po` files that aren't `messages.pot` → if ≥1, `[x] auto:po/<list>`
-   - Flutter: count `*.arb` files with `_<lang>` suffix where `<lang>` ≠ `en` → if ≥1, `[x] auto:<paths>`
-   - Otherwise: leave unticked; N/A acceptable for english-only-tool
-   - **If `is_ai_tool` and no locale fired**: axis is waived — apply step 3's auto-`[N/A] ai-tool` rule.
-
-   **Testing & CI**
-   - Test suite: any of `tests/`, `test/`, `spec/`, `src/test/`, or files matching `*_test.go` / `*Test.kt` / `*_test.py` / `*.test.{js,ts,jsx,tsx}` → `[x] auto:<earliest match>`
-   - CI configured: at least one `.github/workflows/*.yml` OR `.gitlab-ci.yml` OR `.circleci/config.yml` → `[x] auto:<path>`
-   - CI green / Coverage: manual claim only (auto-verification would require remote API calls; out of scope for v1)
+   Manual-claim-only items (Google Play, IzzyOnDroid, Obtainium, Accrescent;
+   theming / accessibility; CI-green / coverage) are intentionally NOT emitted by
+   the script — they have no local file signal. See
+   `../portfolio/references/maturity-axes.md` for the full per-item rationale and
+   the sanctioned Android `[N/A]` reasons (`fdroid-only`, `sideload-only`,
+   `not-distributing-to-play`, `private-distribution`).
 
 3. Compute the diff between existing state and detector results. The audit can:
    - **Tick an existing `[ ]` line** → flip to `[x] auto:<evidence>`.
@@ -225,7 +197,7 @@ YAML output uses the same shape.
 - `init` never overwrites an existing MATURITY.md.
 - `audit` never overwrites a `[x] claim:` line — only `[ ]`, `[x] auto:`, and `[?] stale-detector` lines are subject to detector updates.
 - `audit` never silently un-ticks. Disappeared evidence becomes `[?] stale-detector previously had: <old>`.
-- Detectors are pure file-system / regex checks. No LLM in this skill. No remote calls. No package-registry queries.
+- Detectors are pure file-system / regex checks executed by `scripts/audit-detectors.py` — no LLM in the detection loop, no remote calls, no package-registry queries. The skill's own judgement is confined to the diff/merge, the AI-tool waiver, stale-detector marking, and ship-ready aggregation.
 - The file is human-edited. Preserve formatting (blank lines, comments, the `## Notes` free-form section) byte-for-byte when writing.
 
 ## Integration
@@ -233,7 +205,7 @@ YAML output uses the same shape.
 - **portfolio** orchestrator calls `get` for every registered project during the maturity-aggregation step (see `../portfolio/SKILL.md`).
 - **portfolio** orchestrator calls `init` when the user opts a project into maturity tracking for the first time.
 - **Ad-hoc** — invoke directly on a single project to scaffold or refresh.
-- Detector rules and per-axis definitions live in `../portfolio/references/maturity-axes.md` — that is the source of truth; this skill implements them.
+- Detector rules and per-axis definitions live in `../portfolio/references/maturity-axes.md` — that is the source of truth; `scripts/audit-detectors.py` implements them and this skill consumes its JSON.
 
 ## Remember
 

@@ -1,0 +1,31 @@
+name: validate-maturity-detectors
+
+# Guards the planning plugin's project-maturity deterministic detector lane.
+# audit-detectors.py implements every auto-detect rule in maturity-axes.md
+# (file-existence, glob, JSON-field, regex — no LLM). The fixture suite asserts
+# the fired detectors, the AI-tool waiver flag, and the notes/errors channels
+# against three sample trees, catching detector regressions before merge.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/project-maturity/scripts/audit-detectors.py'
+      - 'planning/skills/project-maturity/tests/**'
+      - 'planning/skills/portfolio/references/maturity-axes.md'
+  pull_request:
+    paths:
+      - 'planning/skills/project-maturity/scripts/audit-detectors.py'
+      - 'planning/skills/project-maturity/tests/**'
+      - 'planning/skills/portfolio/references/maturity-axes.md'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run maturity detector fixture tests
+        run: python3 planning/skills/project-maturity/tests/test-audit-detectors.py

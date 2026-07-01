@@ -1,0 +1,5 @@
+# These maturity detector fixtures intentionally ship sample sec-audit-report-*.md
+# files as detector inputs. The repo-wide rule (/.gitignore: sec-audit-report-*.md)
+# ignores real audit artifacts; re-include the fixtures so the detector suite has
+# its inputs when CI checks out the tree.
+!sec-audit-report-*.md
