@@ -3,9 +3,11 @@
 How a redesign is graded against the handoff pack after implementation. Generation and
 evaluation are **separated on purpose**: the session that wrote the code grades its own
 work too generously. The evaluator sees only the **normalized pack**
-([handoff-pack-format.md](handoff-pack-format.md)), this rubric, and the captured result
-(screenshots where the stack can render; the final code/state where it cannot) — never
-the implementation transcript.
+([handoff-pack-format.md](handoff-pack-format.md)), this rubric, and the captured result —
+never the implementation transcript. Captures are real renders: **Playwright screenshots
+per breakpoint** on browser-renderable stacks (plus the pack's reference render alongside
+where it carries one — see [playwright-capture.md](playwright-capture.md)), the platform's
+own capture on native stacks, and the final code/state only when no render path exists.
 
 Grade only the dimensions the pack can support: if the pack carried no `layout`, layout
 fidelity is *N/A* and its weight is redistributed proportionally across the gradeable
