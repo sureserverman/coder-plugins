@@ -65,6 +65,18 @@ Compose?
 └── org.jetbrains.kotlin.plugin.compose plugin applied?
     └── NO → Add it. Do NOT set composeOptions.kotlinCompilerExtensionVersion (K2 builds fail with it).
 
+Compose screenshot tests required by a gate (e.g. validateDebugScreenshotTest)?
+├── com.android.compose.screenshot plugin applied + android.experimental.enableScreenshotTest=true?
+│   └── NO → Wire the REAL harness. NEVER register a no-op task named like the gate
+│            (a `validateDebugScreenshotTest` that only logs "skipped" is a faked
+│            gate — see honest-gates). Add the plugin + a screenshotTest source set
+│            with @Preview/@PreviewTest composables.
+└── Baselines generated + eyeballed?
+    └── ./gradlew :module:updateDebugScreenshotTest (inspect the PNGs — never approve
+        a diff just to go green), then :module:validateDebugScreenshotTest.
+    If the plugin genuinely can't be added for the target AGP, the gate is BLOCKED —
+    say so and escalate; do not stub it.
+
 All checks pass?
 └── ./gradlew :module:compileDebugKotlin
     ├── FAILS → Fix compiler errors first.
