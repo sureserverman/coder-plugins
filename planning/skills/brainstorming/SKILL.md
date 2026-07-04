@@ -5,7 +5,7 @@ description: Use before any non-trivial creative or implementation work — new 
 
 # Brainstorming Ideas Into Designs
 
-Turn an idea into a design the user has explicitly validated, section by section, before any planner or implementer touches the code. The output of this skill is a **design document** that the next skill (`planning-projects`) uses as input.
+Turn an idea into a design the user has explicitly validated, section by section, before any planner or implementer touches the code. The output of this skill is a **design document** that the next skill in the pipeline (`architecting-projects` for designs with a structural surface, otherwise `planning-projects`) uses as input.
 
 **Announce at start:** "Using the brainstorming skill to turn this idea into a validated design."
 

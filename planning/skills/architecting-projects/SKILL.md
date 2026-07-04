@@ -26,7 +26,8 @@ Also directly invocable without a prior design doc — then Phase 1 grounds from
 user's brief and the codebase instead.
 
 **Skip rule (for callers):** skip this skill only when the design has no meaningful
-structural surface — a config change, a single-file fix, a doc update. A design has a
+structural surface — a config change, a single-file fix, a component-level change, a
+doc update. A design has a
 structural surface when it touches module boundaries, directory layout, dependency
 injection points, or cross-module interfaces — anything shaping how multiple
 files/modules relate; a component-level change or single-file logic fix does not.

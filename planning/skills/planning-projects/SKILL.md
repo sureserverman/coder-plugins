@@ -105,9 +105,14 @@ writing any task:
   invents structure not present in the doc is either missing a citation or
   contradicting an approved decision — resolve which before presenting the plan.
 - **Emit the conformance gate:** the plan's final stage gate includes the check
-  `- [ ] Built structure conforms to the architecture doc (ARCH-01 tree matches,
-  ARCH-02 boundaries respected)` so `executing-plans` verifies conformance at
-  close-out without any special handling.
+  `- [ ] Built structure conforms to the architecture doc (ARCH-NN tree matches,
+  ARCH-NN boundaries respected — list the IDs actually in scope)` so
+  `executing-plans` verifies conformance at close-out without any special handling.
+- **Decomposed projects (Phase 2.5):** each *sub-plan* that creates structure carries
+  its own ARCH-ID citations and its own conformance check in its own final stage
+  gate; the master's register `**Gate:**` blocks are untouched, and the master's
+  no-tasks/no-Preflight parser-safety invariant is unaffected by the citation
+  convention (citations live on task lines, which masters don't have).
 - The plan must not silently deviate from the doc. A deviation discovered during
   planning goes back to the user (the architecture was explicitly approved); the doc
   is then revised — ARCH-IDs are stable, revisions append rather than renumber.
