@@ -17,7 +17,8 @@
     "./skills/workflow-spec",
     "./skills/project-maturity",
     "./skills/portfolio",
-    "./skills/honest-gates"
+    "./skills/honest-gates",
+    "./skills/architecting-projects"
   ],
   "license": "MIT",
   "keywords": [
