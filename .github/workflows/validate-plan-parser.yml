@@ -1,0 +1,39 @@
+name: validate-plan-parser
+
+# Guards the planning plugin's deterministic plan-parser lane.
+# portfolio-unify.py's parse_plan implements the regex state machine specified
+# in portfolio/references/plan-parser.md, including the master-plan invariants
+# (a master plan authored per planning-projects/references/master-plan-format.md
+# yields zero backlog candidates; sub-plans yield exactly their own unchecked
+# tasks). The fixture suite locks those invariants plus a legacy-plan
+# regression guard, catching parser/format drift before merge.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+      - 'planning/skills/portfolio/tests/**'
+      - 'planning/skills/portfolio/references/plan-parser.md'
+      - 'planning/skills/planning-projects/references/master-plan-format.md'
+  pull_request:
+    paths:
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+      - 'planning/skills/portfolio/tests/**'
+      - 'planning/skills/portfolio/references/plan-parser.md'
+      - 'planning/skills/planning-projects/references/master-plan-format.md'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      # portfolio-unify.py imports yaml at module level; setup-python is a
+      # clean interpreter with no PyYAML.
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Run plan-parser fixture tests
+        run: python3 planning/skills/portfolio/tests/test-portfolio-unify.py
