@@ -1,0 +1,34 @@
+name: validate-compass-scan
+
+# Guards the planning plugin's compass deterministic evidence lane.
+# compass-scan.py reconstructs the cross-project work-state picture (in-flight
+# plan stages via the shared portfolio-unify plan-parser regexes, backlog
+# open/parked counts, maturity axis summaries, integration edges, git recency)
+# with no LLM involved. The fixture suite asserts the JSON contract, the
+# degrade-never-drop rules, and the read-only guarantee.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/compass/scripts/compass-scan.py'
+      - 'planning/skills/compass/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  pull_request:
+    paths:
+      - 'planning/skills/compass/scripts/compass-scan.py'
+      - 'planning/skills/compass/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install pyyaml
+      - name: Run compass-scan fixture tests
+        run: python3 planning/skills/compass/tests/test-compass-scan.py
