@@ -115,3 +115,33 @@ The heuristic signals below (unchecked `[ ]` bullets, Deferred sections,
 git-stage evidence) remain the fallback for **legacy plans** that predate the
 `Status:` field. Detection: if a plan contains any `- **Status:**` line, use the
 authoritative path for its tasks; otherwise fall back to the heuristic + git path.
+
+## Master plans (plans from planning-projects v0.16.0+ multi-plan decomposition)
+
+Big projects decompose into one **master plan** plus 2–7 **sub-plans** in the same
+`plans/` directory (format: `../../planning-projects/references/master-plan-format.md`).
+Parsing rules:
+
+- **Detection:** filename ends in `-master-plan.md`, OR the first heading is
+  `# Master Plan:`.
+- **Register entries are pointers, never candidates.** A master's `### Sub-plan N:`
+  sections are links to sub-plan files, not tasks. They MUST NOT be emitted as backlog
+  candidates — the sub-plan's own tasks are the sole candidate source. Emitting both
+  would double-count every piece of work.
+- **Register `- **Status:** [x]` is authoritative for sub-plan done-ness at master
+  level** (it mirrors the sub-plan's `**Completed:**` close-out line, which remains
+  authoritative inside the sub-plan itself).
+- **Master `**Gate:**` bullets are excluded** exactly like stage-gate bullets — they are
+  integration checks, not deferred work.
+- **Sub-plan files parse as normal plans** (they are standard planning-projects plans
+  with a `Master:` backlink below `Date:`); all existing signals apply to them
+  unchanged.
+- A master plan with a `**Completed:** <date> — sub-plans: <list>` close-out line and
+  all register entries `[x]` is fully done.
+
+**Format guarantee (locked by `../tests/test-portfolio-unify.py`):** a master plan
+authored per the format reference contains no raw `- [ ]` bullets outside `**Gate:**`
+blocks and no `### Task N.N:` headers, so the existing regex state machine already
+yields **zero** candidates for it without master-specific code. The rules above are
+therefore a documented invariant of the format, and the fixture suite is the regression
+guard that keeps parser and format in lockstep.
