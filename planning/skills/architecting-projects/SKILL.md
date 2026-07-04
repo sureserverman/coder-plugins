@@ -108,9 +108,17 @@ Then the **approval gate** (the HARD-GATE above):
 
 ## Phase 5 — Write the architecture document
 
-Resolve the output location exactly as `planning-projects` does (read `vault_dir`
-from `~/.claude/portfolio-config.yaml`; no `vault_dir` → fall back to
-`<repo>/docs/plans/` and warn). Save as:
+Resolve the output location exactly as `planning-projects` does (its "Output
+location" section is canonical): read `vault_dir` from
+`~/.claude/portfolio-config.yaml` (unset → fall back to `<repo>/docs/plans/` and
+warn, skipping the rest); compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`
+from the project's `~/dev/<area>/<name>` path; auto-register the project in
+`~/.claude/projects-registry.yaml` if it's new; ensure the repo sidecar
+`.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (run
+`/planning:portfolio rebuild` for a brand-new project). This matters here more than
+in most skills: on a direct invocation this skill can be the FIRST to touch a
+brand-new project, so registration and sidecar happen now, not at planning time.
+Save as:
 
 ```
 <portfolio_home>/plans/YYYY-MM-DD-<topic>-architecture.md
