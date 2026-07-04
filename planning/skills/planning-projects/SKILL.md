@@ -93,6 +93,29 @@ presents the conflict report and gets the user's explicit approval before any de
 behavior change is applied. A redesign plan with no WF declarations is almost certainly
 missing them.
 
+### Architecture doc scan
+
+If the `architecting-projects` skill produced an architecture doc for this topic
+(`<portfolio_home>/plans/YYYY-MM-DD-<topic>-architecture.md`, or `docs/plans/` in the
+no-vault fallback), it is the authoritative structure the plan builds — read it before
+writing any task:
+
+- **Structure-creating tasks MUST cite the ARCH-ID they implement** on the task line
+  (`Creates ARCH-01 tree`, `Implements ARCH-03 RemoteStore boundary`). A task that
+  invents structure not present in the doc is either missing a citation or
+  contradicting an approved decision — resolve which before presenting the plan.
+- **Emit the conformance gate:** the plan's final stage gate includes the check
+  `- [ ] Built structure conforms to the architecture doc (ARCH-01 tree matches,
+  ARCH-02 boundaries respected)` so `executing-plans` verifies conformance at
+  close-out without any special handling.
+- The plan must not silently deviate from the doc. A deviation discovered during
+  planning goes back to the user (the architecture was explicitly approved); the doc
+  is then revised — ARCH-IDs are stable, revisions append rather than renumber.
+
+No architecture doc for a plan with obvious structural surface? State it explicitly in
+the Research Summary ("no architecture doc — structure decided inline") rather than
+leaving the reader to wonder whether one was consulted.
+
 ### Project context
 
 Read the codebase before planning against it:
@@ -500,6 +523,7 @@ Before showing the plan to the user, verify:
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
+- [ ] If an architecture doc exists for this topic: every structure-creating task cites its ARCH-ID, the final stage gate carries the architecture-conformance check, and no task contradicts an approved ARCH section
 
 **Additionally, for a decomposed project (master plan + sub-plans):**
 
