@@ -73,6 +73,7 @@ built-in fallback.
 | Windows (WinUI/WPF) UI | `ui-design:ui-windows` | — |
 | Garmin Connect IQ / Monkey C watch UI — `*.mc`, `monkey.jungle`, `manifest.xml`, watch face / data field / widget / glance | `ui-design:ui-garmin` | — |
 | Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
+| Research ONE architecture candidate — evidence, layout, libraries (any stack) | `planning:architecture-researcher` | `architecting-projects` (dispatching context only — the skill orchestrates, the agent researches) |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
 | i18n catalog translation | `i18n:translator` | — |
 | Test authoring / triage / coverage (any stack) | `testing:testing-expert` | — |
