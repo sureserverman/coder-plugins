@@ -47,6 +47,19 @@ Optional 1–3 sentence body for context that doesn't fit the bullets.
 ## BL-006 — ...
 ```
 
+An entry may additionally carry a **parking annotation** among its bullets:
+
+```markdown
+- **Parked:** 2026-08-01 — waiting for dry season
+```
+
+`- **Parked:** <YYYY-MM-DD or free-text reason>` marks the item as
+deliberately not-now: the compass skill excludes parked items from its
+`next` recommendations (surfacing them only in `review`, or once a parked
+date has passed). Parking is not completion — the entry stays open and is
+still removed only when implemented. Add the line when deferring an item
+you keep getting nagged about; remove the line to unpark.
+
 **ID rules:**
 
 - Format `BL-NNN`, three digits, zero-padded.
