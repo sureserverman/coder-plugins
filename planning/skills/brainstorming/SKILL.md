@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Use before any non-trivial creative or implementation work — new features, components, services, migrations, or behavior changes. Turns a vague idea into a validated design by exploring purpose, constraints, alternatives, and risks one question at a time. Terminal handoff is to the planning-projects skill, which produces the staged plan. Triggers on "I want to build", "let's design", "new feature", "how should I approach", "brainstorm", "help me think through", "what should this look like".
+description: Use before any non-trivial creative or implementation work — new features, components, services, migrations, or behavior changes. Turns a vague idea into a validated design by exploring purpose, constraints, alternatives, and risks one question at a time. Terminal handoff is to the architecting-projects skill (designs with a structural surface) or straight to planning-projects, which produces the staged plan. Triggers on "I want to build", "let's design", "new feature", "how should I approach", "brainstorm", "help me think through", "what should this look like".
 ---
 
 # Brainstorming Ideas Into Designs
@@ -10,7 +10,7 @@ Turn an idea into a design the user has explicitly validated, section by section
 **Announce at start:** "Using the brainstorming skill to turn this idea into a validated design."
 
 <HARD-GATE>
-Do NOT invoke `planning-projects`, write production code, scaffold a project, or run an implementation skill until you have presented a design and the user has said yes. This applies to every project regardless of perceived simplicity. The design may be three sentences for a trivial task — but it must be presented and approved before handoff.
+Do NOT invoke `architecting-projects` or `planning-projects`, write production code, scaffold a project, or run an implementation skill until you have presented a design and the user has said yes. This applies to every project regardless of perceived simplicity. The design may be three sentences for a trivial task — but it must be presented and approved before handoff.
 </HARD-GATE>
 
 ## Core principle
@@ -33,7 +33,7 @@ Create a task for each of these and work them in order. Do not skip ahead.
 4. **Pre-mortem the recommended approach** — what would cause this to fail or be regretted in 6 months?
 5. **Present the design in sections** — architecture, components, data flow, error handling, testing, rollout; each section scaled to its complexity; confirm after each
 6. **Write the design document** — save to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-7. **Hand off to planning-projects** — that skill produces the staged implementation plan from this design
+7. **Hand off** — to `architecting-projects` when the design has a structural surface (it prepares the architecture doc first), otherwise straight to `planning-projects` with the skip stated explicitly
 
 ---
 
@@ -168,15 +168,21 @@ Date: <YYYY-MM-DD>
 
 Commit the design document before handoff so future sessions can find it.
 
-## Phase 7 — Hand off to planning-projects
+## Phase 7 — Hand off
 
-The **only** skill you invoke after brainstorming is `planning-projects`. Do not invoke `executing-plans`, `frontend-design`, or any implementation skill directly — those are downstream of the plan. (If the validated design is big — multiple independently shippable workstreams — `planning-projects` may decompose it into a master plan plus sub-plans; that decision belongs to the planner, not to brainstorming.)
+Brainstorming has exactly two legal next hops — never `executing-plans`, `frontend-design`, or any implementation skill directly; those are downstream of the plan. (If the validated design is big — multiple independently shippable workstreams — `planning-projects` may decompose it into a master plan plus sub-plans; that decision belongs to the planner, not to brainstorming.)
 
-Say to the user:
+**Route by structural surface:**
 
-> Design approved and saved to `docs/plans/<filename>-design.md`. Handing off to the `planning-projects` skill to produce the staged implementation plan with research, preflight, tasks, and stage gates.
+- **The design has a non-trivial structural surface** (it touches module boundaries, directory layout, dependency injection points, or cross-module interfaces — anything shaping how multiple files/modules relate) → hand off to **`architecting-projects`**, which researches architecture candidates, gets the user's choice approved, and writes the architecture doc that `planning-projects` then consumes. Say:
 
-Then invoke `planning-projects` with the design document as input.
+  > Design approved and saved to `<portfolio_home>/plans/<filename>-design.md`. This design has a structural surface, so handing off to the `architecting-projects` skill to research and validate the architecture before planning.
+
+- **No meaningful structural surface** (a config change, a single-file fix, a component-level change, a doc update) → skip the architect **explicitly** — say "no structural surface: straight to planning-projects" — and hand off to **`planning-projects`**. Say:
+
+  > Design approved and saved to `<portfolio_home>/plans/<filename>-design.md`. No structural surface — handing off to the `planning-projects` skill to produce the staged implementation plan with research, preflight, tasks, and stage gates.
+
+Then invoke the chosen skill with the design document as input. Skipping the architect is never silent — the routing sentence is part of the handoff.
 
 ---
 
@@ -189,7 +195,7 @@ Then invoke `planning-projects` with the design document as input.
 - **Pre-mortem before approval** — name the failure modes before they happen
 - **Validated by section, not in bulk** — present a section, get approval, move on
 - **Explicit-negative** — "no rollout concerns" beats silent omission
-- **Terminal state is `planning-projects`** — never jump straight to implementation
+- **Terminal state is a plan-side skill** — `architecting-projects` when the design has a structural surface, `planning-projects` otherwise; never jump straight to implementation
 
 ---
 
