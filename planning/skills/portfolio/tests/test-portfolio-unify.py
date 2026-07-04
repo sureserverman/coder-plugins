@@ -183,8 +183,29 @@ check(
     f"got: {bare}",
 )
 
+# Architecture docs (architecting-projects skill) land in the same plans/ dir
+# and are scanned like any file; safety is by construction — no unchecked
+# bullets, no Status fields (plan-parser.md § "Architecture docs").
+arch = candidates("sample-architecture.md")
+check(
+    "architecture doc yields zero candidates",
+    arch == [],
+    f"got: {arch}",
+)
+
+# Inverse guard: the invariant is falsifiable — one raw `- [ ]` smuggled into
+# the doc MUST surface via the legacy heuristic (proves the check can fail).
+ARCH_TEXT = (FIXTURES / "sample-architecture.md").read_text()
+mutated = ARCH_TEXT + "\n- [ ] ARCH-MUTANT: smuggled deferred work\n"
+mut = parse_plan(mutated, "plans/sample-architecture.md", set())
+check(
+    "mutated architecture doc (raw unchecked bullet) DOES emit a candidate",
+    [c["title"] for c in mut] == ["ARCH-MUTANT: smuggled deferred work"],
+    f"got: {mut}",
+)
+
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")
     sys.exit(1)
 print("\nOK — all plan-parser fixture checks passed "
-      "(master, sub-plans, legacy regression)")
+      "(master, sub-plans, legacy regression, architecture docs)")
