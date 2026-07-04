@@ -125,9 +125,39 @@ def test_envelope_and_unconfigured(tmp):
           "unconfigured names the fix")
 
 
+def test_plan_state(tmp):
+    print("[plan_state]")
+    home, vault = make_env(tmp)
+    out = run_scan(home)
+    projects = {p["name"]: p for p in out["projects"]}
+    plans_a = {p["file"]: p for p in projects["alpha"]["plans"]}
+
+    widget = plans_a["2026-06-01-widget-plan.md"]
+    check(widget["active"] is True, "open plan is active")
+    check(widget["stage"] == 2, "open plan reports current stage 2")
+    check(widget["next_task"] == "Task 2.2: Install windows",
+          "next unchecked task surfaced")
+    check((widget["done"], widget["total"]) == (3, 4), "task counts 3/4")
+
+    shed = plans_a["2026-05-01-shed-plan.md"]
+    check(shed["active"] is False, "closed plan inactive")
+    check(shed["completed"] == "2026-05-02", "close-out date parsed")
+
+    plans_b = {p["file"]: p for p in projects["beta"]["plans"]}
+    check("2026-06-20-fleet-master-plan.md" not in plans_b,
+          "master plan emits nothing")
+    mystery = plans_b["2026-06-15-mystery-plan.md"]
+    check(mystery["active"] is True and mystery["stage"] is None,
+          "malformed plan degrades to active/stage-unknown")
+    check("stage unknown" in (mystery["note"] or ""),
+          "malformed plan carries the degradation note, not dropped")
+
+
 def main():
     with tempfile.TemporaryDirectory() as td:
         test_envelope_and_unconfigured(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_plan_state(Path(td))
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

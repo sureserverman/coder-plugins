@@ -14,6 +14,7 @@ never silently dropped. No LLM in this lane; judgment lives in SKILL.md.
 import datetime
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -47,6 +48,63 @@ def load_env():
     return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
 
 
+COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(\S+)", re.M)
+MASTER_HEAD_RE = re.compile(r"^#\s+Master Plan:", re.M)
+
+
+def plan_state(text, fname):
+    """State of one executing-plans plan file, via the authoritative Status
+    path (portfolio-unify regexes). Returns None for master plans (register
+    format — no Task context, tracked through their sub-plans instead)."""
+    if fname.endswith("-master-plan.md") or MASTER_HEAD_RE.search(text):
+        return None
+    cm = COMPLETED_RE.search(text)
+    tasks = []          # (stage, num, desc, done)
+    cur_stage = None
+    cur_task = None
+    for line in text.splitlines():
+        sh = pu.STAGEHDR_RE.match(line)
+        if sh:
+            cur_stage = int(sh.group(1))
+        tm = pu.TASK_RE.match(line)
+        if tm:
+            cur_task = (cur_stage, tm.group(1), tm.group(2).strip())
+        sm = pu.STATUS_RE.match(line)
+        if sm and cur_task:
+            tasks.append(cur_task + (sm.group(1) != " ",))
+            cur_task = None
+    state = {"file": fname, "active": True, "stage": None, "next_task": None,
+             "done": sum(1 for t in tasks if t[3]), "total": len(tasks),
+             "completed": cm.group(1) if cm else None, "note": None}
+    if not tasks:
+        # legacy/malformed plan: degrade, never drop
+        state["active"] = not cm
+        state["note"] = "stage unknown (no parseable Status fields)"
+        return state
+    open_tasks = [t for t in tasks if not t[3]]
+    if open_tasks:
+        stage, num, desc, _ = open_tasks[0]
+        state["stage"] = stage
+        state["next_task"] = f"Task {num}: {desc}"
+    else:
+        state["active"] = False
+        if not cm:
+            state["note"] = "all tasks done but no close-out line"
+    return state
+
+
+def collect_plans(home):
+    plans_dir = home / "plans"
+    if not plans_dir.is_dir():
+        return []
+    out = []
+    for pf in sorted(plans_dir.glob("*-plan.md")):
+        st = plan_state(pf.read_text(errors="ignore"), pf.name)
+        if st is not None:
+            out.append(st)
+    return out
+
+
 def scan_project(proj, vault):
     """Assess one registry project. Returns (entry, None) or (None, reason)."""
     path = Path(proj["path"])
@@ -58,6 +116,12 @@ def scan_project(proj, vault):
         "path": str(path),
         "errors": [],
     }
+    home = vault / "Portfolio" / proj["area"] / proj["name"]
+    try:
+        entry["plans"] = collect_plans(home)
+    except Exception as e:
+        entry["plans"] = []
+        entry["errors"].append(f"plans: {e}")
     return entry, None
 
 
