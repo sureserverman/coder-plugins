@@ -168,3 +168,19 @@ yields **zero** candidates without master-specific code, on both paths. Its regi
 legacy heuristic it contains no raw `- [ ]` bullets outside `**Gate:**` blocks. The
 rules above are therefore a documented invariant of the format, and the fixture suite
 is the regression guard that keeps parser and format in lockstep.
+
+## Architecture docs (from the architecting-projects skill, planning v0.17.0+)
+
+`*-architecture.md` files land in the same `plans/` directory and are scanned like
+any other file — there is no filename-based exclusion for them. Their safety is **by
+construction**, exactly like master plans: the architecting-projects Document format
+forbids raw `- [ ]` bullets and `- **Status:**` fields, so the doc emits nothing on
+either parse path (no Status field → legacy heuristic → no unchecked bullets to
+match; lists are plain `-` bullets, which only surface inside Deferred sections that
+the format doesn't use).
+
+**Format guarantee (locked by `../tests/test-portfolio-unify.py`):** the
+`fixtures/plan-parser/sample-architecture.md` fixture — a realistic doc with ARCH-NN
+sections, plain-bullet lists, and a fenced directory tree — yields **zero**
+candidates, and its mutation twin (one smuggled `- [ ]`) yields exactly one,
+proving the invariant is falsifiable.
