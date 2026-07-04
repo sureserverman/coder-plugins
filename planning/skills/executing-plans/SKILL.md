@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when you have a plan file produced by the planning-projects skill (format with Stages, Tasks, Depends on / Blocks / Parallel fields, Red-Green max cycles, and Stage gates) and need to execute it. Drives Red-Green loops, respects the stage-gate model, and dispatches independent tasks through the dispatching-parallel-agents skill. Triggers on "execute this plan", "run the plan", "implement docs/plans/...", "pick up this plan".
+description: Use when you have a plan file produced by the planning-projects skill (format with Stages, Tasks, Depends on / Blocks / Parallel fields, Red-Green max cycles, and Stage gates) — or a master plan (`*-master-plan.md` linking sub-plans for a decomposed big project) — and need to execute it. Drives Red-Green loops, respects the stage-gate model, executes a master plan's sub-plans in register dependency order with cross-plan gates, and dispatches independent tasks through the dispatching-parallel-agents skill. Triggers on "execute this plan", "run the plan", "execute the master plan", "implement docs/plans/...", "pick up this plan".
 ---
 
 # Executing Plans
@@ -411,7 +411,7 @@ When every stage is green:
 
 ## Integration
 
-- **planning-projects** — produces the plan this skill consumes
+- **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
 - **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts; its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
