@@ -93,6 +93,7 @@ Pipeline that turns a vague idea into executed work, including redesigning an ap
 - **`applying-design-handoff`** — redesigns an app to precisely reproduce a Claude Design handoff pack (tokens, components, layout, assets), reshaping functionality to fit. Auto-detects a local pack or a live claude.ai design project (`DesignSync`), gates behavior changes through `workflow-spec` with sign-off, delegates to the `ui-*` agents and the `design-handoff-reproducer` subagent, and verifies fidelity with a separate-evaluator rubric loop. Driven by `executing-plans` for redesign tasks.
 - **`design-handoff-reproducer`** (agent) — sonnet-pinned worker that reproduces one normalized handoff-pack slice (component/screen + tokens + assets) faithfully in the target stack, self-checks against the fidelity rubric, and flags behavior changes back instead of applying them.
 - **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
+- **`compass`** — portfolio work orchestrator: `now` (in-flight board), `next` (ranked recommendations: momentum > almost-shippable > unblocking > staleness), `review` (drift sweep). Evidence from a deterministic, read-only `compass-scan.py`; every recommendation cites its evidence, parked backlog items respected, never writes portfolio artifacts.
 
 Source: [`planning/`](./planning)
 
