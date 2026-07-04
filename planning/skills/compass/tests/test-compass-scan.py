@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -153,11 +153,49 @@ def test_plan_state(tmp):
           "malformed plan carries the degradation note, not dropped")
 
 
+def test_signals(tmp):
+    print("[signals]")
+    home, vault = make_env(tmp)
+    out = run_scan(home)
+    projects = {p["name"]: p for p in out["projects"]}
+    alpha, beta = projects["alpha"], projects["beta"]
+
+    expected_age = (datetime.now(tz=timezone.utc).date() - date(2026, 1, 1)).days
+    check(alpha["git"]["last_commit"] == "2026-01-01"
+          and alpha["git"]["age_days"] == expected_age,
+          "git recency: fixed-date commit yields exact age_days")
+    check(beta["git"] is None
+          and any(e.startswith("git:") for e in beta["errors"]),
+          "non-git repo degrades to git:null + errors entry, project kept")
+
+    bl = alpha["backlog"]
+    check(bl["open"] == 3, "backlog open count")
+    check(bl["parked"] == 1
+          and bl["parked_items"][0]["title"] == "Paint the trim"
+          and "dry season" in bl["parked_items"][0]["note"],
+          "parked: annotation parsed with reason")
+
+    mat = alpha["maturity"]
+    check(mat["axes"]["Documentation"] == {"done": 1, "open": 1, "na": 0},
+          "maturity axis Documentation 1 done / 1 open")
+    check(mat["axes"]["Testing & CI"] == {"done": 1, "open": 0, "na": 1},
+          "maturity axis Testing & CI counts [N/A]")
+    check(beta["maturity"] is None, "missing MATURITY.md yields null, no error")
+
+    check(alpha["dependents"] == [{"project": "beta",
+                                   "why": "beta consumes alpha's widget API"}],
+          "integration out-edge: beta depends on alpha")
+    check(alpha["depends_on"][0]["project"] == "gamma",
+          "integration in-edge: alpha depends on gamma")
+
+
 def main():
     with tempfile.TemporaryDirectory() as td:
         test_envelope_and_unconfigured(Path(td))
     with tempfile.TemporaryDirectory() as td:
         test_plan_state(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_signals(Path(td))
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

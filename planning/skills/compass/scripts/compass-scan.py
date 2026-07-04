@@ -105,6 +105,81 @@ def collect_plans(home):
     return out
 
 
+PARKED_RE = re.compile(r"^\s*-\s*\*\*Parked:\*\*\s*(.+)$", re.I | re.M)
+AXIS_RE = re.compile(r"^##\s+(.+)$")
+MBOX_RE = re.compile(r"^\s*-\s*\[(x|X| |N/A)\]", re.I)
+EDGE_RE = re.compile(r"^-\s*`([^`]+)`\s*→\s*`([^`]+)`\s*—\s*(.*)$")
+
+
+def collect_git(path):
+    r = subprocess.run(["git", "-C", str(path), "log", "-1", "--format=%ct"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None, "git: " + (r.stderr.strip().splitlines() or ["not a git repository"])[0]
+    ts = int(r.stdout.strip())
+    # %ct is a UTC epoch; convert in UTC so age_days is host-TZ-independent
+    utc = datetime.timezone.utc
+    last = datetime.datetime.fromtimestamp(ts, tz=utc).date()
+    today = datetime.datetime.now(tz=utc).date()
+    return {"last_commit": last.isoformat(),
+            "age_days": (today - last).days}, None
+
+
+def collect_backlog(home):
+    f = home / "backlog.md"
+    if not f.exists():
+        return {"open": 0, "parked": 0, "parked_items": []}
+    parked_items = []
+    open_n = parked_n = 0
+    for block in f.read_text(errors="ignore").split("\n## ")[1:]:
+        m = re.match(r"BL-\d+\s*—\s*(.+)", block)
+        if not m:
+            continue
+        open_n += 1
+        pm = PARKED_RE.search(block)
+        if pm:
+            parked_n += 1
+            parked_items.append({"title": m.group(1).strip(),
+                                 "note": pm.group(1).strip()})
+    return {"open": open_n, "parked": parked_n, "parked_items": parked_items}
+
+
+def collect_maturity(home):
+    f = home / "MATURITY.md"
+    if not f.exists():
+        return None
+    axes = {}
+    cur = None
+    for line in f.read_text(errors="ignore").splitlines():
+        am = AXIS_RE.match(line)
+        if am:
+            cur = am.group(1).strip()
+            axes[cur] = {"done": 0, "open": 0, "na": 0}
+            continue
+        bm = MBOX_RE.match(line)
+        if bm and cur:
+            mark = bm.group(1).lower()
+            key = "done" if mark == "x" else ("na" if mark == "n/a" else "open")
+            axes[cur][key] += 1
+    axes = {k: v for k, v in axes.items() if sum(v.values())}
+    return {"axes": axes,
+            "done": sum(a["done"] for a in axes.values()),
+            "open": sum(a["open"] for a in axes.values())}
+
+
+def load_edges(vault):
+    """Parse integration-graph.md once: list of (dependent, upstream, why)."""
+    f = vault / "Portfolio" / "integration-graph.md"
+    if not f.exists():
+        return []
+    edges = []
+    for line in f.read_text(errors="ignore").splitlines():
+        em = EDGE_RE.match(line.strip())
+        if em:
+            edges.append((em.group(1), em.group(2), em.group(3).strip()))
+    return edges
+
+
 def scan_project(proj, vault):
     """Assess one registry project. Returns (entry, None) or (None, reason)."""
     path = Path(proj["path"])
@@ -117,11 +192,22 @@ def scan_project(proj, vault):
         "errors": [],
     }
     home = vault / "Portfolio" / proj["area"] / proj["name"]
-    try:
-        entry["plans"] = collect_plans(home)
-    except Exception as e:
-        entry["plans"] = []
-        entry["errors"].append(f"plans: {e}")
+    collectors = {
+        "plans": (lambda: collect_plans(home), []),
+        "backlog": (lambda: collect_backlog(home),
+                    {"open": 0, "parked": 0, "parked_items": []}),
+        "maturity": (lambda: collect_maturity(home), None),
+    }
+    for key, (fn, fallback) in collectors.items():
+        try:
+            entry[key] = fn()
+        except Exception as e:  # degrade per collector, never drop the project
+            entry[key] = fallback
+            entry["errors"].append(f"{key}: {e}")
+    git_info, git_err = collect_git(path)
+    entry["git"] = git_info
+    if git_err:
+        entry["errors"].append(git_err)
     return entry, None
 
 
@@ -133,9 +219,16 @@ def main():
         "projects": [],
         "couldnt_assess": [],
     }
+    edges = load_edges(vault)
     for proj in projects:
         try:
             entry, reason = scan_project(proj, vault)
+            if entry is not None:
+                name = entry["name"]
+                entry["dependents"] = [
+                    {"project": a, "why": w} for a, b, w in edges if b == name]
+                entry["depends_on"] = [
+                    {"project": b, "why": w} for a, b, w in edges if a == name]
         except Exception as e:  # a broken project must not abort the sweep
             entry, reason = None, f"scan error: {e}"
         if entry is None:
