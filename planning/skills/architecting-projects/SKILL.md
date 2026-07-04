@@ -1,6 +1,6 @@
 ---
 name: architecting-projects
-description: Use after a design is validated (or on a direct architecture request) to research real architecture options for a project and produce the authoritative architecture document the plan is built around. Triggers on "design the architecture", "architecture options", "how should this project be structured", "what structure should this codebase have", "compare architectures for", "pick a project layout", or when the brainstorming skill hands off a design with a non-trivial structural surface. Researches 2–4 stack-concrete candidates via parallel architecture-researcher agents (every claim cited), presents a comparison matrix for explicit user approval, then writes an ARCH-ID-sectioned architecture doc that planning-projects consumes.
+description: Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that planning-projects consumes. Triggers on "design the architecture", "architecture options", "how should the codebase be structured", "what structure should this codebase have", "compare architecture candidates", "pick an architecture", "pick a project layout", or when the brainstorming skill hands off a design with a non-trivial structural surface (module boundaries, directory layout, cross-module interfaces). Not for staging work into phases — that is planning-projects' domain.
 ---
 
 # Architecting Projects
@@ -26,9 +26,12 @@ Also directly invocable without a prior design doc — then Phase 1 grounds from
 user's brief and the codebase instead.
 
 **Skip rule (for callers):** skip this skill only when the design has no meaningful
-structural surface — a config change, a single-file fix, a doc update. Skipping is
-always stated explicitly ("no structural surface: straight to planning-projects"),
-never silent.
+structural surface — a config change, a single-file fix, a doc update. A design has a
+structural surface when it touches module boundaries, directory layout, dependency
+injection points, or cross-module interfaces — anything shaping how multiple
+files/modules relate; a component-level change or single-file logic fix does not.
+Skipping is always stated explicitly ("no structural surface: straight to
+planning-projects"), never silent.
 
 ---
 
