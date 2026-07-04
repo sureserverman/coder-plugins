@@ -22,6 +22,60 @@ The plan file was produced by `planning-projects`. It contains:
 
 If the plan doesn't have these fields, stop — it wasn't produced by `planning-projects` and must be either rewritten through that skill or executed manually.
 
+**Exception — master plans.** A file whose name ends in `-master-plan.md` or whose first
+heading is `# Master Plan:` is a **master plan** (format:
+`../planning-projects/references/master-plan-format.md`). It deliberately has no
+Preflight, Stages, or Tasks — do NOT reject it; execute it per the **Master plans**
+section below.
+
+---
+
+## Master plans
+
+A master plan links 2–7 **sub-plans** — each a standard planning-projects plan in the
+same directory — through a `## Sub-plans` register carrying per-entry `Status`, `Plan`
+link, `Goal`, `Depends on` / `Blocks`, `Parallel`, and a `**Gate:**` block of cross-plan
+integration checks.
+
+**Critique (master-level Phase 1).** Before executing anything: every register `Plan:`
+link resolves to an existing file; register `Depends on` / `Blocks` fields are symmetric
+and acyclic; every entry ends with a `**Gate:**` block; every sub-plan carries the
+`Master:` backlink and is itself a valid planning-projects plan (critique each one on
+load, as usual). Surface concerns before starting.
+
+**Execution model:**
+
+1. **Order by the register graph.** A sub-plan is dispatchable when every entry in its
+   `Depends on` is `[x]`. Execute it via the normal single-plan flow below — its own
+   Preflight, stages, Red-Green loops, gates, and close-out. `Parallel: YES` sub-plans
+   with no repo/file overlap may run concurrently (separate sessions or worktrees), but
+   the file-conflict rule applies at this level too: overlapping sub-plans run
+   sequentially regardless of the graph.
+2. **One sub-plan per session, ideally.** Each sub-plan is a natural context-reset
+   boundary (see Context resets below, scaled up): finish a sub-plan, then recommend the
+   user start the next one in a fresh session pointed at the master path. The master
+   file — register `Status` flips plus its handoff notes — is the cross-session handoff
+   artifact; a fresh session needs the master, the next sub-plan, and nothing else.
+3. **On a sub-plan's close-out** (its `**Completed:**` line just landed): flip the
+   master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
+   checks (they prove integration with previously completed sub-plans — a failure here
+   is handled like any stage-gate failure, traced to the culprit sub-plan/task), append
+   a short `**Sub-plan N handoff:**` note under the entry, and commit
+   `"Sub-plan N green"`.
+4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
+   their usual steps (full suite, evaluator, backlog reconcile, workflow audit) EXCEPT
+   step 4 (version bumps) — one feature landing across five sub-plans is one release
+   event, not five. Note the deferral in each sub-plan's close-out.
+5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
+   the deferred version bumps once across everything the sub-plans touched (all mirrors),
+   run the full suite and the independent evaluator pass against the *master's* overall
+   goal, then append to the master:
+   `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
+
+**Stop conditions are unchanged** and apply inside whichever sub-plan is executing; a
+stopped sub-plan blocks its register dependents exactly as a failed task blocks its
+`Blocks` list.
+
 ---
 
 ## Checklist
