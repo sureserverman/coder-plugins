@@ -72,6 +72,10 @@ you have, and mark every finding that depends on that assumption.
 ### Fit against constraints
 - <constraint>: MEETS | STRAINS | VIOLATES — <one line why>
 
+### Migration map (only when a codebase inventory was provided — omit for greenfield)
+- <current module/path> → <target module/path>: <what moves or splits>
+- Ordered steps: <step 1 … step N, each leaving the build green>
+
 ### Unverified assumptions
 - <anything marked [web-unverified] or inferred from a missing dispatch field>
 ```

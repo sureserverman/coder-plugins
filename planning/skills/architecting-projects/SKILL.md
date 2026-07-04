@@ -181,6 +181,31 @@ Status: Approved <YYYY-MM-DD>
 Number further sections `ARCH-06` onward as needed; never renumber existing IDs in a
 later revision — plans cite them.
 
+## Re-architecture mode (existing codebases)
+
+When the project has an existing codebase with significant structure (a module tree
+beyond a handful of files — not a scratch dir or a single-crate stub), the flow
+deepens; it does not change shape:
+
+- **Phase 1 additionally inventories the current structure**: the real module map
+  (directories, crates/packages, who-depends-on-whom), captured as a compact tree +
+  dependency list. This inventory rides every researcher dispatch.
+- **Phase 3 dispatches carry the inventory**, and each researcher's Risks/Fit
+  sections must address the migration explicitly: what moves, what splits, what the
+  intermediate states are. A re-architecture candidate whose research ignores the
+  current layout is uncited-by-construction — treat it like any uncited claim.
+- **Phase 4's matrix weighs migration surface as a first-class column** (it is
+  already listed there) — for large codebases it often dominates the decision.
+- **Phase 5's doc gains a Migration map section** (numbered like any other, e.g.
+  `ARCH-06 Migration map`): a current→target mapping per module plus an ordered
+  sequence of migration steps, each leaving the build green. `planning-projects`
+  turns those steps into staged tasks — the migration order in the doc is the
+  skeleton of the plan's stage order. Same parser-safety rules apply: plain `-`
+  bullets only.
+
+Greenfield projects skip all of this — the greenfield flag in the dispatch is what
+tells the researcher no inventory is coming.
+
 ## Phase 6 — Hand off to planning-projects
 
 Say to the user:
