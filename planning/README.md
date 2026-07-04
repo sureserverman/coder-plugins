@@ -23,6 +23,10 @@ vague idea
 brainstorming           ── validate the design via Q&A: purpose, constraints,
     │                      alternatives, risks. One question at a time.
     ▼
+architecting-projects   ── (designs with a structural surface) research 2–4
+    │                      architecture candidates via parallel researcher
+    │                      agents, user approves one, write the ARCH-ID doc.
+    ▼
 planning-projects       ── stage the work: tasks with Depends on / Blocks /
     │                      Parallel fields, Red-Green max cycles, stage gates.
     ▼
@@ -38,9 +42,15 @@ dispatching-parallel-agents  ── one agent per task marked Parallel YES whose
 
 ### `brainstorming`
 
-Use **before** any non-trivial creative or implementation work — new features, refactors, migrations, behavior changes. Turns a vague idea into a validated design by exploring purpose, constraints, alternatives, and risks one question at a time. Terminal handoff is to `planning-projects`.
+Use **before** any non-trivial creative or implementation work — new features, refactors, migrations, behavior changes. Turns a vague idea into a validated design by exploring purpose, constraints, alternatives, and risks one question at a time. Terminal handoff is to `architecting-projects` (designs with a structural surface) or straight to `planning-projects`.
 
 **Triggers:** "I'm thinking about adding X", "what's the best way to", "should I refactor", "design a new", "let's brainstorm".
+
+### `architecting-projects` (NEW in v0.17.0)
+
+Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that `planning-projects` consumes. Derives 2–4 stack-concrete candidates, fans out one sonnet-pinned `architecture-researcher` agent per candidate in parallel (uncited claims are discarded), presents a comparison matrix for explicit approval, then writes a parser-safe `*-architecture.md` with stable `ARCH-NN` section IDs beside the plan. Plans cite the ARCH-IDs on structure-creating tasks and carry an architecture-conformance check in their final stage gate.
+
+**Triggers:** "design the architecture", "architecture options", "how should the codebase be structured", "compare architecture candidates", "pick an architecture".
 
 ### `planning-projects`
 
@@ -118,7 +128,7 @@ Default flow composes the four in order: `scan → unify (dry-run) → maturity 
 
 ## Why a separate plugin
 
-All ten skills reference each other by name (handoffs from brainstorming → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; portfolio → backlog + project-maturity + dispatching-parallel-agents). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All twelve skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; portfolio → backlog + project-maturity + dispatching-parallel-agents). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 
