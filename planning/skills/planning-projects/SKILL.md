@@ -211,6 +211,51 @@ If a stage has more than 7 tasks, it's too large. Split it. Large stages hide in
 
 ---
 
+## Phase 2.5 — Decomposition decision (master plan + sub-plans)
+
+Stage sizing has a project-level analogue: when the *plan itself* is too large, don't
+write one monolith — decompose it into several independently executable **sub-plans**
+linked by one **master plan**. The canonical format (naming, master document structure,
+register fields, parser-safety rules) is `references/master-plan-format.md`; this section
+is only the decision rule.
+
+**Decompose when ANY of these hold:**
+
+- The single plan would exceed **~6 stages or ~25 tasks**
+- The work spans **two or more independently shippable workstreams** (separate
+  deliverables, repos, or subsystems)
+- Execution will clearly span **multiple sessions or stacks**, each wanting its own
+  context window
+
+**How to split:**
+
+- **2–7 sub-plans.** One sub-plan means no master was needed; more than seven means the
+  scope is a portfolio, not a project.
+- **Each sub-plan is a complete, independently executable plan** — its own Research
+  Summary (scoped), Preflight, Stages, gates, and close-out. If a candidate sub-plan
+  can't run alone, it's a stage of another sub-plan; fold it back in.
+- **The master plan holds what's shared:** the cross-cutting Research Summary, the
+  sub-plan register (Status / Plan link / Goal / Depends on / Blocks / Parallel per
+  entry), and a `**Gate:**` block per entry with integration checks across sub-plans.
+  The master carries **no tasks and no Preflight** — and no raw `- [ ]` bullets outside
+  `**Gate:**` blocks, so the portfolio parser reads it cleanly (see the parser-safety
+  rules in the reference).
+- **Sub-plan register dependencies are symmetric**, exactly like task fields — and if you
+  can't name a master gate check between two sub-plans, question the split: they're
+  either one plan or two unrelated projects.
+- **Each sub-plan backlinks to the master** (`Master: ./<master-file>` under `Date:`).
+
+Research once, at master level, then scope each sub-plan's Research Summary down to what
+that sub-plan needs. The backlog scan and workflow-spec scan run once for the whole
+decomposition; fold-ins (`Closes BL-NNN`) and WF declarations land on tasks inside the
+relevant sub-plan.
+
+Hand the master plan to `executing-plans` — it recognizes the format, drives sub-plans in
+register dependency order (fresh session per sub-plan recommended), and defers version
+bumps to the master close-out.
+
+---
+
 ## Output location (vault-canonical)
 
 Plans live in the vault, not the repo. Before writing, resolve the project's portfolio home:
@@ -221,6 +266,11 @@ Plans live in the vault, not the repo. Before writing, resolve the project's por
 4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`) — run `/planning:portfolio rebuild` (or `scripts/portfolio-rebuild.py`) for the canonical writer rather than hand-editing the block. `mkdir -p` the vault `plans/` dir. The block's **Plans:** line points at `<portfolio_home>/plans/`, so the plan you save in the next step is discoverable from the sidecar the instant it lands — no per-plan write into vault-context is needed (the link is to the directory, and never goes stale). On a project that already has the block, the existing pointer already covers the new plan; you only need to (re)generate the block for a brand-new project that has none yet.
 
 Then save the plan to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md`. (The design doc from `brainstorming` lands beside it via the same resolution.)
+
+**Decomposed projects** (Phase 2.5) save all files flat in the same `plans/` dir: the
+master plan as `YYYY-MM-DD-<topic>-master-plan.md` and each sub-plan as
+`YYYY-MM-DD-<topic>-sub-NN-<slug>-plan.md`, numbered in dependency order — per
+`references/master-plan-format.md`.
 
 ## Plan Document Format
 
@@ -450,6 +500,14 @@ Before showing the plan to the user, verify:
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
+
+**Additionally, for a decomposed project (master plan + sub-plans):**
+
+- [ ] The decomposition trigger actually held (Phase 2.5) — 2–7 sub-plans, each independently executable
+- [ ] Register `Depends on` / `Blocks` fields are symmetric across sub-plan entries
+- [ ] Every register entry ends with a `**Gate:**` block containing at least one cross-plan integration check
+- [ ] Every sub-plan carries the `Master: ./<master-file>` backlink; every register `Plan:` link resolves
+- [ ] The master plan is parser-safe: no raw `- [ ]` bullets outside `**Gate:**` blocks, no tasks, no Preflight (see `references/master-plan-format.md`)
 
 ---
 
