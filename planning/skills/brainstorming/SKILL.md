@@ -170,7 +170,7 @@ Commit the design document before handoff so future sessions can find it.
 
 ## Phase 7 — Hand off to planning-projects
 
-The **only** skill you invoke after brainstorming is `planning-projects`. Do not invoke `executing-plans`, `frontend-design`, or any implementation skill directly — those are downstream of the plan.
+The **only** skill you invoke after brainstorming is `planning-projects`. Do not invoke `executing-plans`, `frontend-design`, or any implementation skill directly — those are downstream of the plan. (If the validated design is big — multiple independently shippable workstreams — `planning-projects` may decompose it into a master plan plus sub-plans; that decision belongs to the planner, not to brainstorming.)
 
 Say to the user:
 
