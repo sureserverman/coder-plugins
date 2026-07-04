@@ -56,6 +56,10 @@ def plan_state(text, fname):
     """State of one executing-plans plan file, via the authoritative Status
     path (portfolio-unify regexes). Returns None for master plans (register
     format — no Task context, tracked through their sub-plans instead)."""
+    # Master detection is deliberately explicit (filename AND heading), unlike
+    # portfolio-unify's implicit skip (Sub-plan headers never match TASK_RE):
+    # without this filter a master would fall into the "legacy/malformed"
+    # degrade branch below and emit a spurious active/stage-unknown entry.
     if fname.endswith("-master-plan.md") or MASTER_HEAD_RE.search(text):
         return None
     cm = COMPLETED_RE.search(text)
@@ -86,6 +90,8 @@ def plan_state(text, fname):
         stage, num, desc, _ = open_tasks[0]
         state["stage"] = stage
         state["next_task"] = f"Task {num}: {desc}"
+        if cm:
+            state["note"] = f"completed marker present but {len(open_tasks)} task(s) still open"
     else:
         state["active"] = False
         if not cm:
@@ -204,7 +210,10 @@ def scan_project(proj, vault):
         except Exception as e:  # degrade per collector, never drop the project
             entry[key] = fallback
             entry["errors"].append(f"{key}: {e}")
-    git_info, git_err = collect_git(path)
+    try:
+        git_info, git_err = collect_git(path)
+    except Exception as e:  # git binary/exec failure degrades like any collector
+        git_info, git_err = None, f"git: {e}"
     entry["git"] = git_info
     if git_err:
         entry["errors"].append(git_err)
