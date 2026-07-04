@@ -105,16 +105,38 @@ Field definitions:
 
 Plans produced after the precision rewrite carry a per-task `- **Status:** [ ]`
 field that `executing-plans` flips to `[x]` on green. When a plan has `Status:`
-fields, they are **authoritative** — no heuristic, no git archaeology:
+fields, they are **authoritative** — no heuristic, no git archaeology.
+Implemented by `parse_plan_status()` in `portfolio-unify.py`:
 
-- Task with `- **Status:** [x]` → DONE, never a candidate.
-- Task with `- **Status:** [ ]` → unexecuted → candidate (title = the task description).
-- A plan with a `**Completed:** <date>` close-out line and all `[x]` is fully done.
+- **Detection:** any line matching `^\s*-\s*\*\*Status:\*\*\s*\[[ xX]\]` puts the
+  whole file on the authoritative path. The checkbox is required: a
+  checkbox-less field like `- **Status:** Draft` does NOT trigger the
+  authoritative path — the file degrades gracefully to the legacy heuristic
+  instead of silently losing its candidates.
+- Task with `- **Status:** [x]` → DONE, never a candidate — including any stray
+  raw `- [ ]` bullet left in its body (suppressed; Status is the only
+  task-state source).
+- Task with `- **Status:** [ ]` → unexecuted → exactly ONE candidate per task,
+  with `signal: status-unexecuted`, `title` = the task description from its
+  `### Task N.N:` header, and `source_locator` = `Stage N / Task N.N` (or
+  `Task N.N` when no enclosing stage is detectable). The task's body bullets
+  are never emitted as separate candidates.
+- Raw unchecked bullets outside task bodies (gates, ad-hoc checklists) are
+  likewise ignored — in authoritative mode the ONLY candidate sources are
+  `Status: [ ]` fields and Deferred blocks.
+- **Deferred sections remain active in both modes.** They are an explicit
+  parking register, not a task-state heuristic; their bullets surface with
+  `signal: deferred-section` exactly as in legacy plans.
+- **Git stage evidence is not consulted** on the authoritative path
+  (`done_stages` applies only to the legacy heuristic).
+- A `- **Status:**` field without a preceding `### Task N.N:` header in its
+  section (e.g. a master plan's `### Sub-plan N:` register entries) has no task
+  context and emits nothing.
+- A plan with a `**Completed:** <date>` close-out line and all `[x]` is fully
+  done (and, by the rules above, yields zero task candidates).
 
-The heuristic signals below (unchecked `[ ]` bullets, Deferred sections,
-git-stage evidence) remain the fallback for **legacy plans** that predate the
-`Status:` field. Detection: if a plan contains any `- **Status:**` line, use the
-authoritative path for its tasks; otherwise fall back to the heuristic + git path.
+The heuristic signals above (unchecked `[ ]` bullets, git-stage evidence)
+remain the fallback for **legacy plans** that predate the `Status:` field.
 
 ## Master plans (plans from planning-projects v0.16.0+ multi-plan decomposition)
 
@@ -140,8 +162,9 @@ Parsing rules:
   all register entries `[x]` is fully done.
 
 **Format guarantee (locked by `../tests/test-portfolio-unify.py`):** a master plan
-authored per the format reference contains no raw `- [ ]` bullets outside `**Gate:**`
-blocks and no `### Task N.N:` headers, so the existing regex state machine already
-yields **zero** candidates for it without master-specific code. The rules above are
-therefore a documented invariant of the format, and the fixture suite is the regression
-guard that keeps parser and format in lockstep.
+yields **zero** candidates without master-specific code, on both paths. Its register
+`- **Status:**` fields put it on the authoritative path, where its lack of
+`### Task N.N:` headers means no task context and no candidates; and even under the
+legacy heuristic it contains no raw `- [ ]` bullets outside `**Gate:**` blocks. The
+rules above are therefore a documented invariant of the format, and the fixture suite
+is the regression guard that keeps parser and format in lockstep.

@@ -7,9 +7,16 @@ the plan-parser rules (references/plan-parser.md), dedups against the existing
 entries tagged `auto-unified`. Dry-run by default.
 
 Candidate signals (accept-all policy):
-  - unchecked Task N.N tasks       (### Task N.N: with an unchecked `- [ ]` body
-                                     bullet, or no `- [x]` in its body)
-  - Deferred-section bullets       (## Deferred / ### Deferred blocks)
+  - Status-authoritative tasks     (plans carrying `- **Status:**` fields, from
+                                     planning-projects v0.5.1+: Task N.N with
+                                     `Status: [ ]` -> one candidate per task;
+                                     `[x]` -> done, stray body bullets ignored)
+  - unchecked Task N.N tasks       (legacy plans without Status fields:
+                                     ### Task N.N: with an unchecked `- [ ]`
+                                     body bullet, or no `- [x]` in its body)
+  - Deferred-section bullets       (## Deferred / ### Deferred blocks — active
+                                     in BOTH modes; an explicit parking
+                                     register, not a task-state heuristic)
 Excluded: Preflight bullets; Stage Gate bullets (acceptance criteria that restate
 a stage's definition-of-done — `### Stage N Gate` headers and `**Stage Gate:**`
 bold markers — NOT deferred work); *-done.md historical summaries; stale-plan
@@ -80,13 +87,64 @@ def vault_dir():
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)
 STAGEHDR_RE = re.compile(r"^##\s+Stage\s+(\d+)", re.I)
 GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
+STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX])\]")
+
+
+def parse_plan_status(text, plan_rel):
+    """Authoritative path (plan-parser.md § Authoritative signal) for plans that
+    carry per-task `- **Status:**` fields: Task N.N with `Status: [ ]` emits ONE
+    candidate (title = the task description); `[x]` means done. Raw unchecked
+    bullets are ignored entirely — Status is the only task-state source, and git
+    stage evidence is not consulted. Deferred blocks still surface (explicit
+    parking register, independent of task state). Master-plan registers use
+    `### Sub-plan N:` headers, so their Status fields have no Task context and
+    emit nothing."""
+    out = []
+    cur_stage = None
+    cur_task = None
+    in_deferred = False
+    defer_n = 0
+    for line in text.splitlines():
+        if SECTION.match(line):
+            in_deferred = bool(DEFERRED_RE.match(line))
+            cur_task = None
+        sh = STAGEHDR_RE.match(line)
+        if sh:
+            cur_stage = int(sh.group(1))
+        tm = TASK_RE.match(line)
+        if tm:
+            cur_task = (tm.group(1), tm.group(2).strip())
+        if in_deferred:
+            bm = BULLET.match(line)
+            if bm:
+                defer_n += 1
+                title = re.sub(r"^\[[ x]\]\s*", "", bm.group(1).strip())
+                out.append({"source": f"{plan_rel} — Deferred / bullet {defer_n}",
+                            "title": title, "signal": "deferred-section"})
+            continue
+        sm = STATUS_RE.match(line)
+        if sm and cur_task:
+            if sm.group(1) == " ":
+                num, desc = cur_task
+                loc = f"Stage {cur_stage} / Task {num}" if cur_stage else f"Task {num}"
+                out.append({"source": f"{plan_rel} — {loc}",
+                            "title": desc, "signal": "status-unexecuted"})
+            cur_task = None       # one Status field per task; consume it
+    return out
 
 
 def parse_plan(text, plan_rel, done_stages):
-    """Return candidates from one plan: every unchecked `- [ ]` (excluding the
-    Preflight section) whose enclosing Stage is NOT git-confirmed-done, plus all
+    """Return candidates from one plan. Plans carrying any `- **Status:**` field
+    take the authoritative path (parse_plan_status); legacy plans fall back to
+    the heuristic below: every unchecked `- [ ]` (excluding the Preflight
+    section) whose enclosing Stage is NOT git-confirmed-done, plus all
     `## Deferred` bullets. `done_stages` is the set of stage numbers a commit
     (dated >= the plan's date) referenced as executed."""
+    # Detection requires the checkbox, matching STATUS_RE: a checkbox-less
+    # `- **Status:** Draft` line must NOT capture the file for the
+    # authoritative path (which would silently drop its legacy candidates).
+    if re.search(r"(?m)^\s*-\s*\*\*Status:\*\*\s*\[[ xX]\]", text):
+        return parse_plan_status(text, plan_rel)
     out = []
     lines = text.splitlines()
     cur_stage = None

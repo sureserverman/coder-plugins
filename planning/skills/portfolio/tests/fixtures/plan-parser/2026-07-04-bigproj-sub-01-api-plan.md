@@ -29,6 +29,7 @@ Scoped to the API sub-plan.
 - **Red-Green max cycles:** 3
 - [x] scaffold the handler
 - [x] wire the router
+- [ ] STRAY-LEFTOVER: forgotten body bullet in a DONE task — Status [x] must suppress it
 
 ### Task 1.2: Harden the endpoint
 - **Status:** [ ]
@@ -42,3 +43,7 @@ Scoped to the API sub-plan.
 
 ### Stage 1 Gate
 - [ ] GATE-MARKER-SUB1: full suite passes
+
+## Deferred
+
+- SUB1-DEFERRED-A: telemetry for the retry path
