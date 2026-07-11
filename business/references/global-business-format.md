@@ -15,26 +15,30 @@ Generated: 2026-07-11
 
 | Project | Verdict | Model | Stage | Reviewed | Actuals |
 |---------|---------|-------|-------|----------|---------|
-| [[xray-host]] | monetize | paid | launched | 0d | 2026-07-11 (5) |
-| [[bootstrapscripts]] | monetize | oss-services | tracked | 0d | 2026-07-11 (4) |
-| [[text-vault]] | internal-only | — | assessed | 0d | — |
+| big-projects/[[xray-host]] | monetize | paid | launched | 0d | 2026-07-11 (5) |
+| servers/[[bootstrapscripts]] | monetize | oss-services | tracked | 0d | 2026-07-11 (4) |
+| web/[[text-vault]] | internal-only | — | assessed | 0d | — |
 
 ## Not yet assessed (M) — triage gap
 
-- [[foo]], [[bar]], [[baz]]
+- foo-area/[[foo]], bar-area/[[bar]], baz-area/[[baz]]
 
 ## Couldn't assess (K)
 
 - <name>: <reason>
 
-## Errors
+## Errors (K)
 
-- [[project]]: <error string>
+- area/[[project]]: <error string>
+- area/[[project]] (unassessed): <error string>
 ```
 
 ## Rules
 
-- **Project** is a `[[wikilink]]` to the project name (vault convention).
+- **Project** is an **area-qualified** wikilink `<area>/[[<name>]]` (matching
+  `portfolio-rebuild.py`) — two projects in different areas may share a name slug, so the
+  area prefix disambiguates. Free-text cells (name, model) have `|`/newlines escaped so a
+  hostile value can't break the table.
 - **Stage** is the pipeline stage, derived from what the scanner reports (highest reached):
   `tracked` (metrics present) > `launched` (gtm-plan present) > `modeled`
   (`monetization.model` set) > `assessed`. `park`/`internal-only` projects normally stop at
@@ -46,5 +50,7 @@ Generated: 2026-07-11
   triage gap, not an error; the whole point is to see what still needs a verdict.
 - **Couldn't assess** and **Errors** sections appear only when non-empty (degrade loudly:
   a project that couldn't be assessed, or whose `BUSINESS.md` had parse/validation errors,
-  is always surfaced, never silently dropped).
+  is always surfaced, never silently dropped). A project carrying `errors` is listed under
+  **Errors** whether or not it is `assessed`; an unassessed-but-errored project is tagged
+  `(unassessed)`.
 - Counts in the section headers (`Assessed (N)`) let a reader see coverage at a glance.

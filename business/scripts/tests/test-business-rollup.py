@@ -57,6 +57,20 @@ DOC = {
         },
         {   # not assessed
             "name": "echo", "area": "ai-tools", "assessed": False, "errors": []},
+        {   # same name, different area (both assessed) — must disambiguate
+            "name": "proxy", "area": "servers", "assessed": True,
+            "verdict": "monetize", "monetization": {"model": "paid"},
+            "last_reviewed_age_days": 1, "metrics": None, "gtm": None, "errors": []},
+        {   "name": "proxy", "area": "containers", "assessed": True,
+            "verdict": "park", "monetization": {"model": None},
+            "last_reviewed_age_days": 1, "metrics": None, "gtm": None, "errors": []},
+        {   # markdown-hostile free-text — must be escaped, not break the table
+            "name": "weird|pipe", "area": "ai-tools", "assessed": True,
+            "verdict": "monetize", "monetization": {"model": "paid|x"},
+            "last_reviewed_age_days": 1, "metrics": None, "gtm": None, "errors": []},
+        {   # unassessed AND errored — errors must still surface (degrade-loudly)
+            "name": "ghost", "area": "ai-tools", "assessed": False,
+            "errors": ["scan glitch: partial write"]},
     ],
     "couldnt_assess": [{"name": "foxtrot", "area": "x", "reason": "scan error: boom"}],
 }
@@ -74,23 +88,31 @@ def test_render():
     md = r.stdout
     check("# Global Business Roll-up" in md, "has title")
     check("Generated: 2026-07-11" in md, "has generated date")
-    # assessed count = 4 (alpha, bravo, charlie, delta)
-    check("## Assessed (4)" in md, f"assessed count 4")
-    # stage derivation
-    check("| [[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) |" in md,
-          "alpha row: tracked, 2 non-note metrics")
-    check("| [[bravo]] | free-for-reputation | oss-services | launched | 3d | — |" in md,
+    # assessed = alpha, bravo, charlie, delta, proxy(servers), proxy(containers), weird|pipe = 7
+    check("## Assessed (7)" in md, "assessed count 7")
+    # stage derivation, now area-qualified wikilinks
+    check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) |" in md,
+          "alpha row: tracked, 2 non-note metrics, area-qualified")
+    check("| ai-tools/[[bravo]] | free-for-reputation | oss-services | launched | 3d | — |" in md,
           "bravo row: launched, no actuals")
-    check("| [[charlie]] | park | — | assessed | 40d | — |" in md,
+    check("| ai-tools/[[charlie]] | park | — | assessed | 40d | — |" in md,
           "charlie row: park, model dash, assessed stage")
-    # triage gap
-    check("## Not yet assessed (1) — triage gap" in md, "unassessed count 1")
-    check("[[echo]]" in md, "echo listed as unassessed")
+    # same-name-different-area disambiguation
+    check("servers/[[proxy]]" in md and "containers/[[proxy]]" in md,
+          "same-name projects disambiguated by area")
+    # markdown injection escaped — the whole row is one intact line with escaped pipes
+    check("| ai-tools/[[weird\\|pipe]] | monetize | paid\\|x | modeled | 1d | — |" in md,
+          "pipe in name/model escaped, row stays a single 6-cell line")
+    # triage gap = echo, ghost, with leading bullet
+    check("## Not yet assessed (2) — triage gap" in md, "unassessed count 2")
+    check("- ai-tools/[[echo]]" in md and "ai-tools/[[ghost]]" in md, "triage list bulleted + area-qualified")
     # degrade-loudly sections
     check("## Couldn't assess (1)" in md and "foxtrot: scan error: boom" in md,
           "couldnt_assess surfaced")
-    check("## Errors (1)" in md and "[[delta]]: BUSINESS.md: verdict" in md,
-          "errored project surfaced")
+    check("## Errors (2)" in md, "both errored projects counted")
+    check("ai-tools/[[delta]]: BUSINESS.md: verdict" in md, "assessed+errored surfaced")
+    check("ai-tools/[[ghost]] (unassessed): scan glitch" in md,
+          "unassessed+errored surfaced (degrade-loudly gap closed)")
 
 
 def test_empty():
