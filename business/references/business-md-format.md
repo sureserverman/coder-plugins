@@ -63,6 +63,12 @@ targets:
     by: 2026-12-31
 ```
 
+`business-scan.py` validates each target's shape: `metric` must be a non-empty string,
+`target` must be numeric (a non-finite float is accepted here and nulled downstream), and
+`by` must be a `YYYY-MM-DD` date. A malformed target produces a per-target scanner error
+(`targets[i].<field> ...`) — never fatal; the project is still assessed and the error is
+surfaced in the roll-up's Errors section.
+
 ## Body (human rationale — not parsed)
 
 ```markdown

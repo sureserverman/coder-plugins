@@ -150,6 +150,29 @@ def parse_business_md(text, expected_project=None):
     if channels is not None and not isinstance(channels, list):
         errors.append(f"BUSINESS.md: monetization.channels must be a list, got {channels!r}")
         channels = []
+    # Validate targets[] item shape symmetrically with the scalar fields above:
+    # a target missing `by`, or with a non-numeric `target`, must surface an error
+    # rather than pass through silently. Non-finite `target` floats stay valid here
+    # (numeric) and are nulled downstream by _normalize.
+    targets = fm.get("targets")
+    if targets is None:
+        targets = []
+    elif not isinstance(targets, list):
+        errors.append(f"BUSINESS.md: targets must be a list, got {targets!r}")
+        targets = []
+    for i, t in enumerate(targets):
+        if not isinstance(t, dict):
+            errors.append(f"BUSINESS.md: targets[{i}] must be a mapping, got {t!r}")
+            continue
+        metric = t.get("metric")
+        if not isinstance(metric, str) or not metric.strip():
+            errors.append(f"BUSINESS.md: targets[{i}].metric must be a non-empty string")
+        tval = t.get("target")
+        if isinstance(tval, bool) or not isinstance(tval, (int, float)):
+            errors.append(f"BUSINESS.md: targets[{i}].target must be numeric, got {tval!r}")
+        by = _isodate(t.get("by"))
+        if not by or not DATE_RE.match(str(by)):
+            errors.append(f"BUSINESS.md: targets[{i}].by must be YYYY-MM-DD, got {t.get('by')!r}")
     fields = {
         "schema": schema,
         "verdict": verdict if verdict in VERDICTS else None,
@@ -161,7 +184,7 @@ def parse_business_md(text, expected_project=None):
             "pricing": mon.get("pricing"),
             "channels": channels or [],
         },
-        "targets": _normalize(fm.get("targets") or []),
+        "targets": _normalize(targets),
     }
     return fields, errors
 

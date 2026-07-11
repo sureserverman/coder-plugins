@@ -32,7 +32,7 @@ def check(cond, label):
 
 
 CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
-         "edgey", "badenum", "boolschema"]
+         "edgey", "badenum", "boolschema", "badtarget"]
 
 
 def tree_hash(root):
@@ -191,6 +191,17 @@ def test_contract(tmp):
     check(bs.get("verdict") is None, "boolschema: not parsed as schema 1")
     check(any("integer" in e for e in bs.get("errors", [])),
           f"boolschema: schema-must-be-integer error (got {bs.get('errors')})")
+
+    # badtarget — targets[] item shape validated (BL-002): scalar fields fine,
+    # only the two malformed targets error, assessment not aborted
+    bt = P.get("badtarget", {})
+    check(bt.get("assessed") is True, "badtarget: assessed true")
+    check(bt.get("verdict") == "monetize", "badtarget: scalar fields still parse")
+    bterrs = " | ".join(bt.get("errors", []))
+    check("targets[0].by" in bterrs,
+          f"badtarget: target missing `by` flagged (got {bt.get('errors')})")
+    check("targets[1].target" in bterrs,
+          f"badtarget: non-numeric target flagged (got {bt.get('errors')})")
 
 
 def test_gtm_degrades_without_portfolio_unify():
