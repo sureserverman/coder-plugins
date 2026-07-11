@@ -24,19 +24,26 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 # Reuse the authoritative checkbox regexes from the portfolio skill (stable
 # sibling layout: business/ and planning/ are siblings under the marketplace
-# root). Hyphenated filename → importlib.
+# root). Hyphenated filename → importlib. If the planning plugin isn't installed
+# alongside (business is a separately-versioned plugin), degrade to pu=None: the
+# sweep still runs and emits JSON for every project — only gtm-plan progress
+# becomes a per-project error, honoring "never fatal to the sweep".
 _UNIFY = (Path(__file__).resolve().parents[2]
           / "planning" / "skills" / "portfolio" / "scripts" / "portfolio-unify.py")
-_spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
-pu = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(pu)
-
-import yaml  # noqa: E402  (after pu import, which also needs it)
+try:
+    _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
+    pu = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(pu)
+except Exception:      # missing sibling, import-time error → degrade, don't crash
+    pu = None
 
 SUPPORTED_SCHEMA = 1
 VERDICTS = {"monetize", "free-for-reputation", "internal-only", "park"}
+EVIDENCE = {"local-only", "researched"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 NUM_RE = re.compile(r"^-?\d+(\.\d+)?$")      # rejects inf/nan/text → JSON-safe
 
@@ -84,56 +91,79 @@ def _normalize(obj):
     return obj
 
 
-def parse_business_md(text):
-    """Parse BUSINESS.md frontmatter. Returns (fields_dict, error_or_None).
-    fields_dict is None when unparseable."""
-    body = text.lstrip()
+def parse_business_md(text, expected_project=None):
+    """Parse BUSINESS.md frontmatter. Returns (fields_dict, errors_list).
+    fields_dict is None only when the file can't be parsed at all; otherwise a
+    fields_dict plus a (possibly empty) list of per-field validation errors —
+    the required/enum fields (verdict, evidence, last_reviewed, project) are all
+    validated symmetrically, matching business-md-format.md."""
+    body = text.lstrip("﻿").lstrip()      # tolerate a UTF-8 BOM
     if not body.startswith("---"):
-        return None, "BUSINESS.md: no YAML frontmatter"
+        return None, ["BUSINESS.md: no YAML frontmatter"]
     # Anchor on delimiter LINES, not a raw "---" substring: a triple-dash inside
     # a free-text scalar (e.g. `audience: power users --- anyone`) must NOT
     # truncate the frontmatter and silently drop later fields.
     m = re.match(r"^---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)", body, re.S)
     if not m:
-        return None, "BUSINESS.md: unterminated frontmatter"
+        return None, ["BUSINESS.md: unterminated frontmatter"]
     try:
         fm = yaml.safe_load(m.group(1))
-    except yaml.YAMLError as e:
+    except (yaml.YAMLError, ValueError) as e:   # ValueError: e.g. 2026-13-45 date
         msg = str(e).splitlines()[0] if str(e) else "invalid YAML"
-        return None, f"BUSINESS.md: invalid frontmatter YAML ({msg})"
+        return None, [f"BUSINESS.md: invalid frontmatter YAML ({msg})"]
     if not isinstance(fm, dict):
-        return None, "BUSINESS.md: frontmatter is not a mapping"
+        return None, ["BUSINESS.md: frontmatter is not a mapping"]
     schema = fm.get("schema")
     if schema is None:
-        return None, "BUSINESS.md: missing 'schema'"
-    if not isinstance(schema, int):
-        return None, f"BUSINESS.md: 'schema' must be an integer, got {schema!r}"
+        return None, ["BUSINESS.md: missing 'schema'"]
+    # bool is an int subclass — reject `schema: true` explicitly, don't treat as 1
+    if not isinstance(schema, int) or isinstance(schema, bool):
+        return None, [f"BUSINESS.md: 'schema' must be an integer, got {schema!r}"]
     if schema > SUPPORTED_SCHEMA:
         return ({"schema": schema},
-                f"BUSINESS.md: schema {schema} is newer than supported "
-                f"({SUPPORTED_SCHEMA}) — upgrade the business plugin")
+                [f"BUSINESS.md: schema {schema} is newer than supported "
+                 f"({SUPPORTED_SCHEMA}) — upgrade the business plugin"])
+    if schema < 1:
+        return ({"schema": schema},
+                [f"BUSINESS.md: schema {schema} is below 1 (schema 1 is the minimum)"])
+
+    errors = []
     verdict = fm.get("verdict")
-    err = None
     if verdict not in VERDICTS:
-        err = (f"BUSINESS.md: verdict {verdict!r} not one of "
-               f"{sorted(VERDICTS)}")
+        errors.append(f"BUSINESS.md: verdict {verdict!r} not one of {sorted(VERDICTS)}")
+    evidence = fm.get("evidence")
+    if evidence not in EVIDENCE:
+        errors.append(f"BUSINESS.md: evidence {evidence!r} not one of {sorted(EVIDENCE)}")
+    last_reviewed = _isodate(fm.get("last_reviewed"))
+    if not last_reviewed:
+        errors.append("BUSINESS.md: missing required 'last_reviewed'")
+    elif not DATE_RE.match(str(last_reviewed)):
+        errors.append(f"BUSINESS.md: last_reviewed {last_reviewed!r} is not YYYY-MM-DD")
+    declared = fm.get("project")
+    if expected_project and declared and declared != expected_project:
+        errors.append(f"BUSINESS.md: project {declared!r} does not match registry "
+                      f"name {expected_project!r} (stale copy-paste?)")
     mon = fm.get("monetization") or {}
     if not isinstance(mon, dict):
         mon = {}
+    channels = mon.get("channels")
+    if channels is not None and not isinstance(channels, list):
+        errors.append(f"BUSINESS.md: monetization.channels must be a list, got {channels!r}")
+        channels = []
     fields = {
         "schema": schema,
         "verdict": verdict if verdict in VERDICTS else None,
         "audience": fm.get("audience"),
-        "evidence": fm.get("evidence"),
-        "last_reviewed": _isodate(fm.get("last_reviewed")),
+        "evidence": evidence if evidence in EVIDENCE else None,
+        "last_reviewed": last_reviewed,
         "monetization": {
             "model": mon.get("model"),
             "pricing": mon.get("pricing"),
-            "channels": mon.get("channels") or [],
+            "channels": channels or [],
         },
         "targets": _normalize(fm.get("targets") or []),
     }
-    return fields, err
+    return fields, errors
 
 
 def parse_metrics(text):
@@ -176,6 +206,8 @@ def parse_metrics(text):
 
 def parse_gtm(text):
     """gtm-plan.md checkbox progress via the shared CHECKED/UNCHECKED regexes."""
+    if pu is None:      # portfolio-unify not importable → degrade per-project
+        raise RuntimeError("portfolio-unify.py not found — cannot compute gtm progress")
     done = total = 0
     for line in text.splitlines():
         if pu.CHECKED.match(line):
@@ -225,11 +257,11 @@ def scan_project(proj, vault):
         entry["errors"].append("business/ exists but BUSINESS.md is missing")
     else:
         try:
-            fields, err = parse_business_md(bmd.read_text(errors="ignore"))
+            fields, errs = parse_business_md(bmd.read_text(errors="ignore"),
+                                             expected_project=proj["name"])
         except Exception as e:
-            fields, err = None, f"BUSINESS.md: {e}"
-        if err:
-            entry["errors"].append(err)
+            fields, errs = None, [f"BUSINESS.md: {e}"]
+        entry["errors"].extend(errs or [])
         if fields:
             entry.update(fields)
             entry["last_reviewed_age_days"] = _age_days(fields.get("last_reviewed"))

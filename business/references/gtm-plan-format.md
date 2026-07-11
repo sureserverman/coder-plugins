@@ -10,7 +10,7 @@ Progress rolls up through `business-scan.py`, which **imports** portfolio-unify'
 `CHECKED` / `UNCHECKED` regexes (one contract, one implementation) and counts checkbox
 bullets:
 
-- `CHECKED  = ^\s*-\s*\[x\]\s+`  (done)
+- `CHECKED  = ^\s*-\s*\[x\]\s+`  (done; case-insensitive — `- [X]` also counts)
 - `UNCHECKED = ^\s*-\s*\[ \]\s+(.+)$` (open)
 
 So **every launch action is a `- [ ]` / `- [x]` checkbox bullet.** The scanner reports

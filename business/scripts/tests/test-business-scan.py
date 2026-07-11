@@ -5,8 +5,9 @@
 Builds a throwaway HOME with a portfolio-config + registry pointing at the
 fixture vault tree, runs the scanner as a subprocess, and asserts the JSON
 contract every skill and the planning-plugin integration depends on: envelope
-keys, per-project business fields, the six fixture cases (happy / no-business /
-malformed / newer-schema / partial / gtm-mixed), and the read-only guarantee.
+keys, per-project business fields, the nine fixture cases (happy / noassess /
+malformed / newschema / partial / gtmmixed / edgey / badenum / boolschema), and
+the read-only guarantee.
 """
 import hashlib
 import json
@@ -30,7 +31,8 @@ def check(cond, label):
         FAILURES.append(label)
 
 
-CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed", "edgey"]
+CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
+         "edgey", "badenum", "boolschema"]
 
 
 def tree_hash(root):
@@ -170,10 +172,47 @@ def test_contract(tmp):
     check("Infinity" not in r.stdout and "NaN" not in r.stdout,
           "edgey: no bare Infinity/NaN tokens in the JSON stream")
 
+    # badenum — every documented-required field validated symmetrically
+    b = P.get("badenum", {})
+    check(b.get("assessed") is True, "badenum: assessed true")
+    check(b.get("verdict") is None, "badenum: invalid verdict nulled")
+    check(b.get("evidence") is None, "badenum: invalid evidence nulled")
+    errs = " | ".join(b.get("errors", []))
+    check("verdict" in errs, "badenum: verdict enum error recorded")
+    check("evidence" in errs, "badenum: evidence enum error recorded")
+    check("last_reviewed" in errs, "badenum: missing last_reviewed error recorded")
+    check("does not match registry" in errs,
+          f"badenum: project-mismatch error recorded (got {b.get('errors')})")
+    check("channels" in errs, "badenum: channels-not-a-list error recorded")
+
+    # boolschema — schema: true (bool subclasses int) rejected, not treated as 1
+    bs = P.get("boolschema", {})
+    check(bs.get("assessed") is True, "boolschema: assessed true")
+    check(bs.get("verdict") is None, "boolschema: not parsed as schema 1")
+    check(any("integer" in e for e in bs.get("errors", [])),
+          f"boolschema: schema-must-be-integer error (got {bs.get('errors')})")
+
+
+def test_gtm_degrades_without_portfolio_unify():
+    """Important #1: if portfolio-unify isn't importable (business is a
+    separately-versioned plugin), the scanner must degrade per-project — gtm
+    progress becomes an error — never crash the whole sweep."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("business_scan_mod", SCRIPT)
+    bs = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bs)
+    bs.pu = None
+    try:
+        bs.parse_gtm("- [x] done\n- [ ] open\n")
+        check(False, "parse_gtm raises when portfolio-unify missing")
+    except RuntimeError:
+        check(True, "parse_gtm degrades (raises, caught per-project) when portfolio-unify missing")
+
 
 def main():
     with tempfile.TemporaryDirectory() as td:
         test_contract(Path(td))
+    test_gtm_degrades_without_portfolio_unify()
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

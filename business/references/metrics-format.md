@@ -32,10 +32,14 @@ one dated block per review; nothing is ever edited or deleted (git history is th
 - Following it, each `- <key>: <value>` bullet is one metric.
   - **key** is `<source>.<metric>` where source is `github` (auto-collected) or `manual` (operator-entered). Any other source label is allowed and carried through verbatim.
   - **value** is a number (int/float) or empty (unknown this cycle → the scanner records `null`).
+    Non-finite floats (`inf`/`nan`) are rejected to `null` too, so the emitted JSON stays
+    RFC-8259 valid for every consumer.
   - `- note: <free text>` is carried as a string, never diffed.
 - The scanner takes the **last** dated block as "latest actuals" and exposes it in JSON;
-  earlier blocks are history. Malformed value (non-numeric, non-empty) on a non-`note`
-  key → that one metric is `null` with a per-metric reason, block still parses.
+  earlier blocks are history. A `## ` heading that isn't a `YYYY-MM-DD` date is treated as
+  prose and ignored, so a stray section can't become the reported "latest" block. A
+  malformed value (non-numeric, non-empty) on a non-`note` key is recorded as `null` and
+  the block still parses.
 
 ## Source tagging
 
