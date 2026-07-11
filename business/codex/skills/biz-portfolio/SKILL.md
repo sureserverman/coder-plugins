@@ -16,13 +16,16 @@ failed sweep never truncates the roll-up.
 python3 scripts/business-scan.py | python3 scripts/business-rollup.py > <tmp> && mv <tmp> <dest>
 ```
 
-`<dest>` is `<vault_dir>/Portfolio/global-business.md`, conforming to
-`references/global-business-format.md`.
+`<dest>` is `scripts/resolve-dest.py`'s output — `<vault_dir>/Portfolio/global-business.md`,
+conforming to `references/global-business-format.md`. Resolving it via the script (not an
+inline heredoc) reuses the scanner's config resolver and its clean "portfolio not
+configured" error.
 
 ## Shared assets (kept in sync by lint-dual.py)
 
 - `scripts/business-scan.py`
 - `scripts/business-rollup.py`
+- `scripts/resolve-dest.py`
 - `references/global-business-format.md`
 
 ## In brief

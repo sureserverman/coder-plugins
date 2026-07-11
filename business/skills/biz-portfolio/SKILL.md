@@ -18,14 +18,13 @@ into the renderer (pure formatter). Never parse the vault yourself. **Write atom
 a failed sweep must leave the existing `global-business.md` intact, never truncate it to
 an empty file (`> file` truncates *before* the pipeline runs):
 
+`resolve-dest.py` resolves the destination via the same `load_env` the scanner uses, so a
+missing/malformed portfolio-config yields the scanner's clean "portfolio not configured"
+message instead of a raw traceback — don't re-derive the path inline.
+
 ```bash
 set -o pipefail
-DEST="$(python3 - <<'PY'
-import yaml, pathlib
-cfg = yaml.safe_load(open(pathlib.Path.home()/'.claude'/'portfolio-config.yaml'))
-print(pathlib.Path(cfg['vault_dir'])/'Portfolio'/'global-business.md')
-PY
-)"
+DEST="$(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-dest.py)" || exit 1
 TMP="$(mktemp "${DEST}.XXXXXX")"
 if python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-scan.py \
      | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-rollup.py > "$TMP"; then
