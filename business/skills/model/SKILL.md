@@ -1,7 +1,7 @@
 ---
 name: model
 description: >
-  Use to decide how an assess-passed portfolio project earns or gains — its monetization model, pricing hypothesis, distribution channels, and numeric dated targets — and record it in business/BUSINESS.md. Triggers on "how should this make money", "pick a monetization model", "pricing for this project", "freemium vs paid", "set business targets", "what's the revenue model". Requires an existing assess verdict of monetize or free-for-reputation; presents model options with tradeoffs one decision at a time and updates the monetization section in place.
+  Decide how an assess-passed portfolio project earns or gains — its monetization model, pricing hypothesis, distribution channels, and numeric dated targets — recorded in business/BUSINESS.md. Use after a project has a monetize or free-for-reputation verdict. Triggers on "how should this make money", "pick a monetization model", "pricing for this project", "freemium vs paid", "set business targets", "what's the revenue model".
 ---
 
 # model — monetization decision
@@ -14,14 +14,16 @@ what price, through which channels, against what numeric dated targets. Updates 
 
 ## Determinism boundary
 
-Read current business state via the scanner, never by parsing markdown:
+Read business state (verdict, current monetization, targets) via the scanner:
 
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-scan.py
 ```
 
-Write only `BUSINESS.md`, conforming to
-`${CLAUDE_PLUGIN_ROOT}/references/business-md-format.md`.
+To update `BUSINESS.md`, `Read` the actual file and make **targeted in-place edits**
+conforming to `${CLAUDE_PLUGIN_ROOT}/references/business-md-format.md` — preserve the
+`project:` field and the markdown body (the scanner JSON omits both, so never rewrite the
+file from JSON alone).
 
 ## Precondition — an assess verdict
 
@@ -31,7 +33,7 @@ From the scanner JSON, read this project's `verdict`:
 - `park` or `internal-only` → **stop**: there is no model to set for a parked or
   internal-only project. Point the user at `/business:assess` to re-assess if their
   intent changed.
-- `assessed: false` (no BUSINESS.md) → **stop**: run `/business:assess` first.
+- `assessed: false` (no `business/` dir at all) → **stop**: run `/business:assess` first.
 
 If the project's `errors` array is non-empty, stop and report — the file is malformed;
 fix the assessment before layering a model on it.

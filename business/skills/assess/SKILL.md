@@ -1,7 +1,7 @@
 ---
 name: assess
 description: >
-  Use to run a viability triage for one portfolio project — decide whether it is worth monetizing, for whom, and on what evidence — and write the verdict to business/BUSINESS.md. Triggers on "is this worth monetizing", "assess this project's business case", "business viability", "should I commercialize this", "who would pay for this", "triage this project commercially". Reads the repo, the project's vault page, and MATURITY.md, runs a structured one-question-at-a-time interview, and with --research dispatches a cited market-researcher pass. Writes a schema-versioned verdict: monetize | free-for-reputation | internal-only | park (park and internal-only are complete, valid outcomes).
+  Decide whether ONE portfolio project is worth monetizing, for whom, and on what evidence — and record the verdict in business/BUSINESS.md. Use for commercial triage of a single project. Triggers on "is this worth monetizing", "assess this project's business case", "business viability", "should I commercialize this", "who would pay for this", "triage this project commercially". Produces a verdict of monetize | free-for-reputation | internal-only | park (park and internal-only are complete, valid outcomes). Supports an optional --research market pass.
 ---
 
 # assess — viability triage
@@ -14,16 +14,19 @@ pipeline (`model` → `launch` → `track`) depends on.
 
 ## Determinism boundary
 
-You never hand-parse the business artifacts. To read existing business state, run the
-scanner and consume its JSON:
+For **cross-project state and decisions**, run the scanner and consume its JSON — never
+hand-parse another project's artifacts:
 
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-scan.py
 ```
 
-You only ever WRITE `BUSINESS.md`, conforming to
+You WRITE `BUSINESS.md` conforming to
 `${CLAUDE_PLUGIN_ROOT}/references/business-md-format.md` (schema 1). The scanner is the
-sole reader; if a field isn't in the frontmatter, no downstream tool can see it.
+sole *cross-project* reader; if a field isn't in the frontmatter, no downstream tool sees
+it. **But when editing an existing `BUSINESS.md`, `Read` the actual file first and make
+targeted edits** — the scanner JSON deliberately omits the `project:` field and the entire
+markdown body, so reconstructing the file from JSON alone would silently drop them.
 
 ## Resolve the project
 
@@ -92,14 +95,25 @@ Choose exactly one, and make the "no" verdicts first-class outcomes, not failure
 
 ## Phase 5 — Write BUSINESS.md
 
-Write the frontmatter (schema 1) with `verdict`, `audience`, `evidence`,
-`last_reviewed: <today>`, a `monetization` stub (`model: null` until `model` runs), and an
-empty `targets: []`. Set `project: <name>` to match the registry. Put the rationale,
-audience reasoning, and (if researched) the cited findings in the markdown body.
+Branch on whether this is a first assessment or a re-assessment:
 
-**Verify before finishing:** run `business-scan.py` and confirm the project now shows
-`assessed: true`, the right `verdict`, and **zero `errors`** — a non-empty `errors` array
-means the file you wrote doesn't conform to the schema (fix it, don't leave it).
+- **Fresh assessment** (no prior `BUSINESS.md`): write frontmatter (schema 1) with
+  `verdict`, `audience`, `evidence`, `last_reviewed: <today>`, a `monetization` stub
+  (`model: null`, `pricing: null`, `channels: []`), and empty `targets: []`. Set
+  `project: <name>` to the registry name. Put rationale, audience reasoning, and (if
+  researched) the cited findings in the markdown body.
+- **Re-assessment** (a `BUSINESS.md` already exists — `Read` it first): update `verdict`,
+  `audience`, `evidence`, and `last_reviewed` **in place**, and **preserve the existing
+  `monetization` block, `targets`, `project:`, and the body**. `model` and `track` wrote
+  those — never reset them to a stub just because you re-ran assess. Only when the new
+  verdict moves *away* from `monetize`/`free-for-reputation` (e.g. to `park`) do you clear
+  `monetization`/`targets`, and then state that to the user as a deliberate consequence,
+  not a silent side effect.
+
+**Verify before finishing:** run `business-scan.py` and confirm the project shows
+`assessed: true`, the right `verdict`, and **zero `errors`** (a non-empty `errors` array
+means the file doesn't conform — fix it). Note: "zero errors" does *not* prove you
+preserved `model`'s monetization/targets on a re-assessment — that's on you, per above.
 
 ## Hand off
 

@@ -41,6 +41,17 @@ one dated block per review; nothing is ever edited or deleted (git history is th
   malformed value (non-numeric, non-empty) on a non-`note` key is recorded as `null` and
   the block still parses.
 
+## Target linkage
+
+`BUSINESS.md` `targets[]` use **bare** metric names (`metric: installs`, `metric: stars`);
+`metrics.md` keys are **source-prefixed** (`manual.installs`, `github.stars`). A target
+matches a metrics key by the **suffix after the last `.`**: target `installs` matches
+`manual.installs`; target `stars` matches `github.stars`. If two sources ever expose the
+same suffix (e.g. `manual.stars` and `github.stars` for a `stars` target), prefer the
+auto-collected `github.*` value and note the ambiguity. `business-scan.py` does not link
+the two arrays — it returns `targets` and `metrics.values` independently; the `track`
+skill applies this suffix rule when diffing.
+
 ## Source tagging
 
 Every metric is source-tagged via its key prefix so provenance is never ambiguous:

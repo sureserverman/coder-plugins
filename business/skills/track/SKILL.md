@@ -1,7 +1,7 @@
 ---
 name: track
 description: >
-  Use to record a portfolio project's actual business metrics and compare them against its targets. Triggers on "track this project's metrics", "record downloads/installs/revenue", "how are we doing vs targets", "update business actuals", "log this month's numbers", "business check-in". Auto-collects free GitHub metrics (stars, release downloads, clones) via collect-github.py, prompts for manual figures (revenue, installs), appends a dated source-tagged entry to business/metrics.md, diffs against the BUSINESS.md targets, and bumps the Last reviewed stamp.
+  Record a portfolio project's actual business metrics and compare them against its targets, in business/metrics.md. Use for a periodic business check-in on one project. Triggers on "track this project's metrics", "record downloads/installs/revenue", "how are we doing vs targets", "update business actuals", "log this month's numbers", "business check-in".
 ---
 
 # track — record actuals, diff vs targets
@@ -25,7 +25,9 @@ Collect free GitHub metrics via the collector (best-effort, never fails the run)
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/collect-github.py <repo_path>
 ```
 
-Write only `metrics.md` (append) and bump `last_reviewed` in `BUSINESS.md`, conforming to
+Append to `metrics.md`, and bump `last_reviewed` in `BUSINESS.md` by `Read`-ing the
+actual file and making a targeted edit (preserve `project:`, the rest of the frontmatter,
+and the body — the scanner JSON omits `project` and the body). Conform to
 `${CLAUDE_PLUGIN_ROOT}/references/metrics-format.md` and `business-md-format.md`.
 
 ## Precondition
@@ -37,10 +39,17 @@ record actuals, but say there's nothing to diff against and suggest `/business:m
 ## Phase 1 — Auto-collect
 
 Run `collect-github.py <repo_path>` for the project's repo. It returns `values`
-(`github.stars`, `github.release_downloads`, `github.clones_14d`) and `reasons` for any it
-couldn't get (no remote, not authenticated, clones need push access). Record what came
-back; surface each `reason` to the operator plainly — a null metric is "couldn't
-collect", not zero.
+(`github.stars`, `github.release_downloads`, `github.clones_14d`) and `reasons`. Two reason
+shapes:
+
+- **`reasons["_"]`** — a single whole-collection failure (no git remote, `gh` not
+  authenticated, non-GitHub remote). When all three values are null, check `"_"` *first* —
+  this is the most common case for a fresh project and explains everything at once.
+- **`reasons["github.<metric>"]`** — a per-metric failure while others succeeded (e.g.
+  `github.clones_14d` needs push access).
+
+Record what came back; surface the reason(s) to the operator plainly — a null metric is
+"couldn't collect" (with its reason), not zero.
 
 ## Phase 2 — Manual figures
 
@@ -58,10 +67,14 @@ edit or delete prior blocks** — the log is append-only; history is the audit t
 
 ## Phase 4 — Diff vs targets
 
-For each target in `BUSINESS.md`, compare the latest actual to the target and report the
-delta and whether it's on track for the `by` date — e.g. "installs 900 / 1000 target by
-2026-12-31 — 90%, on track" or "mrr_usd 15 / 200 — 8%, behind". Be honest about metrics
-you couldn't collect ("clones unknown this cycle — needs push access").
+For each target in `BUSINESS.md`, find its actual in the latest metrics block. **Match a
+target's bare `metric` name to a metrics key by the suffix after the last `.`**: target
+`installs` matches `manual.installs`; target `stars` matches `github.stars` (see
+metrics-format.md § Target linkage). Then report the delta and whether it's on track for
+the `by` date — e.g. "installs 900 / 1000 by 2026-12-31 — 90%, on track" or "mrr_usd 15 /
+200 — 8%, behind". Be honest about metrics you couldn't collect ("clones unknown this
+cycle — needs push access") and about targets with no matching metric yet ("no actual
+recorded for `paid_setups`").
 
 ## Phase 5 — Bump the stamp and verify
 
