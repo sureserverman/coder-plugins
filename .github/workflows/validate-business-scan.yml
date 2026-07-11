@@ -11,13 +11,11 @@ name: validate-business-scan
 on:
   push:
     paths:
-      - 'business/scripts/business-scan.py'
-      - 'business/scripts/tests/**'
+      - 'business/scripts/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   pull_request:
     paths:
-      - 'business/scripts/business-scan.py'
-      - 'business/scripts/tests/**'
+      - 'business/scripts/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   workflow_dispatch:
 
@@ -31,5 +29,9 @@ jobs:
           python-version: '3.x'
       - name: Install dependencies
         run: pip install pyyaml
-      - name: Run business-scan fixture tests
-        run: python3 business/scripts/tests/test-business-scan.py
+      - name: Run all business script fixture tests
+        run: |
+          for t in business/scripts/tests/test-*.py; do
+            echo "== $t =="
+            python3 "$t"
+          done

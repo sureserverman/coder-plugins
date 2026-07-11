@@ -14,17 +14,27 @@ Give a one-command, portfolio-wide picture of commercial coverage and rebuild th
 ## Determinism boundary
 
 The whole sweep is two deterministic scripts piped together — the scanner (sole parser)
-into the renderer (pure formatter). Never parse the vault yourself:
+into the renderer (pure formatter). Never parse the vault yourself. **Write atomically** —
+a failed sweep must leave the existing `global-business.md` intact, never truncate it to
+an empty file (`> file` truncates *before* the pipeline runs):
 
-```
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-scan.py \
-  | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-rollup.py \
-  > "$(python3 - <<'PY'
+```bash
+set -o pipefail
+DEST="$(python3 - <<'PY'
 import yaml, pathlib
 cfg = yaml.safe_load(open(pathlib.Path.home()/'.claude'/'portfolio-config.yaml'))
 print(pathlib.Path(cfg['vault_dir'])/'Portfolio'/'global-business.md')
 PY
 )"
+TMP="$(mktemp "${DEST}.XXXXXX")"
+if python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-scan.py \
+     | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/business-rollup.py > "$TMP"; then
+  mv -f "$TMP" "$DEST"
+else
+  rm -f "$TMP"
+  echo "biz-portfolio: sweep failed — left existing $DEST untouched" >&2
+  exit 1
+fi
 ```
 
 `global-business.md` conforms to `${CLAUDE_PLUGIN_ROOT}/references/global-business-format.md`
@@ -33,12 +43,16 @@ regenerate it, never hand-edit.
 
 ## What to report
 
-Read the scanner JSON once (the same run that fed the rollup) and narrate the coverage —
-judgment only, never re-deriving a fact the JSON doesn't carry:
+Narrate the coverage — judgment only. For raw facts, read the scanner JSON (the same run
+that fed the rollup); for the **pipeline stage**, read the **Stage column of the rendered
+`global-business.md`** rather than recomputing it — stage is a *derived* value
+(tracked > launched > modeled > assessed, per global-business-format.md), not a raw JSON
+field, so recomputing it risks disagreeing with the table you just wrote.
 
 - **Coverage:** how many projects are assessed vs. the triage gap (not yet assessed).
 - **By verdict:** counts of monetize / free-for-reputation / internal-only / park.
-- **Pipeline:** how many have reached modeled / launched / tracked.
+- **Pipeline:** how many rows in each Stage (modeled / launched / tracked), read off the
+  rendered table.
 - **Staleness:** projects whose `last_reviewed_age_days` is large — candidates for a fresh
   `/business:track` or re-assessment.
 - **Loudly:** every `couldnt_assess` entry and every project with `errors` — surfaced, not

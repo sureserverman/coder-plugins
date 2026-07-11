@@ -30,6 +30,8 @@ it first and preserve the operator's already-ticked boxes.
 From the scanner JSON, this project must have `monetization.model` set (not null) — i.e.
 `/business:model` has run. If not:
 
+- `assessed: false` (never assessed — no `business/` dir, so no `verdict`/`monetization`
+  fields at all) → **stop**: run `/business:assess`, then `/business:model`, first.
 - `model: null` but verdict is `monetize`/`free-for-reputation` → **stop**: run
   `/business:model` first.
 - verdict `park`/`internal-only` → **stop**: there is no launch to plan.
