@@ -46,11 +46,20 @@ one dated block per review; nothing is ever edited or deleted (git history is th
 `BUSINESS.md` `targets[]` use **bare** metric names (`metric: installs`, `metric: stars`);
 `metrics.md` keys are **source-prefixed** (`manual.installs`, `github.stars`). A target
 matches a metrics key by the **suffix after the last `.`**: target `installs` matches
-`manual.installs`; target `stars` matches `github.stars`. If two sources ever expose the
-same suffix (e.g. `manual.stars` and `github.stars` for a `stars` target), prefer the
-auto-collected `github.*` value and note the ambiguity. `business-scan.py` does not link
-the two arrays — it returns `targets` and `metrics.values` independently; the `track`
-skill applies this suffix rule when diffing.
+`manual.installs`; target `stars` matches `github.stars`.
+
+When **more than one** source-prefixed key shares the same suffix (e.g. `manual.stars` and
+`github.stars`, or a future `store.installs` alongside `manual.installs` for an `installs`
+target), resolve to a single value by this **source precedence**, highest trust first:
+
+1. `github.*` — auto-collected, highest trust.
+2. `manual.*` — operator-entered.
+3. any **other source** prefix, in ascending **alphabetical** order of the prefix
+   (e.g. `apple.*` before `store.*`).
+
+The winner is deterministic and the ambiguity is noted by `track` when it diffs.
+`business-scan.py` does not link the two arrays — it returns `targets` and `metrics.values`
+independently; the `track` skill applies this suffix-plus-precedence rule when diffing.
 
 ## Source tagging
 
