@@ -1,0 +1,44 @@
+# metrics.md format
+
+`metrics.md` is an **append-only** log of a project's actual business metrics. It lives
+at `<vault_dir>/Portfolio/<area>/<project>/business/metrics.md`. The `track` skill appends
+one dated block per review; nothing is ever edited or deleted (git history is the audit trail).
+
+## Structure
+
+```markdown
+# Metrics: <project>
+
+<!-- append-only — newest block at the bottom, one per `track` run. Never edit past blocks. -->
+
+## 2026-07-11
+- github.stars: 42
+- github.release_downloads: 130
+- github.clones_14d: 8
+- manual.revenue_usd: 0
+- manual.installs: 500
+- note: first tracking pass; installs from F-Droid page
+
+## 2026-08-11
+- github.stars: 61
+- github.release_downloads: 240
+- manual.revenue_usd: 15
+- manual.installs: 900
+```
+
+## Parse contract (what `business-scan.py` reads)
+
+- Each dated block opens with a `## YYYY-MM-DD` heading.
+- Following it, each `- <key>: <value>` bullet is one metric.
+  - **key** is `<source>.<metric>` where source is `github` (auto-collected) or `manual` (operator-entered). Any other source label is allowed and carried through verbatim.
+  - **value** is a number (int/float) or empty (unknown this cycle → the scanner records `null`).
+  - `- note: <free text>` is carried as a string, never diffed.
+- The scanner takes the **last** dated block as "latest actuals" and exposes it in JSON;
+  earlier blocks are history. Malformed value (non-numeric, non-empty) on a non-`note`
+  key → that one metric is `null` with a per-metric reason, block still parses.
+
+## Source tagging
+
+Every metric is source-tagged via its key prefix so provenance is never ambiguous:
+`github.*` came from `collect-github.py`; `manual.*` was entered by the operator during
+the `track` run. A metric with no auto-collector is always `manual.*`.
