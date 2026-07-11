@@ -14,6 +14,7 @@ never silently dropped. No LLM in this lane; judgment lives in SKILL.md.
 import datetime
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -220,6 +221,39 @@ def scan_project(proj, vault):
     return entry, None
 
 
+def business_map():
+    """Optional business-plugin state keyed by project name — {} when the plugin
+    isn't installed alongside (additive: compass works identically without it).
+    BUSINESS_SCAN_PATH overrides the probe (used to force the layer off in tests)."""
+    root = Path(__file__).resolve().parents[4]          # marketplace root
+    scan = Path(os.environ.get("BUSINESS_SCAN_PATH")
+                or root / "business" / "scripts" / "business-scan.py")
+    if not scan.exists():
+        return {}
+    r = subprocess.run([sys.executable, str(scan)], capture_output=True, text=True)
+    if r.returncode != 0:
+        return {}
+    try:
+        doc = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return {}
+    out = {}
+    for p in doc.get("projects", []):
+        if not p.get("assessed"):
+            continue
+        gtm = p.get("gtm")
+        model = (p.get("monetization") or {}).get("model")
+        out[p["name"]] = {
+            "verdict": p.get("verdict"),
+            "model": model,
+            "gtm_pct": gtm.get("pct") if gtm else None,
+            "last_reviewed_age_days": p.get("last_reviewed_age_days"),
+            "stage": ("tracked" if p.get("metrics") else "launched" if gtm
+                      else "modeled" if model else "assessed"),
+        }
+    return out
+
+
 def main():
     vault, projects = load_env()
     out = {
@@ -229,6 +263,7 @@ def main():
         "couldnt_assess": [],
     }
     edges = load_edges(vault)
+    biz = business_map()            # {} when business plugin absent → no per-project key
     for proj in projects:
         try:
             entry, reason = scan_project(proj, vault)
@@ -238,6 +273,8 @@ def main():
                     {"project": a, "why": w} for a, b, w in edges if b == name]
                 entry["depends_on"] = [
                     {"project": b, "why": w} for a, b, w in edges if a == name]
+                if name in biz:
+                    entry["business"] = biz[name]
         except Exception as e:  # a broken project must not abort the sweep
             entry, reason = None, f"scan error: {e}"
         if entry is None:

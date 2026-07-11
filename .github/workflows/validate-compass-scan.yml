@@ -13,11 +13,17 @@ on:
       - 'planning/skills/compass/scripts/compass-scan.py'
       - 'planning/skills/compass/tests/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-business-degradation.py'
+      - 'business/scripts/**'
   pull_request:
     paths:
       - 'planning/skills/compass/scripts/compass-scan.py'
       - 'planning/skills/compass/tests/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-business-degradation.py'
+      - 'business/scripts/**'
   workflow_dispatch:
 
 jobs:
@@ -32,3 +38,5 @@ jobs:
         run: pip install pyyaml
       - name: Run compass-scan fixture tests
         run: python3 planning/skills/compass/tests/test-compass-scan.py
+      - name: Run business-integration degradation guard
+        run: python3 planning/skills/portfolio/tests/test-business-degradation.py

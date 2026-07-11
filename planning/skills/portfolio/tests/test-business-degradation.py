@@ -77,6 +77,23 @@ def test_compass_absent_is_unchanged(tmp):
           "compass-scan (absent): today's envelope keys intact")
 
 
+def test_compass_present_attaches_business(tmp):
+    """Present-mode: the assessed project gains a 'business' key with its verdict;
+    the unassessed project does not."""
+    env, _ = make_env(tmp, business_absent=False)
+    if not (ROOT / "business" / "scripts" / "business-scan.py").exists():
+        print("  skip  compass present-mode (business plugin not in tree)")
+        return
+    r = subprocess.run([sys.executable, str(COMPASS_SCAN)], capture_output=True, text=True, env=env)
+    check(r.returncode == 0, f"compass-scan (present): exit 0 ({r.stderr.strip()[:120]})")
+    doc = json.loads(r.stdout)
+    by = {p["name"]: p for p in doc["projects"]}
+    check(by.get("alpha", {}).get("business", {}).get("verdict") == "monetize",
+          "compass-scan (present): assessed project carries business.verdict")
+    check("business" not in by.get("beta", {}),
+          "compass-scan (present): unassessed project has no business key")
+
+
 def test_portfolio_rebuild_absent_writes_no_global_business(tmp):
     env, vault = make_env(tmp, business_absent=True)
     r = subprocess.run([sys.executable, str(PORTFOLIO_REBUILD), "--write"],
@@ -108,6 +125,7 @@ def test_portfolio_rebuild_present_writes_global_business(tmp):
 
 def main():
     for fn in (test_compass_absent_is_unchanged,
+               test_compass_present_attaches_business,
                test_portfolio_rebuild_absent_writes_no_global_business,
                test_portfolio_rebuild_present_writes_global_business):
         with tempfile.TemporaryDirectory() as td:

@@ -31,6 +31,12 @@ This skill's job is **judgment only**: ranking, narration, and the agenda.
 Never re-derive facts the JSON already carries; never present a fact the JSON
 doesn't back.
 
+**Optional business layer.** When the sibling **business** plugin is installed, each
+assessed project also carries a `business` object: `{verdict, model, gtm_pct,
+last_reviewed_age_days, stage}`. When the plugin is absent, no project has a `business`
+key — every business-aware rule below is simply skipped (additive; compass is unchanged
+without it). Never invent a business fact for a project with no `business` key.
+
 ## Hard rules
 
 - **Report + recommend only.** Never start the recommended work, never invoke
@@ -77,6 +83,12 @@ Rank candidate work items with these signals, in this order:
    who gets unblocked and why (the edge's `why` text).
 4. **Staleness** — a tie-break booster, not a top-rank driver: among
    otherwise-equal candidates, surface the one rotting longest.
+5. **Launch-ready business case** *(only when a `business` field is present)* — a project
+   that is almost-shippable (signal 2) AND carries `verdict: monetize` or
+   `free-for-reputation` with a low `gtm_pct` (0, or no GTM plan yet) is a prime launch
+   candidate. Cite it concretely: "ship-ready + validated business case (verdict monetize,
+   GTM 0%) — launch next". This boosts *shipping something already validated to sell*
+   above a fresh start; it never fires for projects with no `business` key.
 
 Output the top 5–7 as a ranked list; each entry = one sentence of
 recommendation + one line of cited evidence. Parked items are excluded
@@ -95,6 +107,13 @@ Surface drift, one section each (explicit-negative when a section is empty):
 - **Ship-ready but unshipped** — maturity open-count of 0 (or only claims
   missing) with no release evidence in recent plans.
 - **Parked items due** — `Parked:` dates in the past, with reasons.
+- **Stale business review** *(only when `business` fields are present)* — projects whose
+  `business.last_reviewed_age_days` exceeds ~90: verdict/targets may be out of date —
+  suggest `/business:track` or a re-assessment.
+- **No business case** *(only when the business plugin is present)* — enabled projects
+  with no `business` key at all: a commercial triage gap; suggest `/business:assess`.
+  Omit this section entirely when the business plugin is absent (no project has a
+  `business` key), rather than flagging all projects.
 - **Stale roll-ups** — if `global-backlog.md` / `global-maturity.md`
   "Last rebuilt" dates predate the newest plan activity, suggest
   `/planning:portfolio rebuild` (never run it).
@@ -113,6 +132,10 @@ each with its evidence line.
   a recommendation; compass itself never invokes them.
 - **project-maturity** — produces the MATURITY.md files behind the
   almost-shippable signal.
+- **business** *(optional sibling plugin)* — when installed, supplies the per-project
+  `business` object (verdict, model, gtm, staleness) behind the launch-ready and
+  business-review signals; compass reads it via the same one scan and never writes it.
+  Absent → those signals are silently unused.
 
 ## Remember
 
