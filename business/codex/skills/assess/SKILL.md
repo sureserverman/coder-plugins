@@ -31,6 +31,8 @@ Write `business/BUSINESS.md` per `references/business-md-format.md` (schema 1). 
 ## In brief
 
 Ground in repo + vault + MATURITY.md → structured interview → verdict. `park` and
-`internal-only` are complete outcomes. On re-assessment, preserve `model`'s
-monetization/targets unless the verdict changed. Verify: scanner shows `assessed: true`,
-correct verdict, zero `errors`.
+`internal-only` are complete outcomes. On re-assessment, `Read` the existing file and
+preserve `model`'s `monetization`/`targets` (plus `project:` and the body); clear them
+**only** if the new verdict is `park`/`internal-only`, and then state that to the user as a
+deliberate consequence — a `monetize`↔`free-for-reputation` change keeps them. Verify:
+scanner shows `assessed: true`, correct verdict, zero `errors`.

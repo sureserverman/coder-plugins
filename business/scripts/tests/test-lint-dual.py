@@ -71,20 +71,31 @@ def test_asset_drift():
               "asset drift: reports both sides of the diff")
 
 
-def test_missing_counterpart():
+def test_missing_codex_adapter():
     with tempfile.TemporaryDirectory() as td:
         root = build_root(Path(td))
         write_skill(root, "cc", "orphan", "scripts/business-scan.py")
         # no Codex adapter for 'orphan'
         r = run(root)
-        check(r.returncode == 1, "missing counterpart: exit 1")
-        check("no Codex adapter" in r.stdout, "missing counterpart: named")
+        check(r.returncode == 1, "missing codex adapter: exit 1")
+        check("no Codex adapter" in r.stdout, "missing codex adapter: named")
+
+
+def test_missing_cc_skill():
+    with tempfile.TemporaryDirectory() as td:
+        root = build_root(Path(td))
+        write_skill(root, "codex", "ghost", "scripts/business-scan.py")
+        # Codex adapter with no Claude Code skill (symmetric parity branch)
+        r = run(root)
+        check(r.returncode == 1, "missing cc skill: exit 1")
+        check("no Claude Code skill" in r.stdout, "missing cc skill: named")
 
 
 def main():
     test_matched()
     test_asset_drift()
-    test_missing_counterpart()
+    test_missing_codex_adapter()
+    test_missing_cc_skill()
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

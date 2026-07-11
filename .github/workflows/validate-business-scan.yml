@@ -14,12 +14,16 @@ on:
       - 'business/scripts/**'
       - 'business/skills/**'
       - 'business/codex/**'
+      - 'business/references/**'
+      - 'business/agents/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   pull_request:
     paths:
       - 'business/scripts/**'
       - 'business/skills/**'
       - 'business/codex/**'
+      - 'business/references/**'
+      - 'business/agents/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   workflow_dispatch:
 

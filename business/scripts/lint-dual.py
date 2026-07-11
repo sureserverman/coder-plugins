@@ -13,10 +13,18 @@ It checks two invariants per skill:
      front-end starts using a new script/reference the other doesn't, that's
      drift.
 
+**Scope / limitation:** this is EXISTENCE parity, not USAGE parity — it proves both
+front-ends *reference* the same assets, not that they *describe* them identically.
+Two adapters can cite `business-scan.py` and still give contradictory instructions
+about it; that semantic drift is out of scope here and is caught by review, not this
+lint. Don't over-trust a green run as "the front-ends agree" — only "they point at the
+same files."
+
 Exit 0 when both hold; exit 1 with a named diff otherwise. Read-only.
 
 Usage: python3 lint-dual.py [plugin_root]   (default: the business/ plugin root)
 """
+import re
 import sys
 from pathlib import Path
 
@@ -41,7 +49,11 @@ def asset_universe(root):
 
 
 def mentioned(text, universe):
-    return {a for a in universe if a in text}
+    # Word-boundary match, not bare substring: without it a future asset named
+    # e.g. `scan.py` would be spuriously "mentioned" by any text containing
+    # `business-scan.py`. `[\w.-]` boundaries keep hyphen/dot-joined filenames atomic.
+    return {a for a in universe
+            if re.search(r"(?<![\w.-])" + re.escape(a) + r"(?![\w-])", text)}
 
 
 def skill_names(base):
