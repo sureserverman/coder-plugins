@@ -45,7 +45,9 @@ def actuals_of(p):
     if not m:
         return "—"
     vals = m.get("values", {}) or {}
-    n = sum(1 for k in vals if k != "note")
+    # Count only real actuals: exclude the `note` string and any key whose value
+    # is null (failed numeric parse or left blank) — a null must not inflate (N).
+    n = sum(1 for k, v in vals.items() if k != "note" and v is not None)
     return f"{_cell(m.get('date') or '—')} ({n})"
 
 

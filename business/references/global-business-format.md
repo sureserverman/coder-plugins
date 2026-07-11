@@ -44,7 +44,8 @@ Generated: 2026-07-11
   (`monetization.model` set) > `assessed`. `park`/`internal-only` projects normally stop at
   `assessed`.
 - **Reviewed** is `last_reviewed_age_days` as `<n>d`, or `—` if unknown.
-- **Actuals** is the latest metrics block's date + the count of non-`note` metric values,
+- **Actuals** is the latest metrics block's date + the count of non-`note`, non-null metric
+  values (a metric left blank or that failed numeric parse is `null` and does not count),
   or `—` if none.
 - **Not yet assessed** lists projects the scanner returned with `assessed: false` — a
   triage gap, not an error; the whole point is to see what still needs a verdict.

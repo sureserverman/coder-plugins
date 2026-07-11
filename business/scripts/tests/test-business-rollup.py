@@ -34,8 +34,11 @@ DOC = {
             "verdict": "monetize", "monetization": {"model": "paid"},
             "targets": [{"metric": "installs", "target": 1000, "by": "2026-12-31"}],
             "last_reviewed_age_days": 0,
+            # revenue_usd is null (blank/failed parse) → must NOT count toward (N);
+            # actuals stays 2 (github.stars + manual.installs), proving BL-004.
             "metrics": {"date": "2026-07-11", "values": {"github.stars": 5,
-                        "manual.installs": 500, "note": "x"}},
+                        "manual.installs": 500, "manual.revenue_usd": None,
+                        "note": "x"}},
             "gtm": {"done": 1, "total": 4, "pct": 25}, "errors": [],
         },
         {   # launched: gtm but no metrics
@@ -92,7 +95,7 @@ def test_render():
     check("## Assessed (7)" in md, "assessed count 7")
     # stage derivation, now area-qualified wikilinks
     check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) |" in md,
-          "alpha row: tracked, 2 non-note metrics, area-qualified")
+          "alpha row: tracked, 2 non-null non-note metrics (null revenue excluded), area-qualified")
     check("| ai-tools/[[bravo]] | free-for-reputation | oss-services | launched | 3d | — |" in md,
           "bravo row: launched, no actuals")
     check("| ai-tools/[[charlie]] | park | — | assessed | 40d | — |" in md,
