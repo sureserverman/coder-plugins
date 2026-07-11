@@ -183,6 +183,27 @@
       "strict": false
     },
     {
+      "name": "business",
+      "source": "./business",
+      "description": "Per-project business-planning pipeline for the ~/dev portfolio, sibling to planning. assess triages viability (repo + vault + MATURITY.md context, one-question interview, opt-in --research via a cited market-researcher subagent) and writes a schema-versioned business/BUSINESS.md verdict (monetize | free-for-reputation | internal-only | park); model turns a passed verdict into a monetization model, pricing hypothesis, channels, and numeric dated targets; launch writes a MATURITY-guarded go-to-market plan at business/gtm-plan.md in the portfolio-unify-parseable house format; track records actuals into an append-only business/metrics.md (free GitHub metrics via collect-github.py, revenue/installs manual), diffs vs targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project through the deterministic business-scan.py evidence lane (the sole parser — one JSON contract, reusing portfolio-unify's plan-parser regexes) and rebuilds global-business.md. The determinism boundary lets the planning plugin's portfolio and compass skills consume the scanner JSON additively and degrade loudly when business is absent; all five skills are mirrored to Codex adapters kept honest by lint-dual.py.",
+      "version": "0.1.0",
+      "category": "development",
+      "tags": [
+        "business-plan",
+        "monetization",
+        "go-to-market",
+        "gtm",
+        "viability",
+        "portfolio",
+        "pricing",
+        "metrics",
+        "tracking",
+        "launch",
+        "commercialization"
+      ],
+      "strict": false
+    },
+    {
       "name": "browser-extensions",
       "source": "./browser-extensions",
       "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter.",

@@ -1,0 +1,31 @@
+{
+  "name": "business",
+  "description": "Per-project business-planning pipeline for the ~/dev portfolio: turn a shippable project into a commercial decision and keep it tracked. assess runs a viability triage (repo + vault + MATURITY.md context, structured interview, opt-in --research via a cited market-researcher subagent) and writes a schema-versioned business/BUSINESS.md with a verdict (monetize | free-for-reputation | internal-only | park), target audience, and evidence tag; model turns an assess-passed verdict into a monetization decision (model, pricing hypothesis, channels, numeric dated targets) one choice at a time; launch produces a go-to-market plan at business/gtm-plan.md in the house checklist format (portfolio-unify-parseable so its progress rolls up like any plan), guarded by the project's MATURITY.md state so it warns before planning a launch for something far from ship-ready; track records actuals into an append-only business/metrics.md (free GitHub metrics auto-collected via collect-github.py, revenue/installs entered manually), diffs them against targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project via the deterministic business-scan.py evidence lane (the SOLE parser of the business artifacts — one JSON contract, reusing portfolio-unify's plan-parser regexes for gtm progress) and rebuilds the global-business.md roll-up. A determinism boundary keeps all parsing in business-scan.py so the planning plugin's portfolio and compass skills consume its JSON additively and degrade loudly when the business plugin is absent. All five skills are authored once and mirrored to Codex adapters kept honest by a lint-dual.py drift check.",
+  "version": "0.1.0",
+  "author": {
+    "name": "coder-plugins",
+    "email": "holyfiremin@gmail.com"
+  },
+  "skills": [
+    "./skills/assess",
+    "./skills/model",
+    "./skills/launch",
+    "./skills/track",
+    "./skills/biz-portfolio"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "business-plan",
+    "monetization",
+    "go-to-market",
+    "gtm",
+    "viability",
+    "portfolio",
+    "pricing",
+    "metrics",
+    "tracking",
+    "launch",
+    "commercialization",
+    "market-research"
+  ]
+}
