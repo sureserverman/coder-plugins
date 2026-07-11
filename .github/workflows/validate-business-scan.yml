@@ -1,0 +1,35 @@
+name: validate-business-scan
+
+# Guards the business plugin's deterministic evidence lane. business-scan.py is
+# the SOLE parser of the per-project business artifacts (BUSINESS.md frontmatter,
+# metrics.md, gtm-plan.md) and emits one JSON contract that every business skill
+# and the planning-plugin portfolio/compass integration consume. The fixture
+# suite asserts that contract, the degrade-never-drop rules, schema-version
+# handling, and the read-only guarantee. It reuses portfolio-unify's
+# CHECKED/UNCHECKED regexes, so a change there triggers this too.
+
+on:
+  push:
+    paths:
+      - 'business/scripts/business-scan.py'
+      - 'business/scripts/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  pull_request:
+    paths:
+      - 'business/scripts/business-scan.py'
+      - 'business/scripts/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install pyyaml
+      - name: Run business-scan fixture tests
+        run: python3 business/scripts/tests/test-business-scan.py
