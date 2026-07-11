@@ -12,10 +12,14 @@ on:
   push:
     paths:
       - 'business/scripts/**'
+      - 'business/skills/**'
+      - 'business/codex/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   pull_request:
     paths:
       - 'business/scripts/**'
+      - 'business/skills/**'
+      - 'business/codex/**'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   workflow_dispatch:
 
@@ -35,3 +39,5 @@ jobs:
             echo "== $t =="
             python3 "$t"
           done
+      - name: Lint Claude Code / Codex front-end parity
+        run: python3 business/scripts/lint-dual.py
