@@ -89,8 +89,27 @@ def test_portfolio_rebuild_absent_writes_no_global_business(tmp):
     check(not gbiz.exists(), "portfolio-rebuild (absent): global-business.md NOT written when plugin absent")
 
 
+def test_portfolio_rebuild_present_writes_global_business(tmp):
+    """Present-mode (business plugin installed): global-business.md IS rebuilt,
+    while global-backlog/maturity are unaffected."""
+    env, vault = make_env(tmp, business_absent=False)
+    if not (ROOT / "business" / "scripts" / "business-scan.py").exists():
+        print("  skip  portfolio-rebuild present-mode (business plugin not in tree)")
+        return
+    r = subprocess.run([sys.executable, str(PORTFOLIO_REBUILD), "--write"],
+                       capture_output=True, text=True, env=env)
+    check(r.returncode == 0, f"portfolio-rebuild (present): exit 0 ({r.stderr.strip()[:120]})")
+    gbiz = vault / "Portfolio" / "global-business.md"
+    check(gbiz.exists(), "portfolio-rebuild (present): global-business.md written")
+    check(gbiz.exists() and "ai-tools/[[alpha]]" in gbiz.read_text(),
+          "portfolio-rebuild (present): assessed project appears in the roll-up")
+    check("global-business written" in r.stdout, "portfolio-rebuild (present): status line reports it")
+
+
 def main():
-    for fn in (test_compass_absent_is_unchanged, test_portfolio_rebuild_absent_writes_no_global_business):
+    for fn in (test_compass_absent_is_unchanged,
+               test_portfolio_rebuild_absent_writes_no_global_business,
+               test_portfolio_rebuild_present_writes_global_business):
         with tempfile.TemporaryDirectory() as td:
             fn(Path(td))
     if FAILURES:

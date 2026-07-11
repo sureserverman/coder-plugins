@@ -12,7 +12,7 @@
 Idempotent: re-running with no upstream change produces byte-identical output
 (timestamp suppressed when content is unchanged).
 """
-import re, sys, yaml, datetime
+import os, re, subprocess, sys, yaml, datetime
 from pathlib import Path
 
 REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
@@ -212,6 +212,34 @@ def write_if_changed(path, content):
     return True
 
 
+def business_scripts():
+    """(scan, rollup) paths for the OPTIONAL business plugin, or (None, None) if
+    it isn't installed alongside. BUSINESS_SCAN_PATH overrides the scan path
+    (used by the degradation test to force the layer off). Additive by design:
+    the business layer never changes portfolio-rebuild's existing outputs."""
+    root = Path(__file__).resolve().parents[4]          # marketplace root (…/coder-plugins)
+    scan = Path(os.environ.get("BUSINESS_SCAN_PATH")
+                or root / "business" / "scripts" / "business-scan.py")
+    rollup = root / "business" / "scripts" / "business-rollup.py"
+    return (scan, rollup) if scan.exists() and rollup.exists() else (None, None)
+
+
+def rebuild_global_business(vd, scan, rollup):
+    """Run business-scan | business-rollup and write global-business.md. Returns
+    True if written, False if unchanged, None on failure (degrade loudly, leave
+    any existing file intact — never truncate on a failed sweep)."""
+    scan_p = subprocess.run([sys.executable, str(scan)], capture_output=True, text=True)
+    if scan_p.returncode != 0:
+        print(f"business-scan failed: {scan_p.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+        return None
+    roll = subprocess.run([sys.executable, str(rollup)], input=scan_p.stdout,
+                          capture_output=True, text=True)
+    if roll.returncode != 0:
+        print(f"business-rollup failed: {roll.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+        return None
+    return write_if_changed(vd / "Portfolio" / "global-business.md", roll.stdout)
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser()
@@ -234,8 +262,18 @@ def main():
         wrote_gb = write_if_changed(vd / "Portfolio" / "global-backlog.md", gb)
         wrote_gm = write_if_changed(vd / "Portfolio" / "global-maturity.md", gm)
 
+    # Business layer — additive, degrade loudly. Present → also rebuild
+    # global-business.md; absent → one clear line, everything above unchanged.
+    scan, rollup = business_scripts()
+    if scan and rollup:
+        biz = rebuild_global_business(vd, scan, rollup) if args.write else "DRY-RUN"
+        biz_status = f"global-business written: {biz}"
+    else:
+        biz_status = "business layer: unavailable (business plugin not installed)"
+
     print(f"sidecars enriched: {enriched} | global-backlog written: {wrote_gb} | "
-          f"global-maturity written: {wrote_gm} | {'WRITE' if args.write else 'DRY-RUN'}")
+          f"global-maturity written: {wrote_gm} | {biz_status} | "
+          f"{'WRITE' if args.write else 'DRY-RUN'}")
 
 
 if __name__ == "__main__":
