@@ -224,34 +224,43 @@ def scan_project(proj, vault):
 def business_map():
     """Optional business-plugin state keyed by project name — {} when the plugin
     isn't installed alongside (additive: compass works identically without it).
-    BUSINESS_SCAN_PATH overrides the probe (used to force the layer off in tests)."""
+    BUSINESS_SCAN_PATH overrides the probe (used to force the layer off in tests).
+
+    NEVER raises: the business layer is optional and independently versioned, so
+    ANY failure (missing plugin, nonzero exit, timeout, malformed/unexpected-shape
+    JSON) degrades to {} — a broken business scanner must not take down compass's
+    plan/backlog/maturity evidence."""
     root = Path(__file__).resolve().parents[4]          # marketplace root
     scan = Path(os.environ.get("BUSINESS_SCAN_PATH")
                 or root / "business" / "scripts" / "business-scan.py")
     if not scan.exists():
         return {}
-    r = subprocess.run([sys.executable, str(scan)], capture_output=True, text=True)
-    if r.returncode != 0:
-        return {}
     try:
+        r = subprocess.run([sys.executable, str(scan)], capture_output=True,
+                           text=True, timeout=120)
+        if r.returncode != 0:
+            return {}
         doc = json.loads(r.stdout)
-    except json.JSONDecodeError:
+        if not isinstance(doc, dict):
+            return {}
+        out = {}
+        for p in doc.get("projects", []):
+            if not isinstance(p, dict) or not p.get("name") or not p.get("assessed"):
+                continue
+            gtm = p.get("gtm") if isinstance(p.get("gtm"), dict) else None
+            model = (p.get("monetization") or {}).get("model") \
+                if isinstance(p.get("monetization"), dict) else None
+            out[p["name"]] = {
+                "verdict": p.get("verdict"),
+                "model": model,
+                "gtm_pct": gtm.get("pct") if gtm else None,
+                "last_reviewed_age_days": p.get("last_reviewed_age_days"),
+                "stage": ("tracked" if p.get("metrics") else "launched" if gtm
+                          else "modeled" if model else "assessed"),
+            }
+        return out
+    except Exception:      # timeout, JSON error, unexpected shape — degrade to no layer
         return {}
-    out = {}
-    for p in doc.get("projects", []):
-        if not p.get("assessed"):
-            continue
-        gtm = p.get("gtm")
-        model = (p.get("monetization") or {}).get("model")
-        out[p["name"]] = {
-            "verdict": p.get("verdict"),
-            "model": model,
-            "gtm_pct": gtm.get("pct") if gtm else None,
-            "last_reviewed_age_days": p.get("last_reviewed_age_days"),
-            "stage": ("tracked" if p.get("metrics") else "launched" if gtm
-                      else "modeled" if model else "assessed"),
-        }
-    return out
 
 
 def main():

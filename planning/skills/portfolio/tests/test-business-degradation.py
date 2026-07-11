@@ -94,6 +94,29 @@ def test_compass_present_attaches_business(tmp):
           "compass-scan (present): unassessed project has no business key")
 
 
+def test_compass_broken_business_degrades(tmp):
+    """Present-but-BROKEN: a business scanner that emits valid-but-wrong-shape JSON
+    (or a top-level array, or a project with no name) must degrade to no business
+    layer, NEVER crash the whole compass lane."""
+    env, _ = make_env(tmp, business_absent=True)
+    for label, payload in [
+        ("wrong-shape project", '{"projects": [{"assessed": true, "verdict": "monetize"}]}'),
+        ("top-level array", '[1, 2, 3]'),
+        ("not json", 'this is not json at all'),
+    ]:
+        fake = tmp / f"fake-{label.replace(' ', '_')}.py"
+        fake.write_text(f"print({payload!r})\n")
+        env2 = dict(env, BUSINESS_SCAN_PATH=str(fake))
+        r = subprocess.run([sys.executable, str(COMPASS_SCAN)], capture_output=True, text=True, env=env2)
+        check(r.returncode == 0, f"compass-scan (broken business: {label}): exit 0, not a crash")
+        try:
+            doc = json.loads(r.stdout)
+            ok = "projects" in doc and not any("business" in p for p in doc["projects"])
+        except json.JSONDecodeError:
+            ok = False
+        check(ok, f"compass-scan (broken business: {label}): valid envelope, no business keys")
+
+
 def test_portfolio_rebuild_absent_writes_no_global_business(tmp):
     env, vault = make_env(tmp, business_absent=True)
     r = subprocess.run([sys.executable, str(PORTFOLIO_REBUILD), "--write"],
@@ -126,6 +149,7 @@ def test_portfolio_rebuild_present_writes_global_business(tmp):
 def main():
     for fn in (test_compass_absent_is_unchanged,
                test_compass_present_attaches_business,
+               test_compass_broken_business_degrades,
                test_portfolio_rebuild_absent_writes_no_global_business,
                test_portfolio_rebuild_present_writes_global_business):
         with tempfile.TemporaryDirectory() as td:

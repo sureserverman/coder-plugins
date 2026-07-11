@@ -228,14 +228,19 @@ def rebuild_global_business(vd, scan, rollup):
     """Run business-scan | business-rollup and write global-business.md. Returns
     True if written, False if unchanged, None on failure (degrade loudly, leave
     any existing file intact — never truncate on a failed sweep)."""
-    scan_p = subprocess.run([sys.executable, str(scan)], capture_output=True, text=True)
-    if scan_p.returncode != 0:
-        print(f"business-scan failed: {scan_p.stderr.strip().splitlines()[:1]}", file=sys.stderr)
-        return None
-    roll = subprocess.run([sys.executable, str(rollup)], input=scan_p.stdout,
-                          capture_output=True, text=True)
-    if roll.returncode != 0:
-        print(f"business-rollup failed: {roll.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+    try:
+        scan_p = subprocess.run([sys.executable, str(scan)], capture_output=True,
+                                text=True, timeout=120)
+        if scan_p.returncode != 0:
+            print(f"business-scan failed: {scan_p.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+            return None
+        roll = subprocess.run([sys.executable, str(rollup)], input=scan_p.stdout,
+                              capture_output=True, text=True, timeout=120)
+        if roll.returncode != 0:
+            print(f"business-rollup failed: {roll.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+            return None
+    except subprocess.TimeoutExpired:
+        print("business layer timed out — left global-business.md untouched", file=sys.stderr)
         return None
     return write_if_changed(vd / "Portfolio" / "global-business.md", roll.stdout)
 
