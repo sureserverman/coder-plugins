@@ -32,7 +32,8 @@ def check(cond, label):
 
 
 CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
-         "edgey", "badenum", "boolschema", "badtarget"]
+         "edgey", "badenum", "boolschema", "badtarget",
+         "research", "researchnew", "researchbad", "researchmalformed"]
 
 
 def tree_hash(root):
@@ -202,6 +203,57 @@ def test_contract(tmp):
           f"badtarget: target missing `by` flagged (got {bt.get('errors')})")
     check("targets[1].target" in bterrs,
           f"badtarget: non-numeric target flagged (got {bt.get('errors')})")
+
+    # research — fresh market-research.md folded into the `research` block
+    rp = P.get("research", {})
+    check(rp.get("assessed") is True, "research: assessed true")
+    check((rp.get("research") or {}).get("exists") is True, "research: research.exists true")
+    check((rp.get("research") or {}).get("date") == "2026-07-01",
+          f"research: research.date 2026-07-01 (got {(rp.get('research') or {}).get('date')})")
+    check((rp.get("research") or {}).get("depth") == "full", "research: depth full")
+    check((rp.get("research") or {}).get("confidence") == "medium", "research: confidence medium")
+    check(isinstance((rp.get("research") or {}).get("age_days"), int)
+          and rp["research"]["age_days"] >= 0, "research: research.age_days int >= 0")
+    check(rp.get("errors") == [], f"research: no errors (got {rp.get('errors')})")
+
+    # a project WITHOUT market-research.md → research.exists false, zero new errors
+    # (proves the additive missing-file path degrades cleanly on existing projects)
+    check((P.get("happy", {}).get("research") or {}).get("exists") is False,
+          "happy: research.exists false (no market-research.md)")
+    check(P.get("happy", {}).get("errors") == [],
+          "happy: still no errors despite the new research probe")
+
+    # researchnew — market-research.md schema 2 → explicit upgrade error, not misparse
+    rn = P.get("researchnew", {})
+    check(rn.get("assessed") is True, "researchnew: assessed true")
+    check(rn.get("verdict") == "monetize", "researchnew: BUSINESS.md still parses (verdict monetize)")
+    check((rn.get("research") or {}).get("exists") is True, "researchnew: research.exists true")
+    check((rn.get("research") or {}).get("date") is None,
+          "researchnew: research.date null (not misparsed)")
+    check(any("market-research.md" in e and "upgrade" in e.lower() for e in rn.get("errors", [])),
+          f"researchnew: market-research upgrade error (got {rn.get('errors')})")
+
+    # researchbad — bad depth/confidence enums each flagged, project still assessed
+    rb = P.get("researchbad", {})
+    check(rb.get("assessed") is True, "researchbad: assessed true")
+    check(rb.get("verdict") == "monetize", "researchbad: BUSINESS.md still parses")
+    check((rb.get("research") or {}).get("depth") is None, "researchbad: invalid depth nulled")
+    check((rb.get("research") or {}).get("confidence") is None, "researchbad: invalid confidence nulled")
+    rberrs = " | ".join(rb.get("errors", []))
+    check("depth" in rberrs, "researchbad: depth enum error recorded")
+    check("confidence" in rberrs, "researchbad: confidence enum error recorded")
+
+    # researchmalformed — unterminated market-research.md frontmatter: per-file
+    # non-fatal error, project still assessed (exercises _extract_frontmatter's
+    # failure path for the new artifact)
+    rm = P.get("researchmalformed", {})
+    check(rm.get("assessed") is True, "researchmalformed: assessed true")
+    check(rm.get("verdict") == "monetize", "researchmalformed: BUSINESS.md still parses")
+    check((rm.get("research") or {}).get("exists") is True, "researchmalformed: research.exists true")
+    check((rm.get("research") or {}).get("date") is None,
+          "researchmalformed: research.date null (frontmatter unparsed)")
+    check(any("market-research.md" in e for e in rm.get("errors", [])),
+          f"researchmalformed: market-research.md error recorded (got {rm.get('errors')})")
 
 
 def test_gtm_degrades_without_portfolio_unify():
