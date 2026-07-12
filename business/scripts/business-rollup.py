@@ -76,7 +76,7 @@ def research_of(p):
     if not r or not r.get("exists"):
         return "—"
     age = r.get("age_days")
-    return f"{age}d" if isinstance(age, int) else "yes"
+    return _cell(f"{age}d" if isinstance(age, int) else "yes")
 
 
 def render(doc):

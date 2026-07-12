@@ -30,9 +30,11 @@ schema is a loud "upgrade the business plugin" error; a non-integer (including `
 a value below 1 is a malformed-file error. Schema bumps update `business-scan.py` in
 lockstep.
 
-### `project` (required, string)
+### `project` (string)
 
-The registry name; a mismatch with the assessed project is a per-file error.
+The registry name. Validated only when present: a mismatch with the assessed project is
+a per-file error, symmetric with `BUSINESS.md` (which mismatch-checks rather than
+hard-requiring `project`).
 
 ### `date` (required, date)
 

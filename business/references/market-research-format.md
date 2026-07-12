@@ -30,10 +30,11 @@ explicit "newer schema — upgrade the business plugin" error, never a silent mi
 A non-integer (including `true`) or a value below 1 is a malformed-file error. Schema
 changes bump this integer and update `business-scan.py` in lockstep.
 
-### `project` (required, string)
+### `project` (string)
 
-The registry name. If it doesn't match the project the scanner is assessing, that's a
-per-file error (`stale copy-paste?`), symmetric with `BUSINESS.md`.
+The registry name. Validated only when present: if it doesn't match the project the
+scanner is assessing, that's a per-file error (`stale copy-paste?`), symmetric with
+`BUSINESS.md` (which also mismatch-checks rather than hard-requiring `project`).
 
 ### `researched` (required, date)
 
