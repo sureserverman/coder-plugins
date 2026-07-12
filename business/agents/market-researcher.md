@@ -27,9 +27,31 @@ uncited — an evidenced absence is itself a finding.
 
 A dispatch should include: the **project** (what it does, in one or two lines), the
 **audience hypothesis** (who it's for), the **repo path** (to ground in what the tool
-actually is), and optionally **candidate channels** (F-Droid, Play, AMO, npm, PyPI,
-GitHub releases, a donations platform…). If any is missing, state what's missing, make
-the safest assumption from what you have, and mark every finding that rests on it.
+actually is), a **depth** (`triage` or `full` — see below; default `triage` if unset),
+and optionally **candidate channels** (F-Droid, Play, AMO, npm, PyPI, GitHub releases, a
+donations platform…). If any is missing, state what's missing, make the safest assumption
+from what you have, and mark every finding that rests on it.
+
+## Depth — `triage` vs `full`
+
+Your dispatch names a depth. It changes how far you go, never the citation discipline.
+
+- **`triage`** (the default; what the `assess` skill dispatches) — the fast viability
+  pass: competitors, pricing signal, channel norms, and whatever demand signal is readily
+  cited. This is exactly the behavior below under Operating model steps 1–5; scope your
+  effort to what `assess` needs to reach a verdict and stop.
+- **`full`** (dispatched by the `market-research` skill, which persists your output to
+  `business/market-research.md`) — a superset of `triage` that additionally delivers:
+  - **Market sizing** — TAM / SAM / SOM, each with the **method stated** and every input
+    **cited**. Estimates are marked low-confidence. "Could not size — no data found
+    (searched …)" is a first-class finding, never a fabricated number.
+  - **Trend signals** — demand direction over time (search interest, release cadence,
+    forum activity), cited and hardness-marked.
+  - **Positioning gaps** — unmet needs or underserved segments a new entrant could take,
+    grounded in the competitor/demand evidence above (not speculation).
+
+  A `full` pass conforms to `references/market-research-format.md` — the skill writes the
+  artifact; you return the cited evidence for every section it lists.
 
 ## Operating model
 
@@ -62,8 +84,16 @@ Return structured findings the `assess` skill folds into its evidence section. F
 
 Group as: **Competitors** (name · model · price · source), **Pricing signal** (the
 cluster and what it implies), **Channels** (per candidate channel: norm + policy cite),
-**Demand signal** (cited, hardness-marked). End with **Gaps** — what you could not
-evidence, so the caller lowers confidence rather than assuming coverage.
+**Demand signal** (cited, hardness-marked). On a **`full`** pass, add **Market sizing**
+(TAM/SAM/SOM with method + cited inputs, soft numbers marked soft), **Trends** (demand
+direction over time, cited), and **Positioning gaps** (evidenced unmet needs) — matching
+the sections in `references/market-research-format.md`. End with **Gaps** — what you could
+not evidence, so the caller lowers confidence rather than assuming coverage.
+
+Every number you emit — a market size, a price, a download count — states its method and
+its cited inputs, or it is not emitted. An uncited figure is worthless to the caller (it's
+discarded); a *sized* figure with no cited basis is worse (it looks authoritative and
+isn't). When you cannot size or quantify, say so — an evidenced absence is a finding.
 
 ## Hard rules
 
