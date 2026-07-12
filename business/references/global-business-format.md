@@ -13,11 +13,11 @@ Generated: 2026-07-11
 
 ## Assessed (N)
 
-| Project | Verdict | Model | Stage | Reviewed | Actuals |
-|---------|---------|-------|-------|----------|---------|
-| big-projects/[[xray-host]] | monetize | paid | launched | 0d | 2026-07-11 (5) |
-| servers/[[bootstrapscripts]] | monetize | oss-services | tracked | 0d | 2026-07-11 (4) |
-| web/[[text-vault]] | internal-only | — | assessed | 0d | — |
+| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |
+|---------|---------|-------|-------|----------|---------|------|----------|
+| big-projects/[[xray-host]] | monetize | paid | launched | 0d | 2026-07-11 (5) | active | 4d |
+| servers/[[bootstrapscripts]] | monetize | oss-services | tracked | 0d | 2026-07-11 (4) | draft | 30d |
+| web/[[text-vault]] | internal-only | — | assessed | 0d | — | — | — |
 
 ## Not yet assessed (M) — triage gap
 
@@ -47,6 +47,12 @@ Generated: 2026-07-11
 - **Actuals** is the latest metrics block's date + the count of non-`note`, non-null metric
   values (a metric left blank or that failed numeric parse is `null` and does not count),
   or `—` if none.
+- **Plan** reflects `plan.md`: the plan's `status` (`draft`/`active`) when one exists,
+  `yes` when it exists but its `status` didn't parse, or `—` when there's no plan.
+- **Research** reflects `market-research.md`: its age as `<n>d` when one exists (so a stale
+  research pass is visible at a glance), `yes` when it exists but its date didn't parse, or
+  `—` when there's none. Both columns are additive — a project scanned before this support,
+  or without those artifacts, renders `—` and never breaks the table.
 - **Not yet assessed** lists projects the scanner returned with `assessed: false` — a
   triage gap, not an error; the whole point is to see what still needs a verdict.
 - **Couldn't assess** and **Errors** sections appear only when non-empty (degrade loudly:

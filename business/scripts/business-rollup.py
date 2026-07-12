@@ -56,6 +56,29 @@ def reviewed_of(p):
     return f"{age}d" if isinstance(age, int) else "—"
 
 
+def plan_of(p):
+    """Plan column: the plan.md status (`draft`/`active`) when one exists, `yes` if
+    it exists but its status didn't parse (the malformation is already surfaced in
+    the Errors section), else — (additive: a project scanned before plan.md support,
+    or without a plan, has no `plan` key or `exists: false` — both render as a dash,
+    never a crash). Symmetric with research_of's fallback."""
+    pl = p.get("plan")
+    if not pl or not pl.get("exists"):
+        return "—"
+    return _cell(pl.get("status") or "yes")
+
+
+def research_of(p):
+    """Research column: the market-research.md age in days when one exists (so a
+    stale artifact is visible at a glance), `yes` if it exists but its date didn't
+    parse, else —. Same additive degradation as plan_of."""
+    r = p.get("research")
+    if not r or not r.get("exists"):
+        return "—"
+    age = r.get("age_days")
+    return f"{age}d" if isinstance(age, int) else "yes"
+
+
 def render(doc):
     projects = doc.get("projects", [])
     assessed = [p for p in projects if p.get("assessed")]
@@ -69,12 +92,13 @@ def render(doc):
     out.append(f"## Assessed ({len(assessed)})")
     out.append("")
     if assessed:
-        out.append("| Project | Verdict | Model | Stage | Reviewed | Actuals |")
-        out.append("|---------|---------|-------|-------|----------|---------|")
+        out.append("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |")
+        out.append("|---------|---------|-------|-------|----------|---------|------|----------|")
         for p in sorted(assessed, key=lambda x: (x.get("area", ""), x["name"])):
             model = _cell((p.get("monetization") or {}).get("model") or "—")
             out.append(f"| {_wl(p)} | {_cell(p.get('verdict') or '—')} | {model} "
-                       f"| {stage_of(p)} | {reviewed_of(p)} | {actuals_of(p)} |")
+                       f"| {stage_of(p)} | {reviewed_of(p)} | {actuals_of(p)} "
+                       f"| {plan_of(p)} | {research_of(p)} |")
     else:
         out.append("_None assessed yet._")
     out.append("")
