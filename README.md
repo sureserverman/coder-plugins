@@ -2,26 +2,11 @@
 
 A Claude Code plugin marketplace hosting opinionated, language- and platform-specific authoring plugins.
 
-## Install as a marketplace
+## Install
 
-```
+```text
 /plugin marketplace add sureserverman/coder-plugins
-```
-
-Then install individual plugins:
-
-```
-/plugin install rust-dev@coder-plugins
-/plugin install android-dev@coder-plugins
-/plugin install release-promo@coder-plugins
-/plugin install stingy-agents@coder-plugins
-/plugin install infra-build@coder-plugins
-/plugin install git-github@coder-plugins
-/plugin install planning@coder-plugins
-/plugin install browser-extensions@coder-plugins
-/plugin install game-dev@coder-plugins
-/plugin install i18n@coder-plugins
-/plugin install loadout@coder-plugins
+/plugin install <plugin>@coder-plugins        # e.g. planning@coder-plugins
 ```
 
 > **Authoring plugins for AI coding agents** (Claude Code, Cursor, Codex,
@@ -32,145 +17,72 @@ Then install individual plugins:
 
 ## Plugins
 
-### rust-dev
+| Plugin | What you get |
+|--------|--------------|
+| [`planning`](./planning) | Idea → validated design → staged plan → gated execution. Brainstorming, architecture research, Red-Green plan execution with stage gates, parallel task dispatch, portfolio `compass`, design-handoff reproduction. |
+| [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability (optionally with market research), revenue-model, launch, track, portfolio roll-up. |
+| [`git-github`](./git-github) | Everyday git/GitHub ops: commits and PRs in the repo's style, code review, multi-model second opinions, comment/workflow/license/README audits, release tags. |
+| [`testing`](./testing) | `testing-expert` subagent: run and triage tests, author new ones, audit coverage and test smells. Test pyramid, mutation-over-line-coverage opinions. |
+| [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` skill (fires on `*.rs`/`Cargo.toml` edits), `rust-expert` subagent, `/rust-review`, `/rust-idiomize`. |
+| [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
+| [`game-dev`](./game-dev) | Source-cited skills for mechanics, feel/juice, camera, UX/FTUE, accessibility, and architecture, plus Godot/Unity/Unreal skills, `/game-review`, `/game-mechanic`. |
+| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`scripts/amo-check.py` linter). |
+| [`ui-design`](./ui-design) | Per-platform UI design, review, and facelift subagents — one expert per surface. |
+| [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
+| [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
+| [`infra-build`](./infra-build) | Registers a project with the `~/dev/infra` publishing pipelines: Debian `.deb`, macOS `.pkg`, multi-arch Docker images. |
+| [`stingy-agents`](./stingy-agents) | Three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work cheaply. |
+| [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
 
-Idiomatic Rust authoring. Bundles:
+Each plugin's directory has its own README with full component detail.
 
-- **`rust-coding` skill** — triggers on `*.rs` / `Cargo.toml` edits; decision rules for unsafe discipline, async correctness, error handling, FFI, performance, edition 2024; progressive disclosure via `references/`.
-- **`rust-expert` subagent** — sonnet-pinned, authoring-capable. Protocols: Stack detection, Author, Refactor, Review, Unsafe audit, Edition migration. Cites Rust API Guidelines, Microsoft Pragmatic Rust, *Effective Rust*, Sherlock 2026 Security Guide, tokio docs.
-- **`/rust-review`** — dispatches rust-expert on a scoped diff (uncommitted, file, commit, PR).
-- **`/rust-idiomize`** — dispatches rust-expert to refactor a path for idioms, behavior-preserving, tests green at each step.
+## Usage
 
-Source: [`rust-dev/`](./rust-dev)
+Every plugin ships some mix of three component types, and each is used differently:
 
-### android-dev
+**Skills fire automatically.** Once a plugin is installed, its skills load when
+the context matches — editing a `.rs` file activates `rust-coding`, saying
+"plan this feature" activates `planning-projects`, touching a translation
+catalog activates the `i18n` skills. You can also invoke a skill explicitly by
+its namespaced name:
 
-Android development toolkit. Bundles 4 skills, 1 command, and a complete bundled emulator stack under `infrastructure/`:
-
-- **`android-gradle-build`** — module wiring, Hilt/Compose/Room/Retrofit setup, test execution, security hard gates.
-- **`android-stage-verify`** — per-stage on-device gate: build the debug APK, detect an adb device, then install + smoke-launch + run instrumented tests. Invoked by `planning`'s `executing-plans` at each Android stage gate.
-- **`android-ui-design-figma`** — Material 3 + Compose, optional Figma workflow, standard-first implementation.
-- **`android-mcp-orchestrator`** — multi-container emulator stack (phone 6", tablet 7", tablet 10") via bundled `infrastructure/` compose root; one-command `up.sh --mock` / `down.sh`.
-- **`mock-server-from-app-sources`** — analyzes app code (Retrofit/Ktor/OkHttp/fetch + DTOs) to scaffold a mock backend container.
-- **`/android-screenshots`** — Play Store-style captures across all emulator form factors.
-
-Bundled `infrastructure/` ships the emulator containers, MCP server, and a reference `mock-synapse` backend — no external repo needed.
-
-Source: [`android-dev/`](./android-dev)
-
-### AI-tool authoring family — moved to `agent-tooling`
-
-`plugin-dev` (the Claude Code authoring kit + shared cross-host determinism
-core) and its six platform siblings — `cowork-dev`, `cursor-dev`, `codex-dev`,
-`opencode-dev`, `hermes-dev`, `openclaw-dev` — now live in the sibling
-[`agent-tooling`](https://github.com/sureserverman/agent-tooling) marketplace.
-They form one tightly-coupled family (each sibling declares a `dependencies`
-link to `plugin-dev` and vendors its deterministic validation lane), so they
-ship and version together there.
-
-```
-/plugin marketplace add sureserverman/agent-tooling
-/plugin install plugin-dev@agent-tooling
+```text
+/planning:brainstorming
+/i18n:i18n-audit
+/planning:compass next
 ```
 
-### release-promo
+**Commands are explicit.** Slash commands run a defined workflow when you type
+them:
 
-Drafts release-announcement posts for the platforms a project actually belongs on. Never autoposts — every draft is a markdown block you copy.
-
-- **5 skills** — `reddit-promo` (subreddit-aware, with explicit guidance for Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language subs, topic subs), `twim-submission` (This Week in Matrix), `hackernews-show-hn` (Show HN rules + first-comment template), `lobsters-post` (tag selection + invite-culture etiquette), `fediverse-post` (Mastodon-compatible toots with hashtag and CW guidance).
-- **`post-drafter` subagent** — haiku-pinned, read-only. Drafts one post per channel from surveyed facts plus the matching SKILL.md. Dispatched in parallel so the orchestrator stays cheap.
-- **`/promote-release`** — surveys the current repo (README, CHANGELOG, latest tag, language signals, Matrix detection), picks eligible channels, then fans out drafting to `post-drafter` (one invocation per channel) and concatenates the results into a single markdown bundle.
-
-Source: [`release-promo/`](./release-promo)
-
-### planning
-
-Pipeline that turns a vague idea into executed work, including redesigning an app to a Claude Design handoff. The skills hand off to each other and were designed as a unit.
-
-- **`brainstorming`** — vague idea → validated design via question-driven exploration (purpose, constraints, alternatives, risks).
-- **`planning-projects`** — staged plan with phase gates, `Depends on` / `Blocks` / `Parallel` task fields, Red-Green max cycles, Stage gates.
-- **`executing-plans`** — drives a plan file; Red-Green loops; respects stage gates; dispatches independent tasks for parallel run. Git-bootstraps a non-repo at Preflight, runs to completion without pausing between green stages, fires a platform stage-verify hook at each gate (Android → `android-stage-verify`), and bumps versions across every mirror at close-out.
-- **`applying-design-handoff`** — redesigns an app to precisely reproduce a Claude Design handoff pack (tokens, components, layout, assets), reshaping functionality to fit. Auto-detects a local pack or a live claude.ai design project (`DesignSync`), gates behavior changes through `workflow-spec` with sign-off, delegates to the `ui-*` agents and the `design-handoff-reproducer` subagent, and verifies fidelity with a separate-evaluator rubric loop. Driven by `executing-plans` for redesign tasks.
-- **`design-handoff-reproducer`** (agent) — sonnet-pinned worker that reproduces one normalized handoff-pack slice (component/screen + tokens + assets) faithfully in the target stack, self-checks against the fidelity rubric, and flags behavior changes back instead of applying them.
-- **`dispatching-parallel-agents`** — fans out tasks marked `Parallel YES` whose dependencies are green; integrates results respecting the dependency graph.
-- **`compass`** — portfolio work orchestrator: `now` (in-flight board), `next` (ranked recommendations: momentum > almost-shippable > unblocking > staleness), `review` (drift sweep). Evidence from a deterministic, read-only `compass-scan.py`; every recommendation cites its evidence, parked backlog items respected, never writes portfolio artifacts.
-
-Source: [`planning/`](./planning)
-
-### browser-extensions
-
-Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android.
-
-- **`browser-extensions`** — manifest v3 migration, content scripts, background service workers, permissions, store rejections, Firefox-for-Android caveats.
-- **`amo-compliance-check`** — preflight audit before submission to addons.mozilla.org. Ships `scripts/amo-check.py` linter that exits non-zero on hard violations.
-
-Source: [`browser-extensions/`](./browser-extensions)
-
-### game-dev
-
-Game development plugin: opinionated, source-cited skills for the three things that actually decide whether a game *feels good* — **mechanics**, **user experience**, **navigation/camera** — plus accessibility, architecture, and three engine-specific skills.
-
-- **Engine-agnostic skills (6):**
-  - `game-mechanics-design` — Schell / Sylvester / Nystrom. Core loop, compulsion loop, depth vs shallow complexity, progression pacing, FTUE.
-  - `game-feel-and-juice` — Swink's six principles + concrete starting numbers (coyote time 6–8 frames, jump buffer 6 frames, hitstop 3–6 frames, screen shake amplitude curves).
-  - `game-navigation-camera` — John Nesky's *50 Camera Mistakes* (GDC 2014) distilled into reviewable rules for third-person, 2D, and signposting / wayfinding / fast travel.
-  - `game-ux-onboarding` — Celia Hodent's seven usability pillars applied to HUD, menus, FTUE, button prompts.
-  - `game-accessibility-audit` — Game Accessibility Guidelines Basic-tier as ship-gate checklist (Motor / Cognitive / Vision / Hearing / General).
-  - `game-architecture-patterns` — Nystrom patterns (Component, State, Game Loop, Object Pool, Observer, Event Queue, Service Locator, Spatial Partition, Flyweight) with decision rules.
-- **Engine-specific skills (3):**
-  - `engine-godot` — Godot 4 best practices (scenes vs scripts, autoload restraint, signals over polling).
-  - `engine-unity` — Unity 6 best practices (Update/FixedUpdate/LateUpdate split, GC discipline, ScriptableObject, Addressables).
-  - `engine-unreal` — Unreal 5 gameplay framework (GameMode/GameState/PlayerController/Pawn/PlayerState boundaries, Subsystems, replication, Blueprint vs C++).
-- **`game-design-expert` subagent** — sonnet-pinned. Six protocols: Stack Detection, Mechanic Design, Feel Tune, Camera Audit, UX Review, Accessibility Audit. Every finding cites source by name.
-- **`/game-review [scope]`** — scoped diff (uncommitted / file / commit / PR / branch) review covering mechanics, UX, navigation, accessibility, architecture.
-- **`/game-mechanic <name>`** — guided design session for a new mechanic; outputs an implementable brief.
-
-Source: [`game-dev/`](./game-dev)
-
-### Other plugins
-
-- **[`git-github/`](./git-github)** — everyday git/GitHub ops: commits, PRs, code review, multi-model second opinions, comment audit, workflow audit, README review, license audit, release tags.
-- **[`infra-build/`](./infra-build)** — make a project buildable by the `~/dev/infra` publishing pipelines (Debian .deb, macOS .pkg, multi-arch Docker).
-- **[`stingy-agents/`](./stingy-agents)** — three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work.
-
-## Layout
-
+```text
+/rust-review HEAD~1        # review a scoped diff for Rust idioms
+/game-mechanic grapple     # guided design session for a new mechanic
+/promote-release           # survey the repo, draft posts per channel
+/android-screenshots       # Play Store captures across emulator form factors
 ```
-coder-plugins/
-├── .claude-plugin/
-│   └── marketplace.json
-├── README.md
-├── docs/
-│   └── plans/                    # staged-plan files for non-trivial additions
-├── rust-dev/
-│   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   ├── agents/
-│   └── commands/
-├── android-dev/
-│   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   ├── commands/
-│   └── infrastructure/           # bundled emulator + MCP + mock-synapse compose stack
-├── release-promo/
-│   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   ├── agents/
-│   └── commands/
-└── game-dev/
-    ├── .claude-plugin/plugin.json
-    ├── skills/                   # 9 skills: 6 engine-agnostic + 3 engine-specific
-    ├── agents/                   # game-design-expert (sonnet)
-    └── commands/                 # /game-review, /game-mechanic
+
+**Subagents are delegated.** Claude dispatches them on its own when a task
+matches (e.g. `testing-expert` for a flaky test), or you can ask directly:
+"have `rust-expert` audit the unsafe blocks in src/ffi.rs".
+
+A typical end-to-end flow with the `planning` plugin:
+
+```text
+/plugin install planning@coder-plugins
+"I want to add offline sync"    # brainstorming fires, validates a design
+"plan it"                       # planning-projects writes a staged plan with gates
+"execute the plan"              # executing-plans drives it to completion
 ```
+
+Install only what a project needs — or install `loadout` and let its task
+profiles enable and disable plugins per project.
 
 ## Contributing a new plugin
 
-The fastest path is to use the `plugin-dev` plugin's own scaffolding (it now
-lives in the sibling [`agent-tooling`](https://github.com/sureserverman/agent-tooling)
-marketplace):
+The fastest path is `plugin-dev`'s scaffolding (it lives in `agent-tooling`):
 
-```
+```text
 /plugin marketplace add sureserverman/agent-tooling
 /plugin install plugin-dev@agent-tooling
 /create-plugin <new-plugin-name>
@@ -178,12 +90,22 @@ marketplace):
 
 Manually:
 
-1. Add a top-level directory named `<plugin-name>/`
-2. Create `.claude-plugin/plugin.json` with `name`, `description`, and (for stable releases) `version`. Components (`skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`) live at the **plugin root**, never inside `.claude-plugin/`.
+1. Add a top-level directory shaped like this:
+
+   ```text
+   <plugin-name>/
+   ├── .claude-plugin/
+   │   └── plugin.json           # name, description, version
+   ├── skills/
+   ├── agents/
+   └── commands/
+   ```
+
+2. Components (`skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`) live at the **plugin root**, never inside `.claude-plugin/`.
 3. Register the plugin in `.claude-plugin/marketplace.json` under `plugins` — match the existing entries' shape (`name`, `source`, `description`, `version`, `category`, `tags`, `strict`).
 4. Validate with the `plugin-validator` agent from `plugin-dev`.
-5. For non-trivial additions, drop a staged plan in `docs/plans/<date>-<plugin>.md` first.
+5. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
 
 ## License
 
-Each plugin carries its own LICENSE; all are MIT unless noted otherwise.
+MIT unless a plugin's own LICENSE states otherwise; most plugins carry their own LICENSE file.
