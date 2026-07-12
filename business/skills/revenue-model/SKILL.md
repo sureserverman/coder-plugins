@@ -1,16 +1,16 @@
 ---
-name: model
+name: revenue-model
 description: >
   Decide how an assess-passed portfolio project earns or gains — its monetization model, pricing hypothesis, distribution channels, and numeric dated targets — recorded in business/BUSINESS.md. Use after a project has a monetize or free-for-reputation verdict. Triggers on "how should this make money", "pick a monetization model", "pricing for this project", "freemium vs paid", "set business targets", "what's the revenue model".
 ---
 
-# model — monetization decision
+# revenue-model — monetization decision
 
 Turn an assessed verdict into a concrete money/reach model: how it earns or gains, at
 what price, through which channels, against what numeric dated targets. Updates the
 `monetization` and `targets` sections of `business/BUSINESS.md` in place.
 
-**Announce at start:** "Using the business model skill to set <project>'s monetization model."
+**Announce at start:** "Using the business revenue-model skill to set <project>'s monetization model."
 
 ## Determinism boundary
 

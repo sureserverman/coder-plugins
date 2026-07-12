@@ -117,5 +117,5 @@ preserved `model`'s monetization/targets on a re-assessment — that's on you, p
 
 ## Hand off
 
-- `monetize` / `free-for-reputation` → suggest `/business:model` next.
+- `monetize` / `free-for-reputation` → suggest `/business:revenue-model` next.
 - `park` / `internal-only` → done; the verdict is the deliverable. No launch, no model.

@@ -10,7 +10,7 @@ plugin's `portfolio` and `compass` skills can read business state.
 | Skill | Does |
 |-------|------|
 | `/business:assess` | Viability triage → `business/BUSINESS.md` verdict (monetize / free-for-reputation / internal-only / park). Opt-in `--research`. |
-| `/business:model` | Monetization model, pricing, channels, numeric dated targets for an assess-passed project. |
+| `/business:revenue-model` | Monetization model, pricing, channels, numeric dated targets for an assess-passed project. |
 | `/business:launch` | Go-to-market plan → `business/gtm-plan.md`, guarded by `MATURITY.md` state. |
 | `/business:track` | Record actuals → `business/metrics.md`, diff vs targets, bump Last reviewed. |
 | `/business:biz-portfolio` | Sweep every project, rebuild `global-business.md`. |

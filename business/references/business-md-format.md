@@ -17,7 +17,7 @@ project: <registry name, e.g. multitor-android>
 verdict: monetize            # one of: monetize | free-for-reputation | internal-only | park
 audience: <one line — who the end result is for>
 evidence: local-only         # one of: local-only | researched
-last_reviewed: 2026-07-11    # YYYY-MM-DD — the "Last reviewed" stamp, bumped by track/assess/model
+last_reviewed: 2026-07-11    # YYYY-MM-DD — the "Last reviewed" stamp, bumped by track/assess/revenue-model
 monetization:
   model: null                # null until the model skill runs; then e.g.
                              # paid | freemium | donations | dual-license | oss-services | sponsorship

@@ -34,7 +34,7 @@ and the body — the scanner JSON omits `project` and the body). Conform to
 
 The project must be `assessed: true` with a verdict that has targets — normally `monetize`
 or `free-for-reputation` after `model` ran. If there are no `targets`, you can still
-record actuals, but say there's nothing to diff against and suggest `/business:model`.
+record actuals, but say there's nothing to diff against and suggest `/business:revenue-model`.
 
 ## Phase 1 — Auto-collect
 
