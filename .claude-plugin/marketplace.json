@@ -185,8 +185,8 @@
     {
       "name": "business",
       "source": "./business",
-      "description": "Per-project business-planning pipeline for the ~/dev portfolio, sibling to planning. assess triages viability (repo + vault + MATURITY.md context, one-question interview, opt-in --research via a cited market-researcher subagent) and writes a schema-versioned business/BUSINESS.md verdict (monetize | free-for-reputation | internal-only | park); model turns a passed verdict into a monetization model, pricing hypothesis, channels, and numeric dated targets; launch writes a MATURITY-guarded go-to-market plan at business/gtm-plan.md in the portfolio-unify-parseable house format; track records actuals into an append-only business/metrics.md (free GitHub metrics via collect-github.py, revenue/installs manual), diffs vs targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project through the deterministic business-scan.py evidence lane (the sole parser — one JSON contract, reusing portfolio-unify's plan-parser regexes) and rebuilds global-business.md. The determinism boundary lets the planning plugin's portfolio and compass skills consume the scanner JSON additively and degrade loudly when business is absent.",
-      "version": "0.1.0",
+      "description": "Per-project business-planning pipeline for the ~/dev portfolio, sibling to planning. assess triages viability (repo + vault + MATURITY.md context, one-question interview, opt-in --research that reuses a fresh market-research.md or dispatches the cited market-researcher subagent) and writes a schema-versioned business/BUSINESS.md verdict (monetize | free-for-reputation | internal-only | park); revenue-model turns a passed verdict into a monetization model, pricing hypothesis, channels, and numeric dated targets; market-research runs a standalone deep cited pass (competitors, pricing, TAM/SAM/SOM, trends, positioning) persisted to business/market-research.md; business-plan composes verdict + monetization + research + gtm + metrics plus a short gap interview into a full ten-section business/plan.md; launch writes a MATURITY-guarded go-to-market plan at business/gtm-plan.md in the portfolio-unify-parseable house format; track records actuals into an append-only business/metrics.md (free GitHub metrics via collect-github.py, revenue/installs manual), diffs vs targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project through the deterministic business-scan.py evidence lane (the sole parser of BUSINESS.md, market-research.md, plan.md, gtm-plan.md, metrics.md — one JSON contract, reusing portfolio-unify's plan-parser regexes) and rebuilds global-business.md. The determinism boundary lets the planning plugin's portfolio and compass skills consume the scanner JSON additively and degrade loudly when business is absent.",
+      "version": "0.3.0",
       "category": "development",
       "tags": [
         "business-plan",
@@ -199,7 +199,8 @@
         "metrics",
         "tracking",
         "launch",
-        "commercialization"
+        "commercialization",
+        "market-research"
       ],
       "strict": false
     },
