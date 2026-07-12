@@ -5,9 +5,9 @@
 Builds a throwaway HOME with a portfolio-config + registry pointing at the
 fixture vault tree, runs the scanner as a subprocess, and asserts the JSON
 contract every skill and the planning-plugin integration depends on: envelope
-keys, per-project business fields, the nine fixture cases (happy / noassess /
-malformed / newschema / partial / gtmmixed / edgey / badenum / boolschema), and
-the read-only guarantee.
+keys, per-project business fields, the fixture cases in CASES (BUSINESS.md
+happy/malformed/schema/target cases, plus the market-research.md and plan.md
+artifact cases), and the read-only guarantee.
 """
 import hashlib
 import json
@@ -33,7 +33,8 @@ def check(cond, label):
 
 CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
          "edgey", "badenum", "boolschema", "badtarget",
-         "research", "researchnew", "researchbad", "researchmalformed"]
+         "research", "researchnew", "researchbad", "researchmalformed",
+         "planned", "plannew", "planbad"]
 
 
 def tree_hash(root):
@@ -254,6 +255,44 @@ def test_contract(tmp):
           "researchmalformed: research.date null (frontmatter unparsed)")
     check(any("market-research.md" in e for e in rm.get("errors", [])),
           f"researchmalformed: market-research.md error recorded (got {rm.get('errors')})")
+
+    # planned — valid plan.md folded into the `plan` block
+    pl = P.get("planned", {})
+    check(pl.get("assessed") is True, "planned: assessed true")
+    check((pl.get("plan") or {}).get("exists") is True, "planned: plan.exists true")
+    check((pl.get("plan") or {}).get("date") == "2026-07-01",
+          f"planned: plan.date 2026-07-01 (got {(pl.get('plan') or {}).get('date')})")
+    check((pl.get("plan") or {}).get("status") == "draft", "planned: plan.status draft")
+    check(isinstance((pl.get("plan") or {}).get("age_days"), int)
+          and pl["plan"]["age_days"] >= 0, "planned: plan.age_days int >= 0")
+    check(pl.get("errors") == [], f"planned: no errors (got {pl.get('errors')})")
+
+    # a project WITHOUT plan.md → plan.exists false, uniform shape, zero new errors
+    check((P.get("happy", {}).get("plan") or {}).get("exists") is False,
+          "happy: plan.exists false (no plan.md)")
+    check(set((P.get("happy", {}).get("plan") or {}).keys())
+          == {"exists", "date", "age_days", "status"},
+          "happy: absent plan block has the uniform shape")
+    check(P.get("happy", {}).get("errors") == [],
+          "happy: still no errors despite the new plan probe")
+
+    # plannew — plan.md schema 3 → explicit upgrade error, not misparse
+    pn = P.get("plannew", {})
+    check(pn.get("assessed") is True, "plannew: assessed true")
+    check(pn.get("verdict") == "monetize", "plannew: BUSINESS.md still parses")
+    check((pn.get("plan") or {}).get("exists") is True, "plannew: plan.exists true")
+    check((pn.get("plan") or {}).get("date") is None, "plannew: plan.date null (not misparsed)")
+    check(any("plan.md" in e and "upgrade" in e.lower() for e in pn.get("errors", [])),
+          f"plannew: plan upgrade error (got {pn.get('errors')})")
+
+    # planbad — invalid status + missing market_research each flagged, still assessed
+    pb = P.get("planbad", {})
+    check(pb.get("assessed") is True, "planbad: assessed true")
+    check(pb.get("verdict") == "monetize", "planbad: BUSINESS.md still parses")
+    check((pb.get("plan") or {}).get("status") is None, "planbad: invalid status nulled")
+    pberrs = " | ".join(pb.get("errors", []))
+    check("status" in pberrs, "planbad: status enum error recorded")
+    check("market_research" in pberrs, "planbad: missing market_research error recorded")
 
 
 def test_gtm_degrades_without_portfolio_unify():

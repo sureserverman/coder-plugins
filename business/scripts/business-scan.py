@@ -46,6 +46,7 @@ VERDICTS = {"monetize", "free-for-reputation", "internal-only", "park"}
 EVIDENCE = {"local-only", "researched"}
 RESEARCH_DEPTHS = {"triage", "full"}
 CONFIDENCE = {"high", "medium", "low"}
+PLAN_STATUS = {"draft", "active"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 NUM_RE = re.compile(r"^-?\d+(\.\d+)?$")      # rejects inf/nan/text → JSON-safe
 
@@ -281,6 +282,48 @@ def parse_market_research(text, expected_project=None):
     return fields, errors
 
 
+def parse_plan(text, expected_project=None):
+    """Parse plan.md frontmatter (schema 1) per references/plan-format.md. Returns
+    (fields_dict, errors_list) with the same discipline and uniform-block policy as
+    parse_market_research: fields_dict is None only on an extraction/fatal-schema
+    failure; otherwise the `plan` block's data keys (date/status) plus per-field
+    errors. `market_research` is validated (a YYYY-MM-DD date or the literal 'none')
+    but not emitted — the block's contract is presence/age/status for the roll-up."""
+    fm, errs = _extract_frontmatter(text, "plan.md")
+    if fm is None:
+        return None, errs
+    schema, fatal = _schema_gate(fm, "plan.md")
+    if fatal is not None:
+        return fatal
+
+    errors = []
+    declared = fm.get("project")
+    if expected_project and declared and declared != expected_project:
+        errors.append(f"plan.md: project {declared!r} does not match registry "
+                      f"name {expected_project!r} (stale copy-paste?)")
+    date = _isodate(fm.get("date"))
+    if not date:
+        errors.append("plan.md: missing required 'date'")
+        date = None
+    elif not DATE_RE.match(str(date)):
+        errors.append(f"plan.md: date {date!r} is not YYYY-MM-DD")
+        date = None      # null-on-invalid, so it never reaches _age_days
+    status = fm.get("status")
+    if status not in PLAN_STATUS:
+        errors.append(f"plan.md: status {status!r} not one of {sorted(PLAN_STATUS)}")
+        status = None
+    # market_research: a YYYY-MM-DD (the folded-in research date) or the literal
+    # 'none'. Validated for malformation, not emitted (block contract is
+    # exists/date/age_days/status).
+    mr = _isodate(fm.get("market_research"))
+    if mr is None:
+        errors.append("plan.md: missing required 'market_research' (a date or 'none')")
+    elif mr != "none" and not DATE_RE.match(str(mr)):
+        errors.append(f"plan.md: market_research {mr!r} must be YYYY-MM-DD or 'none'")
+    fields = {"date": date, "status": status}
+    return fields, errors
+
+
 def parse_metrics(text):
     """Latest dated block of metrics.md → {date, values} or None."""
     blocks = []          # (date_str, {key: value})
@@ -365,7 +408,7 @@ def scan_project(proj, vault):
         "schema": None, "verdict": None, "audience": None, "evidence": None,
         "last_reviewed": None, "last_reviewed_age_days": None,
         "monetization": None, "targets": None, "metrics": None, "gtm": None,
-        "research": None,
+        "research": None, "plan": None,
     })
 
     bmd = bdir / "BUSINESS.md"
@@ -416,6 +459,21 @@ def scan_project(proj, vault):
     else:
         entry["research"] = {"exists": False, "date": None, "age_days": None,
                              "depth": None, "confidence": None}
+
+    plan_f = bdir / "plan.md"
+    if plan_f.exists():
+        entry["plan"] = {"exists": True, "date": None, "age_days": None, "status": None}
+        try:
+            pfields, perrs = parse_plan(plan_f.read_text(errors="ignore"),
+                                        expected_project=proj["name"])
+        except Exception as e:
+            pfields, perrs = None, [f"plan.md: {e}"]
+        entry["errors"].extend(perrs or [])
+        if pfields:
+            entry["plan"].update(pfields)
+            entry["plan"]["age_days"] = _age_days(pfields.get("date"))
+    else:
+        entry["plan"] = {"exists": False, "date": None, "age_days": None, "status": None}
 
     return entry, None
 
