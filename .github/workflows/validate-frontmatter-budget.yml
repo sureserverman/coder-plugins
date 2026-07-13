@@ -16,6 +16,8 @@ on:
       - 'scripts/tests/test-check-frontmatter-budget.py'
       - 'scripts/build-capability-index.py'
       - 'scripts/tests/test-build-capability-index.py'
+      - 'scripts/_frontmatter_common.py'
+      - 'scripts/tests/test-frontmatter-common.py'
       - 'capability-index.json'
       - '**/skills/*/SKILL.md'
       - '**/agents/*.md'
@@ -27,6 +29,8 @@ on:
       - 'scripts/tests/test-check-frontmatter-budget.py'
       - 'scripts/build-capability-index.py'
       - 'scripts/tests/test-build-capability-index.py'
+      - 'scripts/_frontmatter_common.py'
+      - 'scripts/tests/test-frontmatter-common.py'
       - 'capability-index.json'
       - '**/skills/*/SKILL.md'
       - '**/agents/*.md'
@@ -47,6 +51,8 @@ jobs:
         run: python3 scripts/tests/test-check-frontmatter-budget.py
       - name: Check description budget (<=300 chars) and YAML validity
         run: python3 scripts/check-frontmatter-budget.py --max 300
+      - name: Run shared frontmatter-common tests (incl. cross-tool agreement)
+        run: python3 scripts/tests/test-frontmatter-common.py
       - name: Run capability-index fixture tests
         run: python3 scripts/tests/test-build-capability-index.py
       - name: Check capability-index.json is fresh

@@ -23,12 +23,18 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWLIST_PATH = os.path.join(REPO_ROOT, "scripts", "frontmatter-budget-allow.txt")
-PATTERNS = (
-    ("skill", "*/skills/*/SKILL.md"),
-    ("agent", "*/agents/*.md"),
-    ("command", "*/commands/*.md"),
+
+# Shared scan primitives live in _frontmatter_common so this script and
+# build-capability-index.py can't drift on what counts as a component or on the
+# dispatch-only rule. Bootstrap this script's own dir onto sys.path so the import
+# resolves both when run directly and when loaded via importlib in the tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _frontmatter_common import (  # noqa: E402
+    PATTERNS,
+    is_excluded,
+    frontmatter_block,
+    disable_model_invocation,
 )
-EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/")
 
 try:
     import yaml as _yaml
@@ -46,13 +52,6 @@ def load_allowlist(path=ALLOWLIST_PATH):
             if entry:
                 allowed.add(entry)
     return allowed
-
-
-def frontmatter_block(text):
-    """Return the raw YAML frontmatter block (between the leading `---` fences),
-    or None when the text has no frontmatter."""
-    m = re.match(r"^---\n(.*?)\n---", text, re.S)
-    return m.group(1) if m else None
 
 
 def extract_description(text):
@@ -103,24 +102,6 @@ def yaml_error(text):
     return None
 
 
-def disable_model_invocation(text):
-    """True when the frontmatter sets `disable-model-invocation: true`. Such a
-    component's description is NOT injected into session context (Claude Code
-    omits it), so it costs nothing against the always-on footprint even though
-    it still ships and is user-/dispatch-invocable.
-
-    Recognizes exactly the authored convention `true`/`false` (case-insensitive),
-    NOT YAML-1.1's wider truthy set (`yes`/`on`/…). A single regex rule keeps the
-    answer independent of whether PyYAML is installed — no environment-dependent
-    divergence.
-    """
-    fm = frontmatter_block(text)
-    if fm is None:
-        return False
-    m = re.search(r"^disable-model-invocation:[ \t]*(\S+)", fm, re.M)
-    return bool(m) and m.group(1).strip().strip("'\"").lower() == "true"
-
-
 def summarize(root):
     """Bucket every component's description length by plugin, split into
     *injected* (counted against the always-on footprint) and *dispatch-only*
@@ -131,8 +112,7 @@ def summarize(root):
     for kind, pattern in PATTERNS:
         for path in glob.glob(os.path.join(root, pattern)):
             rel = os.path.relpath(path, root)
-            norm = "/" + rel.replace(os.sep, "/")
-            if any(seg in norm for seg in EXCLUDE_SEGMENTS):
+            if is_excluded(rel):
                 continue
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
@@ -164,8 +144,7 @@ def scan(root, max_chars, allowlist):
     for kind, pattern in PATTERNS:
         for path in glob.glob(os.path.join(root, pattern)):
             rel = os.path.relpath(path, root)
-            norm = "/" + rel.replace(os.sep, "/")
-            if any(seg in norm for seg in EXCLUDE_SEGMENTS):
+            if is_excluded(rel):
                 continue
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()

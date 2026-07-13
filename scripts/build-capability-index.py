@@ -35,12 +35,18 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INDEX_PATH = os.path.join(REPO_ROOT, "capability-index.json")
 SCHEMA_VERSION = 1
-PATTERNS = (
-    ("skill", "*/skills/*/SKILL.md"),
-    ("agent", "*/agents/*.md"),
-    ("command", "*/commands/*.md"),
+
+# Shared scan primitives live in _frontmatter_common so this generator and
+# check-frontmatter-budget.py can't drift on what counts as a component or on the
+# dispatch-only rule. Bootstrap this script's own dir onto sys.path so the import
+# resolves both when run directly and when loaded via importlib in the tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _frontmatter_common import (  # noqa: E402
+    PATTERNS,
+    is_excluded,
+    frontmatter_block,
+    disable_model_invocation,
 )
-EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/")
 
 try:
     import yaml as _yaml
@@ -65,19 +71,16 @@ def _require_yaml():
         raise SystemExit(2)
 
 
-def _frontmatter_block(text):
-    m = re.match(r"^---\n(.*?)\n---", text, re.S)
-    return m.group(1) if m else None
-
-
 def _collapse(value):
     return re.sub(r"\s+", " ", value.strip())
 
 
 def parse_frontmatter(text, path="<frontmatter>"):
-    """Return a dict of the frontmatter fields we index: name, description,
-    model, disable_model_invocation. Missing fields are None/False; returns None
-    when there is no frontmatter block.
+    """Return a dict of the YAML-parsed frontmatter fields we index: name,
+    description, model. Missing fields are None; returns None when there is no
+    frontmatter block. The dispatch-only flag is NOT parsed here — build()
+    derives it from the shared `disable_model_invocation` predicate so it agrees
+    byte-for-byte with the budget script.
 
     Single YAML code path (see _require_yaml) so emitted content is a pure
     function of the source, independent of environment. A component whose
@@ -85,7 +88,7 @@ def parse_frontmatter(text, path="<frontmatter>"):
     check-frontmatter-budget lane guards against that on shipped components, so
     it never fires on a clean tree."""
     _require_yaml()
-    fm = _frontmatter_block(text)
+    fm = frontmatter_block(text)
     if fm is None:
         return None
     try:
@@ -96,8 +99,7 @@ def parse_frontmatter(text, path="<frontmatter>"):
             f"{str(exc).splitlines()[0][:120]}"
         )
     if not isinstance(data, dict):
-        return {"name": None, "description": None, "model": None,
-                "disable_model_invocation": False}
+        return {"name": None, "description": None, "model": None}
     name = data.get("name")
     desc = data.get("description")
     model = data.get("model")
@@ -105,7 +107,6 @@ def parse_frontmatter(text, path="<frontmatter>"):
         "name": name if isinstance(name, str) else None,
         "description": _collapse(desc) if isinstance(desc, str) else None,
         "model": model if isinstance(model, str) else None,
-        "disable_model_invocation": data.get("disable-model-invocation") is True,
     }
 
 
@@ -121,8 +122,7 @@ def plugin_requires_enablement(root, plugin):
     # Native MCP config anywhere in the plugin, excluding test data (a fixture
     # .mcp.json is not the plugin's own MCP config).
     for hit in glob.glob(os.path.join(pdir, "**", ".mcp.json"), recursive=True):
-        norm = "/" + os.path.relpath(hit, root).replace(os.sep, "/")
-        if not any(seg in norm for seg in EXCLUDE_SEGMENTS):
+        if not is_excluded(os.path.relpath(hit, root)):
             return True
     # Bundled container MCP (e.g. android-dev/infrastructure/mcp-server/).
     if os.path.isdir(os.path.join(pdir, "infrastructure", "mcp-server")):
@@ -156,8 +156,7 @@ def build(root):
     for kind, pattern in PATTERNS:
         for path in glob.glob(os.path.join(root, pattern)):
             rel = os.path.relpath(path, root).replace(os.sep, "/")
-            norm = "/" + rel
-            if any(seg in norm for seg in EXCLUDE_SEGMENTS):
+            if is_excluded(rel):
                 continue
             plugin = rel.split("/", 1)[0]
             with open(path, encoding="utf-8") as fh:
@@ -166,8 +165,7 @@ def build(root):
             if fields is None:
                 # No frontmatter: still index the file so it's resolvable, with a
                 # derived name and null description.
-                fields = {"name": None, "description": None, "model": None,
-                          "disable_model_invocation": False}
+                fields = {"name": None, "description": None, "model": None}
             if plugin not in enablement_cache:
                 enablement_cache[plugin] = plugin_requires_enablement(root, plugin)
             components.append({
@@ -177,7 +175,7 @@ def build(root):
                 "path": rel,
                 "description": fields["description"],
                 "model": fields["model"],
-                "disable_model_invocation": fields["disable_model_invocation"],
+                "disable_model_invocation": disable_model_invocation(text),
                 "requires_enablement": enablement_cache[plugin],
             })
     components.sort(key=lambda c: (c["plugin"], c["kind"], c["name"]))
