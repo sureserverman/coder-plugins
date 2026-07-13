@@ -114,6 +114,58 @@ def invalid_yaml_cases():
         check(rc == 1, "invalid YAML alone forces exit 1")
 
 
+def summary_cases():
+    with tempfile.TemporaryDirectory() as root:
+        # injected skill
+        write(os.path.join(root, "p1/skills/a/SKILL.md"), fm("x" * 100))
+        # dispatch-only skill (disable-model-invocation: true) — not injected
+        write(os.path.join(root, "p1/skills/b/SKILL.md"),
+              "---\nname: b\ndescription: " + "y" * 40 +
+              "\ndisable-model-invocation: true\n---\n\n# b\n")
+        # injected agent in another plugin
+        write(os.path.join(root, "p2/agents/agt.md"), fm("z" * 50))
+        # excluded fixture — must not count
+        write(os.path.join(root, "p2/skills/x/fixtures/SKILL.md"), fm("f" * 500))
+
+        # parser — authored convention is true/false only, and the answer must
+        # be independent of PyYAML availability (regex-only, no divergence).
+        def dmi(val):
+            return f"---\nname: b\ndescription: d\ndisable-model-invocation: {val}\n---\n"
+        check(budget.disable_model_invocation(dmi("true")) is True,
+              "disable-model-invocation: true detected")
+        check(budget.disable_model_invocation(dmi("True")) is True,
+              "capitalized True detected (case-insensitive)")
+        check(budget.disable_model_invocation(dmi("'true'")) is True,
+              "quoted 'true' detected")
+        check(budget.disable_model_invocation(dmi("false")) is False,
+              "false -> not dispatch-only")
+        check(budget.disable_model_invocation(dmi("yes")) is False,
+              "YAML-1.1 'yes' NOT treated as true (outside authored convention)")
+        check(budget.disable_model_invocation(fm("plain")) is False,
+              "absent flag -> not dispatch-only")
+        saved = budget._yaml
+        try:
+            budget._yaml = None
+            check(budget.disable_model_invocation(dmi("true")) is True,
+                  "answer identical with PyYAML absent (no env divergence)")
+        finally:
+            budget._yaml = saved
+
+        per_plugin, totals = budget.summarize(root)
+        check(per_plugin["p1"]["injected_chars"] == 100
+              and per_plugin["p1"]["injected_count"] == 1,
+              "injected skill counted in injected bucket")
+        check(per_plugin["p1"]["dispatch_chars"] == 40
+              and per_plugin["p1"]["dispatch_count"] == 1,
+              "flagged skill lands in dispatch-only bucket, not injected")
+        check(per_plugin["p2"]["injected_chars"] == 50,
+              "agent counted in its plugin's injected bucket")
+        check("fixtures" not in str(per_plugin) and per_plugin["p2"]["injected_count"] == 1,
+              "fixture path excluded from summary")
+        check(totals["injected_chars"] == 150 and totals["dispatch_chars"] == 40,
+              "grand totals sum injected and dispatch-only separately")
+
+
 def exit_code_cases():
     with tempfile.TemporaryDirectory() as root:
         write(os.path.join(root, "p/skills/a/SKILL.md"), fm("x" * 100))
@@ -131,6 +183,8 @@ if __name__ == "__main__":
     scan_cases()
     print("invalid yaml:")
     invalid_yaml_cases()
+    print("summary:")
+    summary_cases()
     print("exit codes:")
     exit_code_cases()
     if FAILURES:
