@@ -15,6 +15,51 @@ Get an Android app onto **F-Droid**. F-Droid does not accept your APK — it clo
 
 If any prerequisite is missing, hand off back to `android-release-signing` or stop and ask.
 
+## Quick audit (punchlist)
+
+Before walking the full decision tree, you can audit current state without writing anything.
+
+Detect repo state first:
+
+```bash
+test -f app/build.gradle.kts || test -f app/build.gradle  # is this an Android app?
+test -f keystore.properties.example                        # signing scaffolded?
+test -f keystore.properties                                # signing wired locally?
+test -d fastlane/metadata/android/en-US                    # fastlane tree exists?
+ls fastlane/metadata/android/en-US/changelogs/ 2>/dev/null # changelogs present?
+test -f fastlane/metadata/android/en-US/images/icon.png   # icon present?
+git tag --list 'v*' | tail -n 5                            # tagged releases?
+grep -E 'applicationId\s*=' app/build.gradle.kts 2>/dev/null # extract applicationId
+grep -E 'versionCode\s*=' app/build.gradle.kts            # current versionCode
+grep -E 'versionName\s*=' app/build.gradle.kts            # current versionName
+```
+
+If `applicationId` isn't otherwise known, read it from `app/build.gradle.kts` (`applicationId = "..."`).
+
+Then mark each item `[x]` (done), `[ ]` (missing), or `[?]` (needs user input):
+
+- [ ] Public Git remote on GitHub/GitLab/Codeberg (`git remote -v`)
+- [ ] At least one annotated tag matching `v*`
+- [ ] `keystore.properties.example` committed
+- [ ] `keystore.properties` and `*.keystore` in `.gitignore`
+- [ ] `app/build.gradle.kts` reads `keystore.properties` and defines `signingConfigs.release`
+- [ ] `./gradlew :app:assembleRelease` succeeds and produces a release-signed APK (run only if the user opts in)
+- [ ] `fastlane/metadata/android/en-US/title.txt` (≤ 50 chars)
+- [ ] `fastlane/metadata/android/en-US/short_description.txt` (≤ 80 chars)
+- [ ] `fastlane/metadata/android/en-US/full_description.txt` (≤ 4000 chars)
+- [ ] `fastlane/metadata/android/en-US/images/icon.png` (512×512 PNG)
+- [ ] `fastlane/metadata/android/en-US/changelogs/<currentVersionCode>.txt`
+- [ ] `docs/f-droid/<applicationId>.yml` drafted with current commit hash and signing-cert SHA-256
+
+Report the punchlist verbatim to the user. Do not change files during an audit-only pass.
+
+This audit maps to four modes of engagement:
+
+- **check** — audit only (the punchlist above), no writes.
+- **init** — full flow: signing → fastlane scaffold → YAML draft (Steps 1–3 below).
+- **metadata** — only scaffold/repair `fastlane/metadata/android/en-US/` (Step 1).
+- **yaml** — only draft `docs/f-droid/<applicationId>.yml` (Step 2).
+
 ## Decision tree
 
 ```

@@ -99,6 +99,41 @@ After write-back, report:
 - Any keys the agent declined to translate (e.g. brand names, code identifiers, units) — list them so the user can sanity check
 - Files modified — let the user review with `git diff` before committing
 
+## Scoping from arguments
+
+When invoked with `$ARGUMENTS`:
+
+1. **Empty** → fill gaps for ALL detected target locales.
+2. **A single locale code** (`es`, `fr-CA`, `zh-CN`, `pt-BR`) → only that locale.
+3. **`--include-stale`** flag (with or without a locale) → also fill keys where the translation exists but the placeholder set differs from the source (stale translations).
+
+## Scaffolding a new locale
+
+When the request is to add a brand-new target locale rather than fill gaps in an existing one:
+
+1. Run `detect-framework.py` to find the project's framework, source locale, and existing locale list.
+2. If the requested locale is already present → redirect to filling gaps for that locale instead (see Step 1 above).
+3. Create the new catalog file(s) at the framework-conventional path:
+   - **Android**: `res/values-<code>/strings.xml` (note `values-es`, `values-zh-rCN`)
+   - **Flutter**: `lib/l10n/intl_<code>.arb` (preserve `@@locale` and `@key` metadata blocks from source)
+   - **gettext**: `locale/<code>/LC_MESSAGES/messages.po` (initialize from `.pot` via `msginit -l <code>` if available; else handcraft the Plural-Forms header)
+   - **iOS**: `<code>.lproj/Localizable.strings` and `.stringsdict` (or a new locale block in `Localizable.xcstrings`)
+   - **i18next / json-i18n**: `locales/<code>/translation.json`
+   - **react-intl**: `lang/<code>.json`
+   - **Vue i18n**: `locales/<code>.json` or `.yml`
+   - **Rails**: `config/locales/<code>.yml` with top-level `<code>:` key
+   - **Qt**: `translations/myapp_<code>.ts` (initialize via `lupdate`)
+   - **.NET**: `Strings.<code>.resx`
+   - **Java**: `messages_<code>.properties`
+4. **Unless `--copy-only`**, continue with Steps 4–7 above (extract, dispatch the `translator` subagent, validate, write back).
+
+With `--copy-only`: create the catalog with empty/source-text entries for a human translator or TMS (Crowdin / Lokalise) to fill. No LLM dispatch.
+
+Post-scaffold reminders:
+- **Android**: update `<bcp47>` in `locale-config.xml` (Android 13+ per-app language) if the project ships one.
+- **iOS**: add the locale to the Xcode project's `knownRegions` so the build copies it.
+- **Flutter**: add the locale to `MaterialApp.supportedLocales`.
+
 ## Notes
 
 - This skill never commits or pushes. The translator subagent writes to files; the user reviews and commits.
