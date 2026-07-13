@@ -1,0 +1,43 @@
+name: validate-frontmatter-budget
+
+# Guards the always-on context footprint of the marketplace. For every enabled
+# plugin, Claude Code injects each skill/agent/command `description` frontmatter
+# into model context at session start. scripts/check-frontmatter-budget.py caps
+# every description at 300 chars and rejects invalid-YAML frontmatter (an
+# unquoted plain scalar containing ': ' parses to the naive regex but breaks a
+# real YAML loader). The fixture suite asserts that contract; the live check
+# fails the build if any shipped description regresses.
+
+on:
+  push:
+    paths:
+      - 'scripts/check-frontmatter-budget.py'
+      - 'scripts/frontmatter-budget-allow.txt'
+      - 'scripts/tests/test-check-frontmatter-budget.py'
+      - '**/skills/*/SKILL.md'
+      - '**/agents/*.md'
+      - '**/commands/*.md'
+  pull_request:
+    paths:
+      - 'scripts/check-frontmatter-budget.py'
+      - 'scripts/frontmatter-budget-allow.txt'
+      - 'scripts/tests/test-check-frontmatter-budget.py'
+      - '**/skills/*/SKILL.md'
+      - '**/agents/*.md'
+      - '**/commands/*.md'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install pyyaml
+      - name: Run fixture tests
+        run: python3 scripts/tests/test-check-frontmatter-budget.py
+      - name: Check description budget (<=300 chars) and YAML validity
+        run: python3 scripts/check-frontmatter-budget.py --max 300

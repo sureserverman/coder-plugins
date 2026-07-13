@@ -106,6 +106,27 @@ Manually:
 4. Validate with the `plugin-validator` agent from `plugin-dev`.
 5. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
 
+### Description budget
+
+Every enabled plugin's skill/agent/command `description` frontmatter is injected
+into model context at session start, whether or not the component is used, so
+descriptions are a shared always-on cost. Keep each **≤ 300 characters**: lead
+with the use case, then the 3–4 strongest trigger phrases. Don't add a
+`commands/` wrapper whose description just duplicates a skill's — a skill is
+already invocable as `/<plugin>:<skill>`, so the wrapper only doubles the cost.
+
+`scripts/check-frontmatter-budget.py` enforces this (and rejects invalid-YAML
+frontmatter — an unquoted description containing `: ` needs single-quoting).
+Run it before opening a PR:
+
+```bash
+python3 scripts/check-frontmatter-budget.py --max 300   # exits non-zero on any violation
+```
+
+CI runs it on every push via `.github/workflows/validate-frontmatter-budget.yml`.
+Rare, justified exceptions go in `scripts/frontmatter-budget-allow.txt` with a
+reason.
+
 ## License
 
 MIT unless a plugin's own LICENSE states otherwise; most plugins carry their own LICENSE file.

@@ -1,7 +1,7 @@
 {
   "name": "release-promo",
   "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (with explicit guidance for Matrix subs r/matrixprotocol and r/matrixdotorg, plus language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"

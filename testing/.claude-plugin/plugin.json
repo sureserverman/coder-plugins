@@ -1,6 +1,6 @@
 {
   "name": "testing",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generalist, strongly-opinionated testing subagent (testing-expert). Triage-first: covers running/debugging tests, authoring new tests, coverage gap-analysis, reviewing tests for smells, and coaching methodology. Opinionated about the test pyramid, mutation-score-over-line-coverage, and an OWASP baseline; cites Beck, Fowler, Meszaros, Feathers, Google Testing, OWASP WSTG, Stryker, Hypothesis, and axe-core by name. Dispatched as testing:testing-expert — by planning's executing-plans / dispatching-parallel-agents for test-stack tasks, or directly.",
   "author": {
     "name": "Sure Serverman",
