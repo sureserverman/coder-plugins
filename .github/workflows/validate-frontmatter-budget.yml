@@ -14,6 +14,9 @@ on:
       - 'scripts/check-frontmatter-budget.py'
       - 'scripts/frontmatter-budget-allow.txt'
       - 'scripts/tests/test-check-frontmatter-budget.py'
+      - 'scripts/build-capability-index.py'
+      - 'scripts/tests/test-build-capability-index.py'
+      - 'capability-index.json'
       - '**/skills/*/SKILL.md'
       - '**/agents/*.md'
       - '**/commands/*.md'
@@ -22,6 +25,9 @@ on:
       - 'scripts/check-frontmatter-budget.py'
       - 'scripts/frontmatter-budget-allow.txt'
       - 'scripts/tests/test-check-frontmatter-budget.py'
+      - 'scripts/build-capability-index.py'
+      - 'scripts/tests/test-build-capability-index.py'
+      - 'capability-index.json'
       - '**/skills/*/SKILL.md'
       - '**/agents/*.md'
       - '**/commands/*.md'
@@ -41,3 +47,11 @@ jobs:
         run: python3 scripts/tests/test-check-frontmatter-budget.py
       - name: Check description budget (<=300 chars) and YAML validity
         run: python3 scripts/check-frontmatter-budget.py --max 300
+      - name: Run capability-index fixture tests
+        run: python3 scripts/tests/test-build-capability-index.py
+      - name: Check capability-index.json is fresh
+        # build-capability-index.py hard-requires PyYAML (installed above). Regenerate
+        # and fail if the committed index drifted from the source tree.
+        run: |
+          python3 scripts/build-capability-index.py --write
+          git diff --exit-code capability-index.json

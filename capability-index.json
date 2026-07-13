@@ -1,0 +1,935 @@
+{
+  "components": [
+    {
+      "description": "Use this agent to design, review, or facelift Android apps per Material 3 and Jetpack Compose \u2014 dynamic color, adaptive layouts, accessibility. Trigger phrases: \"design Android UI\", \"Material 3 facelift\", \"Compose screen\", \"WindowSizeClass\", \"predictive back\", \"edge-to-edge\", \"TalkBack audit\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-android",
+      "path": "android-dev/agents/ui-android.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Capture Play Store screenshots across all emulators (phone + tablets)",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": null,
+      "name": "android-screenshots",
+      "path": "android-dev/commands/android-screenshots.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when preparing an Android app for publication on F-Droid \u2014 scaffolding fastlane metadata, drafting the fdroiddata build recipe, and choosing the RFP or direct merge-request path. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fdroiddata YAML\", \"AllowedAPKSigningKeys\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-fdroid-publish",
+      "path": "android-dev/skills/android-fdroid-publish/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when creating or modifying Android build scripts, wiring Gradle modules, or running Android unit/instrumented tests \u2014 before writing any build config or test command. Trigger on \"gradle build failing\", \"add a module\", \"wire up instrumented tests\", \"update my AGP version\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-gradle-build",
+      "path": "android-dev/skills/android-gradle-build/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when the user asks to run the Android MCP, test an app on emulators, capture Play-style screenshots, or run any emulator/screenshot flow for an Android app. Also trigger on \"android-mcp\", \"phone6in/tablet7in/tablet10in\", or mentions of the multi-emulator stack.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-mcp-orchestrator",
+      "path": "android-dev/skills/android-mcp-orchestrator/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when preparing an Android app for publication on Google Play \u2014 building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on \"publish to Google Play\", \"submit to play store\", \"Play Console setup\", \"Data safety form\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-play-publish",
+      "path": "android-dev/skills/android-play-publish/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when setting up Android release signing \u2014 creating an upload keystore, wiring keystore.properties, configuring signingConfigs.release in Gradle, or wiring a GitHub Actions release workflow. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-release-signing",
+      "path": "android-dev/skills/android-release-signing/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use after each stage of plan execution (or any milestone) to prove an Android app still builds, installs, and runs on real hardware. Trigger on \"verify this stage on device\", \"build and install on my phone\", \"run the on-device gate\", \"did this stage break the app\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-stage-verify",
+      "path": "android-dev/skills/android-stage-verify/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when the user asks to change, design, or restyle Android UI \u2014 theming, layouts, screens, components, Material 3, Compose, navigation, or launcher/app icon, including Figma integration. Trigger on \"redesign this screen\", \"add a Figma design\", \"restyle the app\", \"dark mode\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-ui-design-figma",
+      "path": "android-dev/skills/android-ui-design-figma/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Jetpack Compose layout patterns and Material 3 styling rules. Use when building or fixing Android UI layouts with Compose, spacing, cards, grids, or alignment.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "android-ui-layout-patterns",
+      "path": "android-dev/skills/android-ui-layout-patterns/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Testing patterns for Kotlin Android apps with Compose, Espresso, and MockWebServer. Use when writing Android tests, UI tests, instrumented tests, or setting up test infrastructure.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "kotlin-compose-testing-patterns",
+      "path": "android-dev/skills/kotlin-compose-testing-patterns/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when the user asks for a mock server, fake API, or stub backend based on an app's sources. Trigger on \"make a mock server for this app\", \"I need a fake API for testing\", \"this app needs a backend for UI tests\", or when an app requires login/REST/GraphQL and no mock exists yet.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "mock-server-from-app-sources",
+      "path": "android-dev/skills/mock-server-from-app-sources/SKILL.md",
+      "plugin": "android-dev",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use when checking a Firefox extension for addons.mozilla.org (AMO) submission compliance, before packaging or publishing. Trigger on \"AMO rejected my addon\", \"prep this addon for mozilla\", \"check firefox extension for AMO\", \"is this extension signable\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "amo-compliance-check",
+      "path": "browser-extensions/skills/amo-compliance-check/SKILL.md",
+      "plugin": "browser-extensions",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when creating, improving, or packaging browser extensions (WebExtensions) for Chrome, Firefox, or Firefox for Android. Trigger on \"my extension won't load\", \"manifest v3 migration\", \"chrome store rejected me\", \"AMO submission\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "browser-extensions",
+      "path": "browser-extensions/skills/browser-extensions/SKILL.md",
+      "plugin": "browser-extensions",
+      "requires_enablement": false
+    },
+    {
+      "description": "Gather cited market evidence for ONE project's viability assessment \u2014 competitors and pricing, market signals, distribution-channel norms. Trigger phrases include \"research the market for this\", \"who are the competitors and what do they charge\", \"is there a payable audience for this\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "market-researcher",
+      "path": "business/agents/market-researcher.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Decide whether ONE portfolio project is worth monetizing, for whom, and on what evidence \u2014 record the verdict in business/BUSINESS.md. Triggers on \"is this worth monetizing\", \"assess this project's business case\", \"should I commercialize this\", \"who would pay for this\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "assess",
+      "path": "business/skills/assess/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Sweep every registry project's business state and rebuild the global-business.md roll-up \u2014 a portfolio-wide view of verdicts, stages, and staleness. Triggers on \"business portfolio sweep\", \"which projects have a business case\", \"rebuild global-business\", \"portfolio monetization overview\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "biz-portfolio",
+      "path": "business/skills/biz-portfolio/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Compose a full, detailed business plan for ONE portfolio project \u2014 executive summary, market analysis, competitive landscape, financials, risks, milestones \u2014 into business/plan.md. Triggers on \"write a business plan\", \"full business plan for this\", \"business plan document\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "business-plan",
+      "path": "business/skills/business-plan/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Build a go-to-market plan for a portfolio project whose monetization model is decided \u2014 a dated checklist of launch actions at business/gtm-plan.md, guarded by ship-readiness. Triggers on \"plan the launch\", \"go-to-market plan\", \"GTM for this project\", \"launch checklist\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "launch",
+      "path": "business/skills/launch/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Produce a deep, cited market-research report for ONE portfolio project \u2014 competitors, pricing, TAM/SAM/SOM sizing, trends, channel norms \u2014 persisted to business/market-research.md. Triggers on \"market research for this project\", \"size the market\", \"TAM SAM SOM\", \"is there a payable audience\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "market-research",
+      "path": "business/skills/market-research/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Decide how an assess-passed portfolio project earns or gains \u2014 monetization model, pricing hypothesis, channels, and dated targets \u2014 recorded in business/BUSINESS.md. Triggers on \"how should this make money\", \"pick a monetization model\", \"pricing for this project\", \"what's the revenue model\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "revenue-model",
+      "path": "business/skills/revenue-model/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Record a portfolio project's actual business metrics \u2014 GitHub stars, downloads, revenue, installs \u2014 and diff them against targets in business/metrics.md. Triggers on \"track this project's metrics\", \"how are we doing vs targets\", \"update business actuals\", \"business check-in\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "track",
+      "path": "business/skills/track/SKILL.md",
+      "plugin": "business",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding, or accessibility across Godot 4, Unity 6, or Unreal 5. Triggers: \"design a core loop\", \"review my game design\", \"tune game feel\", \"accessibility audit for my game\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "game-design-expert",
+      "path": "game-dev/agents/game-design-expert.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Run a guided design session for a new game mechanic. Walks through verb, core loop, depth, feel target, FTUE plan, accessibility, and engineering scope, producing an implementable brief.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": null,
+      "name": "game-mechanic",
+      "path": "game-dev/commands/game-mechanic.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Dispatch the game-design-expert subagent to review a scoped game-project diff for mechanics, game feel, camera/navigation, UX, accessibility, and architecture findings.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": null,
+      "name": "game-review",
+      "path": "game-dev/commands/game-review.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when authoring or reviewing Godot 4 projects \u2014 GDScript, scenes (.tscn), resources (.tres), autoloads, signals, node tree organization. Triggers: \"review my Godot scene\", \"Godot autoload smell\", \"Godot signal vs polling\", \"Godot 4 best practices\". Grounded in official Godot 4 docs.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "engine-godot",
+      "path": "game-dev/skills/engine-godot/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when authoring or reviewing Unity projects (Unity 6 / 2022+) \u2014 C# MonoBehaviour, ScriptableObject, Update/FixedUpdate/LateUpdate lifecycle, GC pressure. Triggers: \"Unity best practices\", \"Update vs FixedUpdate\", \"Unity GC allocations\", \"MonoBehaviour lifecycle\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "engine-unity",
+      "path": "game-dev/skills/engine-unity/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when authoring or reviewing Unreal Engine 5 projects \u2014 C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, replication. Triggers: \"Unreal gameplay framework\", \"GameMode vs GameState\", \"PlayerController vs PlayerState\", \"UE5 architecture review\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "engine-unreal",
+      "path": "game-dev/skills/engine-unreal/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when auditing a game for accessibility or reviewing accessibility features before ship. Triggers: \"accessibility audit\", \"is my game accessible\", \"colorblind mode\", \"accessibility ship gate\". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-accessibility-audit",
+      "path": "game-dev/skills/game-accessibility-audit/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when designing or reviewing the architecture of game code \u2014 entity systems, game loop, state machines, event systems, object pools. Triggers: \"design my entity system\", \"ECS vs OOP\", \"state machine for enemies\", \"game architecture review\". Grounded in Nystrom's Game Programming Patterns.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-architecture-patterns",
+      "path": "game-dev/skills/game-architecture-patterns/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when tuning the moment-to-moment responsiveness, \"game feel\", or \"juice\" of a game \u2014 input handling, controller feel, jump feel, hit feedback, screen shake. Triggers: \"improve game feel\", \"the jump feels off\", \"controller feels mushy\", \"add coyote time\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-feel-and-juice",
+      "path": "game-dev/skills/game-feel-and-juice/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when designing, balancing, or reviewing core game mechanics, the core game loop, compulsion loops, progression, or FTUE. Triggers: \"design a core loop\", \"design a mechanic\", \"balance this\", \"does this mechanic have depth\". Grounded in Schell, Sylvester, and Nystrom.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-mechanics-design",
+      "path": "game-dev/skills/game-mechanics-design/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, fast travel, signposting, or wayfinding. Triggers: \"review my camera\", \"camera feels bad\", \"the camera fights the player\", \"design navigation\". Grounded in John Nesky's \"50 Camera Mistakes\" (GDC 2014).",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-navigation-camera",
+      "path": "game-dev/skills/game-navigation-camera/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when reviewing or designing the user experience of a game \u2014 menus, HUDs, FTUE, tutorialization, signposting in UI, affordances, button prompts. Triggers: \"design my game UI\", \"review my HUD\", \"design FTUE\", \"the UI is confusing\". Grounded in Celia Hodent's The Gamer's Brain.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-ux-onboarding",
+      "path": "game-dev/skills/game-ux-onboarding/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings, never modifies files.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "code-reviewer",
+      "path": "git-github/agents/code-reviewer.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user asks to add, review, or audit code comments that explain project workflow or non-obvious choices across a codebase \u2014 magic numbers, ordering constraints, workarounds, or un-introduced entry points",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "code-comment-audit",
+      "path": "git-github/skills/code-comment-audit/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user asks to review code, audit a diff, check a commit, or review a PR/branch before merge. Triggers: \"review this\", \"code review please\", \"review my implementation\", \"security review\". For multi-model second opinions, use request-external-reviews.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "code-review",
+      "path": "git-github/skills/code-review/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Dispatches a Haiku subagent to draft and create it. Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "create-commit",
+      "path": "git-github/skills/create-commit/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Dispatches a Haiku subagent to draft the PR and call it after confirmation. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "create-pr",
+      "path": "git-github/skills/create-pr/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Audit a repo or diff for faked verification \u2014 stubbed gates, tests that never ran, fabricated evidence, and hidden exclusions. Use at stage boundaries, before declaring work done, when reviewing someone else's \"all gates green\" claim, or when a build looks suspiciously passing.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "gate-audit",
+      "path": "git-github/skills/gate-audit/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when checking GitHub Actions workflows for errors, outdated actions, security issues, or improvements. Trigger on \"audit my workflows\", \"check github actions\", \"are my actions secure\", \"update my action versions\", or for a repo-wide `.github/workflows/` health check.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "github-workflow-audit",
+      "path": "git-github/skills/github-workflow-audit/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user asks to audit licenses, check license compliance, find license conflicts, pick a project license, or generate a LICENSE/LICENSE.md file. Trigger on \"audit licenses\", \"what license should this project use\", \"are my dependencies GPL-compatible\", or \"generate a LICENSE file\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "license-audit",
+      "path": "git-github/skills/license-audit/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user explicitly asks to cut a release tag \u2014 \"tag a release\", \"cut v1.4.0\", \"create a release tag\", \"draft release notes from the changelog\". Asks before tagging and again before pushing. Does NOT trigger on its own, does NOT force-push, does NOT delete or move existing tags.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "release-tag",
+      "path": "git-github/skills/release-tag/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user asks for a second opinion, cross-tool review, or multi-model review of a diff. Triggers: \"get reviews from other tools\", \"second opinion on this diff\", \"cross-check this change\", \"multi-model review\". For a single authoritative local review, use code-review instead.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "request-external-reviews",
+      "path": "git-github/skills/request-external-reviews/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when reviewing, auditing, or improving a project's README.md \u2014 also triggers on \"my readme is a mess\", \"clean up the readme\", \"the readme is too long\", \"readme feels off\", \"make the readme nicer\", or a user sharing a README and asking what's wrong with it",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "review-readme",
+      "path": "git-github/skills/review-readme/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to translate a batch of i18n catalog entries from a source to a target locale, preserving placeholders, ICU MessageFormat, CLDR plurals, and HTML tags. Trigger phrases include \"translate this catalog\", \"translate these entries to <locale>\", \"fill missing translations for <locale>\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "translator",
+      "path": "i18n/agents/translator.md",
+      "plugin": "i18n",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when auditing a project for i18n readiness \u2014 detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "i18n-audit",
+      "path": "i18n/skills/i18n-audit/SKILL.md",
+      "plugin": "i18n",
+      "requires_enablement": false
+    },
+    {
+      "description": "Reference for i18n catalog format gotchas \u2014 gettext .po, i18next JSON, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB. Use when authoring or modifying translation catalogs, format-specific escaping or quoting matters, or expanding plural forms for a non-English target.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "i18n-formats",
+      "path": "i18n/skills/i18n-formats/SKILL.md",
+      "plugin": "i18n",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when filling missing or stale translations in a project's i18n catalogs, or scaffolding a new locale from the source catalog. Trigger on \"translate to <locale>\", \"add Spanish translations\", \"fill in missing translations\", \"translate these strings\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "i18n-translate",
+      "path": "i18n/skills/i18n-translate/SKILL.md",
+      "plugin": "i18n",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when auditing a bash/shell script before it ships inside a Debian .deb, macOS .pkg, or Docker image, checking for code errors, broken URLs, and stale version pins. Trigger on \"audit this script\", \"check for broken download URLs\", \"is this installer safe\", \"does this .onion still resolve\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "bash-script-audit",
+      "path": "infra-build/skills/bash-script-audit/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to register a Rust project with the build-for-mac GitHub Actions pipeline so it appears as a checkbox in the macOS-pkg build dispatch. Trigger on \"register this for build-for-mac\", \"add to programs.txt\", \"set up macOS pkg publishing for this project\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "build-for-mac-register",
+      "path": "infra-build/skills/build-for-mac-register/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to audit whether the current project is ready to be built and published across the utils, build-for-mac, and publish-images pipelines, read-only. Trigger on \"is this project ready to publish\", \"check build readiness\", \"what's missing for the deb build\", \"audit my mac/ layout\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "build-readiness-check",
+      "path": "infra-build/skills/build-readiness-check/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when creating, updating, or validating the Debian `.deb` layout that the `infra/utils/pkgskel` + `publish` pipeline expects: scaffolding `deb/package/DEBIAN/control`, fixing broken control fields, writing `postinst`/`prerm` scripts, or diagnosing `dpkg-deb` build errors.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "deb-package",
+      "path": "infra-build/skills/deb-package/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when creating, updating, or validating the `mac/` layout that the `infra/build-for-mac` GitHub Actions pipeline expects: scaffolding `mac/Makefile`, `mac/payload/`, `mac/scripts/`, fixing Makefile targets, writing postinstall scripts, or diagnosing `pkgbuild` failures.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "mac-package",
+      "path": "infra-build/skills/mac-package/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to register a Docker image with the `~/dev/infra/publish-images/` multi-arch, multi-registry pipeline. Trigger on \"register this image for publish-images\", \"add to images.yml\", \"publish this image to all registries\", \"wire up multi-arch docker publishing\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "publish-images-register",
+      "path": "infra-build/skills/publish-images-register/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to register a project with the utils Debian-packaging pipeline, adding it to pkg.list and scaffolding the canonical deb/ tree via pkgskel. Trigger on \"register this project for utils\", \"add to pkg.list\", \"scaffold the deb tree\", \"set up debian packaging for the publish pipeline\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "utils-register",
+      "path": "infra-build/skills/utils-register/SKILL.md",
+      "plugin": "infra-build",
+      "requires_enablement": false
+    },
+    {
+      "description": "Show, set, or change the plugin loadout for the current project. Layers a sticky tech baseline with on-demand task overlays.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": "inherit",
+      "name": "loadout",
+      "path": "loadout/commands/loadout.md",
+      "plugin": "loadout",
+      "requires_enablement": true
+    },
+    {
+      "description": "Use to research ONE candidate architecture \u2014 a pattern plus concrete module layout \u2014 returning cited findings (evidence, directory tree, boundaries, risks). Triggers include \"research this architecture option\", \"evidence this candidate architecture\", \"validate this project layout\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "architecture-researcher",
+      "path": "planning/agents/architecture-researcher.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to reproduce ONE slice of a Claude Design handoff pack (component/screen plus tokens and assets) precisely, self-checked against the fidelity rubric. Triggers include \"reproduce this design slice\", \"implement this component to spec\", \"build this screen to match the handoff\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "design-handoff-reproducer",
+      "path": "planning/agents/design-handoff-reproducer.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when redesigning an app to reproduce a Claude Design handoff pack (tokens, components, layout, assets) precisely, reshaping functionality to fit the design where they conflict. Triggers on \"reproduce this design\", \"apply the handoff pack\", \"redesign to match the design\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "applying-design-handoff",
+      "path": "planning/skills/applying-design-handoff/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that planning-projects consumes. Triggers on \"design the architecture\", \"architecture options\", \"pick an architecture\", \"compare architecture candidates\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "architecting-projects",
+      "path": "planning/skills/architecting-projects/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to read, append, or remove entries in docs/backlog.md \u2014 the project's deferred-work register. Triggers on \"add to backlog\", \"defer this\", \"what's in the backlog\", \"BL-007 is done \u2014 remove it\". Append on defer, remove on implement, list on research.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "backlog",
+      "path": "planning/skills/backlog/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use before any non-trivial creative or implementation work \u2014 new features, components, services, migrations, or behavior changes \u2014 to turn a vague idea into a validated design, one question at a time. Triggers on \"I want to build\", \"let's design\", \"brainstorm\", \"help me think through\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "brainstorming",
+      "path": "planning/skills/brainstorming/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to decide and organize work across every project in the portfolio \u2014 what's in flight, what to work on next, and a periodic review sweep. Triggers on \"what should I work on next\", \"what's in flight\", \"portfolio review\", \"what's going stale\". Report-only \u2014 recommends, never launches work.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "compass",
+      "path": "planning/skills/compass/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on \"dispatch these tasks in parallel\", \"run these Parallel YES tasks\", \"fan out these independent fixes\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "dispatching-parallel-agents",
+      "path": "planning/skills/dispatching-parallel-agents/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when you have a plan file from planning-projects (Stages, Tasks, Depends on / Blocks / Parallel), or a master plan linking sub-plans, and need to execute it \u2014 driving Red-Green loops and stage gates. Triggers on \"execute this plan\", \"run the plan\", \"execute the master plan\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "executing-plans",
+      "path": "planning/skills/executing-plans/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Integrity rules for any verification gate, acceptance check, test command, or \"done\" claim. Use whenever something must pass, build, run, or be measured \u2014 before reporting a gate green, registering a build/test task, or recording test/benchmark evidence. Apply eagerly; do not wait to be asked.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "honest-gates",
+      "path": "planning/skills/honest-gates/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use at the START of ANY debugging or diagnostic work \u2014 before forming theories or proposing fixes. Fires on \"debug this\", \"why is X broken\", \"fix this bug\", \"tests are failing\", a stack trace, or any unexpected behavior. Drives evidence-first root-cause analysis.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "no-fafo-debugging",
+      "path": "planning/skills/no-fafo-debugging/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when the user wants a staged plan for a non-trivial project \u2014 feature rollouts, refactors, infra migrations, anything needing phase gates before execution. Triggers on \"roadmap\", \"break this down\", \"create a plan\", \"help me structure this project\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "planning-projects",
+      "path": "planning/skills/planning-projects/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on \"portfolio scan\", \"global backlog\", \"maturity dashboard\", \"scan all my projects\". Subcommands: scan, unify, maturity, migrate, integrate, rebuild.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "portfolio",
+      "path": "planning/skills/portfolio/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to scaffold, audit, and read a per-project docs/MATURITY.md checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers: \"scaffold maturity\", \"audit project maturity\", \"is this ready to publish\", \"check ship-readiness\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "project-maturity",
+      "path": "planning/skills/project-maturity/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use to capture, audit, or refresh behavior contracts (docs/workflows/) \u2014 user-visible flows with stable IDs, steps, and invariants. Triggers on \"document the app's workflow\", \"capture the auth flow\", \"audit this diff against the workflow spec\". Regression checklist after a non-trivial change.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "workflow-spec",
+      "path": "planning/skills/workflow-spec/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only \u2014 never posts, never edits files. Dispatched in parallel by /promote-release, one invocation per channel.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "haiku",
+      "name": "post-drafter",
+      "path": "release-promo/agents/post-drafter.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Survey the current repo, pick eligible promotion channels (Reddit, TWIM, HN Show HN, Lobsters, Fediverse), and draft one post per channel for review. Does not post anywhere.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": "inherit",
+      "name": "promote-release",
+      "path": "release-promo/commands/promote-release.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts a Mastodon or Fediverse toot announcing a software release. Triggers on \"draft a Mastodon post\", \"post on Fediverse\", \"toot this release\", \"share on Mastodon\", or \"Fediverse announcement\" \u2014 hashtags, content warnings, alt text, and the 500-char limit for instances like fosstodon.org.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "fediverse-post",
+      "path": "release-promo/skills/fediverse-post/SKILL.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts a Hacker News \"Show HN\" submission for a project that readers can run, install, or use today. Triggers on \"draft a Show HN\", \"post on Hacker News\", \"submit to HN\", or \"hackernews submission\" \u2014 encodes Show HN eligibility, title rules, and first-comment conventions.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "hackernews-show-hn",
+      "path": "release-promo/skills/hackernews-show-hn/SKILL.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts a Lobsters submission for a software release, library, or substantive technical write-up. Triggers on \"post on Lobsters\", \"submit to lobste.rs\", \"draft a Lobsters submission\", or \"share on Lobsters\" \u2014 covers tag selection, the show/ask convention, and the invite-only culture.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "lobsters-post",
+      "path": "release-promo/skills/lobsters-post/SKILL.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts a Reddit post for promoting a software release or project, tailored to subreddit rules. Triggers on \"draft a Reddit post\", \"post this to r/<sub>\", \"announce on Reddit\", or \"submit to r/matrixprotocol\" \u2014 encodes self-promotion rules and flair conventions per sub.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "reddit-promo",
+      "path": "release-promo/skills/reddit-promo/SKILL.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Drafts a This Week in Matrix (TWIM) submission entry for a Matrix-ecosystem project \u2014 homeserver, client, bridge, bot, library, MSC, or hosting service. Triggers on \"submit to TWIM\", \"draft a TWIM entry\", \"TWIM post\", or \"matrix.org weekly\" \u2014 encodes the submission room workflow and structure.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "twim-submission",
+      "path": "release-promo/skills/twim-submission/SKILL.md",
+      "plugin": "release-promo",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to author, review, or refactor Rust code for idiomatic quality, unsafe soundness, async correctness, FFI boundary safety, and edition migration. Trigger phrases: \"write idiomatic Rust\", \"audit this unsafe block\", \"fix my tokio deadlock\", \"thiserror or anyhow\".",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "rust-expert",
+      "path": "rust-dev/agents/rust-expert.md",
+      "plugin": "rust-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Dispatch the rust-expert subagent to refactor a Rust file or module to idiomatic Rust \u2014 tighten API signatures, replace index loops with iterators, remove unnecessary clones, add `// SAFETY:` comments, fix lock-across-await, modernize error handling.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": null,
+      "name": "rust-idiomize",
+      "path": "rust-dev/commands/rust-idiomize.md",
+      "plugin": "rust-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Dispatch the rust-expert subagent to review a scoped Rust diff (uncommitted changes, a file, a commit, or a PR) for idiom, safety, concurrency, and performance.",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": null,
+      "name": "rust-review",
+      "path": "rust-dev/commands/rust-review.md",
+      "plugin": "rust-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like \"create a Rust app\" or \"cargo new\", *.rs edits, unsafe blocks, async/tokio code, and questions like \"is this idiomatic Rust\" or \"thiserror or anyhow\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "rust-coding",
+      "path": "rust-dev/skills/rust-coding/SKILL.md",
+      "plugin": "rust-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use when analyzing, auditing, or improving a Rust project in this ecosystem \u2014 dependency, security, and clippy issues, or cross-compile checks for aarch64-apple-darwin. Trigger on \"update my rust deps\", \"run clippy\", \"cargo audit\", \"cross-compile to aarch64-apple-darwin\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "rust-project",
+      "path": "rust-dev/skills/rust-project/SKILL.md",
+      "plugin": "rust-dev",
+      "requires_enablement": false
+    },
+    {
+      "description": "Generates code, config, or scaffolding from a concrete spec \u2014 Compose screens from a design brief, a mock server from captured traffic, a new subagent/skill file from a name+purpose, or a boilerplate config module. Not a research or architecture tool.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "code-generator",
+      "path": "stingy-agents/agents/code-generator.md",
+      "plugin": "stingy-agents",
+      "requires_enablement": false
+    },
+    {
+      "description": "Read-only bulk file scanner on Haiku. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs \u2014 when the calling skill/agent is on Opus/Sonnet and I/O-bound. Never writes, edits, renames, or deletes.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "haiku",
+      "name": "readonly-scanner",
+      "path": "stingy-agents/agents/readonly-scanner.md",
+      "plugin": "stingy-agents",
+      "requires_enablement": false
+    },
+    {
+      "description": "Rewrites existing skill/agent/README markdown files to match a spec the caller provides \u2014 tightening SKILL.md descriptions, syncing skills to a canonical pattern, applying ISSUE/IMPROVE edits to a README, or leak-proofing frontmatter. Read/Edit only, scoped to caller-named paths.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "skill-rewriter",
+      "path": "stingy-agents/agents/skill-rewriter.md",
+      "plugin": "stingy-agents",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\". Opinionated: test pyramid, mutation-score-over-line-coverage, OWASP baseline.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "testing-expert",
+      "path": "testing/agents/testing-expert.md",
+      "plugin": "testing",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to design, review, or facelift Garmin Connect IQ apps in Monkey C \u2014 watch faces, data fields, widgets, and device apps. Trigger phrases include \"design a watch face\", \"Connect IQ\", \"Monkey C UI\", or \"always-on AMOLED\". Opinionated: power budget and device-matrix design.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-garmin",
+      "path": "ui-design/agents/ui-garmin.md",
+      "plugin": "ui-design",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to design, review, or facelift GNOME/Ubuntu desktop apps (GTK4 + libadwaita). Trigger phrases include \"design GNOME app\", \"facelift GTK\", \"libadwaita migration\", or \"GNOME HIG review\". Opinionated: libadwaita over hand-rolled GTK, adaptive by default, HIG is the law.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-gnome",
+      "path": "ui-design/agents/ui-gnome.md",
+      "plugin": "ui-design",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to design, review, or facelift macOS apps per Apple HIG with SwiftUI/AppKit. Trigger phrases include \"design Mac app\", \"macOS HIG review\", \"SwiftUI facelift\", or \"AppKit modernize\". Opinionated: menu bar first, semantic colors, no iPad idioms on Mac, VoiceOver required.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-macos",
+      "path": "ui-design/agents/ui-macos.md",
+      "plugin": "ui-design",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to design, review, or facelift web UIs per WCAG 2.2 AA, WAI-ARIA APG, and Nielsen Norman heuristics. Trigger phrases include \"web UI facelift\", \"accessibility audit\", \"a11y review\", or \"WCAG compliance\". Opinionated: semantic HTML first, ARIA only when needed, mobile-first.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-web",
+      "path": "ui-design/agents/ui-web.md",
+      "plugin": "ui-design",
+      "requires_enablement": false
+    },
+    {
+      "description": "Use this agent to design, review, or facelift Windows 10/11 desktop apps per Fluent 2 using WinUI 3, WPF, or WinForms. Trigger phrases include \"design Windows app\", \"Fluent 2 facelift\", or \"WinUI 3\". Opinionated: WinUI 3 first, theme resources always, Segoe Fluent Icons on Win11.",
+      "disable_model_invocation": false,
+      "kind": "agent",
+      "model": "sonnet",
+      "name": "ui-windows",
+      "path": "ui-design/agents/ui-windows.md",
+      "plugin": "ui-design",
+      "requires_enablement": false
+    }
+  ],
+  "schema": 1
+}
