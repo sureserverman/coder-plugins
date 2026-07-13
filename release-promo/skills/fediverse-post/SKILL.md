@@ -1,6 +1,6 @@
 ---
 name: fediverse-post
-description: Drafts a Mastodon or Fediverse toot announcing a software release, with hashtag selection, content warning guidance, alt text reminders, and link strategy. Triggers on "draft a Mastodon post", "post on Fediverse", "toot this release", "share on Mastodon", "draft a fedi post", "Fediverse announcement", or any request for a short ActivityPub post promoting a project. Targets the 500-char default limit and the conventions of tech-leaning instances like fosstodon.org, hachyderm.io, mas.to, and chaos.social.
+description: Drafts a Mastodon or Fediverse toot announcing a software release. Triggers on "draft a Mastodon post", "post on Fediverse", "toot this release", "share on Mastodon", or "Fediverse announcement" — hashtags, content warnings, alt text, and the 500-char limit for instances like fosstodon.org.
 ---
 
 # fediverse-post

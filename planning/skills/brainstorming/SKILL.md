@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Use before any non-trivial creative or implementation work — new features, components, services, migrations, or behavior changes. Turns a vague idea into a validated design by exploring purpose, constraints, alternatives, and risks one question at a time. Terminal handoff is to the architecting-projects skill (designs with a structural surface) or straight to planning-projects, which produces the staged plan. Triggers on "I want to build", "let's design", "new feature", "how should I approach", "brainstorm", "help me think through", "what should this look like".
+description: Use before any non-trivial creative or implementation work — new features, components, services, migrations, or behavior changes — to turn a vague idea into a validated design, one question at a time. Triggers on "I want to build", "let's design", "brainstorm", "help me think through".
 ---
 
 # Brainstorming Ideas Into Designs

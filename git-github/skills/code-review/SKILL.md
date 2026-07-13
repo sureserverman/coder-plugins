@@ -3,10 +3,8 @@ name: code-review
 description: >
   Use when the user asks to review code, audit a diff, check a commit, or
   review a PR/branch before merge. Triggers: "review this", "code review
-  please", "review my implementation", "check this commit against the plan",
-  "security review". Scopes the diff (uncommitted / staged / commit / PR /
-  plan-stage), dispatches the code-reviewer subagent, and surfaces the
-  triage. For multi-model second opinions, use request-external-reviews.
+  please", "review my implementation", "security review". For multi-model
+  second opinions, use request-external-reviews.
 ---
 
 # Code Review (local agent)

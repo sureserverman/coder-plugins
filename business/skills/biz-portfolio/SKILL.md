@@ -1,7 +1,7 @@
 ---
 name: biz-portfolio
 description: >
-  Sweep every registry project's business state and rebuild the global-business.md roll-up. Use for a portfolio-wide view of commercial coverage — verdicts, stages, staleness, and which projects still need a viability verdict. Triggers on "business portfolio sweep", "which projects have a business case", "business coverage across projects", "rebuild global-business", "who still needs a viability verdict", "portfolio monetization overview".
+  Sweep every registry project's business state and rebuild the global-business.md roll-up — a portfolio-wide view of verdicts, stages, and staleness. Triggers on "business portfolio sweep", "which projects have a business case", "rebuild global-business", "portfolio monetization overview".
 ---
 
 # biz-portfolio — portfolio business sweep

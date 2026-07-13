@@ -1,7 +1,7 @@
 ---
 name: launch
 description: >
-  Build a go-to-market plan for a portfolio project whose monetization model is decided — a dated checklist of concrete launch actions at business/gtm-plan.md. Use when a project is ready to plan its launch. Triggers on "plan the launch", "go-to-market plan", "how do I ship this to users", "GTM for this project", "launch checklist", "distribution plan". Guarded by the project's ship-readiness (MATURITY.md) — warns before planning a launch for something not near-ready.
+  Build a go-to-market plan for a portfolio project whose monetization model is decided — a dated checklist of launch actions at business/gtm-plan.md, guarded by ship-readiness. Triggers on "plan the launch", "go-to-market plan", "GTM for this project", "launch checklist".
 ---
 
 # launch — go-to-market plan

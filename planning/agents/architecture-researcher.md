@@ -1,6 +1,6 @@
 ---
 name: architecture-researcher
-description: Use to research ONE candidate architecture for a project — a named pattern plus a concrete module layout for a specific stack — and return cited, structured findings (real-project layout evidence, proposed directory tree, module boundaries, key interfaces, version-current library choices, risks). Dispatched by the architecting-projects skill one-per-candidate in parallel, or directly when you have a single architecture option, a stack, and constraints and need it evidenced. Not a decision tool — it researches one option; the caller compares options and the user chooses. Trigger phrases include "research this architecture option", "evidence this candidate architecture", "how do real projects structure this", "validate this project layout".
+description: Use to research ONE candidate architecture — a pattern plus concrete module layout — returning cited findings (evidence, directory tree, boundaries, risks). Triggers include "research this architecture option", "evidence this candidate architecture", "validate this project layout".
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 model: sonnet
 ---

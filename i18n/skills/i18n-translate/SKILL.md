@@ -1,6 +1,6 @@
 ---
 name: i18n-translate
-description: Use when filling missing or stale translations in a project's existing i18n catalogs, or scaffolding a new locale by translating from the source catalog. Trigger on "translate to <locale>", "add Spanish translations", "fill in missing translations", "translate these strings", "add a new locale", "machine-translate this catalog", "translate the app to <language>". Preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plural forms to the target locale's CLDR plural categories.
+description: Use when filling missing or stale translations in a project's i18n catalogs, or scaffolding a new locale from the source catalog. Trigger on "translate to <locale>", "add Spanish translations", "fill in missing translations", "translate these strings".
 ---
 
 # i18n Translate

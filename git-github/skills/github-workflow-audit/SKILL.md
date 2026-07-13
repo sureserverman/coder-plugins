@@ -1,6 +1,6 @@
 ---
 name: github-workflow-audit
-description: Use when checking GitHub Actions workflows for errors, outdated actions, security issues, or improvements. Trigger on "audit my workflows", "check github actions", "are my actions secure", "my release workflow is broken", "update my action versions", or when the user wants a health check across the repo's `.github/workflows/` directory.
+description: Use when checking GitHub Actions workflows for errors, outdated actions, security issues, or improvements. Trigger on "audit my workflows", "check github actions", "are my actions secure", "update my action versions", or for a repo-wide `.github/workflows/` health check.
 ---
 
 # GitHub Workflow Audit

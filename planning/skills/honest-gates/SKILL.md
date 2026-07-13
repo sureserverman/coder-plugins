@@ -2,11 +2,9 @@
 name: honest-gates
 description: >-
   Integrity rules for any verification gate, acceptance check, test command, or
-  "done" claim. Use whenever a plan, checklist, CI step, or task says something
-  must pass, build, run, or be measured — before reporting a gate green, before
-  registering a build/test task, before recording test/benchmark/playtest
-  evidence, and before advancing past any stage gate. Apply eagerly; do not wait
-  to be asked.
+  "done" claim. Use whenever something must pass, build, run, or be measured —
+  before reporting a gate green, registering a build/test task, or recording
+  test/benchmark evidence. Apply eagerly; do not wait to be asked.
 ---
 # Honest Gates
 

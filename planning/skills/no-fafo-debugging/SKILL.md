@@ -2,12 +2,8 @@
 name: no-fafo-debugging
 description: >
   Use at the START of ANY debugging or diagnostic work — before forming theories or proposing
-  fixes — not only when tempted by a quick fix. Fires whenever the task is to find out why
-  something misbehaves: "debug this", "why is X broken", "fix this bug", "diagnose", "investigate",
-  "it's not working", "this is failing", "tests are failing", "flaky test", a stack trace, an
-  error message, a crash, a hang or timeout, a regression, or any unexpected behavior. Drives
-  evidence-first root-cause analysis AND gathers that evidence autonomously, so the user is pulled
-  in only as a last resort.
+  fixes. Fires on "debug this", "why is X broken", "fix this bug", "tests are failing", a stack
+  trace, or any unexpected behavior. Drives evidence-first root-cause analysis.
 ---
 
 # No-FAFo Debugging

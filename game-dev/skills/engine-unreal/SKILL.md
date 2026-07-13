@@ -1,6 +1,6 @@
 ---
 name: engine-unreal
-description: Use when authoring or reviewing Unreal Engine 5 projects — C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, Pawn/Character, PlayerState, Subsystems, replication, .uproject configuration. Triggers on edits to `*.cpp`/`*.h` inheriting from `AActor`/`APawn`/`AGameModeBase`/`APlayerController`/`UGameInstance`, `*.uasset`, `*.umap`, `*.uproject`. Also on natural-language prompts like "Unreal gameplay framework", "GameMode vs GameState", "PlayerController vs PlayerState", "Blueprint vs C++", "Unreal Subsystem", "Unreal replication", "UE5 architecture review", "Pawn possession". Grounded in Epic's official Unreal Engine 5 documentation (dev.epicgames.com).
+description: 'Use when authoring or reviewing Unreal Engine 5 projects — C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, replication. Triggers: "Unreal gameplay framework", "GameMode vs GameState", "PlayerController vs PlayerState", "UE5 architecture review".'
 ---
 
 # engine-unreal

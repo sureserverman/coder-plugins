@@ -1,6 +1,6 @@
 ---
 name: game-accessibility-audit
-description: Use when auditing a game for accessibility, reviewing accessibility features, or determining what accessibility a game must ship with. Triggers on "accessibility audit", "is my game accessible", "GAG audit", "game accessibility guidelines", "subtitle review", "colorblind mode", "remap controls", "difficulty options", "photosensitive seizure check", "screen reader support for my game", "accessibility ship gate". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).
+description: 'Use when auditing a game for accessibility or reviewing accessibility features before ship. Triggers: "accessibility audit", "is my game accessible", "colorblind mode", "accessibility ship gate". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).'
 ---
 
 # game-accessibility-audit

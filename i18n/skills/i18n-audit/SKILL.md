@@ -1,6 +1,6 @@
 ---
 name: i18n-audit
-description: Use when auditing a project for internationalization (i18n) readiness — detecting which i18n framework (if any) it uses, finding hardcoded user-facing strings that haven't been wrapped for translation yet, and diffing translation catalogs across locales for missing or stale keys. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings", "what's missing in our French translations", "are our locales in sync", "what i18n framework does this project use", "how internationalized is this codebase".
+description: Use when auditing a project for i18n readiness — detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings".
 ---
 
 # i18n Audit

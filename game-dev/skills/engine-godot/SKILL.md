@@ -1,6 +1,6 @@
 ---
 name: engine-godot
-description: Use when authoring or reviewing Godot 4 projects — GDScript, scenes (.tscn), resources (.tres), autoloads, signals, node tree organization, project.godot configuration, version control hygiene. Triggers on edits to `*.gd`, `*.tscn`, `*.tres`, `project.godot`. Also on natural-language prompts like "review my Godot scene", "Godot autoload smell", "Godot signal vs polling", "node tree organization", "Godot 4 best practices", "Godot scene composition". Grounded in the official Godot 4 docs (docs.godotengine.org).
+description: 'Use when authoring or reviewing Godot 4 projects — GDScript, scenes (.tscn), resources (.tres), autoloads, signals, node tree organization. Triggers: "review my Godot scene", "Godot autoload smell", "Godot signal vs polling", "Godot 4 best practices". Grounded in official Godot 4 docs.'
 ---
 
 # engine-godot

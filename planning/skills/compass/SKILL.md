@@ -1,7 +1,7 @@
 ---
 name: compass
 description: >
-  Use to decide and organize work across every project in the portfolio — what's in flight, what to work on next, and a periodic review sweep. Triggers on "what should I work on", "what should I work on next", "what's in flight", "what am I in the middle of", "portfolio review", "weekly review", "what's next across my projects", "which project needs attention", "what's going stale". Subcommands: `now` (in-flight board), `next` (ranked recommendations), `review` (cadence sweep). Report-only — recommends work, never launches it and never writes portfolio artifacts.
+  Use to decide and organize work across every project in the portfolio — what's in flight, what to work on next, and a periodic review sweep. Triggers on "what should I work on next", "what's in flight", "portfolio review", "what's going stale". Report-only — recommends, never launches work.
 ---
 
 # Compass — portfolio work orchestrator

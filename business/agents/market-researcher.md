@@ -1,6 +1,6 @@
 ---
 name: market-researcher
-description: Use to gather cited market evidence for ONE project's viability assessment — competitors and their pricing, market/niche signals, and distribution-channel norms — and return structured, source-attributed findings. Dispatched by the business `assess` skill only when `--research` is set, or directly when you have a project, an audience hypothesis, and need the commercial landscape evidenced. Not a decision tool — it gathers evidence; the assess skill and the user reach the verdict. Trigger phrases include "research the market for this", "who are the competitors and what do they charge", "is there a payable audience for this", "how do tools like this reach users".
+description: Gather cited market evidence for ONE project's viability assessment — competitors and pricing, market signals, distribution-channel norms. Trigger phrases include "research the market for this", "who are the competitors and what do they charge", "is there a payable audience for this".
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 model: sonnet
 ---

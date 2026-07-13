@@ -1,6 +1,6 @@
 ---
 name: bash-script-audit
-description: Use when auditing a bash/shell script before it ships inside a Debian `.deb` (`postinst`/`prerm`/maintainer scripts), inside a macOS `.pkg` (preinstall/postinstall), or inside a Docker image — for code errors, broken download URLs, outdated version pins, or `.onion` link availability. Trigger on "audit this script", "check for broken download URLs", "is this installer safe", "does this .onion still resolve", "are these version pins current".
+description: Use when auditing a bash/shell script before it ships inside a Debian .deb, macOS .pkg, or Docker image, checking for code errors, broken URLs, and stale version pins. Trigger on "audit this script", "check for broken download URLs", "is this installer safe", "does this .onion still resolve".
 ---
 
 # Bash Script Audit

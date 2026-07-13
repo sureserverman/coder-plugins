@@ -1,6 +1,6 @@
 ---
 name: android-gradle-build
-description: Use when creating or modifying Android build scripts, wiring Gradle modules, running Android unit or instrumented tests, or touching security-sensitive storage — before writing any build configuration, implementation file, or test command. Trigger on "gradle build failing", "add a module", "wire up instrumented tests", "my androidTest won't run", "keystore for encrypted prefs", "update my AGP version".
+description: Use when creating or modifying Android build scripts, wiring Gradle modules, or running Android unit/instrumented tests — before writing any build config or test command. Trigger on "gradle build failing", "add a module", "wire up instrumented tests", "update my AGP version".
 ---
 
 # Android Gradle Build

@@ -1,6 +1,6 @@
 ---
 name: i18n-formats
-description: Reference for per-format gotchas across i18n catalog formats — gettext .po (CLDR plural-forms headers, msgctxt, msgid_plural), i18next JSON, react-intl/FormatJS, Vue i18n, Android strings.xml (quoting, plurals, positional %1$s), iOS .strings/.stringsdict/.xcstrings, Flutter ARB (@key metadata, ICU plurals), Rails YAML (i18n-tasks, locale top-key), Django gettext, Qt .ts (numerusform), .NET .resx, Java .properties (Unicode escape rules), CLDR plural categories per language. Use when authoring or modifying translation catalogs, when format-specific escaping or quoting matters, or when expanding plural forms for a non-English target.
+description: Reference for i18n catalog format gotchas — gettext .po, i18next JSON, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB. Use when authoring or modifying translation catalogs, format-specific escaping or quoting matters, or expanding plural forms for a non-English target.
 ---
 
 # i18n Formats Reference

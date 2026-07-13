@@ -1,7 +1,7 @@
 ---
 name: assess
 description: >
-  Decide whether ONE portfolio project is worth monetizing, for whom, and on what evidence — and record the verdict in business/BUSINESS.md. Use for commercial triage of a single project. Triggers on "is this worth monetizing", "assess this project's business case", "business viability", "should I commercialize this", "who would pay for this", "triage this project commercially". Produces a verdict of monetize | free-for-reputation | internal-only | park (park and internal-only are complete, valid outcomes). Supports an optional --research market pass.
+  Decide whether ONE portfolio project is worth monetizing, for whom, and on what evidence — record the verdict in business/BUSINESS.md. Triggers on "is this worth monetizing", "assess this project's business case", "should I commercialize this", "who would pay for this".
 ---
 
 # assess — viability triage

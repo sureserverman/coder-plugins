@@ -1,6 +1,6 @@
 ---
 name: ui-web
-description: 'Use this agent to design, review, or facelift web UIs (any framework) per WCAG 2.2 AA, WAI-ARIA APG, MDN, and Nielsen Norman heuristics. Trigger phrases include "web UI facelift", "accessibility audit", "a11y review", "WCAG compliance", "responsive redesign", "ARIA audit", "semantic HTML", "design tokens", "Core Web Vitals", "form redesign". Opinionated: semantic HTML first, ARIA only when HTML can''t express it, mobile-first, framework-agnostic.'
+description: 'Use this agent to design, review, or facelift web UIs per WCAG 2.2 AA, WAI-ARIA APG, and Nielsen Norman heuristics. Trigger phrases include "web UI facelift", "accessibility audit", "a11y review", or "WCAG compliance". Opinionated: semantic HTML first, ARIA only when needed, mobile-first.'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

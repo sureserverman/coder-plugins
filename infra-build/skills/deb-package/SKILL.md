@@ -1,6 +1,6 @@
 ---
 name: deb-package
-description: Use when creating, updating, or validating the Debian `.deb` layout that the `infra/utils/pkgskel` + `publish` pipeline expects — scaffolding `deb/package/DEBIAN/control`, fixing broken control fields, writing `postinst`/`prerm` scripts, wiring systemd integration, or diagnosing `dpkg-deb` build errors. Reference for the canonical `deb/package/DEBIAN/`, `deb/package/usr/bin/`, `deb/amd64/`, `deb/arm64/` tree.
+description: 'Use when creating, updating, or validating the Debian `.deb` layout that the `infra/utils/pkgskel` + `publish` pipeline expects: scaffolding `deb/package/DEBIAN/control`, fixing broken control fields, writing `postinst`/`prerm` scripts, or diagnosing `dpkg-deb` build errors.'
 ---
 
 # Debian Package Reference

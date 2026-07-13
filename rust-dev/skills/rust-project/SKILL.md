@@ -1,6 +1,6 @@
 ---
 name: rust-project
-description: Use when analyzing, auditing, or improving a Rust project in this ecosystem — dependency updates, security vulnerabilities, clippy lints, unused dependencies, test coverage, or cross-compile target validation for aarch64-apple-darwin. Trigger on "update my rust deps", "run clippy", "cargo audit", "cross-compile to aarch64-apple-darwin", "any unused crates", "bump my toolchain".
+description: Use when analyzing, auditing, or improving a Rust project in this ecosystem — dependency, security, and clippy issues, or cross-compile checks for aarch64-apple-darwin. Trigger on "update my rust deps", "run clippy", "cargo audit", "cross-compile to aarch64-apple-darwin".
 ---
 
 # Rust Project Analysis

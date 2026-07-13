@@ -1,6 +1,6 @@
 ---
 name: android-play-publish
-description: Use when preparing an Android app for publication on Google Play — building a release AAB, creating the app in Play Console, filling Data safety / App access / Content rating, drafting store listing copy and assets (icon, feature graphic, screenshots), choosing release tracks (Internal / Closed / Production), navigating the 14-day closed-test rule for new accounts, or setting up `fastlane supply` for automated metadata uploads. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "build AAB for play", "Data safety form", "play store listing", "app access demo credentials", "Play App Signing", "closed test 12 testers", "fastlane supply".
+description: Use when preparing an Android app for publication on Google Play — building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "Data safety form".
 ---
 
 # Android Google Play Publish

@@ -1,6 +1,6 @@
 ---
 name: ui-windows
-description: 'Use this agent to design, review, or facelift Windows 10/11 desktop apps per Fluent 2 using WinUI 3, WPF, or WinForms. Trigger phrases include "design Windows app", "Fluent 2 facelift", "WinUI 3", "Mica backdrop", "Win11 redesign", "NavigationView shell", "WPF modernize", "High Contrast audit", "Narrator review". Opinionated: Fluent 2 + WinUI 3 strategic, theme resources always, Segoe Fluent Icons on Win11.'
+description: 'Use this agent to design, review, or facelift Windows 10/11 desktop apps per Fluent 2 using WinUI 3, WPF, or WinForms. Trigger phrases include "design Windows app", "Fluent 2 facelift", or "WinUI 3". Opinionated: WinUI 3 first, theme resources always, Segoe Fluent Icons on Win11.'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

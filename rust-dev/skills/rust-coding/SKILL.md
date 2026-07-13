@@ -1,6 +1,6 @@
 ---
 name: rust-coding
-description: Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like "create a Rust app", "new Rust project", "scaffold a Rust crate", "cargo new", "start a Rust library", "build a Rust binary that...", or any "in Rust" / "using Rust" request to build from scratch. Also triggers on `*.rs` edits, `Cargo.toml`/`Cargo.lock` changes, `unsafe` blocks, `async`/`tokio` code, FFI bindings (`extern "C"`, `#[repr(C)]`, cxx, bindgen), `serde` derives, `thiserror`/`anyhow` error enums, `clippy` warnings, borrow-checker errors (E0382, E0502, E0505, E0597, E0716), and edition 2024 migration. Also triggers on questions like "is this idiomatic Rust", "Arc or Rc", "thiserror or anyhow", "is this unsafe sound", "tokio deadlock".
+description: Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like "create a Rust app" or "cargo new", *.rs edits, unsafe blocks, async/tokio code, and questions like "is this idiomatic Rust" or "thiserror or anyhow".
 ---
 
 # rust-coding

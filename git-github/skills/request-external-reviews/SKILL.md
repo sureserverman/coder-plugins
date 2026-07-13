@@ -3,12 +3,9 @@ name: request-external-reviews
 description: >
   Use when the user asks for a second opinion, cross-tool review, or
   multi-model review of a diff. Triggers: "get reviews from other tools",
-  "ask codex/gemini/opencode to review", "second opinion on this diff",
-  "cross-check this change", "multi-model review". Dispatches the same diff
-  to sibling CLIs (codex, gemini, opencode — plus claude when the caller is
-  Cursor) in non-interactive read-only mode and aggregates their findings
-  with consensus marking. For a single authoritative local review, use
-  code-review instead.
+  "second opinion on this diff", "cross-check this change", "multi-model
+  review". For a single authoritative local review, use code-review
+  instead.
 ---
 
 # Request External Reviews

@@ -1,6 +1,6 @@
 ---
 name: ui-garmin
-description: 'Use this agent to design, review, or facelift Garmin Connect IQ apps in Monkey C — watch faces, data fields, widgets, glances, and device apps. Trigger phrases include "design a watch face", "Connect IQ", "Monkey C UI", "watch face power budget", "onPartialUpdate", "always-on AMOLED", "data field layout", "Garmin widget", "Menu2", "resource qualifiers". Opinionated: respect the power budget, design for the whole device matrix (MIP/AMOLED, round/rectangular, button/touch), resource layouts over manual Dc drawing.'
+description: 'Use this agent to design, review, or facelift Garmin Connect IQ apps in Monkey C — watch faces, data fields, widgets, and device apps. Trigger phrases include "design a watch face", "Connect IQ", "Monkey C UI", or "always-on AMOLED". Opinionated: power budget and device-matrix design.'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

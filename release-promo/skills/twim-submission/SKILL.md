@@ -1,6 +1,6 @@
 ---
 name: twim-submission
-description: Drafts a This Week in Matrix (TWIM) submission entry for a Matrix-ecosystem project — a homeserver, client, bridge, bot, library, MSC, or hosting service. Triggers on "submit to TWIM", "draft a TWIM entry", "This Week in Matrix submission", "TWIM post", "submit my Matrix project", "matrix.org weekly", or any request to announce a Matrix-related release through the TWIM weekly digest. Encodes the matrix.org TWIM submission room workflow, expected structure, image and link conventions, and what gets edited or rejected.
+description: Drafts a This Week in Matrix (TWIM) submission entry for a Matrix-ecosystem project — homeserver, client, bridge, bot, library, MSC, or hosting service. Triggers on "submit to TWIM", "draft a TWIM entry", "TWIM post", or "matrix.org weekly" — encodes the submission room workflow and structure.
 ---
 
 # twim-submission

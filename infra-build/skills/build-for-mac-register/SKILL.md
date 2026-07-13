@@ -1,6 +1,6 @@
 ---
 name: build-for-mac-register
-description: Use to register a Rust project with the `~/dev/infra/build-for-mac/` GitHub Actions pipeline so it appears as a checkbox in the macOS-pkg build dispatch. Adds the project to `programs.txt` AND patches `.github/workflows/build_and_package.yml` (boolean input + matrix entry + `aggregate-artifacts` if-condition) in lockstep — refusing to land a half-update. Trigger on "register this for build-for-mac", "add to programs.txt", "expose this as a build-for-mac checkbox", "set up macOS pkg publishing for this project".
+description: Use to register a Rust project with the build-for-mac GitHub Actions pipeline so it appears as a checkbox in the macOS-pkg build dispatch. Trigger on "register this for build-for-mac", "add to programs.txt", "set up macOS pkg publishing for this project".
 ---
 
 # build-for-mac-register

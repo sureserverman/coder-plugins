@@ -1,6 +1,6 @@
 ---
 name: backlog
-description: Use to read, append, or remove entries in `docs/backlog.md` — the project's deferred-work register. Triggers on "add to backlog", "defer this", "what's in the backlog", "BL-007 is done — remove it", "scan backlog for X", or when executing-plans / planning-projects need to capture or consume deferred items. Append on defer, remove on implement, list on plan research.
+description: Use to read, append, or remove entries in docs/backlog.md — the project's deferred-work register. Triggers on "add to backlog", "defer this", "what's in the backlog", "BL-007 is done — remove it". Append on defer, remove on implement, list on research.
 ---
 
 # Backlog

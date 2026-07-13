@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when you have a plan file produced by the planning-projects skill (format with Stages, Tasks, Depends on / Blocks / Parallel fields, Red-Green max cycles, and Stage gates) — or a master plan (`*-master-plan.md` linking sub-plans for a decomposed big project) — and need to execute it. Drives Red-Green loops, respects the stage-gate model, executes a master plan's sub-plans in register dependency order with cross-plan gates, and dispatches independent tasks through the dispatching-parallel-agents skill. Triggers on "execute this plan", "run the plan", "execute the master plan", "implement docs/plans/...", "pick up this plan".
+description: Use when you have a plan file from planning-projects (Stages, Tasks, Depends on / Blocks / Parallel), or a master plan linking sub-plans, and need to execute it — driving Red-Green loops and stage gates. Triggers on "execute this plan", "run the plan", "execute the master plan".
 ---
 
 # Executing Plans

@@ -78,7 +78,7 @@ def scan_cases():
         with open(allow, "w") as fh:
             fh.write("# reasons\np2/commands/cmd.md  # legacy\n")
 
-        violations, allowed = budget.scan(root, 300, budget.load_allowlist(allow))
+        violations, allowed, invalid = budget.scan(root, 300, budget.load_allowlist(allow))
         vpaths = {v["path"] for v in violations}
         apaths = {a["path"] for a in allowed}
 
@@ -97,6 +97,23 @@ def scan_cases():
               "violation record fields correct")
 
 
+def invalid_yaml_cases():
+    with tempfile.TemporaryDirectory() as root:
+        # Unquoted plain scalar containing ": " — invalid YAML, the exact
+        # breakage the trim pass introduced (`... Triggers: "x"`).
+        write(os.path.join(root, "p/skills/bad/SKILL.md"),
+              '---\nname: bad\ndescription: short desc. Triggers: "x", "y"\n---\n\n# b\n')
+        # Same content but single-quoted — valid, must NOT be flagged.
+        write(os.path.join(root, "p/skills/good/SKILL.md"),
+              "---\nname: good\ndescription: 'short desc. Triggers: \"x\", \"y\"'\n---\n\n# g\n")
+        violations, allowed, invalid = budget.scan(root, 300, set())
+        ipaths = {r["path"] for r in invalid}
+        check("p/skills/bad/SKILL.md" in ipaths, "unquoted ': ' description flagged invalid")
+        check("p/skills/good/SKILL.md" not in ipaths, "single-quoted ': ' description is valid")
+        rc = budget.main(["--root", root, "--max", "300", "--allowlist", os.path.join(root, "none.txt")])
+        check(rc == 1, "invalid YAML alone forces exit 1")
+
+
 def exit_code_cases():
     with tempfile.TemporaryDirectory() as root:
         write(os.path.join(root, "p/skills/a/SKILL.md"), fm("x" * 100))
@@ -112,6 +129,8 @@ if __name__ == "__main__":
     extract_cases()
     print("scan:")
     scan_cases()
+    print("invalid yaml:")
+    invalid_yaml_cases()
     print("exit codes:")
     exit_code_cases()
     if FAILURES:

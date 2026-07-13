@@ -1,6 +1,6 @@
 ---
 name: game-architecture-patterns
-description: Use when designing or reviewing the architecture of a game's code — entity systems, game loop, state machines, event systems, object pools, observer/messaging. Triggers on "design my entity system", "ECS vs OOP", "game loop architecture", "fixed timestep", "variable timestep", "state machine for enemies", "FSM for player", "object pool for bullets", "observer pattern in my game", "event queue", "service locator", "singleton in games", "game architecture review", "decoupling game systems". Grounded in Robert Nystrom's Game Programming Patterns (gameprogrammingpatterns.com).
+description: 'Use when designing or reviewing the architecture of game code — entity systems, game loop, state machines, event systems, object pools. Triggers: "design my entity system", "ECS vs OOP", "state machine for enemies", "game architecture review". Grounded in Nystrom''s Game Programming Patterns.'
 ---
 
 # game-architecture-patterns

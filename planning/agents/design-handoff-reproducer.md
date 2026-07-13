@@ -1,6 +1,6 @@
 ---
 name: design-handoff-reproducer
-description: Use to reproduce ONE slice of a Claude Design handoff pack (a component or screen plus its referenced tokens and assets) precisely in a target stack's code, self-checked against the fidelity rubric. Dispatched by the applying-design-handoff skill per spec slice, or directly when you have a normalized design spec, a target stack, and exact file paths and need faithful reproduction. Not a design or architecture tool — the design decisions are already made; this agent reproduces them. Trigger phrases include "reproduce this design slice", "implement this component to spec", "build this screen to match the handoff", "make this match the design exactly".
+description: Use to reproduce ONE slice of a Claude Design handoff pack (component/screen plus tokens and assets) precisely, self-checked against the fidelity rubric. Triggers include "reproduce this design slice", "implement this component to spec", "build this screen to match the handoff".
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 ---

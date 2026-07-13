@@ -30,6 +30,11 @@ PATTERNS = (
 )
 EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/")
 
+try:
+    import yaml as _yaml
+except ImportError:  # pragma: no cover - CI installs pyyaml
+    _yaml = None
+
 
 def load_allowlist(path=ALLOWLIST_PATH):
     allowed = set()
@@ -65,9 +70,38 @@ def extract_description(text):
     return re.sub(r"\s+", " ", value.strip())
 
 
+def yaml_error(text):
+    """Return a short reason string if the frontmatter is not valid YAML with a
+    usable string `description`, else None.
+
+    Catches the common breakage of an unquoted plain scalar that contains a
+    `: ` sequence (e.g. `description: ... Triggers: "x"`), which a real YAML
+    loader rejects even though a naive regex parse would not. Falls back to a
+    lightweight heuristic when PyYAML is unavailable.
+    """
+    m = re.match(r"^---\n(.*?)\n---", text, re.S)
+    if not m:
+        return None
+    fm = m.group(1)
+    if _yaml is not None:
+        try:
+            data = _yaml.safe_load(fm)
+        except Exception as exc:  # yaml.YAMLError and friends
+            return str(exc).splitlines()[0][:120]
+        if not isinstance(data, dict) or not isinstance(data.get("description"), str):
+            return "description missing or not a string after YAML parse"
+        return None
+    # Fallback (no PyYAML): flag an unquoted single-line description containing `: `.
+    m2 = re.search(r"^description:[ \t]*(?![>|'\"])(.*)$", fm, re.M)
+    if m2 and ": " in m2.group(1):
+        return "unquoted description contains ': ' (invalid plain scalar) [heuristic]"
+    return None
+
+
 def scan(root, max_chars, allowlist):
     violations = []
     allowed = []
+    invalid = []
     for kind, pattern in PATTERNS:
         for path in glob.glob(os.path.join(root, pattern)):
             rel = os.path.relpath(path, root)
@@ -75,13 +109,17 @@ def scan(root, max_chars, allowlist):
             if any(seg in norm for seg in EXCLUDE_SEGMENTS):
                 continue
             with open(path, encoding="utf-8") as fh:
-                desc = extract_description(fh.read())
+                text = fh.read()
+            plugin = rel.replace(os.sep, "/").split("/", 1)[0]
+            err = yaml_error(text)
+            if err is not None and rel not in allowlist:
+                invalid.append({"path": rel, "kind": kind, "plugin": plugin, "error": err})
+            desc = extract_description(text)
             if desc is None:
                 continue
             n = len(desc)
             if n <= max_chars:
                 continue
-            plugin = rel.replace(os.sep, "/").split("/", 1)[0]
             record = {"path": rel, "kind": kind, "plugin": plugin, "chars": n}
             if rel in allowlist:
                 allowed.append(record)
@@ -89,7 +127,8 @@ def scan(root, max_chars, allowlist):
                 violations.append(record)
     violations.sort(key=lambda r: -r["chars"])
     allowed.sort(key=lambda r: -r["chars"])
-    return violations, allowed
+    invalid.sort(key=lambda r: r["path"])
+    return violations, allowed, invalid
 
 
 def main(argv=None):
@@ -101,11 +140,19 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     allowlist = load_allowlist(args.allowlist)
-    violations, allowed = scan(args.root, args.max, allowlist)
+    violations, allowed, invalid = scan(args.root, args.max, allowlist)
 
     if args.json:
-        print(json.dumps({"max": args.max, "violations": violations, "allowed": allowed}, indent=2))
+        print(json.dumps(
+            {"max": args.max, "violations": violations, "allowed": allowed, "invalid": invalid},
+            indent=2,
+        ))
     else:
+        if invalid:
+            print(f"{len(invalid)} description(s) with invalid YAML frontmatter:")
+            for r in invalid:
+                print(f"  {r['kind']:8s}  {r['path']}  — {r['error']}")
+            print()
         if violations:
             print(f"{len(violations)} description(s) over {args.max} chars:")
             for r in violations:
@@ -117,7 +164,7 @@ def main(argv=None):
             for r in allowed:
                 print(f"  {r['chars']:5d}  {r['kind']:8s}  {r['path']}")
 
-    return 1 if violations else 0
+    return 1 if (violations or invalid) else 0
 
 
 if __name__ == "__main__":

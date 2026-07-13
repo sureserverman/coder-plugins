@@ -1,6 +1,6 @@
 ---
 name: dispatching-parallel-agents
-description: Use when the executing-plans skill (or the user directly) has a set of tasks from a planning-projects plan marked Parallel YES whose dependencies are all green. Dispatches one agent per independent task, runs them concurrently, and integrates results respecting the plan's dependency graph. Triggers on "dispatch these tasks in parallel", "run these Parallel YES tasks", "fan out these independent fixes", or when executing-plans hands off ready tasks.
+description: Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on "dispatch these tasks in parallel", "run these Parallel YES tasks", "fan out these independent fixes".
 ---
 
 # Dispatching Parallel Agents

@@ -1,6 +1,6 @@
 ---
 name: android-fdroid-publish
-description: Use when preparing an Android app for publication on F-Droid — scaffolding fastlane metadata under `fastlane/metadata/android/en-US/`, drafting the `fdroiddata` build recipe YAML, choosing between the RFP issue flow and a direct merge request, computing the `AllowedAPKSigningKeys` fingerprint, or wiring `Binaries:` to GitHub releases. Trigger on "publish to F-Droid", "submit to fdroid", "create fdroid metadata", "fastlane folder for android", "RFP issue for fdroid", "fdroiddata YAML", "AllowedAPKSigningKeys", "F-Droid build recipe".
+description: Use when preparing an Android app for publication on F-Droid — scaffolding fastlane metadata, drafting the fdroiddata build recipe, and choosing the RFP or direct merge-request path. Trigger on "publish to F-Droid", "submit to fdroid", "fdroiddata YAML", "AllowedAPKSigningKeys".
 ---
 
 # Android F-Droid Publish

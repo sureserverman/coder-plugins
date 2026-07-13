@@ -1,7 +1,7 @@
 ---
 name: track
 description: >
-  Record a portfolio project's actual business metrics and compare them against its targets, in business/metrics.md. Use for a periodic business check-in on one project. Triggers on "track this project's metrics", "record downloads/installs/revenue", "how are we doing vs targets", "update business actuals", "log this month's numbers", "business check-in".
+  Record a portfolio project's actual business metrics — GitHub stars, downloads, revenue, installs — and diff them against targets in business/metrics.md. Triggers on "track this project's metrics", "how are we doing vs targets", "update business actuals", "business check-in".
 ---
 
 # track — record actuals, diff vs targets
