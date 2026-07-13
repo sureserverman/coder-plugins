@@ -70,11 +70,23 @@ Stop asking once you can justify a verdict. You need enough to decide, not every
 
 ## Phase 3 — Optional research (`--research`)
 
-When invoked with `--research`, dispatch the **market-researcher** agent
-(`${CLAUDE_PLUGIN_ROOT}/agents/market-researcher.md`) with the project, the audience
-hypothesis, the repo path, and candidate channels. It returns cited competitors, pricing
-signal, channel norms, and demand evidence — never a verdict. Fold its findings into the
-evidence section and set `evidence: researched`.
+When invoked with `--research`, first check the scanner JSON for an existing
+`market-research.md` artifact before dispatching anything — the `market-research` skill
+may already have produced one, and re-researching wastes a WebSearch pass:
+
+- **Reuse a fresh artifact.** If the project's scanner entry shows `research.exists: true`
+  with `research.age_days` ≤ **90** (the staleness window), read
+  `business/market-research.md`, fold its cited findings into the evidence section, and set
+  `evidence: researched` — do **not** dispatch the agent. Note in the body that the verdict
+  reused the dated research artifact.
+- **Otherwise dispatch.** If there's no artifact, or it's stale (`age_days` > 90), dispatch
+  the **market-researcher** agent (`${CLAUDE_PLUGIN_ROOT}/agents/market-researcher.md`) at
+  **`depth: triage`** with the project, the audience hypothesis, the repo path, and
+  candidate channels. It returns cited competitors, pricing signal, channel norms, and
+  demand evidence — never a verdict. Fold its findings in and set `evidence: researched`.
+  (assess does a fast viability pass, so `triage` depth is correct here; the deeper `full`
+  pass belongs to `/business:market-research`, which persists the artifact this phase
+  reuses.)
 
 If research is unavailable (offline, WebSearch denied) or `--research` was not passed,
 proceed on local evidence, set `evidence: local-only`, and say so explicitly — the

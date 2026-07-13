@@ -39,18 +39,32 @@ DOC = {
             "metrics": {"date": "2026-07-11", "values": {"github.stars": 5,
                         "manual.installs": 500, "manual.revenue_usd": None,
                         "note": "x"}},
-            "gtm": {"done": 1, "total": 4, "pct": 25}, "errors": [],
+            "gtm": {"done": 1, "total": 4, "pct": 25},
+            # alpha carries both new artifacts → Plan/Research columns populated
+            "plan": {"exists": True, "date": "2026-07-06", "age_days": 5, "status": "active"},
+            "research": {"exists": True, "date": "2026-07-06", "age_days": 5,
+                         "depth": "full", "confidence": "high"},
+            "errors": [],
         },
         {   # launched: gtm but no metrics
             "name": "bravo", "area": "ai-tools", "assessed": True,
             "verdict": "free-for-reputation", "monetization": {"model": "oss-services"},
             "last_reviewed_age_days": 3, "metrics": None,
-            "gtm": {"done": 0, "total": 5, "pct": 0}, "errors": [],
+            "gtm": {"done": 0, "total": 5, "pct": 0},
+            # research exists but its date didn't parse (age_days None) → "yes";
+            # no plan → "—". Proves the two columns are independent.
+            "research": {"exists": True, "date": None, "age_days": None,
+                         "depth": "full", "confidence": "low"},
+            "errors": [],
         },
-        {   # assessed only, park
+        {   # assessed only, park; plan.md exists but its status didn't parse →
+            # Plan column "yes" (malformation surfaced in Errors separately), no
+            # research → Research "—"
             "name": "charlie", "area": "ai-tools", "assessed": True,
             "verdict": "park", "monetization": {"model": None},
-            "last_reviewed_age_days": 40, "metrics": None, "gtm": None, "errors": [],
+            "last_reviewed_age_days": 40, "metrics": None, "gtm": None,
+            "plan": {"exists": True, "date": None, "age_days": None, "status": None},
+            "errors": ["plan.md: status 'published' not one of ['active', 'draft']"],
         },
         {   # assessed but errored (malformed BUSINESS.md)
             "name": "delta", "area": "ai-tools", "assessed": True,
@@ -93,26 +107,28 @@ def test_render():
     check("Generated: 2026-07-11" in md, "has generated date")
     # assessed = alpha, bravo, charlie, delta, proxy(servers), proxy(containers), weird|pipe = 7
     check("## Assessed (7)" in md, "assessed count 7")
+    check("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |" in md,
+          "assessed table header carries the two new columns")
     # stage derivation, now area-qualified wikilinks
-    check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) |" in md,
-          "alpha row: tracked, 2 non-null non-note metrics (null revenue excluded), area-qualified")
-    check("| ai-tools/[[bravo]] | free-for-reputation | oss-services | launched | 3d | — |" in md,
-          "bravo row: launched, no actuals")
-    check("| ai-tools/[[charlie]] | park | — | assessed | 40d | — |" in md,
-          "charlie row: park, model dash, assessed stage")
+    check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) | active | 5d |" in md,
+          "alpha row: tracked + plan active + research 5d, area-qualified")
+    check("| ai-tools/[[bravo]] | free-for-reputation | oss-services | launched | 3d | — | — | yes |" in md,
+          "bravo row: launched, no plan (—), research exists w/o date (yes)")
+    check("| ai-tools/[[charlie]] | park | — | assessed | 40d | — | yes | — |" in md,
+          "charlie row: plan exists w/o status (yes), no research (—)")
     # same-name-different-area disambiguation
     check("servers/[[proxy]]" in md and "containers/[[proxy]]" in md,
           "same-name projects disambiguated by area")
     # markdown injection escaped — the whole row is one intact line with escaped pipes
-    check("| ai-tools/[[weird\\|pipe]] | monetize | paid\\|x | modeled | 1d | — |" in md,
-          "pipe in name/model escaped, row stays a single 6-cell line")
+    check("| ai-tools/[[weird\\|pipe]] | monetize | paid\\|x | modeled | 1d | — | — | — |" in md,
+          "pipe in name/model escaped, row stays a single 8-cell line")
     # triage gap = echo, ghost, with leading bullet
     check("## Not yet assessed (2) — triage gap" in md, "unassessed count 2")
     check("- ai-tools/[[echo]]" in md and "ai-tools/[[ghost]]" in md, "triage list bulleted + area-qualified")
     # degrade-loudly sections
     check("## Couldn't assess (1)" in md and "foxtrot: scan error: boom" in md,
           "couldnt_assess surfaced")
-    check("## Errors (2)" in md, "both errored projects counted")
+    check("## Errors (3)" in md, "all three errored projects counted (delta, charlie, ghost)")
     check("ai-tools/[[delta]]: BUSINESS.md: verdict" in md, "assessed+errored surfaced")
     check("ai-tools/[[ghost]] (unassessed): scan glitch" in md,
           "unassessed+errored surfaced (degrade-loudly gap closed)")

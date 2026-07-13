@@ -20,7 +20,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | Plugin | What you get |
 |--------|--------------|
 | [`planning`](./planning) | Idea → validated design → staged plan → gated execution. Brainstorming, architecture research, Red-Green plan execution with stage gates, parallel task dispatch, portfolio `compass`, design-handoff reproduction. |
-| [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability (optionally with market research), revenue-model, launch, track, portfolio roll-up. |
+| [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up. |
 | [`git-github`](./git-github) | Everyday git/GitHub ops: commits and PRs in the repo's style, code review, multi-model second opinions, comment/workflow/license/README audits, release tags. |
 | [`testing`](./testing) | `testing-expert` subagent: run and triage tests, author new ones, audit coverage and test smells. Test pyramid, mutation-over-line-coverage opinions. |
 | [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` skill (fires on `*.rs`/`Cargo.toml` edits), `rust-expert` subagent, `/rust-review`, `/rust-idiomize`. |

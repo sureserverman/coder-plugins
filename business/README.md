@@ -9,8 +9,10 @@ plugin's `portfolio` and `compass` skills can read business state.
 
 | Skill | Does |
 |-------|------|
-| `/business:assess` | Viability triage → `business/BUSINESS.md` verdict (monetize / free-for-reputation / internal-only / park). Opt-in `--research`. |
+| `/business:assess` | Viability triage → `business/BUSINESS.md` verdict (monetize / free-for-reputation / internal-only / park). Opt-in `--research` (reuses a fresh `market-research.md`). |
 | `/business:revenue-model` | Monetization model, pricing, channels, numeric dated targets for an assess-passed project. |
+| `/business:market-research` | Deep, cited market pass (competitors, pricing, TAM/SAM/SOM, trends, positioning) → `business/market-research.md`. Writes nothing if WebSearch is unavailable. |
+| `/business:business-plan` | Compose verdict + model + research + gtm + metrics into a full ten-section `business/plan.md`. |
 | `/business:launch` | Go-to-market plan → `business/gtm-plan.md`, guarded by `MATURITY.md` state. |
 | `/business:track` | Record actuals → `business/metrics.md`, diff vs targets, bump Last reviewed. |
 | `/business:biz-portfolio` | Sweep every project, rebuild `global-business.md`. |
@@ -20,6 +22,8 @@ plugin's `portfolio` and `compass` skills can read business state.
 Per project, under `<vault_dir>/Portfolio/<area>/<project>/business/`:
 
 - `BUSINESS.md` — canonical, schema-versioned. Sole machine-readable index.
+- `market-research.md` — deep, cited market evidence (schema 1; `research` block).
+- `plan.md` — full ten-section business plan (schema 1; `plan` block).
 - `gtm-plan.md` — dated go-to-market checklist (portfolio-unify-parseable).
 - `metrics.md` — append-only actuals log.
 
