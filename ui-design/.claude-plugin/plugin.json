@@ -1,6 +1,6 @@
 {
   "name": "ui-design",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Opinionated per-platform UI design, review, and facelift subagents — one expert per surface. ui-web (WCAG 2.2 AA / WAI-ARIA / semantic HTML, framework-agnostic), ui-gnome (GNOME HIG + libadwaita, adaptive GTK4), ui-macos (Apple HIG + SwiftUI/AppKit, menu-bar-first), ui-windows (Fluent 2 + WinUI 3/WPF), and ui-garmin (Garmin Connect IQ / Monkey C watch faces, data fields, widgets, glances — power-budget- and device-matrix-aware). Each runs a surface-detection → design-review → facelift / greenfield / accessibility protocol and cites its platform guidelines by name. Android UI lives in the android-dev plugin (android-dev:ui-android).",
   "author": {
     "name": "Sure Serverman",

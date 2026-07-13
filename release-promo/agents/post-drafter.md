@@ -1,6 +1,6 @@
 ---
 name: post-drafter
-description: Drafts one release-announcement post for one named platform channel (a specific subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only — produces a single markdown draft, never posts, never edits files. Dispatched in parallel by /promote-release, one invocation per channel. Triggers when the caller already knows the channel and has the project facts gathered, and just needs the draft rendered.
+description: Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only — never posts, never edits files. Dispatched in parallel by /promote-release, one invocation per channel.
 model: haiku
 color: blue
 tools: [Read, Glob, Grep]

@@ -2,10 +2,8 @@
 name: create-commit
 description: >
   Use when the user explicitly asks to create a git commit — "commit this",
-  "commit these changes", "make a commit", "commit with message X", "stage
-  and commit", "create a commit for the staged changes". Dispatches a Haiku
-  subagent to inspect the working tree, draft a commit message that matches
-  the repo's style, and create the commit. Does NOT push, amend, or skip
+  "commit these changes", "make a commit", "stage and commit". Dispatches
+  a Haiku subagent to draft and create it. Does NOT push, amend, or skip
   hooks. Does NOT trigger on its own — only on an explicit user request.
 ---
 

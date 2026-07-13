@@ -4,8 +4,7 @@ description: >-
   Audit a repo or diff for faked verification — stubbed gates, tests that never
   ran, fabricated evidence, and hidden exclusions. Use at stage boundaries, before
   declaring work done, when reviewing someone else's "all gates green" claim, or
-  when a build looks suspiciously passing. Complements code review (which checks
-  whether code is correct) by checking whether the *verification* is real.
+  when a build looks suspiciously passing.
 ---
 # Gate Audit
 

@@ -1,6 +1,6 @@
 ---
 name: testing-expert
-description: 'Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; to review existing tests for smells; or to explain testing methodology. Trigger phrases include "run tests", "test failures", "flaky test", "coverage gap", "write tests for", "review these tests", "why TDD", "mutation testing". Opinionated: test pyramid, mutation-score-over-line-coverage, OWASP baseline, no snapshot theater.'
+description: 'Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include "run tests", "test failures", "flaky test", "coverage gap". Opinionated: test pyramid, mutation-score-over-line-coverage, OWASP baseline.'
 tools: Bash, Read, Grep, Glob, Edit, Write, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

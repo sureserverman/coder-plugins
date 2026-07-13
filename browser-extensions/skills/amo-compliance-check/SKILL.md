@@ -1,6 +1,6 @@
 ---
 name: amo-compliance-check
-description: Use when checking a Firefox extension for addons.mozilla.org (AMO) submission compliance, before packaging or publishing a Firefox WebExtension. Trigger on "AMO rejected my addon", "prep this addon for mozilla", "check firefox extension for AMO", "is this extension signable", "will AMO accept this manifest", "amo compliance".
+description: Use when checking a Firefox extension for addons.mozilla.org (AMO) submission compliance, before packaging or publishing. Trigger on "AMO rejected my addon", "prep this addon for mozilla", "check firefox extension for AMO", "is this extension signable".
 ---
 
 # AMO Compliance Check

@@ -1,6 +1,6 @@
 ---
 name: utils-register
-description: Use to register a project with the `~/dev/infra/utils/` Debian-packaging pipeline — adding it to `pkg.list` and scaffolding the canonical `deb/package/DEBIAN/control`, `deb/package/usr/bin/`, `deb/amd64/`, `deb/arm64/` tree. Wraps the existing `~/dev/infra/utils/pkgskel` script (which idempotently creates the layout and adds the project to `pkg.list` in one go). Trigger on "register this project for utils", "add to pkg.list", "scaffold the deb tree", "set up debian packaging for the publish pipeline".
+description: Use to register a project with the utils Debian-packaging pipeline, adding it to pkg.list and scaffolding the canonical deb/ tree via pkgskel. Trigger on "register this project for utils", "add to pkg.list", "scaffold the deb tree", "set up debian packaging for the publish pipeline".
 ---
 
 # utils-register

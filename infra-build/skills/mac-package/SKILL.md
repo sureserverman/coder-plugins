@@ -1,6 +1,6 @@
 ---
 name: mac-package
-description: Use when creating, updating, or validating the `mac/` layout that the `infra/build-for-mac` GitHub Actions pipeline expects — scaffolding `mac/Makefile`, `mac/payload/`, `mac/scripts/`, fixing Makefile targets (`build`, `package`, `install`, `clean`), writing postinstall scripts, wiring `launchctl bootout`/`bootstrap`, setting up `LaunchAgent` plists, or diagnosing `pkgbuild` failures.
+description: 'Use when creating, updating, or validating the `mac/` layout that the `infra/build-for-mac` GitHub Actions pipeline expects: scaffolding `mac/Makefile`, `mac/payload/`, `mac/scripts/`, fixing Makefile targets, writing postinstall scripts, or diagnosing `pkgbuild` failures.'
 ---
 
 # macOS Package Reference

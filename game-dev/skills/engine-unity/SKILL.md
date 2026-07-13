@@ -1,6 +1,6 @@
 ---
 name: engine-unity
-description: Use when authoring or reviewing Unity projects (Unity 6 / 2022+) — C# MonoBehaviour, ScriptableObject, Update / FixedUpdate / LateUpdate lifecycle, GC pressure, prefabs, addressables, scenes, DOTS/ECS, package manifest. Triggers on edits to `*.cs` files under `Assets/`, `*.unity` scenes, `*.asset`, `ProjectSettings/`, `Packages/manifest.json`, `*.prefab`. Also on natural-language prompts like "Unity best practices", "Update vs FixedUpdate", "ScriptableObject for shared data", "Unity GC allocations", "Addressables", "Unity DOTS overview", "MonoBehaviour lifecycle", "Unity performance review". Grounded in Unity 6 official programming best practices.
+description: 'Use when authoring or reviewing Unity projects (Unity 6 / 2022+) — C# MonoBehaviour, ScriptableObject, Update/FixedUpdate/LateUpdate lifecycle, GC pressure. Triggers: "Unity best practices", "Update vs FixedUpdate", "Unity GC allocations", "MonoBehaviour lifecycle".'
 ---
 
 # engine-unity

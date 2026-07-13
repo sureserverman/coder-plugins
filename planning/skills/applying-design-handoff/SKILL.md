@@ -1,6 +1,6 @@
 ---
 name: applying-design-handoff
-description: Use when redesigning an app to reproduce a Claude Design handoff pack (the spec bundle from claude.ai/design — tokens, components, layout, assets) precisely, reshaping functionality to fit the design where they conflict. Triggers on "reproduce this design", "apply the handoff pack", "redesign to match the design", "implement the Claude Design spec", "make the app match the handoff", "pull the design from my claude.ai design project", or when executing-plans reaches a design-handoff / redesign task. Auto-detects a local exported pack or a live claude.ai design-system project; cross-platform via the ui-* agents; gates behavior changes through workflow-spec.
+description: Use when redesigning an app to reproduce a Claude Design handoff pack (tokens, components, layout, assets) precisely, reshaping functionality to fit the design where they conflict. Triggers on "reproduce this design", "apply the handoff pack", "redesign to match the design".
 ---
 
 # Applying a Design Handoff

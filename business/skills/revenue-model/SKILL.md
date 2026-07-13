@@ -1,7 +1,7 @@
 ---
 name: revenue-model
 description: >
-  Decide how an assess-passed portfolio project earns or gains — its monetization model, pricing hypothesis, distribution channels, and numeric dated targets — recorded in business/BUSINESS.md. Use after a project has a monetize or free-for-reputation verdict. Triggers on "how should this make money", "pick a monetization model", "pricing for this project", "freemium vs paid", "set business targets", "what's the revenue model".
+  Decide how an assess-passed portfolio project earns or gains — monetization model, pricing hypothesis, channels, and dated targets — recorded in business/BUSINESS.md. Triggers on "how should this make money", "pick a monetization model", "pricing for this project", "what's the revenue model".
 ---
 
 # revenue-model — monetization decision

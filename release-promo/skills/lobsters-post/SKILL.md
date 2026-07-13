@@ -1,6 +1,6 @@
 ---
 name: lobsters-post
-description: Drafts a Lobsters submission for a software release, library, or substantive technical write-up. Triggers on "post on Lobsters", "submit to lobste.rs", "draft a Lobsters submission", "share on Lobsters", or any request to announce a project on Lobsters. Encodes Lobsters tag selection, the show/ask convention, the invite-only culture, what gets flagged or merged, and the user's responsibility to be a participating community member rather than a drive-by submitter.
+description: Drafts a Lobsters submission for a software release, library, or substantive technical write-up. Triggers on "post on Lobsters", "submit to lobste.rs", "draft a Lobsters submission", or "share on Lobsters" — covers tag selection, the show/ask convention, and the invite-only culture.
 ---
 
 # lobsters-post

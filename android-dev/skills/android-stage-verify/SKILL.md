@@ -1,6 +1,6 @@
 ---
 name: android-stage-verify
-description: Use after each stage of plan execution (or any milestone) to prove an Android app still builds, installs, and runs on real hardware. Builds the debug APK, checks for an adb-attached device, and when one is present installs it, smoke-launches it, and runs instrumented tests. Trigger on "verify this stage on device", "build and install on my phone", "run the on-device gate", "did this stage break the app", or when executing-plans reaches a stage gate in an Android project.
+description: Use after each stage of plan execution (or any milestone) to prove an Android app still builds, installs, and runs on real hardware. Trigger on "verify this stage on device", "build and install on my phone", "run the on-device gate", "did this stage break the app".
 ---
 
 # Android Stage Verify

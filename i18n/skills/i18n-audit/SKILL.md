@@ -1,6 +1,6 @@
 ---
 name: i18n-audit
-description: Use when auditing a project for internationalization (i18n) readiness — detecting which i18n framework (if any) it uses, finding hardcoded user-facing strings that haven't been wrapped for translation yet, and diffing translation catalogs across locales for missing or stale keys. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings", "what's missing in our French translations", "are our locales in sync", "what i18n framework does this project use", "how internationalized is this codebase".
+description: Use when auditing a project for i18n readiness — detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings".
 ---
 
 # i18n Audit
@@ -75,8 +75,8 @@ Top 5 hardcoded strings to wrap:
   ...
 
 Next actions:
-  - Run /i18n-fill-gaps to translate missing keys
-  - Run /i18n-add-locale <code> to add a new target locale
+  - Run /i18n:i18n-translate to translate missing keys
+  - Run /i18n:i18n-translate <code> to add a new target locale
   - For format-specific gotchas, read the matching `skills/i18n-formats/references/<format>.md` (per the dispatch table in that skill)
 ```
 
@@ -100,4 +100,4 @@ and any translation/judgment stay LLM work.
 
 - For format gotchas (Android quoting, ARB metadata, gettext plural headers), consult the matching `i18n-formats/references/<format>.md` (`android.md`, `flutter-arb.md`, `gettext.md`). Do not invent escape rules from memory.
 - For multi-module projects (an Android repo with separate `app/`, `lib1/`, `lib2/` modules each with their own `res/values*/strings.xml`), the script runs per-module and reports per-module.
-- The diff script does NOT fix stale translations. Use `/i18n-fill-gaps` to re-translate them.
+- The diff script does NOT fix stale translations. Use `/i18n:i18n-translate` to re-translate them.

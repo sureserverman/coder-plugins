@@ -1,6 +1,6 @@
 ---
 name: android-ui-design-figma
-description: Use when the user asks to change, design, or restyle Android UI — theming, layouts, screens, components, Material 3, Compose, Views, navigation, typography, colors, spacing, launcher / app icon (adaptive icon, themed icon, monochrome layer, mipmap-anydpi-v26), or Figma integration for an Android app. Trigger on "redesign this screen", "add a Figma design", "restyle the app", "dark mode", "this screen feels cramped", "make the app look more modern", "make the launcher icon adaptive", "themed icon", "icon looks bad on Android 13", a screenshot showing a UI issue, or any UI/UX change request for Android.
+description: Use when the user asks to change, design, or restyle Android UI — theming, layouts, screens, components, Material 3, Compose, navigation, or launcher/app icon, including Figma integration. Trigger on "redesign this screen", "add a Figma design", "restyle the app", "dark mode".
 ---
 
 # Android UI Design and Figma Workflow

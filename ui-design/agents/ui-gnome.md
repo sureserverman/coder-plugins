@@ -1,6 +1,6 @@
 ---
 name: ui-gnome
-description: 'Use this agent to design, review, or facelift GNOME/Ubuntu desktop apps (GTK4 + libadwaita). Trigger phrases include "design GNOME app", "facelift GTK", "libadwaita migration", "AdwPreferencesWindow", "GNOME HIG review", "Orca audit", "adaptive GTK layout", "Adwaita dark style". Opinionated: libadwaita over hand-rolled GTK, adaptive by default, no tray icons, HIG is the law.'
+description: 'Use this agent to design, review, or facelift GNOME/Ubuntu desktop apps (GTK4 + libadwaita). Trigger phrases include "design GNOME app", "facelift GTK", "libadwaita migration", or "GNOME HIG review". Opinionated: libadwaita over hand-rolled GTK, adaptive by default, HIG is the law.'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

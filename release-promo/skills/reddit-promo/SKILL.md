@@ -1,6 +1,6 @@
 ---
 name: reddit-promo
-description: Drafts a Reddit post for promoting a software release or project, tailored to subreddit rules. Triggers on "draft a Reddit post", "post this to r/<sub>", "announce on Reddit", "submit to r/matrixprotocol", "submit to r/matrixdotorg", "post on r/selfhosted", "share on r/programming", "promote on r/SideProject", "post on r/coolgithubprojects", "Show this on r/rust / r/golang / r/python / r/AndroidDev", "post on r/privacy", "share on r/Tor", "draft a launch post for Reddit", or any request to write a subreddit-aware release/launch/show-off post. Encodes self-promotion rules and flair conventions per sub.
+description: Drafts a Reddit post for promoting a software release or project, tailored to subreddit rules. Triggers on "draft a Reddit post", "post this to r/<sub>", "announce on Reddit", or "submit to r/matrixprotocol" — encodes self-promotion rules and flair conventions per sub.
 ---
 
 # reddit-promo

@@ -1,6 +1,6 @@
 ---
 name: game-feel-and-juice
-description: Use when tuning the moment-to-moment responsiveness, "game feel", or "juice" of a game — input handling, controller feel, jump feel, hit feedback, screen shake, hitstop, easing curves, particle feedback, animation snappiness. Triggers on "improve game feel", "the jump feels off", "controller feels mushy", "tune the controller", "add juice", "the combat feels weak", "hits don't feel impactful", "input lag", "input feels delayed", "add coyote time", "add jump buffer", "add screen shake", "tune dead zones". Also triggers on `*controller*` / `*input*` / `*camera*` file edits in a game project. Grounded in Steve Swink (Game Feel) and platformer-feel best practices.
+description: 'Use when tuning the moment-to-moment responsiveness, "game feel", or "juice" of a game — input handling, controller feel, jump feel, hit feedback, screen shake. Triggers: "improve game feel", "the jump feels off", "controller feels mushy", "add coyote time".'
 ---
 
 # game-feel-and-juice

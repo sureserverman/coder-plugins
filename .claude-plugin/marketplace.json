@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "plugins": [
     {
       "name": "rust-dev",
       "source": "./rust-dev",
       "description": "Idiomatic Rust authoring: rust-coding progressive-disclosure skill, rust-project whole-project audit skill, rust-expert authoring subagent, and slash commands for review and refactor.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "category": "languages",
       "tags": [
         "rust",
@@ -31,7 +31,7 @@
       "name": "android-dev",
       "source": "./android-dev",
       "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), Compose layout patterns and Compose/Espresso/MockWebServer testing patterns, multi-device emulator orchestration via bundled MCP stack, mock server generation, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "category": "development",
       "tags": [
         "android",
@@ -58,7 +58,7 @@
       "name": "release-promo",
       "source": "./release-promo",
       "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (subreddit-aware, including Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel. Never autoposts.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "tags": [
         "release",
@@ -80,7 +80,7 @@
       "name": "stingy-agents",
       "source": "./stingy-agents",
       "description": "Three scope-bounded subagents that let a skill or an Opus caller offload bulk or mechanical work to a cheaper, faster model: readonly-scanner (Haiku) for bulk file I/O and grep, skill-rewriter (Sonnet) for spec-driven edits to existing files, and code-generator (Sonnet) for spec-driven file creation. Spend Opus tokens on judgment calls, Haiku and Sonnet tokens on everything else.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "tags": [
         "subagent",
@@ -99,7 +99,7 @@
       "name": "infra-build",
       "source": "./infra-build",
       "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "development",
       "tags": [
         "infra",
@@ -124,7 +124,7 @@
       "name": "git-github",
       "source": "./git-github",
       "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, run a single-tool authoritative code review via the bundled read-only code-reviewer agent (also consumed by planning's executing-plans for per-task and per-stage review), audit a repo or diff for faked verification — stubbed gate tasks, tests that never ran, fabricated evidence, hidden exclusions — via gate-audit (the after-the-fact enforcement of planning's honest-gates rules), dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. The GitHub Actions workflow lane also emits findings on plugin-dev's shared deterministic contract via scripts/validate.sh. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "development",
       "tags": [
         "git",
@@ -153,7 +153,7 @@
       "name": "planning",
       "source": "./planning",
       "description": "Thirteen-skill pipeline that turns a vague idea into executed work, keeps each project's contracts honest, and gives a cross-project portfolio view. brainstorming validates the design via question-driven exploration — then routes designs with a structural surface to architecting-projects, which derives 2–4 stack-concrete architecture candidates, fans out one sonnet-pinned architecture-researcher agent per candidate in parallel (uncited claims discarded), presents a comparison matrix for explicit user approval — in re-architecture mode also inventorying the current layout so candidates carry a current→target migration map (ARCH-NN Migration map section) whose ordered steps seed the plan's stage order — and writes a parser-safe *-architecture.md with stable ARCH-NN section IDs beside the plan (zero portfolio-unify candidates by construction, locked by the validate-plan-parser fixture suite) that planning-projects consumes: structure-creating tasks cite their ARCH-ID and the final stage gate carries an architecture-conformance check; planning-projects produces a staged plan with phase gates and Red-Green cycles (reconciling backlog and workflow specs at research time) — and now decomposes big projects (>~6 stages / >~25 tasks, or multiple independently shippable workstreams) into 2–7 independently executable sub-plans linked by one master plan whose register carries cross-plan dependencies and per-entry integration gates (canonical format in references/master-plan-format.md, parser-safe by construction so a master yields zero portfolio-unify backlog candidates, locked by the validate-plan-parser CI fixture suite); executing-plans drives the plan with stage-gate checks — and executes master plans by running sub-plans in register dependency order (one per fresh session recommended; the master file is the cross-session handoff artifact), flipping register Status on each sub-plan close-out, running that entry's cross-plan gate checks, committing Sub-plan N green, and deferring version bumps to the single master close-out — a default independent-evaluator pass at gates and close-out, stage-boundary handoff notes for context resets, opens/closes backlog entries, and audits workflow specs at close-out — now with a git-bootstrap preflight (inits a repo when missing), run-to-completion execution that doesn't pause between green stages, a platform stage-verify hook at each gate (e.g. android-dev's android-stage-verify), a two-tier white-box code review wired into execution (per-task quick review where a Critical blocks within the cycle budget, plus a per-stage deep review at the gate) via git-github's read-only code-reviewer agent, and SemVer version bumps across every mirror at close-out; applying-design-handoff redesigns an app to precisely reproduce a Claude Design handoff pack (tokens, components, layout, assets), auto-detecting a local exported bundle or a live claude.ai design-system project via the DesignSync tool, inventorying the app and its workflow specs, and reshaping functionality to fit the design — the design wins, but every behavior change is gated through workflow-spec (Changes/Removes WF-*) with user sign-off — then delegating cross-platform code to the ui-* agents and the sonnet-pinned design-handoff-reproducer subagent (per-slice precise reproduction, rendering each slice with Playwright and following the mock as it builds on browser stacks) before a separate-evaluator fidelity-rubric verify loop that grades deterministic Playwright renders per breakpoint (against the pack's reference render where it carries one); executing-plans drives it for a design-handoff/redesign task and fires that loop as a stage-gate hook; dispatching-parallel-agents fans out independent tasks marked Parallel YES and routes each to a stack-matched subagent (rust-expert, ui-android, testing-expert, …) via a shared stack-routing reference that executing-plans also uses to delegate independent, output-heavy sequential tasks off the orchestrator's context — guarded by a CI-enforced validate-stack-routing.py check that fails when the routing table names an agent/skill the marketplace no longer ships; no-fafo-debugging fires at the start of any debugging/diagnostic work to enforce evidence-first root-cause analysis, and gathers that evidence autonomously (reads logs, runs read-only diagnostics, reproduces failures, builds interceptors/probes itself) so the user is pulled in only when genuinely blocked; backlog owns the deferred-work register at docs/backlog.md (now with `unify` and `complete` subcommands); workflow-spec owns the behavior contracts at docs/workflows/ used to detect regressions after change; project-maturity scaffolds and audits a per-project docs/MATURITY.md across six publishing-readiness axes (Documentation, Security, Packaging, UI/UX, i18n, Testing & CI); compass is the portfolio work orchestrator — a read-only now/next/review lane whose deterministic compass-scan.py (CI-guarded, reusing portfolio-unify's plan-parser regexes) rebuilds the cross-project work picture fresh each run (in-flight plan stages, backlog open/parked counts, maturity gaps, integration edges, git recency) and whose judgment layer ranks what to work on next (momentum > almost-shippable > unblocking > staleness), respects backlog Parked: annotations, cites evidence on every recommendation, and never writes portfolio artifacts; portfolio is a cross-project orchestrator that scans ~/dev/, unifies plans+backlogs per project, rolls up a global backlog index and a global maturity dashboard at ~/.claude/.; honest-gates defines the integrity contract for every verification gate — a gate is GREEN only when its real command ran here and passed, otherwise RED or BLOCKED (never a stubbed task, fabricated evidence, hidden exclusion, or self-graded miss), with escalation rules for blocked gates. Skills hand off to each other and were designed as a unit.",
-      "version": "0.20.0",
+      "version": "0.20.1",
       "category": "development",
       "tags": [
         "planning",
@@ -186,7 +186,7 @@
       "name": "business",
       "source": "./business",
       "description": "Per-project business-planning pipeline for the ~/dev portfolio, sibling to planning. assess triages viability (repo + vault + MATURITY.md context, one-question interview, opt-in --research that reuses a fresh market-research.md or dispatches the cited market-researcher subagent) and writes a schema-versioned business/BUSINESS.md verdict (monetize | free-for-reputation | internal-only | park); revenue-model turns a passed verdict into a monetization model, pricing hypothesis, channels, and numeric dated targets; market-research runs a standalone deep cited pass (competitors, pricing, TAM/SAM/SOM, trends, positioning) persisted to business/market-research.md; business-plan composes verdict + monetization + research + gtm + metrics plus a short gap interview into a full ten-section business/plan.md; launch writes a MATURITY-guarded go-to-market plan at business/gtm-plan.md in the portfolio-unify-parseable house format; track records actuals into an append-only business/metrics.md (free GitHub metrics via collect-github.py, revenue/installs manual), diffs vs targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project through the deterministic business-scan.py evidence lane (the sole parser of BUSINESS.md, market-research.md, plan.md, gtm-plan.md, metrics.md — one JSON contract, reusing portfolio-unify's plan-parser regexes) and rebuilds global-business.md. The determinism boundary lets the planning plugin's portfolio and compass skills consume the scanner JSON additively and degrade loudly when business is absent.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "category": "development",
       "tags": [
         "business-plan",
@@ -208,7 +208,7 @@
       "name": "browser-extensions",
       "source": "./browser-extensions",
       "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "development",
       "tags": [
         "browser-extension",
@@ -250,8 +250,8 @@
     {
       "name": "i18n",
       "source": "./i18n",
-      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source — TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. Commands: /i18n-audit, /i18n-fill-gaps (parallel per-locale dispatch), /i18n-add-locale (scaffold + first-pass translate). Nothing autocommits.",
-      "version": "0.2.1",
+      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source — TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. The three skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate` for both gap-fill and new-locale scaffold, `/i18n:i18n-formats`). Nothing autocommits.",
+      "version": "0.3.0",
       "category": "development",
       "tags": [
         "i18n",
@@ -288,7 +288,7 @@
       "name": "game-dev",
       "source": "./game-dev",
       "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "development",
       "tags": [
         "game-dev",
@@ -322,7 +322,7 @@
       "name": "ui-design",
       "source": "./ui-design",
       "description": "Opinionated per-platform UI design, review, and facelift subagents — one expert per surface: ui-web (WCAG 2.2 AA / WAI-ARIA / semantic HTML), ui-gnome (GNOME HIG + libadwaita), ui-macos (Apple HIG + SwiftUI/AppKit), ui-windows (Fluent 2 + WinUI 3/WPF), and ui-garmin (Garmin Connect IQ / Monkey C watch UI, power-budget- and device-matrix-aware). Each runs surface-detection → review → facelift/greenfield/accessibility protocols and cites platform guidelines by name. Android UI lives in android-dev (android-dev:ui-android).",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "tags": [
         "ui",
@@ -347,7 +347,7 @@
       "name": "testing",
       "source": "./testing",
       "description": "Generalist, strongly-opinionated testing subagent (testing-expert). Triage-first: run/debug tests, author tests, coverage gap-analysis, review for smells, coach methodology. Opinionated about the test pyramid, mutation-score-over-line-coverage, and an OWASP baseline; cites Beck, Fowler, Meszaros, Feathers, Google Testing, OWASP WSTG, Stryker, Hypothesis, axe-core. Dispatched as testing:testing-expert by planning's executing-plans / dispatching-parallel-agents, or directly.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "development",
       "tags": [
         "testing",

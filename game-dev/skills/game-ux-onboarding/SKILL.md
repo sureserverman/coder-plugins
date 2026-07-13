@@ -1,6 +1,6 @@
 ---
 name: game-ux-onboarding
-description: Use when reviewing or designing the user experience of a game — menus, HUDs, FTUE (first-time user experience), tutorialization, signposting in UI, affordances, button prompts, options screens. Triggers on "design my game UI", "review my HUD", "design FTUE", "design the tutorial", "audit menus", "the UI is confusing", "menu IA", "options screen review", "button prompts", "design pause screen", "game UX review", "is this tutorial good". Grounded in Celia Hodent's The Gamer's Brain and standard game UX practice.
+description: 'Use when reviewing or designing the user experience of a game — menus, HUDs, FTUE, tutorialization, signposting in UI, affordances, button prompts. Triggers: "design my game UI", "review my HUD", "design FTUE", "the UI is confusing". Grounded in Celia Hodent''s The Gamer''s Brain.'
 ---
 
 # game-ux-onboarding

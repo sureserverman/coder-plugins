@@ -2,12 +2,10 @@
 name: release-tag
 description: >
   Use when the user explicitly asks to cut a release tag — "tag a
-  release", "cut v1.4.0", "create a release tag", "tag and release",
-  "draft release notes from the changelog". Drafts an annotated tag
-  message from the top CHANGELOG entry (or commits since the last tag),
-  asks before tagging, asks again before pushing, and optionally creates
-  a GitHub release via `gh release create`. Does NOT trigger on its own,
-  does NOT force-push, does NOT delete or move existing tags.
+  release", "cut v1.4.0", "create a release tag", "draft release notes
+  from the changelog". Asks before tagging and again before pushing. Does
+  NOT trigger on its own, does NOT force-push, does NOT delete or move
+  existing tags.
 ---
 
 # Release Tag

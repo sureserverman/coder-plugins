@@ -1,6 +1,6 @@
 ---
 name: architecting-projects
-description: Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that planning-projects consumes. Triggers on "design the architecture", "architecture options", "how should the codebase be structured", "what structure should this codebase have", "compare architecture candidates", "pick an architecture", "pick a project layout", or when the brainstorming skill hands off a design with a non-trivial structural surface (module boundaries, directory layout, cross-module interfaces). Not for staging work into phases — that is planning-projects' domain.
+description: Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that planning-projects consumes. Triggers on "design the architecture", "architecture options", "pick an architecture", "compare architecture candidates".
 ---
 
 # Architecting Projects

@@ -34,11 +34,12 @@ The audit + translate + formats skills know these catalog formats and their gotc
 - **`i18n-translate`** — drives the LLM translation pass via the `translator` subagent. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on "translate to <locale>", "fill in missing translations", "add Spanish translations".
 - **`i18n-formats`** — reference doc with per-format gotchas. Loaded on demand by the other two skills.
 
-## Commands
+## Invoking the skills
 
-- `/i18n-audit` — run the audit pipeline (framework detection → hardcoded scan → catalog gaps).
-- `/i18n-fill-gaps` — find missing keys across all configured locales and translate them via the `translator` subagent.
-- `/i18n-add-locale <code>` — scaffold a new locale catalog by translating from the source catalog.
+The skills are model-triggered and also invocable directly:
+
+- `/i18n:i18n-audit` — run the audit pipeline (framework detection → hardcoded scan → catalog gaps).
+- `/i18n:i18n-translate` — fill missing keys across configured locales, or scaffold a new locale, via the `translator` subagent. (Argument scoping and new-locale scaffolding — the `--include-stale` and `--copy-only` flows and the per-framework catalog paths — are documented in the skill.)
 
 ## Agent
 

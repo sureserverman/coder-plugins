@@ -1,6 +1,6 @@
 ---
 name: game-design-expert
-description: Use this agent to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding/FTUE, accessibility, and game-code architecture across Godot 4, Unity 6, or Unreal 5. Trigger phrases include "design a core loop", "review my game design", "tune game feel", "audit my camera", "review my game UX", "accessibility audit for my game", "review my game architecture", "design a mechanic", "does this have depth", "review FTUE", "audit onboarding". Also triggers proactively after edits to controller / camera / player / movement / input / HUD files in a game project, or when a player-feedback issue mentions "feels off", "camera fights me", "tutorial is confusing".
+description: 'Use to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding, or accessibility across Godot 4, Unity 6, or Unreal 5. Triggers: "design a core loop", "review my game design", "tune game feel", "accessibility audit for my game".'
 tools: Read, Grep, Glob, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), Bash(find:*), Bash(rg:*), WebFetch
 model: sonnet
 ---

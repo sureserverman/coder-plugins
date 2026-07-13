@@ -97,21 +97,7 @@ Captures Play Store screenshots across all emulator form factors (phone 6", tabl
 /android-screenshots [login|capture|full] [--tabs "Tab1,Tab2,..."]
 ```
 
-### `/android-prepare-fdroid`
-
-Walks through the F-Droid prep checklist: signing, fastlane scaffold, and `docs/f-droid/<applicationId>.yml` build recipe. The user submits to `gitlab.com/fdroid/fdroiddata` themselves — the command produces and validates the artefacts.
-
-```
-/android-prepare-fdroid [check|init|metadata|yaml] [applicationId]
-```
-
-### `/android-prepare-play`
-
-Walks through the Google Play prep checklist: signing, AAB build + verification, Play-specific store listing assets, and a draft `docs/play-app-content.md` for the App content forms. The user uploads to Play Console themselves.
-
-```
-/android-prepare-play [check|init|aab|listing] [applicationId]
-```
+The F-Droid and Google Play prep flows are now skills (invoke `/android-dev:android-fdroid-publish` or `/android-dev:android-play-publish`, or let them model-trigger). Each carries a **Quick audit (punchlist)** section — the former `check`-mode checklist — plus the full signing → metadata/AAB → recipe/listing walkthrough.
 
 ## Infrastructure
 

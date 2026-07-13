@@ -1,15 +1,11 @@
 ---
 name: build-readiness-check
 description: >
-  Use to audit whether the current project is ready to be built and published
-  by the three pipelines under `~/dev/infra/`: `utils` (Debian `.deb` via
-  `pkgskel` + `reprepro`), `build-for-mac` (Rust → macOS `.pkg` via GitHub
-  Actions), and `publish-images` (multi-arch Docker → DockerHub/GHCR/Quay/
-  GitLab/ECR). Read-only. Reports per pipeline whether the project is
-  READY / PARTIAL / NOT-READY with the exact missing files or registration
-  entries. Trigger on "is this project ready to publish", "check build
-  readiness", "what's missing for the deb build", "audit my mac/ layout",
-  "is this image registered with publish-images".
+  Use to audit whether the current project is ready to be built and
+  published across the utils, build-for-mac, and publish-images
+  pipelines, read-only. Trigger on "is this project ready to publish",
+  "check build readiness", "what's missing for the deb build", "audit
+  my mac/ layout".
 ---
 
 # Build Readiness Check

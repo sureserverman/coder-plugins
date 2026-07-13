@@ -1,6 +1,6 @@
 ---
 name: publish-images-register
-description: Use to register a Docker image with the `~/dev/infra/publish-images/` multi-arch multi-registry pipeline. Adds the image to `images.yml` AND patches `.github/workflows/build-and-publish.yml` (boolean input + `repository_dispatch` type + job block) in lockstep — refusing to land a half-update. Optionally scaffolds `Dockerfile` + `doc/DOCKERHUB.md` in the source repo, and wires the source repo's release workflow to fire `repository_dispatch` so tag → republish is automatic. Trigger on "register this image for publish-images", "add to images.yml", "publish this image to all registries", "wire up multi-arch docker publishing".
+description: Use to register a Docker image with the `~/dev/infra/publish-images/` multi-arch, multi-registry pipeline. Trigger on "register this image for publish-images", "add to images.yml", "publish this image to all registries", "wire up multi-arch docker publishing".
 ---
 
 # publish-images-register

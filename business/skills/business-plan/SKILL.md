@@ -1,7 +1,7 @@
 ---
 name: business-plan
 description: >
-  Compose a full, detailed business plan for ONE portfolio project — executive summary, market analysis, competitive landscape, product & roadmap, marketing & sales, operations, financial scenarios, risks, and milestones — into business/plan.md. Use when you want the whole plan as a document, not a triage verdict. Triggers on "write a business plan", "full business plan for this", "business plan document", "financial projections for this project", "put together the business plan", "compose the plan". Composes existing pipeline state (verdict, monetization, market research, GTM, metrics) plus a short gap interview — it does not re-decide the verdict.
+  Compose a full, detailed business plan for ONE portfolio project — executive summary, market analysis, competitive landscape, financials, risks, milestones — into business/plan.md. Triggers on "write a business plan", "full business plan for this", "business plan document".
 ---
 
 # business-plan — compose the full plan

@@ -1,6 +1,6 @@
 ---
 name: workflow-spec
-description: Use to capture, audit, or refresh behavior contracts for an app or module — markdown files under `docs/workflows/` that name each user-visible flow with a stable ID, entry point, steps, postconditions, invariants, and a `Last verified` stamp. Triggers on "document the app's workflow", "capture the auth flow", "audit this diff against the workflow spec", "did we lose any behavior in this refactor", "refresh WF-AUTH-003", "what does the user-facing app actually do". Audit pass is the regression checklist after a non-trivial change.
+description: Use to capture, audit, or refresh behavior contracts (docs/workflows/) — user-visible flows with stable IDs, steps, and invariants. Triggers on "document the app's workflow", "capture the auth flow", "audit this diff against the workflow spec". Regression checklist after a non-trivial change.
 ---
 
 # Workflow Spec

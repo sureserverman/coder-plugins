@@ -1,6 +1,6 @@
 ---
 name: ui-macos
-description: 'Use this agent to design, review, or facelift macOS apps per Apple HIG (macOS) with SwiftUI/AppKit. Trigger phrases include "design Mac app", "macOS HIG review", "SwiftUI facelift", "AppKit modernize", "native Mac feel", "Catalyst cleanup", "menu bar design", "Settings scene", "NavigationSplitView". Opinionated: menu bar first, semantic colors, no iPad idioms on Mac, VoiceOver + Full Keyboard Access as ship-blockers.'
+description: 'Use this agent to design, review, or facelift macOS apps per Apple HIG with SwiftUI/AppKit. Trigger phrases include "design Mac app", "macOS HIG review", "SwiftUI facelift", or "AppKit modernize". Opinionated: menu bar first, semantic colors, no iPad idioms on Mac, VoiceOver required.'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

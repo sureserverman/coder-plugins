@@ -1,6 +1,6 @@
 ---
 name: android-mcp-orchestrator
-description: Use when the user asks to run the Android MCP, test an app on emulators, capture Play-style screenshots, take emulator screenshots, install an APK on emulators, or run any emulator/screenshot flow for an Android app. Also trigger on "android-mcp", "phone6in/tablet7in/tablet10in", or mentions of the multi-emulator stack.
+description: Use when the user asks to run the Android MCP, test an app on emulators, capture Play-style screenshots, or run any emulator/screenshot flow for an Android app. Also trigger on "android-mcp", "phone6in/tablet7in/tablet10in", or mentions of the multi-emulator stack.
 ---
 
 # Android MCP Orchestrator

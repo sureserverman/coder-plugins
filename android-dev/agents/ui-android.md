@@ -1,6 +1,6 @@
 ---
 name: ui-android
-description: 'Use this agent to design, review, or facelift Android apps per Material 3 and Jetpack Compose. Trigger phrases include "design Android UI", "Material 3 facelift", "Compose screen", "Material You", "adaptive layout", "WindowSizeClass", "predictive back", "edge-to-edge", "TalkBack audit", "M2 to M3 migration". Opinionated: M3 + Compose + single-activity + dynamic color; WindowSizeClass over device-type checks.'
+description: 'Use this agent to design, review, or facelift Android apps per Material 3 and Jetpack Compose — dynamic color, adaptive layouts, accessibility. Trigger phrases: "design Android UI", "Material 3 facelift", "Compose screen", "WindowSizeClass", "predictive back", "edge-to-edge", "TalkBack audit".'
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
 ---

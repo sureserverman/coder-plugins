@@ -1,6 +1,6 @@
 ---
 name: planning-projects
-description: Use when the user wants a staged plan for a non-trivial project — feature rollouts, refactors, infra migrations, anything that needs phase gates before execution. Triggers on "plan", "roadmap", "how should I build", "break this down", "what are the steps", "create a plan", "what order should I do this", "help me structure this project", or any request to structure a non-trivial project.
+description: Use when the user wants a staged plan for a non-trivial project — feature rollouts, refactors, infra migrations, anything needing phase gates before execution. Triggers on "roadmap", "break this down", "create a plan", "help me structure this project".
 ---
 
 # Project Planner

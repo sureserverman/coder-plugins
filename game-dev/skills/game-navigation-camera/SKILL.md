@@ -1,6 +1,6 @@
 ---
 name: game-navigation-camera
-description: Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, world-map navigation, fast travel, signposting, or wayfinding. Triggers on "review my camera", "camera feels bad", "design the camera", "third-person camera", "follow camera", "Cinemachine setup", "camera clipping", "the camera fights the player", "design navigation", "level signposting", "fast travel design", "world map navigation", "wayfinding", "camera shake", "predictive camera", "camera lookahead". Grounded in John Nesky's "50 Camera Mistakes" (GDC 2014) and standard Cinemachine/level-design practice.
+description: 'Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, fast travel, signposting, or wayfinding. Triggers: "review my camera", "camera feels bad", "the camera fights the player", "design navigation". Grounded in John Nesky''s "50 Camera Mistakes" (GDC 2014).'
 ---
 
 # game-navigation-camera

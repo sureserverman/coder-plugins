@@ -1,11 +1,20 @@
 {
   "name": "rust-dev",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Idiomatic Rust authoring: rust-coding progressive-disclosure skill, rust-project whole-project audit skill, rust-expert authoring subagent, and slash commands for review and refactor.",
   "author": {
     "name": "agents repo",
     "url": "https://github.com/"
   },
-  "keywords": ["rust", "cargo", "clippy", "unsafe", "async", "tokio", "ffi", "idiomatic"],
+  "keywords": [
+    "rust",
+    "cargo",
+    "clippy",
+    "unsafe",
+    "async",
+    "tokio",
+    "ffi",
+    "idiomatic"
+  ],
   "license": "MIT"
 }

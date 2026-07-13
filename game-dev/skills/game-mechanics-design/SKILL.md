@@ -1,6 +1,6 @@
 ---
 name: game-mechanics-design
-description: Use when designing, balancing, or reviewing core game mechanics, the core game loop, compulsion loops, progression, or FTUE (first-time-user experience). Triggers on greenfield mechanic-design requests like "design a core loop", "design a mechanic", "what's the core loop here", "balance this", "design the onboarding", "design progression", "how should this game feel session to session", "design a roguelike loop", "design a survival loop", "design FTUE". Also triggers on review requests like "is this loop shallow", "does this mechanic have depth", "audit the onboarding flow", "why does this game feel grindy", "compulsion loop review". Grounded in Schell, Sylvester, and Nystrom.
+description: 'Use when designing, balancing, or reviewing core game mechanics, the core game loop, compulsion loops, progression, or FTUE. Triggers: "design a core loop", "design a mechanic", "balance this", "does this mechanic have depth". Grounded in Schell, Sylvester, and Nystrom.'
 ---
 
 # game-mechanics-design

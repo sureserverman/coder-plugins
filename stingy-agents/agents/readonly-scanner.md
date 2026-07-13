@@ -1,6 +1,6 @@
 ---
 name: readonly-scanner
-description: Read-only bulk file scanner on Haiku. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, probing download URLs, and summarizing audit signals — when the calling skill or agent is on Opus/Sonnet and the scan phase is dominated by file I/O. Never writes, edits, renames, or deletes. Returns structured findings the caller integrates into a verdict.
+description: Read-only bulk file scanner on Haiku. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs — when the calling skill/agent is on Opus/Sonnet and I/O-bound. Never writes, edits, renames, or deletes.
 tools: Read, Glob, Grep, Bash, WebFetch
 model: haiku
 ---

@@ -1,7 +1,7 @@
 ---
 name: market-research
 description: >
-  Produce a deep, cited market-research report for ONE portfolio project — competitors and pricing, market sizing (TAM/SAM/SOM), trends, positioning gaps, channel norms, and demand — and persist it to business/market-research.md for assess and business-plan to reuse. Use when you want standalone market evidence, not a verdict. Triggers on "research the market for this", "market research for this project", "size the market", "who are the competitors and what do they charge", "TAM SAM SOM", "is there a payable audience", "refresh the market research". Writes nothing if WebSearch is unavailable — a half-cited report is worse than none.
+  Produce a deep, cited market-research report for ONE portfolio project — competitors, pricing, TAM/SAM/SOM sizing, trends, channel norms — persisted to business/market-research.md. Triggers on "market research for this project", "size the market", "TAM SAM SOM", "is there a payable audience".
 ---
 
 # market-research — deep, persistent market evidence

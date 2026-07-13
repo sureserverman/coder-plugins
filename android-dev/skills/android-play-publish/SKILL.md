@@ -1,6 +1,6 @@
 ---
 name: android-play-publish
-description: Use when preparing an Android app for publication on Google Play — building a release AAB, creating the app in Play Console, filling Data safety / App access / Content rating, drafting store listing copy and assets (icon, feature graphic, screenshots), choosing release tracks (Internal / Closed / Production), navigating the 14-day closed-test rule for new accounts, or setting up `fastlane supply` for automated metadata uploads. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "build AAB for play", "Data safety form", "play store listing", "app access demo credentials", "Play App Signing", "closed test 12 testers", "fastlane supply".
+description: Use when preparing an Android app for publication on Google Play — building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "Data safety form".
 ---
 
 # Android Google Play Publish
@@ -15,6 +15,68 @@ Get an Android app onto **Google Play**. Play uploads use the **AAB** (Android A
 - Google account + ability to pay the **one-time $25 USD** developer registration fee.
 
 If `targetSdkVersion` is below the current floor, stop and bump it first — Play rejects the upload otherwise.
+
+## Quick audit (punchlist)
+
+Before walking the full decision tree, you can audit current state without writing anything.
+
+Detect repo state first:
+
+```bash
+test -f app/build.gradle.kts || test -f app/build.gradle
+test -f keystore.properties.example
+test -f keystore.properties
+test -f upload.keystore
+test -d fastlane/metadata/android/en-US
+test -f fastlane/metadata/android/en-US/images/icon.png
+test -f fastlane/metadata/android/en-US/images/featureGraphic.png
+ls fastlane/metadata/android/en-US/images/phoneScreenshots/ 2>/dev/null | wc -l
+grep -E 'targetSdk\s*=' app/build.gradle.kts
+grep -E 'versionCode\s*=' app/build.gradle.kts
+grep -E 'versionName\s*=' app/build.gradle.kts
+test -f docs/privacy.md && echo "local-privacy-policy"
+test -f .github/workflows/release.yml && echo "release-workflow"
+```
+
+Then mark each item `[x]` (done), `[ ]` (missing), or `[?]` (needs user input), grouped by Play Console section so the user can map directly to forms:
+
+#### Build prerequisites
+- [ ] App module at `app/` with `applicationId` set
+- [ ] `targetSdk ≥ 35` (current Play floor as of 2026-05; verify against [Google's docs](https://support.google.com/googleplay/android-developer/answer/11926878))
+- [ ] `versionCode` strictly greater than last released (compare with `git tag` or last AAB if accessible)
+- [ ] `keystore.properties` wired and `signingConfigs.release` defined
+- [ ] `./gradlew :app:bundleRelease` succeeds and produces `app/build/outputs/bundle/release/app-release.aab`
+
+#### Store listing (Grow users → Store presence → Main store listing)
+- [ ] App name ≤ 30 chars (`title.txt`)
+- [ ] Short description ≤ 80 chars (`short_description.txt`)
+- [ ] Full description ≤ 4000 chars (`full_description.txt`)
+- [ ] App icon: 512×512 PNG, no transparency
+- [ ] Feature graphic: 1024×500 PNG/JPEG (**required by Play**, not just F-Droid)
+- [ ] At least 2 phone screenshots, max 8, in `images/phoneScreenshots/`
+- [ ] Tablet screenshots if app supports tablets
+- [ ] Release notes for current `versionCode` in `changelogs/<versionCode>.txt` (≤ 500 chars)
+
+#### App content (Policy → App content)
+- [ ] Privacy policy at a public HTTPS URL (suggest GitHub: `https://github.com/<owner>/<repo>/blob/main/docs/privacy.md`)
+- [ ] Data safety form answered
+- [ ] App access — if login-gated, demo credentials prepared
+- [ ] Content rating questionnaire planned (the IARC form runs in Play Console — can't pre-fill, but list expected rating)
+- [ ] Ads declaration
+- [ ] Target audience age range
+
+#### Release infrastructure
+- [ ] `.github/workflows/release.yml` builds AAB on tag push (optional but recommended)
+- [ ] Service account for `fastlane supply` if automating uploads (optional)
+
+Report the punchlist verbatim, grouped by section. Do not change files during an audit-only pass.
+
+This audit maps to four modes of engagement:
+
+- **check** — audit only (the punchlist above), no writes.
+- **init** — full flow: signing → AAB build → store listing scaffold → App content checklist (Steps 3–5 below).
+- **aab** — only build and verify `app-release.aab` (Step 3).
+- **listing** — only scaffold/repair `fastlane/metadata/android/en-US/` for Play (Step 4).
 
 ## Decision tree
 
