@@ -60,7 +60,7 @@ the deterministic lane above — run it when auditing, don't grep by hand.
 ## When to hand off to rust-expert
 
 Apply the reference rules inline for focused changes. **Hand off to the `rust-expert`
-subagent** (directly, or via `/rust-review` / `/rust-idiomize` until those fold in) —
+subagent** (its review / idiomize / project-audit modes) —
 delegate-by-signal: independent + output-heavy + not latency-critical — when
 the change spans more than ~3 files, an `unsafe` block needs an extracted safety contract
 with Miri-runnable tests, an edition-2024 migration is being planned, clippy has more than
@@ -70,6 +70,6 @@ in its own context window.
 
 ## Related
 
-- Authoring subagent `rust-expert` (this plugin) and its `/rust-review` / `/rust-idiomize`
-  commands. Whole-project audit is now `rust-expert`'s **project-audit mode**.
+- Authoring subagent `rust-expert` (this plugin) — its **review**, **idiomize**, and
+  **project-audit** modes cover scoped review, behavior-preserving refactor, and whole-project audit.
 - Security review: `sec-review` skill → `sec-review:rust-runner` subagent.

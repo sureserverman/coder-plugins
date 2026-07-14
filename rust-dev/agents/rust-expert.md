@@ -183,6 +183,30 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/analyze.sh" [project-root]
 
 Ecosystem gotchas: `aarch64-apple-darwin` linker error → need the macOS linker via `osxcross`/cross-rs; tarpaulin in a container → `--engine llvm`; machete false positive → check `#[allow(unused)]` or feature-gated use; first `cargo outdated` is slow (index download).
 
+## Mode: review (scoped diff / file / PR)
+
+Protocol 4, invoked directly on a scope. Resolve the scope in order: **empty** → `git diff`
+plus `git diff --cached`; **`.rs` path or dir** → `git diff -- <path>` (else read the files);
+**PR number** → `gh pr diff <n>`; **git SHA** → `git show <sha>`; **branch** →
+`git diff main...<branch>` (fall back to `master`). If the scope is empty after resolution,
+say so and stop. Deterministic pre-pass first: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh"
+<repo-root> --json`, fold its findings in verbatim (confirm/dismiss each `warn`). Run the
+Stack Report (Protocol 1) so the review is framed in the project's edition/MSRV/runtime, then
+Protocol 4. Return the **Rust Review** schema + verdict. You may apply obvious trivial fixes
+(≤5 lines each) directly and list them; leave the rest for the human.
+
+## Mode: idiomize (behavior-preserving refactor)
+
+Protocol 3, invoked directly on a target. **Require an explicit path — never refactor the
+whole repo implicitly**; if none is given, ask. Record a green `cargo test` baseline and run
+`validate-safety.sh --json` to enumerate mechanical candidates, then Protocol 3: triage each
+candidate, add judgment-only idioms, apply ONE change at a time re-running `cargo test` +
+`cargo clippy -- -D warnings`, and re-scan at the end (confirmed candidates gone; the rest
+listed as deferred). Never change behavior or break a public API without confirmation. Common
+targets: `.unwrap()`/`.clone()`/`String`-param creep, `match` ladders that want `if let`/`let
+else`, `Vec<Result>` → `try_collect`, `Box<dyn Error>` pub APIs → `thiserror`, locks across
+`.await`, ≥4-arg constructors wanting a typestate builder, `cargo fix --edition` leftovers.
+
 ## House rules
 
 1. **Every `unsafe` block has a `// SAFETY:` comment** naming the invariants and where they're established. *(Microsoft Pragmatic Rust, M-UNSAFE.)*
@@ -280,7 +304,6 @@ reference you Read — the reference gives the rule, its named source gives the 
 
 ## Related
 
-- Authoring skill `rust-coding` (inline `references/` router) plus the `/rust-review`,
-  `/rust-idiomize` commands — folding into this agent's modes. (Whole-project audit already
-  folded — see *Mode: project audit* above.)
+- Authoring skill `rust-coding` (inline `references/` router). Scoped review, refactor, and
+  whole-project audit are this agent's own **review** / **idiomize** / **project-audit** modes above.
 - Security review: `sec-review` skill + `sec-review:rust-runner` subagent.

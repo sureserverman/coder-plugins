@@ -811,26 +811,6 @@
       "requires_enablement": false
     },
     {
-      "description": "Dispatch the rust-expert subagent to refactor a Rust file or module to idiomatic Rust \u2014 tighten API signatures, replace index loops with iterators, remove unnecessary clones, add `// SAFETY:` comments, fix lock-across-await, modernize error handling.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "rust-idiomize",
-      "path": "rust-dev/commands/rust-idiomize.md",
-      "plugin": "rust-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Dispatch the rust-expert subagent to review a scoped Rust diff (uncommitted changes, a file, a commit, or a PR) for idiom, safety, concurrency, and performance.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "rust-review",
-      "path": "rust-dev/commands/rust-review.md",
-      "plugin": "rust-dev",
-      "requires_enablement": false
-    },
-    {
       "description": "Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like \"create a Rust app\" or \"cargo new\", *.rs edits, unsafe blocks, async/tokio code, and questions like \"is this idiomatic Rust\" or \"thiserror or anyhow\".",
       "disable_model_invocation": false,
       "kind": "skill",
