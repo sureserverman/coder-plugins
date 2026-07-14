@@ -1,13 +1,13 @@
 ---
 name: planning-projects
-description: Use when the user wants a staged plan for a non-trivial project — feature rollouts, refactors, infra migrations, anything needing phase gates before execution. Triggers on "roadmap", "break this down", "create a plan", "help me structure this project".
+description: Use when the user wants a plan for a project of any size — triages to a format first (Direct/Light/Standard/Master) and may decline to plan a trivial job. Triggers on "roadmap", "break this down", "create a plan", "plan this", "how should I build".
 ---
 
 # Project Planner
 
 Create detailed, staged project plans grounded in real technical research. Every task gets a test. Every test gets a Red-Green loop. Nothing moves forward until the current task is green.
 
-This skill produces plans where every claim traces back to researched documentation, every task has a concrete test, and the execution model prevents half-built states through stage gates and rollback notes.
+This skill produces plans where every task has a concrete test and the execution model prevents half-built states. For the default **Standard** plan, every claim also traces back to researched documentation and every stage carries stage gates and rollback notes; the lighter formats (see Phase -0.5) keep the test-and-gate backbone and scale the rest to the size of the job.
 
 ---
 
@@ -35,7 +35,86 @@ Ask clarifying questions if any of these are unclear:
 
 ### When NOT to ask
 
-If the prompt is specific enough to plan against (names a technology, describes the goal, implies the scope), skip straight to Phase 0. Don't ask questions for the sake of being thorough — ask because the answer would change the plan.
+If the prompt is specific enough to plan against (names a technology, describes the goal, implies the scope), skip straight to Phase -0.5. Don't ask questions for the sake of being thorough — ask because the answer would change the plan.
+
+---
+
+## Phase -0.5 — Format triage
+
+Once the request is clear enough to size, pick the **format** before you plan. The
+planning apparatus has a size ladder, and matching the format to the job is what keeps a
+three-task chore from paying for a twelve-task project's ceremony — and a genuinely large
+project from being crammed into too small a container. This is the downward-and-upward
+symmetric partner to the decomposition rule in Phase 2.5.
+
+| Format | Trigger | What you produce |
+|--------|---------|------------------|
+| **Direct** | ≤ ~2 tasks, one session, no staging value | **No plan file.** Recommend direct execution with a test and a commit, then stop — do not run Phases 0–5. |
+| **Light** | Single stage, 2–5 tasks, one session, one stack, low risk | A Light plan per `references/light-plan-format.md` (`*-light-plan.md`) |
+| **Standard** | Everything between Light and Master | The full staged plan (Phases 0–5 below) |
+| **Master** | > ~6 stages / ~25 tasks, or ≥2 independently shippable workstreams | A master plan + sub-plans (Phase 2.5, `references/master-plan-format.md`) |
+
+**How to triage:**
+
+- **Direct is the off-ramp.** If the job is a couple of tested edits in one sitting, say
+  so and execute it directly — a plan file would be pure overhead. This is the answer to
+  "simple jobs shouldn't have to enter the machinery": the skill is now allowed to decline
+  to plan. (Still write a test and commit — those are invariants, not ceremony. And still
+  do a quick backlog-title check before you start — silently redoing a tracked item is the
+  same planning bug at any size; this is the one Phase 0 step Direct keeps.)
+- **Light** is for real-but-small work: one coherent stage of a handful of tested tasks,
+  no fan-out, no cross-session handoff. It keeps the invariants (a `Test:` per task,
+  `Status:` flips, commit per green task, honest gates) and drops the long-horizon
+  artifacts (mandated Research Summary, full Preflight, Risk/Rollback, Blocks/Parallel
+  fields). The full spec — and the exact kept-vs-dropped split — is
+  `references/light-plan-format.md`.
+- **Standard** is the default staged plan authored by Phases 0–5 of this skill.
+- **Master** is the existing decomposition path; **Phase 2.5 is the sole authority on the
+  Standard→Master decision** — this table only points at it, it does not restate the rule.
+
+**Record the call.** State the chosen format and the trigger that selected it in one line
+at the top of the plan you produce (`Format: Light — single stage, 4 tasks, one
+session`), so a reader (and `executing-plans`) sees the decision, not just its result. A
+Standard or Master plan may omit the line (they are the unmarked default); a Light plan
+should carry it.
+
+**When in doubt, round up.** A job on the Light/Standard or Standard/Master boundary takes
+the heavier format — the cost of slightly too much structure is smaller than the cost of a
+container that can't hold the work. The user can always override in either direction.
+
+---
+
+## Light plans
+
+If Phase -0.5 selected **Light**, do not run the full Phase 0–5 apparatus below. Author a
+single-stage plan per `references/light-plan-format.md` through this compressed path. The
+format doc is the authoritative spec; these are the deltas from the Standard flow so you
+know what to skip and what you must still do:
+
+- **Research is proportionate, not a mandated section.** Replace the Research Summary with
+  a 1–3 sentence **Context** line at the top of the plan (the key facts that ground it).
+  Skip the online/vault research sweep unless a specific unknown demands it. **The backlog
+  scan still runs** — a Light plan that silently duplicates an open backlog item is the
+  same planning bug at any size; fold in matches with `Closes BL-NNN`. Likewise, if
+  `docs/workflows/` exists and the change touches a documented flow, still declare
+  `Changes/Removes WF-NNN` on the task — behavior contracts don't get a size exemption.
+- **Preflight collapses into the gate.** There is no Preflight section. The only
+  pre-execution check that matters at this size — "baseline tests pass" — lives as a bullet
+  inside the single `### Stage 1 Gate` (alongside the git bootstrap `executing-plans`
+  always does).
+- **No Risk / Rollback / Blocks / Parallel fields.** One low-risk stage doesn't need a
+  rollback rehearsal, and with ≤5 tasks in one session there's no fan-out to coordinate.
+  Keep `Depends on` only where a task genuinely consumes a prior task's output.
+- **Output location is unchanged.** A Light plan saves to the same
+  `<portfolio_home>/plans/` in the vault under the same resolution and sidecar rules as any
+  plan (project auto-registered, `PORTFOLIO-STATUS` block present) — it is a first-class
+  plan, just a small one. Filename ends in `-light-plan.md` (and its first heading is
+  `# Light Plan:` — either one lets `executing-plans` detect the format).
+- **Use the Light checklist**, not the full one — see "Checklist — Light plans" below.
+
+If while authoring you find the job needs a second stage or a 6th task, stop treating it as
+Light: re-issue it as a Standard plan (the upgrade rule in `references/light-plan-format.md`).
+Don't stretch the Light format past its bounds.
 
 ---
 
@@ -510,6 +589,9 @@ Each sub-agent needs enough context to work independently:
 
 ## Checklist — Before Presenting the Plan
 
+**Light plans use the "Checklist — Light plans" below instead of this one.** This full
+checklist applies to Standard plans (and, with the decomposition addendum, Master plans).
+
 Before showing the plan to the user, verify:
 
 - [ ] Every task has a concrete, runnable test — no "it should work" tests
@@ -540,7 +622,28 @@ Before showing the plan to the user, verify:
 
 ---
 
+## Checklist — Light plans
+
+For a **Light** plan (Phase -0.5), verify only these — the full checklist above does not
+apply:
+
+- [ ] Every task has a concrete, runnable `Test:` — the same bar as any plan
+- [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
+- [ ] Exactly one stage, with 2–5 tasks (a 6th task or a second stage means re-issue as Standard)
+- [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a goal-level end-to-end check
+- [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
+- [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
+- [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
+
+---
+
 ## Common Pitfalls
+
+These pitfalls are written for **Standard** (and Master) plans. Rows about Risk, Rollback,
+`Blocks`, `Parallel`, mandated research, or the Preflight section don't apply to a **Light**
+plan, which legitimately drops those fields (Phase -0.5) — a Light author should read the
+"Tasks without tests", "Wrong task order", and "Vague stage gates" rows as still binding
+and treat the rest as Standard-only.
 
 | Pitfall | What goes wrong | Fix |
 |---------|----------------|-----|

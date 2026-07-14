@@ -15,6 +15,10 @@ plus the Status-authoritative path (§ "Authoritative signal: per-task Status"):
   (e) master **Gate:** bullets never surface as candidates
   (f) a stray `- [ ]` bullet inside a DONE (`Status: [x]`) task is suppressed
   (g) Deferred bullets still surface from Status-authoritative plans
+  (h) a Light plan (single-stage Status-field plan, light-plan-format.md) is
+      parser-safe by construction: in progress it yields one candidate per
+      undone task + its Deferred bullets, gate bullets and a stray bullet in a
+      done task excluded; completed it yields zero
 
 No pytest dependency — plain assertions, non-zero exit on any failure. Wired
 into CI via `.github/workflows/validate-plan-parser.yml`.
@@ -181,6 +185,55 @@ check(
     == ["BARE-CANDIDATE-A: still a heuristic candidate"]
     and bare[0]["signal"] == "unchecked-open",
     f"got: {bare}",
+)
+
+# (h) — Light plans (light-plan-format.md) take the authoritative path with no
+# parser change: a single-stage Status-field plan. In progress → one
+# status-unexecuted candidate per undone task + Deferred bullets; gate bullets
+# and a stray bullet in a done task are excluded. Completed → zero candidates.
+light = candidates("2026-07-14-light-inprogress-plan.md")
+light_by_signal = {}
+for c in light:
+    light_by_signal.setdefault(c["signal"], []).append(c)
+check(
+    "light plan: one status-unexecuted candidate per undone task",
+    [c["title"] for c in light_by_signal.get("status-unexecuted", [])]
+    == ["Add the parser fixture", "Bump the version"],
+    f"got: {light}",
+)
+check(
+    "light plan status-unexecuted locators are Stage 1 / Task 1.N",
+    [c["source"] for c in light_by_signal.get("status-unexecuted", [])]
+    == [
+        "plans/2026-07-14-light-inprogress-plan.md — Stage 1 / Task 1.2",
+        "plans/2026-07-14-light-inprogress-plan.md — Stage 1 / Task 1.3",
+    ],
+    f"got: {[c['source'] for c in light_by_signal.get('status-unexecuted', [])]}",
+)
+light_titles = {c["title"] for c in light}
+check(
+    "light plan: stray bullet in DONE task and gate bullets excluded",
+    not any(
+        "LIGHT-STRAY" in t or "LIGHT-GATE-MARKER" in t for t in light_titles
+    ),
+    f"got: {sorted(light_titles)}",
+)
+check(
+    "light plan: Deferred bullets still surface",
+    [c["title"] for c in light_by_signal.get("deferred-section", [])]
+    == ["LIGHT-DEFERRED-A: compass badge for light plans"],
+    f"got: {light}",
+)
+check(
+    "light plan emits nothing beyond status-unexecuted + deferred-section",
+    set(light_by_signal) == {"status-unexecuted", "deferred-section"},
+    f"got signals: {set(light_by_signal)}",
+)
+light_done = candidates("2026-07-14-light-completed-plan.md")
+check(
+    "completed light plan yields zero candidates",
+    light_done == [],
+    f"got: {light_done}",
 )
 
 # Architecture docs (architecting-projects skill) land in the same plans/ dir

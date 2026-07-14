@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when you have a plan file from planning-projects (Stages, Tasks, Depends on / Blocks / Parallel), or a master plan linking sub-plans, and need to execute it — driving Red-Green loops and stage gates. Triggers on "execute this plan", "run the plan", "execute the master plan".
+description: Use when you have a planning-projects plan — Standard (staged), master (sub-plans), or light (single-stage) — and need to execute it, driving Red-Green loops and stage gates. Triggers on "execute this plan", "run the plan", "execute the master plan".
 ---
 
 # Executing Plans
@@ -27,6 +27,13 @@ heading is `# Master Plan:` is a **master plan** (format:
 `../planning-projects/references/master-plan-format.md`). It deliberately has no
 Preflight, Stages, or Tasks — do NOT reject it; execute it per the **Master plans**
 section below.
+
+**Exception — light plans.** A file whose name ends in `-light-plan.md` or whose first
+heading is `# Light Plan:` is a **light plan** (format:
+`../planning-projects/references/light-plan-format.md`). It deliberately has **no
+Research Summary section, no Preflight section, and no Risk / Rollback / Blocks /
+Parallel fields** — a single stage of 2–5 Status-carrying tasks and one gate. Do NOT
+reject it for those missing fields; execute it per the **Light plans** section below.
 
 ---
 
@@ -78,6 +85,59 @@ stopped sub-plan blocks its register dependents exactly as a failed task blocks 
 
 ---
 
+## Light plans
+
+A **light plan** (`*-light-plan.md`, format:
+`../planning-projects/references/light-plan-format.md`) is a single stage of 2–5
+Status-carrying tasks with one gate. Execute it through the normal single-plan flow
+below, with these deltas — the machinery **scales to the size of the job** rather than
+running at full weight:
+
+1. **Preflight is git-bootstrap + baseline tests only.** A light plan has no Preflight
+   section; the "baseline tests pass" check lives in its single gate. Still do the git
+   bootstrap (Phase 2 — a repo must exist for commit-per-task) and confirm the baseline
+   is green before Stage 1. Nothing else to verify.
+2. **No parallel dispatch.** Every task runs **inline in the main session**, in listed
+   order, through the normal Red-Green loop. A light plan has no `Parallel` field and no
+   fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
+   `Depends on`; honor it as ordering.)
+3. **One review, not per-task.** **Skip the Tier-1 per-task review.** Instead, after the
+   last task goes green and **before** the gate (this is a pre-gate check, not the gate
+   itself — a light plan still has exactly one gate, its Stage 1 Gate), run **one**
+   `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
+   across all the light plan's commits). Handle its verdict exactly like the Tier-2 stage
+   review: a **Critical** blocks close-out just as a Tier-2 Critical fails a gate (fix
+   within the same discipline, re-run test + review), and Important/Suggestion findings
+   are surfaced for the user's triage, not auto-fixed. Skip only on the usual opt-out /
+   trivial-diff rules — so an entirely docs-only light plan skips it too (zero reviews is
+   correct there, exactly as a docs-only task auto-skips Tier-1 in a Standard plan); the
+   one review is guaranteed only when the plan's diff carries reviewable code. **This
+   single pre-gate review IS the light plan's Tier-2 — do not also run a separate Step 3.5
+   Tier-2 pass.** It keeps one real review in the loop without paying per-task review
+   overhead on a handful of tasks.
+4. **Both evaluator passes are opt-in, not default.** A light plan does **not** dispatch
+   the independent goal-evaluator by default — neither at the gate (Step 3.5) **nor at
+   close-out (Phase Close-out step 3)**, which for a Standard plan is default-on. Dispatch
+   it only if a check requires genuine judgment ("reads coherently", "flow works
+   end-to-end") or the user asks — same rule as any gate, just that a light plan's single
+   command-ish gate rarely has such a check. (This is the one place "everything else is
+   unchanged from Standard" below does **not** apply — the close-out evaluator's default
+   flips from on to off at Light.)
+5. **Close-out is one stated bump.** Run the full suite one final time, reconcile the
+   backlog (`Closes BL-NNN`), and append the `**Completed:**` line. For version bumps,
+   apply a **single stated SemVer bump** to what changed and its mirror — in this repo,
+   name the plugin's `.claude-plugin/plugin.json` **and** the root marketplace entry
+   explicitly (that pair) rather than running the full mirror-grep ritual. State your call
+   so the user can override.
+
+**Everything else is unchanged from a Standard plan:** Status flips the moment a test is
+green, a commit per green task, the Red-Green cycle budget and all Stop conditions,
+run-to-completion (don't pause at the gate to ask permission), one handoff note at the
+single gate, and the honest-gates integrity contract. A light plan is a small plan, not a
+sloppy one.
+
+---
+
 ## Checklist
 
 Create a task for each, work them in order:
@@ -123,8 +183,14 @@ but never over *finishing the work*.
 ## Phase 1 — Load and critique
 
 1. Read the plan file in full
-2. Verify the structure: Research Summary, Preflight, Stages with the expected fields
-3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies?
+2. Verify the structure: Research Summary, Preflight, Stages with the expected fields.
+   **For a light plan (`*-light-plan.md` / `# Light Plan:`), the absence of a Research
+   Summary section, a Preflight section, and Risk / Rollback / Blocks / Parallel fields
+   is correct, not a defect — do not flag it.** Verify instead that it is a single stage
+   of 2–5 tasks, each with a `Status` field and a runnable `Test:`, plus one gate. (A
+   light plan with a second stage or a 6th task should have been a Standard plan — flag
+   that, per the format's upgrade rule.)
+3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies? (The parallel-conflict and stage-oversize checks are moot for a light plan — one stage, inline execution.)
 4. **If concerns exist, surface them to the user before starting.** A plan with an unrunnable test or a dependency cycle will waste an entire Red-Green budget before the problem is found
 
 Create a TodoWrite list mirroring the plan: one task per stage, sub-items per task. Mark the current stage as `in_progress` only when Preflight passes.

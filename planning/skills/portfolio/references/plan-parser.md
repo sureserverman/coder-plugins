@@ -184,3 +184,31 @@ the format doesn't use).
 sections, plain-bullet lists, and a fenced directory tree — yields **zero**
 candidates, and its mutation twin (one smuggled `- [ ]`) yields exactly one,
 proving the invariant is falsifiable.
+
+## Light plans (from planning-projects, planning v0.22.0+)
+
+A **Light plan** (`*-light-plan.md`, format:
+`../../planning-projects/references/light-plan-format.md`) is the smallest staged
+artifact the pipeline produces: one `## Stage 1:` of 2–5 `### Task 1.N:` tasks, each
+carrying a `- **Status:** [ ]` field, plus one `### Stage 1 Gate`. It drops the
+long-horizon fields (Preflight section, Risk/Rollback, Blocks/Parallel) but keeps the
+three line shapes the parser keys on.
+
+- **Detection:** none needed for the parser — a Light plan is just a Status-field plan,
+  so any line matching the `Status:` checkbox regex puts it on the **authoritative path**
+  (`parse_plan_status`) exactly like a Standard plan or a sub-plan. (`executing-plans`
+  and the format doc detect it separately by the `-light-plan.md` suffix / `# Light Plan:`
+  first heading, but the parser never needs to.)
+- **In progress:** exactly one `status-unexecuted` candidate per `- **Status:** [ ]`
+  task (title = the `### Task 1.N:` description, locator = `Stage 1 / Task 1.N`); its
+  `### Stage 1 Gate` bullets are excluded like any gate, a stray `- [ ]` left in a done
+  task's body is suppressed, and any `## Deferred` bullets surface as `deferred-section`.
+- **Completed:** a Light plan with a `**Completed:** <date>` close-out line and all
+  `[x]` tasks yields **zero** candidates — identical to a completed Standard plan.
+
+**Format guarantee (locked by `../tests/test-portfolio-unify.py`):** the
+`fixtures/plan-parser/2026-07-14-light-inprogress-plan.md` fixture (mixed statuses, a
+gate, a stray bullet in a done task, a Deferred bullet) yields exactly one candidate per
+undone task plus its Deferred bullet, and the `2026-07-14-light-completed-plan.md`
+fixture yields zero — so the Light format is parser-safe **by construction, with no
+parser code**.
