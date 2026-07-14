@@ -37,7 +37,10 @@ If any required field is missing, return a single-line note saying which field i
    | `lobsters` | `skills/lobsters-post/SKILL.md` |
    | `fediverse` | `skills/fediverse-post/SKILL.md` |
 
-   Use the plugin root from the path the caller gives you, or glob from the cwd if they don't.
+   If the caller passes an explicit `skill_path`, Read that directly — it's the channel's
+   SKILL.md on disk (these skills are `disable-model-invocation: true`, so they're never
+   invoked as skills, only read). Otherwise use the plugin root from any path the caller
+   gives you, or glob from the cwd.
 
 2. **Read the SKILL.md.** For `reddit:matrixprotocol` / `reddit:matrixdotorg` also read `skills/reddit-promo/references/matrix-subs.md`. For other reddit subs, read `skills/reddit-promo/references/general-subs.md` and find the matching sub section.
 
