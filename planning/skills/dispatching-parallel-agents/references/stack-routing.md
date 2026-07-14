@@ -102,6 +102,56 @@ as loose visual inspiration, not a fidelity target.
 
 ---
 
+## Resolving a capability whose plugin isn't enabled
+
+The routing table names agents and skills by the identity Claude Code uses **when
+their plugin is enabled** — a registered `plugin:agent` type, an invocable skill.
+But a task can need a capability whose plugin isn't in the current session's
+loadout (a fresh project, a narrow task profile). Enablement only controls what
+Claude Code *injects and registers* at session start; the component files are on
+disk regardless. So resolve the capability from disk instead of assuming it's
+registered.
+
+**Find the index.** `capability-index.json` lives at the marketplace repo root and
+lists every component: `plugin`, `kind` (skill/agent/command), `name`, repo-relative
+`path`, `description`, `model`, `disable_model_invocation`, `requires_enablement`.
+There is no absolute `root` field — resolve each component's `path` **against the
+directory that contains the index file** (that directory *is* the marketplace root
+by construction, so the index is machine-independent). Match the task against
+`description`/`name` to pick the component the routing table points at.
+
+Then, by `kind`:
+
+- **Skill** — put an explicit instruction in the delegate's prompt to **Read the SKILL.md**
+  at that `path` and follow it (load its `references/` the same way the skill's own
+  body directs). Caveat: a skill reached this way runs **without its
+  frontmatter `allowed-tools` scoping** — that scoping only applies when Claude Code
+  invokes the skill as a registered skill. If the skill relies on a restricted tool
+  set, say so in the brief or prefer enabling the plugin.
+- **Agent** — the agent isn't a registered subagent type, so you can't set
+  `subagent_type` to it. Instead dispatch a `general-purpose` subagent and **inject
+  the agent's `.md` body** (below its frontmatter) into the prompt as its operating
+  instructions, and pass the agent's frontmatter **`model`** as the subagent's model
+  so the pin is preserved (e.g. a `model: sonnet` agent still runs on Sonnet). This
+  is the same content the agent type would carry; only the delivery differs.
+- **`requires_enablement: true`** — the component depends on machinery that only
+  activates on enablement (native hooks, a native or bundled MCP server), so it
+  **cannot** be faithfully lazy-loaded. Do **not** Read-and-follow it. Stop and tell
+  the user which plugin to enable and why (e.g. "this task needs android-dev's
+  emulator MCP — enable the android-dev plugin for this session").
+
+This disk-resolution path is a fallback layered **under** the delegate-by-signal
+rule above, not a replacement for it: first decide *whether* the task should be
+delegated at all, then — if the chosen capability's plugin happens to be disabled —
+resolve it from the index. When the plugin **is** enabled, use the normal registered
+`subagent_type` / skill invocation; the index path is only for the disabled case.
+
+For ad-hoc (non-plan) work where you just need a domain capability that isn't
+loaded, the `planning:capability-router` skill wraps this same lookup-and-resolve
+flow.
+
+---
+
 ## Keeping this table honest
 
 Every agent and skill named above must resolve to a built-in, a marketplace-shipped
