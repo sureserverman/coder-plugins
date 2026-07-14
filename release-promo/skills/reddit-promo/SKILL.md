@@ -1,6 +1,7 @@
 ---
 name: reddit-promo
 description: Drafts a Reddit post for promoting a software release or project, tailored to subreddit rules. Triggers on "draft a Reddit post", "post this to r/<sub>", "announce on Reddit", or "submit to r/matrixprotocol" — encodes self-promotion rules and flair conventions per sub.
+disable-model-invocation: true
 ---
 
 # reddit-promo

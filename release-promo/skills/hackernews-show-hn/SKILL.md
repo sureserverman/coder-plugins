@@ -1,6 +1,7 @@
 ---
 name: hackernews-show-hn
 description: Drafts a Hacker News "Show HN" submission for a project that readers can run, install, or use today. Triggers on "draft a Show HN", "post on Hacker News", "submit to HN", or "hackernews submission" — encodes Show HN eligibility, title rules, and first-comment conventions.
+disable-model-invocation: true
 ---
 
 # hackernews-show-hn
