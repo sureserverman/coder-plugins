@@ -46,7 +46,7 @@ The onboarding loop is a temporary, exaggerated version of the core loop:
 4. **Teach by doing, never by reading** — modal text walls are a failure mode. The level itself must teach.
 5. **Dissolve smoothly** — by the time the player exits FTUE, rewards have throttled down to the steady-state core loop's cadence. Abrupt drops cause churn.
 
-See [[game-ux-onboarding]] for the UX side (HUD, signposting, modal usage).
+See `game-ux-onboarding.md` for the UX side (HUD, signposting, modal usage).
 
 ## Pacing — Sylvester's tension curve
 
@@ -71,10 +71,10 @@ For each new mechanic, answer:
 2. **Purpose.** What hole in the existing toolkit does this fill?
 3. **Decision.** What choice does this open up that didn't exist before?
 4. **Depth.** What emergent interactions exist with other mechanics?
-5. **Feel.** What is the moment-to-moment sensation — power, dread, precision, chaos? (Hand off to [[game-feel-and-juice]].)
+5. **Feel.** What is the moment-to-moment sensation — power, dread, precision, chaos? (Hand off to `game-feel-and-juice.md`.)
 6. **Failure mode.** When the player misuses it, what happens? Punishing? Frustrating? Funny?
 7. **Teaching.** How does the *level* teach this mechanic without text?
-8. **Accessibility.** Can a one-handed player do this? A colorblind player? See [[game-accessibility-audit]].
+8. **Accessibility.** Can a one-handed player do this? A colorblind player? See `game-accessibility-audit.md`.
 9. **Cost.** Engine cost, content cost, balancing cost. Is the depth worth the build?
 
 If steps 3 or 4 are weak, the mechanic is decoration, not a mechanic. Cut it.
@@ -97,7 +97,7 @@ If steps 3 or 4 are weak, the mechanic is decoration, not a mechanic. Cut it.
 6. **Pacing?** Where are the rest beats? Where's the crescendo?
 7. **Output a brief** the engineer can implement: verb, loop, decisions opened, feel target, teaching plan, accessibility considerations.
 
-Hand off implementation to [[game-architecture-patterns]] for code shape and [[game-feel-and-juice]] for tuning.
+Hand off implementation to `game-architecture-patterns.md` for code shape and `game-feel-and-juice.md` for tuning.
 
 ## Sources
 

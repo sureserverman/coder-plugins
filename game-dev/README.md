@@ -6,7 +6,7 @@ Game development plugin for Claude Code. Part of the [`coder-plugins`](..) marke
 
 Opinionated, source-cited game-development expertise covering the areas that decide whether a game *feels good*: **mechanics**, **game feel**, **camera/navigation**, **UX/FTUE**, **architecture**, and **accessibility**, across Godot 4 / Unity 6 / Unreal 5. A thin `game-dev` router skill fires on game work and routes to shared `references/`; the `game-design-expert` agent does full design/review/audit passes over the same references — one source of truth.
 
-Every rule cites where it came from. The skills do not pretend; they reference Nystrom (*Game Programming Patterns*), Swink (*Game Feel*), Schell (*Art of Game Design*), Sylvester (*Designing Games*), Hodent (*The Gamer's Brain*), Nesky (*50 Camera Mistakes*, GDC 2014), the official Godot / Unity / Unreal docs, and the Game Accessibility Guidelines.
+Every rule cites where it came from. The references don't pretend; they cite Nystrom (*Game Programming Patterns*), Swink (*Game Feel*), Schell (*Art of Game Design*), Sylvester (*Designing Games*), Hodent (*The Gamer's Brain*), Nesky (*50 Camera Mistakes*, GDC 2014), the official Godot / Unity / Unreal docs, and the Game Accessibility Guidelines.
 
 ## Installation
 
@@ -37,7 +37,7 @@ Four components — one thin router skill, one full agent, two commands — over
 - **`/game-review [scope]`** — scoped diff (uncommitted / file / commit / PR / branch) review covering mechanics, UX, navigation, accessibility, architecture.
 - **`/game-mechanic <name>`** — guided design session for a new mechanic; outputs an implementable brief.
 
-### Migration note (v0.2.0)
+### Migration note
 
 The eight knowledge skills (`game-mechanics-design`, `game-feel-and-juice`,
 `game-navigation-camera`, `game-ux-onboarding`, `game-architecture-patterns`, `engine-godot`,

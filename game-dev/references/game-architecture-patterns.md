@@ -46,7 +46,7 @@ render(alpha)  // interpolate between previous and current state by alpha
 - **Variable-timestep simulation.** Floating-point drift, non-deterministic multiplayer, broken replay.
 - **Spiral of death.** No cap on catch-up iterations → render falls behind further every frame.
 - **Frame-rate-locked simulation.** "Game runs at double speed on a 144 Hz monitor" — classic bug.
-- **Physics inside render.** Move character in `Update()` (variable) instead of `FixedUpdate()` — see [[engine-unity]].
+- **Physics inside render.** Move character in `Update()` (variable) instead of `FixedUpdate()` — see `engine-unity.md`.
 
 ## Update Method
 
@@ -56,11 +56,11 @@ Each entity exposes an `update(dt)` method, the game loop calls them all once pe
 
 1. **One update method per entity, one purpose.** If `update()` does input, physics, AI, and rendering, you're not using Update Method — you're using a god method. Split into systems or components.
 2. **No `update()` that calls `update()` of others directly.** Calls must go through the game loop or a system. Cross-entity ordering bugs are the #1 cause of "this worked yesterday."
-3. **Cache references, don't lookup per-tick.** `GetComponent` / `find_node` per frame is a GC death spiral. See [[engine-unity]] / [[engine-godot]].
+3. **Cache references, don't lookup per-tick.** `GetComponent` / `find_node` per frame is a GC death spiral. See `engine-unity.md` / `engine-godot.md`.
 
 ### Pitfalls
 
-- **Ordering dependencies.** Entity A reads B's state, but B updated last frame. Solve with [[engine-unity]]-style execution order or two-pass update (compute → commit).
+- **Ordering dependencies.** Entity A reads B's state, but B updated last frame. Solve with `engine-unity.md`-style execution order or two-pass update (compute → commit).
 - **Per-tick allocations.** Anything `new`'d per update is GC pressure.
 
 ## Component pattern (when entities sprawl)

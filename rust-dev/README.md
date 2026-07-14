@@ -48,7 +48,7 @@ idioms — one level deep at `references/`) and hands deep or output-heavy work 
 |---|---|---|---|
 | `rust-expert` | sonnet | Read, Grep, Glob, Edit, Write, Bash, WebFetch | Authors, reviews, refactors, audits, and migrates Rust. Six protocols (Stack Detection → Author / Refactor / Review / Migrate / Audit) plus three direct **modes**: `review`, `idiomize`, `project-audit`. Reads the shared `references/`; cites sources. |
 
-### Migration note (v0.4.0)
+### Migration note
 
 The `rust-project` skill and the `/rust-review` and `/rust-idiomize` commands were **folded into
 `rust-expert`** as its `project-audit`, `review`, and `idiomize` modes — one agent, invoked

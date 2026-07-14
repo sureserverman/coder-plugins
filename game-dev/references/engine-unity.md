@@ -19,7 +19,7 @@ Three update phases, not one. Pick the right one — using the wrong phase is th
 3. **Input polling = `Update`.** `FixedUpdate` may miss single-frame presses.
 4. **Animator parameters = `Update`.** `LateUpdate` is too late if other code reads the animator state this frame.
 
-See also [[game-architecture-patterns]] for the underlying fixed-vs-variable timestep theory.
+See also `game-architecture-patterns.md` for the underlying fixed-vs-variable timestep theory.
 
 ## Garbage Collection — the #1 cost
 
@@ -145,16 +145,16 @@ GameObject + MonoBehaviour will carry most games to ship.
 2. **`SetActive(true)` on a deactivated GameObject re-runs `OnEnable`** — make sure handlers are idempotent.
 3. **Coroutine on a disabled GameObject does *not* run.** Reactivating doesn't resume.
 4. **`Time.deltaTime` in `FixedUpdate`** is wrong — use `Time.fixedDeltaTime` (or just the delta arg).
-5. **`Instantiate(prefab)` in `Update`** allocates and runs `Awake`. Pool it. See [[game-architecture-patterns]] Object Pool.
+5. **`Instantiate(prefab)` in `Update`** allocates and runs `Awake`. Pool it. See `game-architecture-patterns.md` Object Pool.
 6. **UI Toolkit vs UGUI vs IMGUI.** New projects: UI Toolkit. Existing projects: stay on UGUI. IMGUI: editor tooling only.
 7. **Singleton MonoBehaviours with `DontDestroyOnLoad`** that re-register on every scene load — guard with a static instance check.
 
 ## Cross-engine concerns
 
-- **Game loop discipline.** See [[game-architecture-patterns]] for the fixed-timestep theory; Unity gives you `FixedUpdate` to express it.
+- **Game loop discipline.** See `game-architecture-patterns.md` for the fixed-timestep theory; Unity gives you `FixedUpdate` to express it.
 - **Object pooling.** Unity 2021+ ships `UnityEngine.Pool.ObjectPool<T>`. Use it.
 - **State machines.** Use the Animator FSM for animation state; use plain C# state machines for gameplay logic — don't conflate them.
-- **Camera.** Use Cinemachine. Hand off to [[game-navigation-camera]] for the rules Cinemachine implements.
+- **Camera.** Use Cinemachine. Hand off to `game-navigation-camera.md` for the rules Cinemachine implements.
 
 ## Procedure (when reviewing a Unity project)
 

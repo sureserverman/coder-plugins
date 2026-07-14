@@ -1,7 +1,7 @@
 {
   "name": "game-dev",
   "version": "0.1.2",
-  "description": "Game development plugin: opinionated, source-cited skills for game mechanics, game feel, navigation/camera, UX/onboarding, accessibility, and engine-agnostic architecture patterns, plus engine-specific skills for Godot 4, Unity 6, and Unreal 5. Ships a sonnet-pinned game-design-expert subagent and two slash commands; /game-review plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only.",
+  "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
   "author": {
     "name": "Sure Serverman",
     "url": "https://github.com/sureserverman/coder-plugins"

@@ -26,7 +26,7 @@ The HUD is the player's nervous system. Build it deliberately.
 4. **Animate to draw attention, not to decorate.** Pulse the health bar when it goes critical. Pulse it when it's full = noise.
 5. **Numbers + bars together when precision matters.** A 0–100 health bar with no number = imprecise. A bar plus "47/100" = both glanceable and precise.
 6. **Difficulty-scaled HUD.** Easy mode shows more (full map, enemy health). Hard mode hides more. Let players choose.
-7. **Photosensitivity discipline.** No flashing > 3 Hz (basic accessibility). See [[game-accessibility-audit]].
+7. **Photosensitivity discipline.** No flashing > 3 Hz (basic accessibility). See `game-accessibility-audit.md`.
 
 ## Menu / IA rules
 
@@ -35,7 +35,7 @@ Menus are where players quit, not where they play. Make them invisible to naviga
 1. **Time to first interaction ≤ 3 menu transitions.** From the title screen to playing should be 1 click on first launch, 2 max thereafter.
 2. **Settings are 1 click from anywhere.** Pause → Settings, no nesting.
 3. **Group settings by *symptom, not system*.** "Make text bigger" is one entry, not three (font size + UI scale + subtitle scale). Players don't think in systems.
-4. **Persist *everything*.** Volume, key binds, accessibility settings — saved per-profile, never reset. See [[game-accessibility-audit]] basic-tier rule.
+4. **Persist *everything*.** Volume, key binds, accessibility settings — saved per-profile, never reset. See `game-accessibility-audit.md` basic-tier rule.
 5. **Default sensibly.** Out-of-the-box settings should be playable for the median player. Don't ship at max difficulty with subtitles off.
 6. **Back must be reliable.** A back button at the same screen position on every menu. Esc and Gamepad-B always go back. Always.
 7. **Test cold start.** Have someone unfamiliar open the game and find subtitles in under 30 seconds. If they can't, the IA is broken.
@@ -105,7 +105,7 @@ A pause screen is a *menu* but the player is mid-action. Treat it that way.
 6. **Stress-test menus.** Tab through every screen. Does Esc/Back work consistently? Are settings 1 click from anywhere?
 7. **Pause / death / save check.** Each should be polished, instant, low-effort.
 8. **Apply the Hodent 7-pillar checklist.** Sign-feedback, clarity, form-follows-function, consistency, minimum-workload, error-prevention, flexibility.
-9. **Accessibility cross-check.** Hand off to [[game-accessibility-audit]] for the formal Basic-tier pass.
+9. **Accessibility cross-check.** Hand off to `game-accessibility-audit.md` for the formal Basic-tier pass.
 10. **Output severity-ranked findings**, each citing the pillar or FTUE rule violated.
 
 ## Sources

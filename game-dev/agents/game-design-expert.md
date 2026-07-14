@@ -128,7 +128,7 @@ GAG tiering model, Basic-tier ship-gate checklist, false-economy myths, and defe
 
 Input: "review my game architecture," "this entity class is too big," "do I need ECS."
 
-Procedure (consult `${CLAUDE_PLUGIN_ROOT}/references/game-architecture-patterns.md` + the right engine skill):
+Procedure (consult `${CLAUDE_PLUGIN_ROOT}/references/game-architecture-patterns.md` + the right engine reference):
 
 1. **Game loop discipline.** Fixed-timestep simulation, variable render with interpolation? If not, why not?
 2. **Update phase usage** (engine-specific). Unity: `Update`/`FixedUpdate`/`LateUpdate` correctly partitioned? Godot: `_process`/`_physics_process`? Unreal: Tick / TickComponent / replication tick?
