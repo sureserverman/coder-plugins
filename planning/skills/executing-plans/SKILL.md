@@ -194,6 +194,16 @@ edit. Pick the subagent type (and the stack skill it should load first) from the
 routing table at `../dispatching-parallel-agents/references/stack-routing.md` — the
 same table the dispatch path uses.
 
+**If the matched capability's plugin isn't enabled**, don't silently fall through to
+`general-purpose` with no domain knowledge — resolve it from disk per
+`../dispatching-parallel-agents/references/stack-routing.md` § *Resolving a capability
+whose plugin isn't enabled*: look the component up in `capability-index.json` (at the
+marketplace root; paths resolve against the index file's own directory), then Read-and-follow
+its SKILL.md or inject its agent body with the `model` pin. A component flagged
+`requires_enablement` (hooks / MCP) can't be lazy-loaded — stop and ask the user to enable
+that plugin. When the plugin **is** enabled, use the normal registered `subagent_type` /
+skill invocation.
+
 ### Step 3.3 — Red-Green loop (per task)
 
 Every task follows this loop. No task is "done" until its test is green.
