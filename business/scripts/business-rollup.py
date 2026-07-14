@@ -73,7 +73,9 @@ def plan_of(p):
     the Errors section), else — (additive: a project scanned before plan.md support,
     or without a plan, has no `plan` key or `exists: false` — both render as a dash,
     never a crash). Symmetric with research_of's fallback. A plan older than the
-    staleness window gets a ` STALE` marker appended to its status."""
+    staleness window gets a ` STALE` marker appended to its status — and since `status`
+    and `date` validate independently, a plan whose status didn't parse but whose date is
+    old renders `yes STALE` (an aging plan is aging regardless of status)."""
     pl = p.get("plan")
     if not pl or not pl.get("exists"):
         return "—"

@@ -113,8 +113,8 @@ Surface drift, one section each (explicit-negative when a section is empty):
   `business.last_reviewed_age_days` exceeds ~90: verdict/targets may be out of date —
   suggest `/business:track` or a re-assessment.
 - **Stale business evidence** *(only when `business` fields are present)* — projects whose
-  `business.research_age_days` or `business.plan_age_days` exceeds ~90 (same window as the
-  review nag and the roll-up's `STALE` marker): the market-research or business plan is aging
+  `business.research_age_days` or `business.plan_age_days` exceeds 90 (same window as the
+  roll-up's `STALE` marker — strictly `> 90` days): the market-research or business plan is aging
   — suggest `/business:market-research` to refresh the evidence, or `/business:business-plan`
   to recompose. Only fires for the artifact(s) actually present (a `null` age is no nag).
 - **No business case** *(only when the business plugin is present)* — enabled projects

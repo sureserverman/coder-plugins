@@ -97,6 +97,14 @@ DOC = {
             "research": {"exists": True, "date": "2026-03-01", "age_days": 120,
                          "depth": "standard", "confidence": "medium"},
             "errors": []},
+        {   # plan status didn't parse (→ "yes") but its date is old → "yes STALE":
+            # status and date validate independently, so an aging plan is flagged
+            # regardless of whether its status parsed
+            "name": "juliet", "area": "ai-tools", "assessed": True,
+            "verdict": "monetize", "monetization": {"model": "paid"},
+            "last_reviewed_age_days": 5, "metrics": None, "gtm": None,
+            "plan": {"exists": True, "date": None, "age_days": 150, "status": None},
+            "errors": ["plan.md: status 'shipped' not one of ['active', 'draft']"]},
         {   # exactly-90d is NOT stale (strictly greater-than boundary), proving the
             # marker doesn't fire one day early
             "name": "india", "area": "ai-tools", "assessed": True,
@@ -124,8 +132,8 @@ def test_render():
     check("# Global Business Roll-up" in md, "has title")
     check("Generated: 2026-07-11" in md, "has generated date")
     # assessed = alpha, bravo, charlie, delta, proxy(servers), proxy(containers),
-    # weird|pipe, hotel, india = 9
-    check("## Assessed (9)" in md, "assessed count 9")
+    # weird|pipe, hotel, juliet, india = 10
+    check("## Assessed (10)" in md, "assessed count 10")
     check("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |" in md,
           "assessed table header carries the two new columns")
     # stage derivation, now area-qualified wikilinks
@@ -147,13 +155,15 @@ def test_render():
           "hotel row: stale plan + stale research both marked")
     check("| ai-tools/[[india]] | monetize | paid | modeled | 90d | — | active | 90d |" in md,
           "india row: exactly-90d artifacts NOT marked stale (strict > boundary)")
+    check("| ai-tools/[[juliet]] | monetize | paid | modeled | 5d | — | yes STALE | — |" in md,
+          "juliet row: unparsed plan status but old date renders 'yes STALE'")
     # triage gap = echo, ghost, with leading bullet
     check("## Not yet assessed (2) — triage gap" in md, "unassessed count 2")
     check("- ai-tools/[[echo]]" in md and "ai-tools/[[ghost]]" in md, "triage list bulleted + area-qualified")
     # degrade-loudly sections
     check("## Couldn't assess (1)" in md and "foxtrot: scan error: boom" in md,
           "couldnt_assess surfaced")
-    check("## Errors (3)" in md, "all three errored projects counted (delta, charlie, ghost)")
+    check("## Errors (4)" in md, "all four errored projects counted (delta, charlie, ghost, juliet)")
     check("ai-tools/[[delta]]: BUSINESS.md: verdict" in md, "assessed+errored surfaced")
     check("ai-tools/[[ghost]] (unassessed): scan glitch" in md,
           "unassessed+errored surfaced (degrade-loudly gap closed)")
