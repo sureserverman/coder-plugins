@@ -7,7 +7,7 @@ description: Use when the user wants a plan for a project of any size — triage
 
 Create detailed, staged project plans grounded in real technical research. Every task gets a test. Every test gets a Red-Green loop. Nothing moves forward until the current task is green.
 
-This skill produces plans where every claim traces back to researched documentation, every task has a concrete test, and the execution model prevents half-built states through stage gates and rollback notes.
+This skill produces plans where every task has a concrete test and the execution model prevents half-built states. For the default **Standard** plan, every claim also traces back to researched documentation and every stage carries stage gates and rollback notes; the lighter formats (see Phase -0.5) keep the test-and-gate backbone and scale the rest to the size of the job.
 
 ---
 
@@ -59,7 +59,9 @@ symmetric partner to the decomposition rule in Phase 2.5.
 - **Direct is the off-ramp.** If the job is a couple of tested edits in one sitting, say
   so and execute it directly — a plan file would be pure overhead. This is the answer to
   "simple jobs shouldn't have to enter the machinery": the skill is now allowed to decline
-  to plan. (Still write a test and commit — those are invariants, not ceremony.)
+  to plan. (Still write a test and commit — those are invariants, not ceremony. And still
+  do a quick backlog-title check before you start — silently redoing a tracked item is the
+  same planning bug at any size; this is the one Phase 0 step Direct keeps.)
 - **Light** is for real-but-small work: one coherent stage of a handful of tested tasks,
   no fan-out, no cross-session handoff. It keeps the invariants (a `Test:` per task,
   `Status:` flips, commit per green task, honest gates) and drops the long-horizon
@@ -630,10 +632,17 @@ apply:
 - [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a goal-level end-to-end check
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
+- [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
 
 ---
 
 ## Common Pitfalls
+
+These pitfalls are written for **Standard** (and Master) plans. Rows about Risk, Rollback,
+`Blocks`, `Parallel`, mandated research, or the Preflight section don't apply to a **Light**
+plan, which legitimately drops those fields (Phase -0.5) — a Light author should read the
+"Tasks without tests", "Wrong task order", and "Vague stage gates" rows as still binding
+and treat the rest as Standard-only.
 
 | Pitfall | What goes wrong | Fix |
 |---------|----------------|-----|

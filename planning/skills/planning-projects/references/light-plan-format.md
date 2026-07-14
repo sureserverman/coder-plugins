@@ -76,6 +76,7 @@ Blocks/Parallel fields.
 ```markdown
 # Light Plan: [Name]
 Date: YYYY-MM-DD
+Format: Light — [the trigger that selected this format, e.g. "single stage, 4 tasks, one session"]
 
 **Context:** [1–3 sentences: what this changes and the one or two facts that ground it —
 the proportionate replacement for a Research Summary. Link a source if one matters.]
@@ -101,6 +102,7 @@ the proportionate replacement for a Research Summary. Link a source if one matte
 
 | Field | Meaning |
 |-------|---------|
+| `Format` | Mandatory header line directly under `Date:`. Records the triage decision (Phase -0.5) and the trigger that selected Light, so a reader sees *why* this is a Light plan, not just that it is. Form: `Format: Light — <trigger>`. |
 | `Status` | `[ ]` planned → flipped to `[x]` by executing-plans the moment the task's test goes green. Authoritative done-marker, identical to Standard plans. |
 | `Depends on` | Optional. Present only when a task genuinely needs a prior task's output; omit for independent tasks (they simply run in listed order). No `Blocks` counterpart at Light. |
 | `Test` | Mandatory. A concrete runnable check — the same bar as a Standard task. "It should work" is not a test. |
