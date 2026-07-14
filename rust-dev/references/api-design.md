@@ -16,6 +16,14 @@ The Rust API Guidelines (rust-lang.github.io/api-guidelines) are the baseline. T
 
 **Never demand `String` / `Vec<T>` the caller has to construct** unless you're moving it into a struct or across a thread.
 
+### Deserialized input is a boundary too
+
+Any type deserialized from external input (config, network, IPC) carries
+`#[serde(deny_unknown_fields)]` — **fail closed.** Silently ignoring unknown fields
+hides typo'd keys, dropped renames, and malformed/hostile payloads that then take a
+silent default. The rule is mechanically detected (`rust-serde-missing-deny-unknown`);
+the judgment is which types are actually external-input boundaries vs. internal-only.
+
 ## Return types
 
 - Owned `T` when the caller needs flexibility.

@@ -9,6 +9,16 @@ What "idiomatic" means here: the borrow checker agrees, clippy is silent on peda
 - **Clone is a code smell, not a crime.** One `.clone()` on a small value is fine; a loop of `.clone()` in a hot path is a red flag. Profile before removing; don't contort the code for premature optimization.
 - **Reach for `Cow<'_, str>` / `Cow<'_, [T]>`** when the function may or may not allocate based on input — e.g., unescaping a string that's already clean.
 
+### Which smart pointer?
+
+**Default to owned `T` or `&T`** — `Rc`/`Arc` is almost never the first answer. When you genuinely need indirection or shared ownership:
+
+- Single-owner, heap-allocated value → `Box<T>`
+- Shared ownership, single-threaded → `Rc<T>` (rare outside trees/graphs)
+- Shared ownership, across threads → `Arc<T>`
+- Interior mutability, single-threaded → `RefCell<T>`, `Cell<T>`
+- Interior mutability, across threads → `Mutex<T>` / `RwLock<T>` (or `parking_lot` for non-poisoning)
+
 ## Iterators
 
 Prefer iterator chains over manual index loops. LLVM optimizes iterators at least as well, they compose, and they don't index-out-of-bounds.
@@ -104,6 +114,7 @@ Calling `.build()` before `.host(...).port(...)` is a compile error, not a runti
 - `Default::default()` is ugly — prefer `T::default()` or a named constructor.
 - `Into` for ergonomics, `From` for the actual conversion. Write `impl From<A> for B`, and `Into` comes free.
 - `Deref`/`DerefMut` only for smart-pointer-like types (`Arc`, `MutexGuard`). Using `Deref` for inheritance is an anti-pattern.
+- **Clippy is a gate, not advice:** `cargo clippy --all-targets -- -D warnings` in CI. **`rustfmt` default config** — no bikeshedding; add a `rustfmt.toml` only when a hard constraint forces it.
 
 ## Closures
 

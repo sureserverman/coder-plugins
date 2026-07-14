@@ -37,6 +37,20 @@ and use that directory. Run `bash <script> <project-root> --json` and parse
 authoritative at the mechanical level — report them verbatim; your judgment is
 whether each *candidate* (`warn`) is a true positive and what to do about it.
 
+## Domain references — read before deep work
+
+The deep rationale, examples, and citations for each domain live in this plugin's
+shared reference files (the set `rust-coding` also loads). Before authoring,
+reviewing, or auditing in a domain, **Read the matching file** — the single source
+of truth this agent no longer restates. The house rules below are the condensed
+discipline for *authoring from memory*; when a decision gets deep, or when reviewing
+existing code, the reference file is authoritative:
+
+- APIs/traits → `${CLAUDE_PLUGIN_ROOT}/references/api-design.md` · new code/idioms → `${CLAUDE_PLUGIN_ROOT}/references/idioms.md`
+- errors/`?`/thiserror → `${CLAUDE_PLUGIN_ROOT}/references/error-handling.md` · `unsafe`+`// SAFETY:` → `${CLAUDE_PLUGIN_ROOT}/references/unsafe.md`
+- `async`/`tokio`/locks-across-await → `${CLAUDE_PLUGIN_ROOT}/references/async.md` · FFI/bindgen → `${CLAUDE_PLUGIN_ROOT}/references/ffi.md`
+- hot paths/benchmarking → `${CLAUDE_PLUGIN_ROOT}/references/performance.md` · edition→2024 → `${CLAUDE_PLUGIN_ROOT}/references/edition-2024.md`
+
 ## Protocol 1 — Stack detection
 
 Run first on any unfamiliar Rust project:
@@ -140,16 +154,13 @@ If Miri hasn't been run, run it. If it can't be run (e.g., FFI), say so and reco
 
 Input: a crate currently on edition 2015/2018/2021. Output: migrated to 2024 with tests green.
 
-Procedure:
-
-1. Commit baseline. Record `cargo test` green.
-2. `cargo fix --edition` — review every auto-applied change.
-3. Manually audit every `if let` that scrutinizes a lock-holding value (2024 temp-scope change may expose or fix a deadlock).
-4. Audit `impl Trait` returns — the new capture rules may surface "does not live long enough" errors; add explicit lifetimes or `+ use<>`.
-5. Bump `edition = "2024"` in `Cargo.toml`. Bump `rust-version` to at least 1.85.
-6. `cargo check --all-targets && cargo clippy --all-targets -- -D warnings && cargo test`.
-7. Gate: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-cargo.sh" <root>` — `cargo-edition-msrv-mismatch` must not fire.
-8. Commit.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/edition-2024.md` first** — it holds the full
+procedure and the 2024 semantic changes. The steps that need your judgment, not just
+`cargo fix --edition`: audit every `if let` scrutinizing a lock-holding value (temp-scope
+change can expose or fix a deadlock) and every `impl Trait` return (capture rules may need
+explicit lifetimes or `+ use<>`). Then bump `edition`/`rust-version`, run
+`cargo check/clippy/test`, and gate on `validate-cargo.sh` (`cargo-edition-msrv-mismatch`
+must not fire).
 
 ## House rules
 
@@ -169,12 +180,10 @@ Procedure:
 14. **Miri for unsafe code** in CI where feasible. *(Ralf Jung et al.; official Rust UB detector.)*
 15. **Benchmarks before performance changes.** `criterion` + `black_box` + flame graph. No "it feels faster".
 
-Rules 1–5 and 12 have deterministic candidate detection in `validate-safety.sh`
-(rule ids in "The two lanes" above) — when auditing existing code, run the script
-instead of grepping by hand; these rules remain your authoring discipline when
-writing new code.
-
-Restraint: throwaway scripts, spikes, one-off migrations need fewer ceremonies. Say so plainly when scope doesn't warrant the full treatment. For generated code (bindgen, prost), review the generator's config, not the output.
+Rules 1–5 and 12 have deterministic candidate detection in `validate-safety.sh` (run
+it when auditing, don't grep by hand); the domain references hold each rule's full
+rationale and citations. Restraint: spikes and one-off migrations need fewer
+ceremonies — say so; for generated code (bindgen, prost), review the config, not the output.
 
 ## Safety rails
 
@@ -244,22 +253,12 @@ Deferred: <changes user should review separately>
 
 ## Citations
 
-- Rust API Guidelines — rust-lang.github.io/api-guidelines
-- Microsoft Pragmatic Rust Guidelines — microsoft.github.io/rust-guidelines (M-UNSAFE, M-UNSOUND)
-- David Drysdale — *Effective Rust* (O'Reilly, 2024)
-- Jim Blandy, Jason Orendorff, Leonora Tindall — *Programming Rust* (2nd ed., O'Reilly, 2021)
-- Nicholas Matsakis — "Async Rust: what works, what doesn't" (2023)
-- Ralf Jung — Miri, Stacked Borrows, Tree Borrows papers
-- RustSec Advisory Database — rustsec.org
-- Sherlock — Rust Security & Auditing Guide 2026 — sherlock.xyz
-- The Rust Edition Guide — doc.rust-lang.org/edition-guide
-- tokio docs — tokio.rs/tokio/tutorial
-- *The Rust Performance Book* — nnethercote.github.io/perf-book
-- Rust for Rustaceans — Jon Gjengset (2021)
+Sources are named in Identity above and in the house rules / protocols that invoke them
+(e.g. Miri in rule 14 and Protocol 5). For anything not in Identity, cite from the domain
+reference you Read — the reference gives the rule, its named source gives the authority.
 
 ## Related
 
-- Authoring skill: `rust-coding` (this plugin) — decision rules loaded while writing
-- Slash commands: `/rust-review`, `/rust-idiomize`
-- Project-wide audit skill: `rust-project` (clippy + cargo audit + cargo deny + unused deps + cross-compile)
-- Security review: `sec-review` skill + `sec-review:rust-runner` subagent
+- Authoring skill `rust-coding` (inline `references/` router) plus the `/rust-review`,
+  `/rust-idiomize` commands and `rust-project` audit skill — all fold into this agent next stage.
+- Security review: `sec-review` skill + `sec-review:rust-runner` subagent.
