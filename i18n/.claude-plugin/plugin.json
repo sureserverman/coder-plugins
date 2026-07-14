@@ -1,7 +1,7 @@
 {
   "name": "i18n",
   "description": "Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. Skill `i18n-formats` documents per-format gotchas. Sonnet-pinned translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. The three skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`, `/i18n:i18n-formats`).",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "coder-plugins",
     "email": "holyfiremin@gmail.com"
