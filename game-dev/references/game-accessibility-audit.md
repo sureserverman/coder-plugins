@@ -1,8 +1,3 @@
----
-name: game-accessibility-audit
-description: 'Use when auditing a game for accessibility or reviewing accessibility features before ship. Triggers: "accessibility audit", "is my game accessible", "colorblind mode", "accessibility ship gate". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).'
----
-
 # game-accessibility-audit
 
 A checklist + audit procedure based on the **Game Accessibility Guidelines** (gameaccessibilityguidelines.com) — the international, multi-organization consensus standard maintained by AbleGamers, SpecialEffect, IGDA Game Accessibility SIG, and industry partners.

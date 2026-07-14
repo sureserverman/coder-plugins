@@ -251,16 +251,6 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when auditing a game for accessibility or reviewing accessibility features before ship. Triggers: \"accessibility audit\", \"is my game accessible\", \"colorblind mode\", \"accessibility ship gate\". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-accessibility-audit",
-      "path": "game-dev/skills/game-accessibility-audit/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
       "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings, never modifies files.",
       "disable_model_invocation": false,
       "kind": "agent",
