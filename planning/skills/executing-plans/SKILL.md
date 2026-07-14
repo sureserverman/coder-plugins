@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when you have a plan file from planning-projects (Stages, Tasks, Depends on / Blocks / Parallel), or a master plan linking sub-plans, and need to execute it — driving Red-Green loops and stage gates. Triggers on "execute this plan", "run the plan", "execute the master plan".
+description: Use when you have a planning-projects plan — Standard (staged), master (sub-plans), or light (single-stage) — and need to execute it, driving Red-Green loops and stage gates. Triggers on "execute this plan", "run the plan", "execute the master plan".
 ---
 
 # Executing Plans
