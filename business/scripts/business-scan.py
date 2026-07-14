@@ -41,10 +41,19 @@ try:
 except Exception:      # missing sibling, import-time error → degrade, don't crash
     pu = None
 
-SUPPORTED_SCHEMA = 1
+SUPPORTED_SCHEMA = 1                 # baseline: BUSINESS.md, metrics.md, gtm-plan.md
+# Per-artifact schema ceilings. market-research.md and plan.md moved to schema 2
+# (tiered depth); BUSINESS.md stays at the baseline. The gate is parameterized by
+# the artifact's ceiling so each file degrades loudly only past its OWN max.
+MARKET_RESEARCH_MAX_SCHEMA = 2
+PLAN_MAX_SCHEMA = 2
 VERDICTS = {"monetize", "free-for-reputation", "internal-only", "park"}
 EVIDENCE = {"local-only", "researched"}
-RESEARCH_DEPTHS = {"triage", "full"}
+# Research depth is schema-dependent: schema 1 was the binary triage|full; schema 2
+# is the operator-selected brief|standard|deep tier. Validate a file's depth against
+# the set for that file's OWN schema, so legacy artifacts keep parsing clean.
+RESEARCH_DEPTHS_BY_SCHEMA = {1: {"triage", "full"}, 2: {"brief", "standard", "deep"}}
+PLAN_DEPTHS = {"brief", "standard", "deep"}      # schema-2 plan depth tier
 CONFIDENCE = {"high", "medium", "low"}
 PLAN_STATUS = {"draft", "active"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -213,64 +222,78 @@ def _extract_frontmatter(text, fname):
     return fm, []
 
 
-def _schema_gate(fm, fname):
+def _schema_gate(fm, fname, max_schema=SUPPORTED_SCHEMA):
     """Shared schema validation for the light-frontmatter artifacts (market-research.md,
     plan.md). Same *policy* as parse_business_md — missing or non-integer (bool is an
-    int subclass — rejected) is fatal, a too-high schema is a loud upgrade error, a
-    too-low one is below-minimum — but these blocks don't surface `schema` in their
-    output (their contract is exists/date/age_days/… only; the error carries the
-    schema value), so every fatal case nulls the whole block. Returns
-    (schema, fatal_return): fatal_return, when not None, is the (fields, errors) tuple
-    the caller returns as-is (fields always None here); when None, schema is a valid
-    supported int and parsing continues."""
+    int subclass — rejected) is fatal, a schema above the artifact's `max_schema` is a
+    loud upgrade error, a too-low one is below-minimum — but these blocks don't surface
+    `schema` in their output (their contract is exists/date/age_days/… only; the error
+    carries the schema value), so every fatal case nulls the whole block. `max_schema`
+    is the artifact's OWN ceiling (market-research/plan → 2), so each degrades loudly
+    only past its own max. Returns (schema, fatal_return): fatal_return, when not None,
+    is the (fields, errors) tuple the caller returns as-is (fields always None here);
+    when None, schema is a valid supported int and parsing continues."""
     schema = fm.get("schema")
     if schema is None:
         return None, (None, [f"{fname}: missing 'schema'"])
     if not isinstance(schema, int) or isinstance(schema, bool):
         return None, (None, [f"{fname}: 'schema' must be an integer, got {schema!r}"])
-    if schema > SUPPORTED_SCHEMA:
+    if schema > max_schema:
         return schema, (None,
                         [f"{fname}: schema {schema} is newer than supported "
-                         f"({SUPPORTED_SCHEMA}) — upgrade the business plugin"])
+                         f"({max_schema}) — upgrade the business plugin"])
     if schema < 1:
         return schema, (None,
                         [f"{fname}: schema {schema} is below 1 (schema 1 is the minimum)"])
     return schema, None
 
 
+def _project_mismatch(fm, expected_project, fname):
+    """One project-mismatch error if the declared project disagrees with the registry
+    name, else empty — the check both light-frontmatter parsers share (BL-005)."""
+    declared = fm.get("project")
+    if expected_project and declared and declared != expected_project:
+        return [f"{fname}: project {declared!r} does not match registry "
+                f"name {expected_project!r} (stale copy-paste?)"]
+    return []
+
+
+def _date_or_null(fm, key, fname):
+    """Validate a required YYYY-MM-DD frontmatter date. Returns (value_or_None, errors);
+    missing or malformed → None so age math downstream is always safe. The null-on-invalid
+    discipline both light-frontmatter parsers share (BL-005)."""
+    val = _isodate(fm.get(key))
+    if not val:
+        return None, [f"{fname}: missing required {key!r}"]
+    if not DATE_RE.match(str(val)):
+        return None, [f"{fname}: {key} {val!r} is not YYYY-MM-DD"]
+    return val, []
+
+
 def parse_market_research(text, expected_project=None):
-    """Parse market-research.md frontmatter (schema 1) per
+    """Parse market-research.md frontmatter (schema 1 or 2) per
     references/market-research-format.md. Returns (fields_dict, errors_list).
     fields_dict is None only on an extraction failure or a fatal schema problem
     with no schema value; otherwise a dict (emitted as the entry's `research`
-    block) plus a possibly-empty list of per-field validation errors. Read-only,
-    additive: absent fields null, never fatal to the sweep."""
+    block) plus a possibly-empty list of per-field validation errors. The `depth`
+    enum is validated against the file's OWN schema (schema 1 → triage|full, schema
+    2 → brief|standard|deep). Read-only, additive: absent fields null, never fatal
+    to the sweep."""
     fm, errs = _extract_frontmatter(text, "market-research.md")
     if fm is None:
         return None, errs
-    schema, fatal = _schema_gate(fm, "market-research.md")
+    schema, fatal = _schema_gate(fm, "market-research.md", MARKET_RESEARCH_MAX_SCHEMA)
     if fatal is not None:
         return fatal
 
-    errors = []
-    declared = fm.get("project")
-    if expected_project and declared and declared != expected_project:
-        errors.append(f"market-research.md: project {declared!r} does not match registry "
-                      f"name {expected_project!r} (stale copy-paste?)")
-    researched = _isodate(fm.get("researched"))
-    if not researched:
-        errors.append("market-research.md: missing required 'researched'")
-        researched = None
-    elif not DATE_RE.match(str(researched)):
-        errors.append(f"market-research.md: researched {researched!r} is not YYYY-MM-DD")
-        # Null an invalid date so it never reaches _age_days downstream. (This is a
-        # deliberate divergence from parse_business_md, which keeps the raw invalid
-        # last_reviewed value — that function stays untouched; the new light-frontmatter
-        # parsers null-on-invalid so age math is always safe.)
-        researched = None
+    errors = _project_mismatch(fm, expected_project, "market-research.md")
+    researched, derrs = _date_or_null(fm, "researched", "market-research.md")
+    errors += derrs
+    valid_depths = RESEARCH_DEPTHS_BY_SCHEMA.get(schema, set())
     depth = fm.get("depth")
-    if depth not in RESEARCH_DEPTHS:
-        errors.append(f"market-research.md: depth {depth!r} not one of {sorted(RESEARCH_DEPTHS)}")
+    if depth not in valid_depths:
+        errors.append(f"market-research.md: depth {depth!r} not one of "
+                      f"{sorted(valid_depths)} (schema {schema})")
         depth = None
     confidence = fm.get("confidence")
     if confidence not in CONFIDENCE:
@@ -283,44 +306,47 @@ def parse_market_research(text, expected_project=None):
 
 
 def parse_plan(text, expected_project=None):
-    """Parse plan.md frontmatter (schema 1) per references/plan-format.md. Returns
+    """Parse plan.md frontmatter (schema 1 or 2) per references/plan-format.md. Returns
     (fields_dict, errors_list) with the same discipline and uniform-block policy as
     parse_market_research: fields_dict is None only on an extraction/fatal-schema
-    failure; otherwise the `plan` block's data keys (date/status) plus per-field
-    errors. `market_research` is validated (a YYYY-MM-DD date or the literal 'none')
-    but not emitted — the block's contract is presence/age/status for the roll-up."""
+    failure; otherwise the `plan` block's data keys (date/status/depth) plus per-field
+    errors. `depth` is required on a schema-2 plan (brief|standard|deep) and absent on a
+    schema-1 plan (reported null — legacy plans are not retro-tiered). `market_research`
+    is validated (a YYYY-MM-DD date or the literal 'none') but not emitted — the block's
+    contract is presence/age/status/depth for the roll-up."""
     fm, errs = _extract_frontmatter(text, "plan.md")
     if fm is None:
         return None, errs
-    schema, fatal = _schema_gate(fm, "plan.md")
+    schema, fatal = _schema_gate(fm, "plan.md", PLAN_MAX_SCHEMA)
     if fatal is not None:
         return fatal
 
-    errors = []
-    declared = fm.get("project")
-    if expected_project and declared and declared != expected_project:
-        errors.append(f"plan.md: project {declared!r} does not match registry "
-                      f"name {expected_project!r} (stale copy-paste?)")
-    date = _isodate(fm.get("date"))
-    if not date:
-        errors.append("plan.md: missing required 'date'")
-        date = None
-    elif not DATE_RE.match(str(date)):
-        errors.append(f"plan.md: date {date!r} is not YYYY-MM-DD")
-        date = None      # null-on-invalid, so it never reaches _age_days
+    errors = _project_mismatch(fm, expected_project, "plan.md")
+    date, derrs = _date_or_null(fm, "date", "plan.md")
+    errors += derrs
     status = fm.get("status")
     if status not in PLAN_STATUS:
         errors.append(f"plan.md: status {status!r} not one of {sorted(PLAN_STATUS)}")
         status = None
+    # depth: schema 2 requires the brief|standard|deep tier; schema 1 plans have no
+    # depth field (reported null — legacy plans are not retro-tiered).
+    depth = fm.get("depth")
+    if schema >= 2:
+        if depth not in PLAN_DEPTHS:
+            errors.append(f"plan.md: depth {depth!r} not one of {sorted(PLAN_DEPTHS)} "
+                          f"(required at schema {schema})")
+            depth = None
+    else:
+        depth = None
     # market_research: a YYYY-MM-DD (the folded-in research date) or the literal
     # 'none'. Validated for malformation, not emitted (block contract is
-    # exists/date/age_days/status).
+    # exists/date/age_days/status/depth).
     mr = _isodate(fm.get("market_research"))
     if mr is None:
         errors.append("plan.md: missing required 'market_research' (a date or 'none')")
     elif mr != "none" and not DATE_RE.match(str(mr)):
         errors.append(f"plan.md: market_research {mr!r} must be YYYY-MM-DD or 'none'")
-    fields = {"date": date, "status": status}
+    fields = {"date": date, "status": status, "depth": depth}
     return fields, errors
 
 
@@ -376,6 +402,28 @@ def parse_gtm(text):
     if total == 0:
         return None
     return {"done": done, "total": total, "pct": round(100 * done / total)}
+
+
+def _scan_light_artifact(bdir, fname, parser, expected_project, empty_shape):
+    """Shared scan for the additive light-frontmatter artifacts (market-research.md,
+    plan.md) — BL-005. An absent file yields empty_shape with exists:false and no error;
+    a present file is parsed, its errors collected, and on a successful parse the fields
+    merged in with a computed age_days from the block's `date`. A present-but-unparseable
+    file keeps exists:true with null data (matching the pre-dedup behavior). Returns
+    (block_dict, errors_list)."""
+    f = bdir / fname
+    if not f.exists():
+        return {**empty_shape, "exists": False}, []
+    block = {**empty_shape, "exists": True}
+    try:
+        fields, errs = parser(f.read_text(errors="ignore"),
+                              expected_project=expected_project)
+    except Exception as e:
+        fields, errs = None, [f"{fname}: {e}"]
+    if fields:
+        block.update(fields)
+        block["age_days"] = _age_days(fields.get("date"))
+    return block, (errs or [])
 
 
 def _age_days(last_reviewed):
@@ -442,38 +490,19 @@ def scan_project(proj, vault):
     # market-research.md and plan.md are additive: an absent file is `exists:
     # false` with no error (a triage/research gap, not a malformation), so
     # existing projects degrade cleanly and downstream consumers read presence
-    # without the scanner ever inventing state.
-    research_f = bdir / "market-research.md"
-    if research_f.exists():
-        entry["research"] = {"exists": True, "date": None, "age_days": None,
-                             "depth": None, "confidence": None}
-        try:
-            rfields, rerrs = parse_market_research(research_f.read_text(errors="ignore"),
-                                                   expected_project=proj["name"])
-        except Exception as e:
-            rfields, rerrs = None, [f"market-research.md: {e}"]
-        entry["errors"].extend(rerrs or [])
-        if rfields:
-            entry["research"].update(rfields)
-            entry["research"]["age_days"] = _age_days(rfields.get("date"))
-    else:
-        entry["research"] = {"exists": False, "date": None, "age_days": None,
-                             "depth": None, "confidence": None}
+    # without the scanner ever inventing state. Both share _scan_light_artifact
+    # (BL-005) — the only difference is the parser and the block's uniform shape.
+    entry["research"], rerrs = _scan_light_artifact(
+        bdir, "market-research.md", parse_market_research, proj["name"],
+        {"exists": False, "date": None, "age_days": None,
+         "depth": None, "confidence": None})
+    entry["errors"].extend(rerrs)
 
-    plan_f = bdir / "plan.md"
-    if plan_f.exists():
-        entry["plan"] = {"exists": True, "date": None, "age_days": None, "status": None}
-        try:
-            pfields, perrs = parse_plan(plan_f.read_text(errors="ignore"),
-                                        expected_project=proj["name"])
-        except Exception as e:
-            pfields, perrs = None, [f"plan.md: {e}"]
-        entry["errors"].extend(perrs or [])
-        if pfields:
-            entry["plan"].update(pfields)
-            entry["plan"]["age_days"] = _age_days(pfields.get("date"))
-    else:
-        entry["plan"] = {"exists": False, "date": None, "age_days": None, "status": None}
+    entry["plan"], perrs = _scan_light_artifact(
+        bdir, "plan.md", parse_plan, proj["name"],
+        {"exists": False, "date": None, "age_days": None,
+         "status": None, "depth": None})
+    entry["errors"].extend(perrs)
 
     return entry, None
 

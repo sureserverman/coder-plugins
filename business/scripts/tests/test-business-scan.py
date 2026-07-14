@@ -224,7 +224,9 @@ def test_contract(tmp):
     check(P.get("happy", {}).get("errors") == [],
           "happy: still no errors despite the new research probe")
 
-    # researchnew — market-research.md schema 2 → explicit upgrade error, not misparse
+    # researchnew — market-research.md schema 3 (past its schema-2 ceiling) →
+    # explicit upgrade error, not misparse. (Schema 2 is now a SUPPORTED version;
+    # the upgrade-boundary fixture moved to 3 in lockstep with the raised ceiling.)
     rn = P.get("researchnew", {})
     check(rn.get("assessed") is True, "researchnew: assessed true")
     check(rn.get("verdict") == "monetize", "researchnew: BUSINESS.md still parses (verdict monetize)")
@@ -271,8 +273,8 @@ def test_contract(tmp):
     check((P.get("happy", {}).get("plan") or {}).get("exists") is False,
           "happy: plan.exists false (no plan.md)")
     check(set((P.get("happy", {}).get("plan") or {}).keys())
-          == {"exists", "date", "age_days", "status"},
-          "happy: absent plan block has the uniform shape")
+          == {"exists", "date", "age_days", "status", "depth"},
+          "happy: absent plan block has the uniform shape (incl. schema-2 depth)")
     check(P.get("happy", {}).get("errors") == [],
           "happy: still no errors despite the new plan probe")
 
