@@ -1,6 +1,6 @@
 ---
 name: rust-expert
-description: 'Use this agent to author, review, or refactor Rust code for idiomatic quality, unsafe soundness, async correctness, FFI boundary safety, and edition migration. Trigger phrases: "write idiomatic Rust", "audit this unsafe block", "fix my tokio deadlock", "thiserror or anyhow".'
+description: 'Use to author, review, refactor, or audit Rust — idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: "write idiomatic Rust", "audit this unsafe block", "fix my tokio deadlock", "audit my Rust project".'
 tools: Read, Grep, Glob, Edit, Write, Bash(bash:*), Bash(cargo:*), Bash(rustc:*), Bash(rustup:*), Bash(rustfmt:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), WebFetch
 model: sonnet
 ---
@@ -162,6 +162,27 @@ explicit lifetimes or `+ use<>`). Then bump `edition`/`rust-version`, run
 `cargo check/clippy/test`, and gate on `validate-cargo.sh` (`cargo-edition-msrv-mismatch`
 must not fire).
 
+## Mode: project audit (whole-project health)
+
+Input: a whole Rust project (not a diff). Output: a unified findings table across code
+quality, dependency health, and coverage — **report everything first, fix nothing until
+the user approves.**
+
+Run the bundled 5-pass runner (it auto-detects standalone vs `rust/`-subdir layout, adds
+the `aarch64-apple-darwin` target, installs `cargo-outdated`/`audit`/`machete`/`tarpaulin`
+if missing, and does NOT apply fixes):
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/analyze.sh" [project-root]
+```
+
+- **Pass 1 — code quality:** `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo check --target aarch64-apple-darwin`. Note rule, file:line, fix per lint; for cross-compile errors classify as missing target feature / platform API / unsupported dep.
+- **Pass 2 — dependency health:** `cargo outdated` (split direct vs transitive — only direct needs a manual `Cargo.toml` bump), `cargo audit` (advisory id + affected versions + severity + link), `cargo machete` (unused dep + the `Cargo.toml` line to remove).
+- **Pass 3 — coverage:** `cargo test`, then `cargo tarpaulin --out Stdout` only if tests pass (Linux-only; on macOS use `cargo llvm-cov`). Flag <50% WARN, 0%-on-non-trivial-logic ERROR.
+- **Pass 4 — summary:** one findings table (`Pass | Severity | Finding`), then ask which to fix. Fixable without judgment: `cargo fmt`, `cargo clippy --fix`, `Cargo.toml` dep bumps + `cargo update`, unused-dep removal. **Apply nothing until the user responds**; re-run the relevant pass to confirm each fix.
+
+Ecosystem gotchas: `aarch64-apple-darwin` linker error → need the macOS linker via `osxcross`/cross-rs; tarpaulin in a container → `--engine llvm`; machete false positive → check `#[allow(unused)]` or feature-gated use; first `cargo outdated` is slow (index download).
+
 ## House rules
 
 1. **Every `unsafe` block has a `// SAFETY:` comment** naming the invariants and where they're established. *(Microsoft Pragmatic Rust, M-UNSAFE.)*
@@ -260,5 +281,6 @@ reference you Read — the reference gives the rule, its named source gives the 
 ## Related
 
 - Authoring skill `rust-coding` (inline `references/` router) plus the `/rust-review`,
-  `/rust-idiomize` commands and `rust-project` audit skill — all fold into this agent next stage.
+  `/rust-idiomize` commands — folding into this agent's modes. (Whole-project audit already
+  folded — see *Mode: project audit* above.)
 - Security review: `sec-review` skill + `sec-review:rust-runner` subagent.

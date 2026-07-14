@@ -801,7 +801,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use this agent to author, review, or refactor Rust code for idiomatic quality, unsafe soundness, async correctness, FFI boundary safety, and edition migration. Trigger phrases: \"write idiomatic Rust\", \"audit this unsafe block\", \"fix my tokio deadlock\", \"thiserror or anyhow\".",
+      "description": "Use to author, review, refactor, or audit Rust \u2014 idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: \"write idiomatic Rust\", \"audit this unsafe block\", \"fix my tokio deadlock\", \"audit my Rust project\".",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "sonnet",
@@ -837,16 +837,6 @@
       "model": null,
       "name": "rust-coding",
       "path": "rust-dev/skills/rust-coding/SKILL.md",
-      "plugin": "rust-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when analyzing, auditing, or improving a Rust project in this ecosystem \u2014 dependency, security, and clippy issues, or cross-compile checks for aarch64-apple-darwin. Trigger on \"update my rust deps\", \"run clippy\", \"cargo audit\", \"cross-compile to aarch64-apple-darwin\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "rust-project",
-      "path": "rust-dev/skills/rust-project/SKILL.md",
       "plugin": "rust-dev",
       "requires_enablement": false
     },

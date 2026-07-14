@@ -70,6 +70,6 @@ in its own context window.
 
 ## Related
 
-- Authoring subagent `rust-expert` (this plugin) and its entry points — the `/rust-review`
-  and `/rust-idiomize` commands and the `rust-project` whole-project audit skill.
+- Authoring subagent `rust-expert` (this plugin) and its `/rust-review` / `/rust-idiomize`
+  commands. Whole-project audit is now `rust-expert`'s **project-audit mode**.
 - Security review: `sec-review` skill → `sec-review:rust-runner` subagent.
