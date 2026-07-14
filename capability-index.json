@@ -581,7 +581,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when you have a plan file from planning-projects (Stages, Tasks, Depends on / Blocks / Parallel), or a master plan linking sub-plans, and need to execute it \u2014 driving Red-Green loops and stage gates. Triggers on \"execute this plan\", \"run the plan\", \"execute the master plan\".",
+      "description": "Use when you have a planning-projects plan \u2014 Standard (staged), master (sub-plans), or light (single-stage) \u2014 and need to execute it, driving Red-Green loops and stage gates. Triggers on \"execute this plan\", \"run the plan\", \"execute the master plan\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -611,7 +611,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when the user wants a staged plan for a non-trivial project \u2014 feature rollouts, refactors, infra migrations, anything needing phase gates before execution. Triggers on \"roadmap\", \"break this down\", \"create a plan\", \"help me structure this project\".",
+      "description": "Use when the user wants a plan for a project of any size \u2014 triages to a format first (Direct/Light/Standard/Master) and may decline to plan a trivial job. Triggers on \"roadmap\", \"break this down\", \"create a plan\", \"plan this\", \"how should I build\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
