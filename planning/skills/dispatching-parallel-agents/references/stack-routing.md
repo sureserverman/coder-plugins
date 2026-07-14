@@ -63,7 +63,7 @@ built-in fallback.
 
 | Task / stack signal | Subagent type | Stack skill the subagent loads first |
 |---|---|---|
-| Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring) or `rust-project` (audit) |
+| Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring; the agent's own review/idiomize/project-audit modes handle the rest) |
 | Android build / Kotlin / Gradle | `general-purpose` | `android-gradle-build` |
 | Android UI — Compose / Material 3 screens | `android-dev:ui-android` | `android-ui-layout-patterns`, `android-ui-design-figma` |
 | Android tests — Compose/Espresso/MockWebServer | `testing:testing-expert` | `kotlin-compose-testing-patterns` |
