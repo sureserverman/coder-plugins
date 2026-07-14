@@ -1,6 +1,7 @@
 ---
 name: i18n-formats
 description: Reference for i18n catalog format gotchas — gettext .po, i18next JSON, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB. Use when authoring or modifying translation catalogs, format-specific escaping or quoting matters, or expanding plural forms for a non-English target.
+disable-model-invocation: true
 ---
 
 # i18n Formats Reference

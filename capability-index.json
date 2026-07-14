@@ -392,7 +392,7 @@
     },
     {
       "description": "Reference for i18n catalog format gotchas \u2014 gettext .po, i18next JSON, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB. Use when authoring or modifying translation catalogs, format-specific escaping or quoting matters, or expanding plural forms for a non-English target.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "i18n-formats",
