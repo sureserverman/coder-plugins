@@ -33,7 +33,9 @@ doesn't back.
 
 **Optional business layer.** When the sibling **business** plugin is installed, each
 assessed project also carries a `business` object: `{verdict, model, gtm_pct,
-last_reviewed_age_days, stage}`. When the plugin is absent, no project has a `business`
+last_reviewed_age_days, research_age_days, plan_age_days, stage}`. `research_age_days` and
+`plan_age_days` are the ages of the `market-research.md` / `plan.md` artifacts (or `null`
+when that artifact doesn't exist). When the plugin is absent, no project has a `business`
 key — every business-aware rule below is simply skipped (additive; compass is unchanged
 without it). Never invent a business fact for a project with no `business` key.
 
@@ -110,6 +112,11 @@ Surface drift, one section each (explicit-negative when a section is empty):
 - **Stale business review** *(only when `business` fields are present)* — projects whose
   `business.last_reviewed_age_days` exceeds ~90: verdict/targets may be out of date —
   suggest `/business:track` or a re-assessment.
+- **Stale business evidence** *(only when `business` fields are present)* — projects whose
+  `business.research_age_days` or `business.plan_age_days` exceeds ~90 (same window as the
+  review nag and the roll-up's `STALE` marker): the market-research or business plan is aging
+  — suggest `/business:market-research` to refresh the evidence, or `/business:business-plan`
+  to recompose. Only fires for the artifact(s) actually present (a `null` age is no nag).
 - **No business case** *(only when the business plugin is present)* — enabled projects
   with no `business` key at all: a commercial triage gap; suggest `/business:assess`.
   Omit this section entirely when the business plugin is absent (no project has a
