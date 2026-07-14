@@ -1,8 +1,3 @@
----
-name: game-feel-and-juice
-description: 'Use when tuning the moment-to-moment responsiveness, "game feel", or "juice" of a game — input handling, controller feel, jump feel, hit feedback, screen shake. Triggers: "improve game feel", "the jump feels off", "controller feels mushy", "add coyote time".'
----
-
 # game-feel-and-juice
 
 Tuning rules for *moment-to-moment* responsiveness. Distilled from Steve Swink's *Game Feel: The Secret Ingredient* and the cross-genre consensus on input forgiveness (coyote time, jump buffer, input buffer, dead zones).

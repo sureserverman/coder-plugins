@@ -251,92 +251,12 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when authoring or reviewing Godot 4 projects \u2014 GDScript, scenes (.tscn), resources (.tres), autoloads, signals, node tree organization. Triggers: \"review my Godot scene\", \"Godot autoload smell\", \"Godot signal vs polling\", \"Godot 4 best practices\". Grounded in official Godot 4 docs.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "engine-godot",
-      "path": "game-dev/skills/engine-godot/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring or reviewing Unity projects (Unity 6 / 2022+) \u2014 C# MonoBehaviour, ScriptableObject, Update/FixedUpdate/LateUpdate lifecycle, GC pressure. Triggers: \"Unity best practices\", \"Update vs FixedUpdate\", \"Unity GC allocations\", \"MonoBehaviour lifecycle\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "engine-unity",
-      "path": "game-dev/skills/engine-unity/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring or reviewing Unreal Engine 5 projects \u2014 C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, replication. Triggers: \"Unreal gameplay framework\", \"GameMode vs GameState\", \"PlayerController vs PlayerState\", \"UE5 architecture review\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "engine-unreal",
-      "path": "game-dev/skills/engine-unreal/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
       "description": "Use when auditing a game for accessibility or reviewing accessibility features before ship. Triggers: \"accessibility audit\", \"is my game accessible\", \"colorblind mode\", \"accessibility ship gate\". Grounded in the Game Accessibility Guidelines (gameaccessibilityguidelines.com).",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
       "name": "game-accessibility-audit",
       "path": "game-dev/skills/game-accessibility-audit/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when designing or reviewing the architecture of game code \u2014 entity systems, game loop, state machines, event systems, object pools. Triggers: \"design my entity system\", \"ECS vs OOP\", \"state machine for enemies\", \"game architecture review\". Grounded in Nystrom's Game Programming Patterns.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-architecture-patterns",
-      "path": "game-dev/skills/game-architecture-patterns/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when tuning the moment-to-moment responsiveness, \"game feel\", or \"juice\" of a game \u2014 input handling, controller feel, jump feel, hit feedback, screen shake. Triggers: \"improve game feel\", \"the jump feels off\", \"controller feels mushy\", \"add coyote time\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-feel-and-juice",
-      "path": "game-dev/skills/game-feel-and-juice/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when designing, balancing, or reviewing core game mechanics, the core game loop, compulsion loops, progression, or FTUE. Triggers: \"design a core loop\", \"design a mechanic\", \"balance this\", \"does this mechanic have depth\". Grounded in Schell, Sylvester, and Nystrom.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-mechanics-design",
-      "path": "game-dev/skills/game-mechanics-design/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, fast travel, signposting, or wayfinding. Triggers: \"review my camera\", \"camera feels bad\", \"the camera fights the player\", \"design navigation\". Grounded in John Nesky's \"50 Camera Mistakes\" (GDC 2014).",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-navigation-camera",
-      "path": "game-dev/skills/game-navigation-camera/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when reviewing or designing the user experience of a game \u2014 menus, HUDs, FTUE, tutorialization, signposting in UI, affordances, button prompts. Triggers: \"design my game UI\", \"review my HUD\", \"design FTUE\", \"the UI is confusing\". Grounded in Celia Hodent's The Gamer's Brain.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-ux-onboarding",
-      "path": "game-dev/skills/game-ux-onboarding/SKILL.md",
       "plugin": "game-dev",
       "requires_enablement": false
     },

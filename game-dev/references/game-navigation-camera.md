@@ -1,8 +1,3 @@
----
-name: game-navigation-camera
-description: 'Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, fast travel, signposting, or wayfinding. Triggers: "review my camera", "camera feels bad", "the camera fights the player", "design navigation". Grounded in John Nesky''s "50 Camera Mistakes" (GDC 2014).'
----
-
 # game-navigation-camera
 
 Rules for cameras and navigation. The camera is the *one* system the player can't turn off and can't escape. Get it wrong and the rest of the game can't save it. Distilled from John Nesky's GDC 2014 talk *50 Camera Mistakes* (he was the dynamic camera designer for *Journey*) and current Cinemachine / Unreal Camera Rig best practice.

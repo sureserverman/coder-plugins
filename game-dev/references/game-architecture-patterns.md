@@ -1,8 +1,3 @@
----
-name: game-architecture-patterns
-description: 'Use when designing or reviewing the architecture of game code — entity systems, game loop, state machines, event systems, object pools. Triggers: "design my entity system", "ECS vs OOP", "state machine for enemies", "game architecture review". Grounded in Nystrom''s Game Programming Patterns.'
----
-
 # game-architecture-patterns
 
 Decision rules and named pitfalls for game-code architecture. Distilled from Robert Nystrom's *Game Programming Patterns* (free at gameprogrammingpatterns.com), the canonical text on this topic.

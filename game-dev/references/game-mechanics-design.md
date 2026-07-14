@@ -1,8 +1,3 @@
----
-name: game-mechanics-design
-description: 'Use when designing, balancing, or reviewing core game mechanics, the core game loop, compulsion loops, progression, or FTUE. Triggers: "design a core loop", "design a mechanic", "balance this", "does this mechanic have depth". Grounded in Schell, Sylvester, and Nystrom.'
----
-
 # game-mechanics-design
 
 Opinionated rules for designing the *atomic verb* of a game and the loops it lives in. Distilled from Jesse Schell (*The Art of Game Design*), Tynan Sylvester (*Designing Games*), and Robert Nystrom (*Game Programming Patterns*).

@@ -1,8 +1,3 @@
----
-name: engine-unity
-description: 'Use when authoring or reviewing Unity projects (Unity 6 / 2022+) — C# MonoBehaviour, ScriptableObject, Update/FixedUpdate/LateUpdate lifecycle, GC pressure. Triggers: "Unity best practices", "Update vs FixedUpdate", "Unity GC allocations", "MonoBehaviour lifecycle".'
----
-
 # engine-unity
 
 Opinionated rules for Unity 6 (and 2022+ LTS) projects. Distilled from the official Unity programming best practices (docs.unity3d.com/6000.3/Documentation/Manual/programming-best-practices.html) and a generation of GDC postmortems.

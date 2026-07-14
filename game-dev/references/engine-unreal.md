@@ -1,8 +1,3 @@
----
-name: engine-unreal
-description: 'Use when authoring or reviewing Unreal Engine 5 projects — C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, replication. Triggers: "Unreal gameplay framework", "GameMode vs GameState", "PlayerController vs PlayerState", "UE5 architecture review".'
----
-
 # engine-unreal
 
 Opinionated rules for Unreal Engine 5 projects. Distilled from Epic's official gameplay framework documentation (dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-framework-in-unreal-engine), Tom Looman's published guides, and a decade of Unreal community consensus.
