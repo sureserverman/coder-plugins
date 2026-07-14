@@ -102,17 +102,27 @@ running at full weight:
    fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
    `Depends on`; honor it as ordering.)
 3. **One review, not per-task.** **Skip the Tier-1 per-task review.** Instead, after the
-   last task goes green and **before** the gate, run **one** `git-github:code-reviewer`
-   (read-only) pass over the **whole plan diff** (`git diff` across all the light plan's
-   commits). Handle its verdict exactly like the Tier-2 stage review: a **Critical** is a
-   **gate failure** (fix within the same discipline, re-run test + review), and
-   Important/Suggestion findings are surfaced for the user's triage, not auto-fixed. Skip
-   only on the usual opt-out / trivial-diff rules. This keeps one real review in the loop
-   without paying per-task review overhead on a handful of tasks.
-4. **Goal-evaluator is opt-in, not default.** The single gate is mostly command checks.
-   Do **not** dispatch the independent goal-evaluator by default. Dispatch it only if the
-   gate carries a genuine judgment check ("reads coherently", "flow works end-to-end") or
-   the user asks — same rule as any gate, just that a light plan rarely has such a check.
+   last task goes green and **before** the gate (this is a pre-gate check, not the gate
+   itself — a light plan still has exactly one gate, its Stage 1 Gate), run **one**
+   `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
+   across all the light plan's commits). Handle its verdict exactly like the Tier-2 stage
+   review: a **Critical** blocks close-out just as a Tier-2 Critical fails a gate (fix
+   within the same discipline, re-run test + review), and Important/Suggestion findings
+   are surfaced for the user's triage, not auto-fixed. Skip only on the usual opt-out /
+   trivial-diff rules — so an entirely docs-only light plan skips it too (zero reviews is
+   correct there, exactly as a docs-only task auto-skips Tier-1 in a Standard plan); the
+   one review is guaranteed only when the plan's diff carries reviewable code. **This
+   single pre-gate review IS the light plan's Tier-2 — do not also run a separate Step 3.5
+   Tier-2 pass.** It keeps one real review in the loop without paying per-task review
+   overhead on a handful of tasks.
+4. **Both evaluator passes are opt-in, not default.** A light plan does **not** dispatch
+   the independent goal-evaluator by default — neither at the gate (Step 3.5) **nor at
+   close-out (Phase Close-out step 3)**, which for a Standard plan is default-on. Dispatch
+   it only if a check requires genuine judgment ("reads coherently", "flow works
+   end-to-end") or the user asks — same rule as any gate, just that a light plan's single
+   command-ish gate rarely has such a check. (This is the one place "everything else is
+   unchanged from Standard" below does **not** apply — the close-out evaluator's default
+   flips from on to off at Light.)
 5. **Close-out is one stated bump.** Run the full suite one final time, reconcile the
    backlog (`Closes BL-NNN`), and append the `**Completed:**` line. For version bumps,
    apply a **single stated SemVer bump** to what changed and its mirror — in this repo,

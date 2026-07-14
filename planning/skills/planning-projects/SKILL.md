@@ -108,7 +108,8 @@ know what to skip and what you must still do:
 - **Output location is unchanged.** A Light plan saves to the same
   `<portfolio_home>/plans/` in the vault under the same resolution and sidecar rules as any
   plan (project auto-registered, `PORTFOLIO-STATUS` block present) — it is a first-class
-  plan, just a small one. Filename ends in `-light-plan.md`.
+  plan, just a small one. Filename ends in `-light-plan.md` (and its first heading is
+  `# Light Plan:` — either one lets `executing-plans` detect the format).
 - **Use the Light checklist**, not the full one — see "Checklist — Light plans" below.
 
 If while authoring you find the job needs a second stage or a 6th task, stop treating it as
