@@ -87,6 +87,27 @@ cumulative — each is a superset of the one above.
 5. **Market size / demand signal, if available.** Download counts, star counts, forum
    threads, "is there an app for X" search volume — any concrete, cited signal that a
    payable or reachable audience exists. Mark soft signals as soft.
+6. **Competitor marketing (`standard`+ only; skip on `triage`/`brief`).** How each
+   competitor actually reaches its audience — the raw material for a positioning strategy.
+   At **`standard`**, deliver a **channel-level summary** (which channels the competitors
+   use, in aggregate); at **`deep`**, deliver a **per-competitor teardown** across these
+   axes, every claim cited or framed as an evidenced absence:
+   - **Channels** — where the competitor markets: own blog/newsletter/changelog, an
+     app-store or registry listing, a subreddit/forum, YouTube, paid search/social. Cite the
+     observed presence (the URL, the listing, the thread).
+   - **Observed campaigns** — concrete, dated ad or promotion activity, cited to an
+     **ad-transparency library** (Meta Ad Library, Google Ads Transparency Center,
+     TikTok/LinkedIn ad libraries), a landing/launch page, or a changelog/announcement.
+     **Never assert "they run ads" (or "they don't") without a source** — "no entries found
+     in Meta + Google ad libraries (searched <date>)" is a first-class evidenced absence, and
+     the *absence* of a found campaign is not proof they don't advertise.
+   - **Detected tooling** — the analytics/marketing stack inferred from concrete signals: a
+     BuiltWith/Wappalyzer readout, tracker domains in page source, an email-vendor footer.
+     Cite the signal and mark the inference low-confidence (a detected tag is evidence of
+     presence, not of how it's used).
+   - **Messaging / keywords** — the positioning language and search terms the competitor
+     leans on: headline copy, meta/store keywords, repeated value phrases. Quote it and cite
+     the page it's on.
 
 ## Output
 
