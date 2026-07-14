@@ -108,6 +108,13 @@ cumulative — each is a superset of the one above.
    - **Messaging / keywords** — the positioning language and search terms the competitor
      leans on: headline copy, meta/store keywords, repeated value phrases. Quote it and cite
      the page it's on.
+7. **Customer personas (`standard`+ only; skip on `triage`/`brief`).** Sketch the
+   ideal-customer profile(s) — **one** at `standard`, **2–3** distinct ones at `deep`. Each
+   persona names: who they are, the job-to-be-done, where they already look for a solution
+   (a channel/forum you evidenced above), and their willingness/ability to pay. **Ground
+   each in the demand/channel evidence or the given audience hypothesis — never invent a
+   persona.** A persona resting on an assumed (unconfirmed) audience is marked as such, so
+   the caller knows which sketches are evidenced and which are hypotheses.
 
 ## Output
 
@@ -118,13 +125,18 @@ Return structured findings the `assess` skill folds into its evidence section. F
   emit an "evidenced absence" instead if the gap itself is informative.
 - **Confidence** — high (primary source) / medium (secondary) / low (inferred, marked).
 
-Group as: **Competitors** (name · model · price · source), **Pricing signal** (the
-cluster and what it implies), **Channels** (per candidate channel: norm + policy cite),
-**Demand signal** (cited, hardness-marked). On a **`full`** pass, add **Market sizing**
-(TAM/SAM/SOM with method + cited inputs, soft numbers marked soft), **Trends** (demand
-direction over time, cited), and **Positioning gaps** (evidenced unmet needs) — matching
-the sections in `references/market-research-format.md`. End with **Gaps** — what you could
-not evidence, so the caller lowers confidence rather than assuming coverage.
+Group as follows, matching the section headings in
+`references/market-research-format.md`. The always-present groups (every tier including
+`triage`): **Competitors** (name · model · price · source), **Pricing signal** (the cluster
+and what it implies), **Channels** (per candidate channel: norm + policy cite), **Demand
+signal** (cited, hardness-marked). On a **`standard`** or **`deep`** pass, add **Market
+sizing** (TAM/SAM/SOM with method + cited inputs, soft numbers marked soft), **Trends**
+(demand direction over time, cited), **Positioning gaps** (evidenced unmet needs),
+**Competitor marketing** (channel-level summary at `standard`; per-competitor teardown —
+channels · campaigns · tooling · messaging, each cited — at `deep`), and **Customer
+personas** (one at `standard`; 2–3 at `deep`; each grounded, assumptions marked). End with
+**Gaps** — what you could not evidence, so the caller lowers confidence rather than assuming
+coverage.
 
 Every number you emit — a market size, a price, a download count — states its method and
 its cited inputs, or it is not emitted. An uncited figure is worthless to the caller (it's
