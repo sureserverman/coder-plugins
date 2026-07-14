@@ -1,8 +1,3 @@
----
-name: engine-unreal
-description: 'Use when authoring or reviewing Unreal Engine 5 projects — C++ gameplay code, Blueprints, GameMode, GameState, PlayerController, replication. Triggers: "Unreal gameplay framework", "GameMode vs GameState", "PlayerController vs PlayerState", "UE5 architecture review".'
----
-
 # engine-unreal
 
 Opinionated rules for Unreal Engine 5 projects. Distilled from Epic's official gameplay framework documentation (dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-framework-in-unreal-engine), Tom Looman's published guides, and a decade of Unreal community consensus.
@@ -105,8 +100,8 @@ UE5 introduced subsystems as the answer to "where do I put global services."
 
 ## Cross-engine concerns
 
-- **Game loop discipline.** Unreal's tick uses variable-timestep by default; physics is sub-stepped. See [[game-architecture-patterns]] for theory.
-- **Camera.** Unreal's `APlayerCameraManager` and Camera Modifier system implement many of the rules in [[game-navigation-camera]].
+- **Game loop discipline.** Unreal's tick uses variable-timestep by default; physics is sub-stepped. See `game-architecture-patterns.md` for theory.
+- **Camera.** Unreal's `APlayerCameraManager` and Camera Modifier system implement many of the rules in `game-navigation-camera.md`.
 - **Animation state machines** — use them for animation; use plain C++ state machines for gameplay logic. Don't conflate.
 - **Object pooling** — Unreal has no first-class pool; roll your own or use `FObjectPool` patterns from community plugins.
 

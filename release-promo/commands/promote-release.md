@@ -63,10 +63,14 @@ Dispatch the **`post-drafter`** subagent (haiku-pinned, read-only) once per chos
 Pass each invocation:
 
 - `channel` — one of `reddit:<sub>`, `twim`, `showhn`, `lobsters`, `fediverse`.
+- `skill_path` — the explicit channel SKILL.md path, `${CLAUDE_PLUGIN_ROOT}/skills/<skill>/SKILL.md`
+  (`reddit-promo`, `twim-submission`, `hackernews-show-hn`, `lobsters-post`, `fediverse-post`).
+  The channel skills are `disable-model-invocation: true` — they are **read from disk**, never
+  invoked as skills, so the drafter needs the path handed to it.
 - `facts` — the survey output as a structured block: `name`, `version`, `summary`, `whats_new` (bullet list), `license`, `stack`, `links` (repo, demo, docs, release notes), `project_type`, `audience_hint`.
 - `hint` *(optional)* — anything from `$ARGUMENTS` that biases tone or focus.
 
-The subagent reads the matching SKILL.md, applies its emit-block format, and returns one markdown section. It will return `SKIP: <reason>` if the skill's refusal rules apply (e.g. Show HN for vapor, r/Android for a dev-only library).
+The subagent Reads the SKILL.md at `skill_path`, applies its emit-block format, and returns one markdown section. It will return `SKIP: <reason>` if the skill's refusal rules apply (e.g. Show HN for vapor, r/Android for a dev-only library).
 
 Channel → invocation mapping:
 

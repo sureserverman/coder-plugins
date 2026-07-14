@@ -23,12 +23,18 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWLIST_PATH = os.path.join(REPO_ROOT, "scripts", "frontmatter-budget-allow.txt")
-PATTERNS = (
-    ("skill", "*/skills/*/SKILL.md"),
-    ("agent", "*/agents/*.md"),
-    ("command", "*/commands/*.md"),
+
+# Shared scan primitives live in _frontmatter_common so this script and
+# build-capability-index.py can't drift on what counts as a component or on the
+# dispatch-only rule. Bootstrap this script's own dir onto sys.path so the import
+# resolves both when run directly and when loaded via importlib in the tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _frontmatter_common import (  # noqa: E402
+    PATTERNS,
+    is_excluded,
+    frontmatter_block,
+    disable_model_invocation,
 )
-EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/")
 
 try:
     import yaml as _yaml
@@ -54,10 +60,9 @@ def extract_description(text):
     Handles YAML folded/literal blocks (`description: >` / `|`) and plain
     single-line values. Returns None when there is no frontmatter description.
     """
-    m = re.match(r"^---\n(.*?)\n---", text, re.S)
-    if not m:
+    fm = frontmatter_block(text)
+    if fm is None:
         return None
-    fm = m.group(1)
     m2 = re.search(
         r"^description:\s*(.*?)(?=\n[A-Za-z_][\w-]*:|\Z)", fm, re.S | re.M
     )
@@ -79,10 +84,9 @@ def yaml_error(text):
     loader rejects even though a naive regex parse would not. Falls back to a
     lightweight heuristic when PyYAML is unavailable.
     """
-    m = re.match(r"^---\n(.*?)\n---", text, re.S)
-    if not m:
+    fm = frontmatter_block(text)
+    if fm is None:
         return None
-    fm = m.group(1)
     if _yaml is not None:
         try:
             data = _yaml.safe_load(fm)
@@ -98,6 +102,41 @@ def yaml_error(text):
     return None
 
 
+def summarize(root):
+    """Bucket every component's description length by plugin, split into
+    *injected* (counted against the always-on footprint) and *dispatch-only*
+    (`disable-model-invocation: true`, not injected). Same scan rules as scan().
+    Returns (per_plugin, totals) where per_plugin maps plugin -> dict of
+    injected_chars/injected_count/dispatch_chars/dispatch_count."""
+    per_plugin = {}
+    for kind, pattern in PATTERNS:
+        for path in glob.glob(os.path.join(root, pattern)):
+            rel = os.path.relpath(path, root)
+            if is_excluded(rel):
+                continue
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+            desc = extract_description(text)
+            if desc is None:
+                continue
+            plugin = rel.replace(os.sep, "/").split("/", 1)[0]
+            bucket = per_plugin.setdefault(
+                plugin, {"injected_chars": 0, "injected_count": 0,
+                         "dispatch_chars": 0, "dispatch_count": 0})
+            if disable_model_invocation(text):
+                bucket["dispatch_chars"] += len(desc)
+                bucket["dispatch_count"] += 1
+            else:
+                bucket["injected_chars"] += len(desc)
+                bucket["injected_count"] += 1
+    totals = {"injected_chars": 0, "injected_count": 0,
+              "dispatch_chars": 0, "dispatch_count": 0}
+    for b in per_plugin.values():
+        for k in totals:
+            totals[k] += b[k]
+    return per_plugin, totals
+
+
 def scan(root, max_chars, allowlist):
     violations = []
     allowed = []
@@ -105,8 +144,7 @@ def scan(root, max_chars, allowlist):
     for kind, pattern in PATTERNS:
         for path in glob.glob(os.path.join(root, pattern)):
             rel = os.path.relpath(path, root)
-            norm = "/" + rel.replace(os.sep, "/")
-            if any(seg in norm for seg in EXCLUDE_SEGMENTS):
+            if is_excluded(rel):
                 continue
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
@@ -137,10 +175,30 @@ def main(argv=None):
     ap.add_argument("--root", default=REPO_ROOT, help="repo root to scan")
     ap.add_argument("--allowlist", default=ALLOWLIST_PATH, help="path to allowlist file")
     ap.add_argument("--json", action="store_true", help="emit JSON")
+    ap.add_argument("--summary", action="store_true",
+                    help="report per-plugin injected vs dispatch-only description chars")
     args = ap.parse_args(argv)
 
     allowlist = load_allowlist(args.allowlist)
     violations, allowed, invalid = scan(args.root, args.max, allowlist)
+
+    if args.summary:
+        per_plugin, totals = summarize(args.root)
+        if args.json:
+            print(json.dumps({"per_plugin": per_plugin, "totals": totals}, indent=2, sort_keys=True))
+        else:
+            print("Always-on description footprint (injected = counted, "
+                  "dispatch-only = disable-model-invocation):\n")
+            print(f"  {'plugin':22s} {'injected':>18s} {'dispatch-only':>18s}")
+            for plugin in sorted(per_plugin):
+                b = per_plugin[plugin]
+                inj = f"{b['injected_chars']}c/{b['injected_count']}"
+                dsp = f"{b['dispatch_chars']}c/{b['dispatch_count']}"
+                print(f"  {plugin:22s} {inj:>18s} {dsp:>18s}")
+            tinj = f"{totals['injected_chars']}c/{totals['injected_count']}"
+            tdsp = f"{totals['dispatch_chars']}c/{totals['dispatch_count']}"
+            print(f"  {'TOTAL':22s} {tinj:>18s} {tdsp:>18s}")
+        return 1 if (violations or invalid) else 0
 
     if args.json:
         print(json.dumps(

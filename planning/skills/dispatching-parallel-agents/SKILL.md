@@ -82,7 +82,9 @@ You are a sub-agent executing Task <N.M> from plan <plan-path>.
 Do NOT paste the entire research summary.>
 
 ## Stack skill — invoke first (omit if the routing table names none)
-<Stack skill name from references/stack-routing.md, e.g. rust-coding — load it before editing>
+<Stack skill name from references/stack-routing.md, e.g. rust-coding — load it before editing.
+If that skill's plugin isn't enabled, instead: "Read <repo-relative path from capability-index.json>
+and follow it" — the same skill body, loaded from disk (see stack-routing.md § Resolving).>
 
 ## Execution model (Red-Green loop)
 1. Attempt the implementation described by the task
@@ -123,6 +125,16 @@ covers Rust → `rust-expert`, Android UI → `ui-android`, tests → `testing-e
 design → `game-design-expert`, i18n → `translator`, scaffolding → `code-generator`,
 markdown rewrites → `skill-rewriter`, bulk read-only scans → `readonly-scanner`, and a
 `general-purpose` fallback). Read it before dispatch; don't reinvent the mapping here.
+
+**When the matched agent's plugin isn't enabled**, its `plugin:agent` type isn't
+registered, so you can't set `subagent_type` to it. Don't just drop to
+`general-purpose` blind — resolve it from disk per `references/stack-routing.md`
+§ *Resolving a capability whose plugin isn't enabled*: dispatch `general-purpose` with
+the agent's `.md` body (from its `path` in `capability-index.json`) injected as its
+instructions and its frontmatter `model` passed as the subagent model. A component
+flagged `requires_enablement` can't be lazy-loaded — surface it to the caller to enable
+that plugin instead of dispatching. (For ad-hoc, non-plan needs, the `capability-router`
+skill wraps this same lookup-and-resolve flow.)
 
 ## Phase 5 — Collect
 

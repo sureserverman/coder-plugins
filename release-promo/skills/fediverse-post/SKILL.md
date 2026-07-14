@@ -1,6 +1,7 @@
 ---
 name: fediverse-post
 description: Drafts a Mastodon or Fediverse toot announcing a software release. Triggers on "draft a Mastodon post", "post on Fediverse", "toot this release", "share on Mastodon", or "Fediverse announcement" — hashtags, content warnings, alt text, and the 500-char limit for instances like fosstodon.org.
+disable-model-invocation: true
 ---
 
 # fediverse-post

@@ -1,6 +1,7 @@
 ---
 name: lobsters-post
 description: Drafts a Lobsters submission for a software release, library, or substantive technical write-up. Triggers on "post on Lobsters", "submit to lobste.rs", "draft a Lobsters submission", or "share on Lobsters" — covers tag selection, the show/ask convention, and the invite-only culture.
+disable-model-invocation: true
 ---
 
 # lobsters-post

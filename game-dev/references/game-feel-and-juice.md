@@ -1,8 +1,3 @@
----
-name: game-feel-and-juice
-description: 'Use when tuning the moment-to-moment responsiveness, "game feel", or "juice" of a game — input handling, controller feel, jump feel, hit feedback, screen shake. Triggers: "improve game feel", "the jump feels off", "controller feels mushy", "add coyote time".'
----
-
 # game-feel-and-juice
 
 Tuning rules for *moment-to-moment* responsiveness. Distilled from Steve Swink's *Game Feel: The Secret Ingredient* and the cross-genre consensus on input forgiveness (coyote time, jump buffer, input buffer, dead zones).
@@ -84,7 +79,7 @@ These are nearly free in code. Use them.
 
 ## Anti-patterns
 
-- **Input lag from physics interpolation.** If physics runs at 50 Hz but rendering at 144 Hz, input feels delayed unless you interpolate. See [[game-architecture-patterns]] Game Loop section.
+- **Input lag from physics interpolation.** If physics runs at 50 Hz but rendering at 144 Hz, input feels delayed unless you interpolate. See `game-architecture-patterns.md` Game Loop section.
 - **Mushy controls "for realism."** Realistic vehicle/character feel is *not* fun feel. Tune for *responsive*, not real.
 - **Hitstop on every action.** Hitstop loses meaning if it fires constantly. Reserve for impact moments.
 - **Screen shake on every effect.** Same — reserve for emphasis. Constant shake = headache.
@@ -99,7 +94,7 @@ These are nearly free in code. Use them.
 4. **Add forgiveness if it's a precision verb.** Coyote / jump buffer / input buffer if the verb has a timing window.
 5. **Layer Polish from the ROI list above.** Pick 2–3, not all 8.
 6. **Playtest.** Game feel is the one area where intuition lies — only the controller in someone's hands tells the truth.
-7. **Profile.** Polish effects (particle systems, post-processing) are common frame-rate killers. See [[engine-unity]] / [[engine-godot]] / [[engine-unreal]] for hot-path rules.
+7. **Profile.** Polish effects (particle systems, post-processing) are common frame-rate killers. See `engine-unity.md` / `engine-godot.md` / `engine-unreal.md` for hot-path rules.
 
 ## Sources
 

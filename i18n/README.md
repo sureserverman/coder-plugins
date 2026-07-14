@@ -32,7 +32,7 @@ The audit + translate + formats skills know these catalog formats and their gotc
 
 - **`i18n-audit`** — detects the framework, finds hardcoded strings still in source, diffs translation catalogs across locales for missing/stale keys. Ships `scripts/detect-framework.py`, `scripts/scan-hardcoded.py`, `scripts/diff-catalogs.py`. Triggers on "audit i18n", "check translation coverage", "find hardcoded strings", "is this app translation-ready".
 - **`i18n-translate`** — drives the LLM translation pass via the `translator` subagent. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on "translate to <locale>", "fill in missing translations", "add Spanish translations".
-- **`i18n-formats`** — reference doc with per-format gotchas. Loaded on demand by the other two skills.
+- **`i18n-formats`** — per-format gotchas reference. **Dispatch-only** (`disable-model-invocation: true`): its description isn't injected into context; the `i18n-audit`/`i18n-translate` skills and the `translator` agent Read it by path (`${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/SKILL.md` + `references/`). Still user-invocable via `/i18n:i18n-formats`.
 
 ## Invoking the skills
 

@@ -1,8 +1,3 @@
----
-name: game-navigation-camera
-description: 'Use when designing, reviewing, or fixing a game camera (2D or 3D), level navigation, fast travel, signposting, or wayfinding. Triggers: "review my camera", "camera feels bad", "the camera fights the player", "design navigation". Grounded in John Nesky''s "50 Camera Mistakes" (GDC 2014).'
----
-
 # game-navigation-camera
 
 Rules for cameras and navigation. The camera is the *one* system the player can't turn off and can't escape. Get it wrong and the rest of the game can't save it. Distilled from John Nesky's GDC 2014 talk *50 Camera Mistakes* (he was the dynamic camera designer for *Journey*) and current Cinemachine / Unreal Camera Rig best practice.
@@ -61,17 +56,17 @@ Configure them by these rules:
 - **Duration:** 4–15 frames at 60 FPS. Anything longer is intrusive.
 - **Frequency:** above 10 Hz. Below 10 Hz hits the vestibular system.
 - **Trauma model** (Squirrel Eiserloh, GDC 2016): shake amount = `trauma^2`, decay over time. Avoids linear-shake-feels-mechanical.
-- **Disable option** in settings. Required for accessibility. See [[game-accessibility-audit]].
+- **Disable option** in settings. Required for accessibility. See `game-accessibility-audit.md`.
 
 ## Hitstop interacts with the camera
 
-Hitstop (4–8 frames freeze on impact) makes hits feel weighty *because* it freezes the camera too. If hitstop freezes the world but the camera keeps moving, the effect is broken. See [[game-feel-and-juice]] for hitstop numbers; cameras must respect the freeze.
+Hitstop (4–8 frames freeze on impact) makes hits feel weighty *because* it freezes the camera too. If hitstop freezes the world but the camera keeps moving, the effect is broken. See `game-feel-and-juice.md` for hitstop numbers; cameras must respect the freeze.
 
 ## Navigation design — beyond the camera
 
 A game's navigation is composed of:
 
-1. **Local navigation** — how do I move *here*? Solved by [[game-feel-and-juice]] (controller feel).
+1. **Local navigation** — how do I move *here*? Solved by `game-feel-and-juice.md` (controller feel).
 2. **Macro navigation** — how do I find *where to go next*?
 3. **Wayfinding / signposting** — how do I know what I'm looking at?
 4. **Fast travel** — how do I skip what I've already done?
