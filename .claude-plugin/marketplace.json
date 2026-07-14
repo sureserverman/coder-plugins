@@ -12,7 +12,7 @@
     {
       "name": "rust-dev",
       "source": "./rust-dev",
-      "description": "Idiomatic Rust authoring: rust-coding progressive-disclosure skill, rust-project whole-project audit skill, rust-expert authoring subagent, and slash commands for review and refactor.",
+      "description": "Idiomatic Rust authoring: a rust-coding progressive-disclosure knowledge-router skill and a rust-expert authoring subagent, sharing one plugin-level references/ set. rust-expert covers author/review/idiomize/audit/migrate via protocols plus review, idiomize, and project-audit modes.",
       "version": "0.3.1",
       "category": "languages",
       "tags": [
