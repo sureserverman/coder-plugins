@@ -60,9 +60,12 @@ A Light plan lives in the same `plans/` directory as any other plan (vault
 YYYY-MM-DD-<topic>-light-plan.md
 ```
 
-Detection rule (used by `executing-plans` and the plan parser): a file is a Light plan
-when its name ends in `-light-plan.md` **or** its first heading is `# Light Plan:`. This
-mirrors the master-plan detection rule exactly.
+Detection rule (used by `executing-plans` to recognize the format): a file is a Light
+plan when its name ends in `-light-plan.md` **or** its first heading is `# Light Plan:`.
+This mirrors the master-plan detection rule. The deterministic plan parser does **not**
+use this rule — it routes purely off the `- **Status:**` field (see Parser-safety rules
+below), so it treats a Light plan identically to any Status-field plan without ever
+reading the filename or first heading.
 
 ## Light plan document format
 
@@ -128,9 +131,11 @@ rules that keep it safe are the same ones every Status-field plan follows:
 1. **Task done-state uses the `- **Status:** [ ]` field form, never a bare `- [ ]`
    bullet.** The field form is the authoritative signal; a bare checkbox in a task body
    would be suppressed anyway, but keep task bodies field-shaped.
-2. **The only raw `- [ ]` bullets are under the `### Stage 1 Gate` heading.** Gate
-   bullets are integration checks the parser excludes by design; they are never backlog
-   candidates.
+2. **The only raw `- [ ]` bullets are under the `### Stage 1 Gate` heading.** On the
+   authoritative path the parser ignores *every* raw `- [ ]` bullet outside a `## Deferred`
+   section regardless of heading — so gate bullets never become candidates. Keeping them
+   confined to the gate is format cleanliness, not the safety mechanism (the `Status:`
+   field is).
 3. **No Preflight section.** A Light plan has none — the single baseline-tests check lives
    inside the gate. (The parser excludes Preflight bullets too, so this is about format
    cleanliness, not parser safety.)

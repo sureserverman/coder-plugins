@@ -15,12 +15,14 @@ on:
       - 'planning/skills/portfolio/tests/**'
       - 'planning/skills/portfolio/references/plan-parser.md'
       - 'planning/skills/planning-projects/references/master-plan-format.md'
+      - 'planning/skills/planning-projects/references/light-plan-format.md'
   pull_request:
     paths:
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
       - 'planning/skills/portfolio/tests/**'
       - 'planning/skills/portfolio/references/plan-parser.md'
       - 'planning/skills/planning-projects/references/master-plan-format.md'
+      - 'planning/skills/planning-projects/references/light-plan-format.md'
   workflow_dispatch:
 
 jobs:
