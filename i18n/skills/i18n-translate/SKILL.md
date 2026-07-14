@@ -46,7 +46,7 @@ For ARB, also pulls the `@key` metadata (description, placeholders). For gettext
 
 ### Step 3 — Look up the format gotchas (skill load)
 
-Read the detected framework's reference file under `skills/i18n-formats/references/` (pick it from the dispatch table in `skills/i18n-formats/SKILL.md`) before dispatching. The translator subagent will use it to:
+Read the detected framework's reference file under `${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/references/` (pick it from the dispatch table in `${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/SKILL.md`) before dispatching. The translator subagent will use it to:
 - Pick the right CLDR plural categories (Arabic has 6, Russian has 3 in some apps but the full CLDR is `one, few, many, other`, English has `one, other`, Japanese has only `other`).
 - Apply per-format escaping (Android `\'`, single-quote rule; ARB JSON-escape; gettext `\"`; XML entities; iOS `%@`).
 - Preserve placeholder syntax exactly.
@@ -55,7 +55,7 @@ Read the detected framework's reference file under `skills/i18n-formats/referenc
 
 Use the `translator` subagent. Pass it:
 1. The workpacket JSON from step 2.
-2. The relevant `i18n-formats/references/<format>.md` file(s) (one for source format, one for target format if different).
+2. The relevant `${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/references/<format>.md` file(s) (one for source format, one for target format if different).
 3. Any project-specific style guide the user supplied or that exists at `STYLEGUIDE.md` / `docs/i18n-style.md` / similar.
 4. Batch size — default 30 entries per dispatch for catalogs <300 entries, else split into multiple dispatches.
 
@@ -137,6 +137,6 @@ Post-scaffold reminders:
 ## Notes
 
 - This skill never commits or pushes. The translator subagent writes to files; the user reviews and commits.
-- For per-format translation gotchas, ALWAYS consult the matching `i18n-formats/references/<format>.md`. Do not invent escape rules.
+- For per-format translation gotchas, ALWAYS consult the matching `${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/references/<format>.md`. Do not invent escape rules.
 - For locales with right-to-left text direction (Arabic, Hebrew, Persian, Urdu), also remind the user to verify their UI's mirroring (CSS `dir="rtl"`, `start`/`end` margins, icon flipping). The catalogs themselves don't carry direction; the framework's runtime does.
 - Translation is a quality-driven LLM task; do not delegate it to a smaller model. The `translator` agent is sonnet-pinned for a reason — haiku produces worse translations, especially for idioms, plurals, and short UI strings where context is sparse.
