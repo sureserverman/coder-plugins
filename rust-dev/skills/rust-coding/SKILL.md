@@ -5,20 +5,20 @@ description: Use when authoring, scaffolding, refactoring, or reviewing Rust cod
 
 # rust-coding
 
-Opinionated decision rules for writing high-quality Rust. Consult the matching `references/` file when the decision gets deep.
+Opinionated decision rules for writing high-quality Rust. Consult the matching `../../references/` file when the decision gets deep.
 
 ## Reference map (progressive disclosure)
 
 | When you're… | Read first |
 |---|---|
-| Designing a public API or trait | `references/api-design.md` |
-| Writing new Rust code of any kind | `references/idioms.md` |
-| Building error types or `?`-using code | `references/error-handling.md` |
-| Writing or reviewing `unsafe` | `references/unsafe.md` |
-| Writing `async`/`await` or `tokio` code | `references/async.md` |
-| Writing `extern "C"`, `cxx`, `bindgen`, `cbindgen` | `references/ffi.md` |
-| Optimizing a hot path or reading a flamegraph | `references/performance.md` |
-| Migrating a crate edition or reading 2024 features | `references/edition-2024.md` |
+| Designing a public API or trait | `../../references/api-design.md` |
+| Writing new Rust code of any kind | `../../references/idioms.md` |
+| Building error types or `?`-using code | `../../references/error-handling.md` |
+| Writing or reviewing `unsafe` | `../../references/unsafe.md` |
+| Writing `async`/`await` or `tokio` code | `../../references/async.md` |
+| Writing `extern "C"`, `cxx`, `bindgen`, `cbindgen` | `../../references/ffi.md` |
+| Optimizing a hot path or reading a flamegraph | `../../references/performance.md` |
+| Migrating a crate edition or reading 2024 features | `../../references/edition-2024.md` |
 
 ## Determinism boundary
 
@@ -67,7 +67,7 @@ These apply to every Rust change. No exceptions without an explicit `// NOTE:` e
 ### Which error strategy?
 - Library crate that others depend on → `thiserror` enum per module with variants that carry context fields, never `String`
 - Binary crate at the top level → `anyhow::Result` + `.context("what I was doing")` chains
-- FFI boundary → opaque error code + `thread_local` last-error buffer (see `references/ffi.md`)
+- FFI boundary → opaque error code + `thread_local` last-error buffer (see `../../references/ffi.md`)
 
 ### `impl Trait` vs generic vs `dyn`?
 - Return position: `impl Trait` unless you need trait objects in a collection
