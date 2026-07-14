@@ -25,7 +25,7 @@ Call the game-design-expert subagent with:
   - "How should it feel?" → Protocol 3 (Feel Tune) starting values.
   - "How does the player learn it?" → Protocol 5 (UX Review) FTUE rules.
   - "Can everyone play it?" → Protocol 6 (Accessibility Audit) on the specific mechanic.
-  - "How do I build it?" → Protocol 7 (Architecture) + the engine-specific skill.
+  - "How do I build it?" → Protocol 7 (Architecture) + the engine-specific reference.
 
 ## Output
 
