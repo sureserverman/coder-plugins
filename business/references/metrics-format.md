@@ -66,3 +66,25 @@ independently; the `track` skill applies this suffix-plus-precedence rule when d
 Every metric is source-tagged via its key prefix so provenance is never ambiguous:
 `github.*` came from `collect-github.py`; `manual.*` was entered by the operator during
 the `track` run. A metric with no auto-collector is always `manual.*`.
+
+## Conventional metric names — marketing funnel
+
+The parse contract already accepts **any** `<source>.<metric>` key (see above), so these
+need **no scanner change** — they are naming *conventions* so a project's funnel metrics
+land under stable, diffable keys instead of ad-hoc ones. The `track` skill offers them as an
+optional block; a project that isn't marketing-driven simply omits them.
+
+| Key | Meaning |
+|-----|---------|
+| `manual.visits` | Unique visitors to the landing/store page this cycle |
+| `manual.signups` | New signups / accounts / waitlist joins this cycle |
+| `manual.conversion_pct` | Visit→signup (or signup→paid) conversion rate, as a percentage |
+| `manual.cac_usd` | Customer acquisition cost this cycle, in USD |
+
+These are `manual.*` (no auto-collector reaches an analytics dashboard). A `BUSINESS.md`
+target can reference any of them by its bare suffix (`metric: signups` matches
+`manual.signups`) exactly like `installs`/`stars`, so a funnel target diffs through the same
+suffix-plus-precedence rule as any other. Leave a funnel metric blank (→ `null`) in a cycle
+the operator didn't measure it — a null never counts toward actuals and never inflates a
+diff. Other conventional prefixes (e.g. a future `plausible.*`/`store.*` analytics collector)
+remain free to add later without a schema change.

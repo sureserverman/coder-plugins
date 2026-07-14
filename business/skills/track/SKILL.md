@@ -58,6 +58,23 @@ donation totals, anything the project's targets reference that GitHub doesn't pr
 only for metrics that matter to a target or that the operator wants tracked. Leave a
 metric blank (→ null) rather than guessing.
 
+### Marketing funnel (optional — offer once, skippable in one answer)
+
+If the project markets to an audience (it has a `gtm-plan.md`, a landing page, or funnel
+targets), offer to record this cycle's **marketing funnel** in one prompt — and let the
+operator skip the whole block with a single "skip". Record only what they give; append
+nothing for a metric they don't have. Use the conventional keys (metrics-format.md §
+Conventional metric names) so the funnel diffs like any other target:
+
+- `manual.visits` — unique visitors to the landing/store page this cycle
+- `manual.signups` — new signups / accounts / waitlist joins this cycle
+- `manual.conversion_pct` — visit→signup (or signup→paid) conversion rate, as a percentage
+- `manual.cac_usd` — customer acquisition cost this cycle, in USD
+
+These are conventions, not a schema change — any `<source>.<metric>` already parses. A
+metric the operator can't measure this cycle is left blank (→ null), not guessed. Skip the
+block entirely for a project with no marketing motion (an internal tool, a pure library).
+
 ## Phase 3 — Append the entry
 
 Append one dated block to `metrics.md` (see metrics-format.md): a `## YYYY-MM-DD` heading
