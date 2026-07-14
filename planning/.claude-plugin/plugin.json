@@ -19,7 +19,8 @@
     "./skills/portfolio",
     "./skills/honest-gates",
     "./skills/architecting-projects",
-    "./skills/compass"
+    "./skills/compass",
+    "./skills/capability-router"
   ],
   "license": "MIT",
   "keywords": [

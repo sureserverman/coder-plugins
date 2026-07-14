@@ -631,6 +631,16 @@
       "requires_enablement": false
     },
     {
+      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android UI, game design, i18n, testing, packaging). Finds it in capability-index.json and loads it from disk. Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "capability-router",
+      "path": "planning/skills/capability-router/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
       "description": "Use to decide and organize work across every project in the portfolio \u2014 what's in flight, what to work on next, and a periodic review sweep. Triggers on \"what should I work on next\", \"what's in flight\", \"portfolio review\", \"what's going stale\". Report-only \u2014 recommends, never launches work.",
       "disable_model_invocation": false,
       "kind": "skill",
