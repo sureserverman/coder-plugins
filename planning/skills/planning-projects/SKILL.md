@@ -35,7 +35,50 @@ Ask clarifying questions if any of these are unclear:
 
 ### When NOT to ask
 
-If the prompt is specific enough to plan against (names a technology, describes the goal, implies the scope), skip straight to Phase 0. Don't ask questions for the sake of being thorough — ask because the answer would change the plan.
+If the prompt is specific enough to plan against (names a technology, describes the goal, implies the scope), skip straight to Phase -0.5. Don't ask questions for the sake of being thorough — ask because the answer would change the plan.
+
+---
+
+## Phase -0.5 — Format triage
+
+Once the request is clear enough to size, pick the **format** before you plan. The
+planning apparatus has a size ladder, and matching the format to the job is what keeps a
+three-task chore from paying for a twelve-task project's ceremony — and a genuinely large
+project from being crammed into too small a container. This is the downward-and-upward
+symmetric partner to the decomposition rule in Phase 2.5.
+
+| Format | Trigger | What you produce |
+|--------|---------|------------------|
+| **Direct** | ≤ ~2 tasks, one session, no staging value | **No plan file.** Recommend direct execution with a test and a commit, then stop — do not run Phases 0–5. |
+| **Light** | Single stage, 2–5 tasks, one session, one stack, low risk | A Light plan per `references/light-plan-format.md` (`*-light-plan.md`) |
+| **Standard** | Everything between Light and Master | The full staged plan (Phases 0–5 below) |
+| **Master** | > ~6 stages / ~25 tasks, or ≥2 independently shippable workstreams | A master plan + sub-plans (Phase 2.5, `references/master-plan-format.md`) |
+
+**How to triage:**
+
+- **Direct is the off-ramp.** If the job is a couple of tested edits in one sitting, say
+  so and execute it directly — a plan file would be pure overhead. This is the answer to
+  "simple jobs shouldn't have to enter the machinery": the skill is now allowed to decline
+  to plan. (Still write a test and commit — those are invariants, not ceremony.)
+- **Light** is for real-but-small work: one coherent stage of a handful of tested tasks,
+  no fan-out, no cross-session handoff. It keeps the invariants (a `Test:` per task,
+  `Status:` flips, commit per green task, honest gates) and drops the long-horizon
+  artifacts (mandated Research Summary, full Preflight, Risk/Rollback, Blocks/Parallel
+  fields). The full spec — and the exact kept-vs-dropped split — is
+  `references/light-plan-format.md`.
+- **Standard** is the default staged plan authored by Phases 0–5 of this skill.
+- **Master** is the existing decomposition path; **Phase 2.5 is the sole authority on the
+  Standard→Master decision** — this table only points at it, it does not restate the rule.
+
+**Record the call.** State the chosen format and the trigger that selected it in one line
+at the top of the plan you produce (`Format: Light — single stage, 4 tasks, one
+session`), so a reader (and `executing-plans`) sees the decision, not just its result. A
+Standard or Master plan may omit the line (they are the unmarked default); a Light plan
+should carry it.
+
+**When in doubt, round up.** A job on the Light/Standard or Standard/Master boundary takes
+the heavier format — the cost of slightly too much structure is smaller than the cost of a
+container that can't hold the work. The user can always override in either direction.
 
 ---
 
