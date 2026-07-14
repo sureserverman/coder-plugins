@@ -251,6 +251,16 @@
       "requires_enablement": false
     },
     {
+      "description": "Use when authoring or reviewing game code or design \u2014 Godot/Unity/Unreal, game feel, mechanics, camera, UX, architecture, accessibility. Triggers: \"*.gd\"/\"*.tscn\"/\"*.uproject\" edits, \"the jump feels off\", \"camera fights me\", \"review my game design\", \"is my game accessible\", engine best-practices.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "game-dev",
+      "path": "game-dev/skills/game-dev/SKILL.md",
+      "plugin": "game-dev",
+      "requires_enablement": false
+    },
+    {
       "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings, never modifies files.",
       "disable_model_invocation": false,
       "kind": "agent",
