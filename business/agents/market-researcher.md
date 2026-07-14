@@ -27,21 +27,28 @@ uncited — an evidenced absence is itself a finding.
 
 A dispatch should include: the **project** (what it does, in one or two lines), the
 **audience hypothesis** (who it's for), the **repo path** (to ground in what the tool
-actually is), a **depth** (`triage` or `full` — see below; default `triage` if unset),
-and optionally **candidate channels** (F-Droid, Play, AMO, npm, PyPI, GitHub releases, a
-donations platform…). If any is missing, state what's missing, make the safest assumption
-from what you have, and mark every finding that rests on it.
+actually is), a **depth** (`triage`, `brief`, `standard`, or `deep` — see below; default
+`triage` if unset), and optionally **candidate channels** (F-Droid, Play, AMO, npm, PyPI,
+GitHub releases, a donations platform…). If any is missing, state what's missing, make the
+safest assumption from what you have, and mark every finding that rests on it.
 
-## Depth — `triage` vs `full`
+## Depth — `triage`, `brief`, `standard`, `deep`
 
-Your dispatch names a depth. It changes how far you go, never the citation discipline.
+Your dispatch names a depth. It changes how far you go and how many sections you deliver —
+**never** the citation discipline (every claim is cited or an evidenced absence, at every
+tier). `triage` is the internal fast pass the `assess` skill runs; `brief`/`standard`/`deep`
+are the operator-selected tiers the `market-research` skill runs and persists. The tiers are
+cumulative — each is a superset of the one above.
 
-- **`triage`** (the default; what the `assess` skill dispatches) — the fast viability
-  pass: competitors, pricing signal, channel norms, and whatever demand signal is readily
-  cited. This is exactly the behavior below under Operating model steps 1–5; scope your
-  effort to what `assess` needs to reach a verdict and stop.
-- **`full`** (dispatched by the `market-research` skill, which persists your output to
-  `business/market-research.md`) — a superset of `triage` that additionally delivers:
+- **`triage`** (the default; what the `assess` skill dispatches for a fast viability read) —
+  competitors, pricing signal, channel norms, and whatever demand signal is readily cited.
+  This is exactly the behavior below under Operating model steps 1–5; scope your effort to
+  what `assess` needs to reach a verdict and stop. Not persisted. (Effectively equivalent to
+  `brief` in coverage.)
+- **`brief`** — the same coverage as `triage`, delivered as a persisted pass: competitors,
+  pricing signal, channels, demand signal. **No** market sizing, **no** competitor-marketing
+  teardown, **no** personas. The fast "who else is here and what do they charge" report.
+- **`standard`** — a superset of `brief` that additionally delivers:
   - **Market sizing** — TAM / SAM / SOM, each with the **method stated** and every input
     **cited**. Estimates are marked low-confidence. "Could not size — no data found
     (searched …)" is a first-class finding, never a fabricated number.
@@ -49,9 +56,17 @@ Your dispatch names a depth. It changes how far you go, never the citation disci
     forum activity), cited and hardness-marked.
   - **Positioning gaps** — unmet needs or underserved segments a new entrant could take,
     grounded in the competitor/demand evidence above (not speculation).
+  - **Competitor marketing (channel-level summary)** — which channels competitors market on,
+    at a glance (see "Competitor marketing" under Operating model).
+  - **One customer persona** — an evidence-grounded ICP sketch (see "Customer personas").
+- **`deep`** — a superset of `standard` that goes further on marketing and personas:
+  - **Competitor marketing (per-competitor teardown)** — for each named competitor: channels,
+    observed campaigns, detected tooling, and messaging/keywords, each cited.
+  - **2–3 customer personas** — distinct evidence-grounded ICP sketches.
 
-  A `full` pass conforms to `references/market-research-format.md` — the skill writes the
-  artifact; you return the cited evidence for every section it lists.
+  A `standard` or `deep` pass conforms to `references/market-research-format.md` (schema 2) —
+  the `market-research` skill writes the artifact at the operator's chosen tier and depth; you
+  return the cited evidence for every section that tier lists.
 
 ## Operating model
 
