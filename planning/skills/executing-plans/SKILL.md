@@ -202,7 +202,8 @@ marketplace root; paths resolve against the index file's own directory), then Re
 its SKILL.md or inject its agent body with the `model` pin. A component flagged
 `requires_enablement` (hooks / MCP) can't be lazy-loaded — stop and ask the user to enable
 that plugin. When the plugin **is** enabled, use the normal registered `subagent_type` /
-skill invocation.
+skill invocation. (Outside plan execution, the `capability-router` skill wraps this same
+lookup-and-resolve flow for ad-hoc needs.)
 
 ### Step 3.3 — Red-Green loop (per task)
 
