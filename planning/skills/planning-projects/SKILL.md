@@ -82,6 +82,39 @@ container that can't hold the work. The user can always override in either direc
 
 ---
 
+## Light plans
+
+If Phase -0.5 selected **Light**, do not run the full Phase 0–5 apparatus below. Author a
+single-stage plan per `references/light-plan-format.md` through this compressed path. The
+format doc is the authoritative spec; these are the deltas from the Standard flow so you
+know what to skip and what you must still do:
+
+- **Research is proportionate, not a mandated section.** Replace the Research Summary with
+  a 1–3 sentence **Context** line at the top of the plan (the key facts that ground it).
+  Skip the online/vault research sweep unless a specific unknown demands it. **The backlog
+  scan still runs** — a Light plan that silently duplicates an open backlog item is the
+  same planning bug at any size; fold in matches with `Closes BL-NNN`. Likewise, if
+  `docs/workflows/` exists and the change touches a documented flow, still declare
+  `Changes/Removes WF-NNN` on the task — behavior contracts don't get a size exemption.
+- **Preflight collapses into the gate.** There is no Preflight section. The only
+  pre-execution check that matters at this size — "baseline tests pass" — lives as a bullet
+  inside the single `### Stage 1 Gate` (alongside the git bootstrap `executing-plans`
+  always does).
+- **No Risk / Rollback / Blocks / Parallel fields.** One low-risk stage doesn't need a
+  rollback rehearsal, and with ≤5 tasks in one session there's no fan-out to coordinate.
+  Keep `Depends on` only where a task genuinely consumes a prior task's output.
+- **Output location is unchanged.** A Light plan saves to the same
+  `<portfolio_home>/plans/` in the vault under the same resolution and sidecar rules as any
+  plan (project auto-registered, `PORTFOLIO-STATUS` block present) — it is a first-class
+  plan, just a small one. Filename ends in `-light-plan.md`.
+- **Use the Light checklist**, not the full one — see "Checklist — Light plans" below.
+
+If while authoring you find the job needs a second stage or a 6th task, stop treating it as
+Light: re-issue it as a Standard plan (the upgrade rule in `references/light-plan-format.md`).
+Don't stretch the Light format past its bounds.
+
+---
+
 ## Phase 0 — Research
 
 Before writing a single task, gather the technical facts. Plans built on assumptions fall apart mid-build when the API doesn't work the way you imagined or the library dropped that feature two versions ago.
@@ -553,6 +586,9 @@ Each sub-agent needs enough context to work independently:
 
 ## Checklist — Before Presenting the Plan
 
+**Light plans use the "Checklist — Light plans" below instead of this one.** This full
+checklist applies to Standard plans (and, with the decomposition addendum, Master plans).
+
 Before showing the plan to the user, verify:
 
 - [ ] Every task has a concrete, runnable test — no "it should work" tests
@@ -580,6 +616,20 @@ Before showing the plan to the user, verify:
 - [ ] Every register entry ends with a `**Gate:**` block containing at least one cross-plan integration check
 - [ ] Every sub-plan carries the `Master: ./<master-file>` backlink; every register `Plan:` link resolves
 - [ ] The master plan is parser-safe: no raw `- [ ]` bullets outside `**Gate:**` blocks, no tasks, no Preflight (see `references/master-plan-format.md`)
+
+---
+
+## Checklist — Light plans
+
+For a **Light** plan (Phase -0.5), verify only these — the full checklist above does not
+apply:
+
+- [ ] Every task has a concrete, runnable `Test:` — the same bar as any plan
+- [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
+- [ ] Exactly one stage, with 2–5 tasks (a 6th task or a second stage means re-issue as Standard)
+- [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a goal-level end-to-end check
+- [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
+- [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 
 ---
 
