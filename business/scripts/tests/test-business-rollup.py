@@ -88,6 +88,24 @@ DOC = {
         {   # unassessed AND errored — errors must still surface (degrade-loudly)
             "name": "ghost", "area": "ai-tools", "assessed": False,
             "errors": ["scan glitch: partial write"]},
+        {   # stale artifacts: research 120d and plan 200d both > 90d window →
+            # each cell carries a STALE marker; fresh boundary handled by 'india'
+            "name": "hotel", "area": "ai-tools", "assessed": True,
+            "verdict": "monetize", "monetization": {"model": "paid"},
+            "last_reviewed_age_days": 120, "metrics": None, "gtm": None,
+            "plan": {"exists": True, "date": "2026-01-01", "age_days": 200, "status": "draft"},
+            "research": {"exists": True, "date": "2026-03-01", "age_days": 120,
+                         "depth": "standard", "confidence": "medium"},
+            "errors": []},
+        {   # exactly-90d is NOT stale (strictly greater-than boundary), proving the
+            # marker doesn't fire one day early
+            "name": "india", "area": "ai-tools", "assessed": True,
+            "verdict": "monetize", "monetization": {"model": "paid"},
+            "last_reviewed_age_days": 90, "metrics": None, "gtm": None,
+            "plan": {"exists": True, "date": "2026-04-16", "age_days": 90, "status": "active"},
+            "research": {"exists": True, "date": "2026-04-16", "age_days": 90,
+                         "depth": "deep", "confidence": "high"},
+            "errors": []},
     ],
     "couldnt_assess": [{"name": "foxtrot", "area": "x", "reason": "scan error: boom"}],
 }
@@ -105,8 +123,9 @@ def test_render():
     md = r.stdout
     check("# Global Business Roll-up" in md, "has title")
     check("Generated: 2026-07-11" in md, "has generated date")
-    # assessed = alpha, bravo, charlie, delta, proxy(servers), proxy(containers), weird|pipe = 7
-    check("## Assessed (7)" in md, "assessed count 7")
+    # assessed = alpha, bravo, charlie, delta, proxy(servers), proxy(containers),
+    # weird|pipe, hotel, india = 9
+    check("## Assessed (9)" in md, "assessed count 9")
     check("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |" in md,
           "assessed table header carries the two new columns")
     # stage derivation, now area-qualified wikilinks
@@ -122,6 +141,12 @@ def test_render():
     # markdown injection escaped — the whole row is one intact line with escaped pipes
     check("| ai-tools/[[weird\\|pipe]] | monetize | paid\\|x | modeled | 1d | — | — | — |" in md,
           "pipe in name/model escaped, row stays a single 8-cell line")
+    # staleness markers: hotel (research 120d, plan 200d) both > 90d → STALE;
+    # india (both exactly 90d) → NOT stale (strict >)
+    check("| ai-tools/[[hotel]] | monetize | paid | modeled | 120d | — | draft STALE | 120d STALE |" in md,
+          "hotel row: stale plan + stale research both marked")
+    check("| ai-tools/[[india]] | monetize | paid | modeled | 90d | — | active | 90d |" in md,
+          "india row: exactly-90d artifacts NOT marked stale (strict > boundary)")
     # triage gap = echo, ghost, with leading bullet
     check("## Not yet assessed (2) — triage gap" in md, "unassessed count 2")
     check("- ai-tools/[[echo]]" in md and "ai-tools/[[ghost]]" in md, "triage list bulleted + area-qualified")

@@ -15,6 +15,11 @@ never dropped.
 import json
 import sys
 
+# A research pass or plan older than this (days) is flagged STALE in the roll-up so a
+# reader spots evidence that may be out of date. Matches the 90-day staleness window
+# assess/business-plan use to decide reuse-vs-refresh, and compass's review nag.
+STALE_DAYS = 90
+
 
 def _cell(x):
     """Neutralize markdown-table-breaking chars in a free-text cell: `|` splits
@@ -56,27 +61,35 @@ def reviewed_of(p):
     return f"{age}d" if isinstance(age, int) else "—"
 
 
+def _stale_suffix(age):
+    """` STALE` when age (days) is a known int past the window, else empty. Applied to
+    both artifact columns so an out-of-date plan/research pass is visible at a glance."""
+    return " STALE" if isinstance(age, int) and age > STALE_DAYS else ""
+
+
 def plan_of(p):
     """Plan column: the plan.md status (`draft`/`active`) when one exists, `yes` if
     it exists but its status didn't parse (the malformation is already surfaced in
     the Errors section), else — (additive: a project scanned before plan.md support,
     or without a plan, has no `plan` key or `exists: false` — both render as a dash,
-    never a crash). Symmetric with research_of's fallback."""
+    never a crash). Symmetric with research_of's fallback. A plan older than the
+    staleness window gets a ` STALE` marker appended to its status."""
     pl = p.get("plan")
     if not pl or not pl.get("exists"):
         return "—"
-    return _cell(pl.get("status") or "yes")
+    return _cell((pl.get("status") or "yes") + _stale_suffix(pl.get("age_days")))
 
 
 def research_of(p):
     """Research column: the market-research.md age in days when one exists (so a
     stale artifact is visible at a glance), `yes` if it exists but its date didn't
-    parse, else —. Same additive degradation as plan_of."""
+    parse, else —. Same additive degradation as plan_of. An artifact older than the
+    staleness window gets a ` STALE` marker appended to its age."""
     r = p.get("research")
     if not r or not r.get("exists"):
         return "—"
     age = r.get("age_days")
-    return _cell(f"{age}d" if isinstance(age, int) else "yes")
+    return _cell(f"{age}d{_stale_suffix(age)}" if isinstance(age, int) else "yes")
 
 
 def render(doc):
