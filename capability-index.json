@@ -752,7 +752,7 @@
     },
     {
       "description": "Drafts a Mastodon or Fediverse toot announcing a software release. Triggers on \"draft a Mastodon post\", \"post on Fediverse\", \"toot this release\", \"share on Mastodon\", or \"Fediverse announcement\" \u2014 hashtags, content warnings, alt text, and the 500-char limit for instances like fosstodon.org.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "fediverse-post",
@@ -762,7 +762,7 @@
     },
     {
       "description": "Drafts a Hacker News \"Show HN\" submission for a project that readers can run, install, or use today. Triggers on \"draft a Show HN\", \"post on Hacker News\", \"submit to HN\", or \"hackernews submission\" \u2014 encodes Show HN eligibility, title rules, and first-comment conventions.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "hackernews-show-hn",
@@ -772,7 +772,7 @@
     },
     {
       "description": "Drafts a Lobsters submission for a software release, library, or substantive technical write-up. Triggers on \"post on Lobsters\", \"submit to lobste.rs\", \"draft a Lobsters submission\", or \"share on Lobsters\" \u2014 covers tag selection, the show/ask convention, and the invite-only culture.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "lobsters-post",
@@ -782,7 +782,7 @@
     },
     {
       "description": "Drafts a Reddit post for promoting a software release or project, tailored to subreddit rules. Triggers on \"draft a Reddit post\", \"post this to r/<sub>\", \"announce on Reddit\", or \"submit to r/matrixprotocol\" \u2014 encodes self-promotion rules and flair conventions per sub.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "reddit-promo",
@@ -792,7 +792,7 @@
     },
     {
       "description": "Drafts a This Week in Matrix (TWIM) submission entry for a Matrix-ecosystem project \u2014 homeserver, client, bridge, bot, library, MSC, or hosting service. Triggers on \"submit to TWIM\", \"draft a TWIM entry\", \"TWIM post\", or \"matrix.org weekly\" \u2014 encodes the submission room workflow and structure.",
-      "disable_model_invocation": false,
+      "disable_model_invocation": true,
       "kind": "skill",
       "model": null,
       "name": "twim-submission",
