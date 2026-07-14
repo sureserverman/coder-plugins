@@ -54,19 +54,24 @@ Gather what the repo and vault already tell you, so you don't ask what you can i
 ## Phase 2 — Structured interview (one question at a time)
 
 Ask only what you can't infer. One question per message, multiple-choice where the answer
-space is finite. Cover:
+space is finite. **Whatever you inferred in Phase 1, state it and ask the operator to
+confirm — don't fold a silent assumption into the verdict.** Cover:
 
-- **Problem & audience** — who is this for, what do they do today without it? (If you
-  inferred an audience in Phase 1, state it and ask for confirmation.)
-- **Payable?** — would that audience pay, or is the value reputational / funnel /
-  internal? This maps directly to the verdict.
-- **Substitutes** — what do they use instead, and is it free? (Informs whether money is
-  even on the table.)
+- **Problem & audience** — who is this for, what do they do today without it? If you inferred
+  an audience in Phase 1, state it and ask for confirmation before building on it.
+- **Payable?** — would that audience pay, or is the value reputational / funnel / internal?
+  This maps directly to the verdict. If you have a hunch about willingness to pay (from a
+  substitute's price or a comparable tool), state it and ask the operator to confirm rather
+  than assuming the audience will or won't pay.
+- **Substitutes** — what do they use instead, and is it free? If Phase 1 surfaced a likely
+  substitute, name it and confirm it's the real alternative — don't assume the substitute
+  set. (Informs whether money is even on the table.)
 - **Operator intent** — does the user *want* to monetize this, or ship it free, or is it
   a personal tool? Respect this: a great market with no intent to sell is
   `free-for-reputation` or `internal-only`, not `monetize`.
 
-Stop asking once you can justify a verdict. You need enough to decide, not everything.
+Stop asking once you can justify a verdict. You need enough to decide, not everything — but
+every inference the verdict rests on is confirmed, not assumed.
 
 ## Phase 3 — Optional research (`--research`)
 
@@ -74,19 +79,25 @@ When invoked with `--research`, first check the scanner JSON for an existing
 `market-research.md` artifact before dispatching anything — the `market-research` skill
 may already have produced one, and re-researching wastes a WebSearch pass:
 
-- **Reuse a fresh artifact.** If the project's scanner entry shows `research.exists: true`
-  with `research.age_days` ≤ **90** (the staleness window), read
-  `business/market-research.md`, fold its cited findings into the evidence section, and set
-  `evidence: researched` — do **not** dispatch the agent. Note in the body that the verdict
-  reused the dated research artifact.
+- **Reuse a fresh artifact — any tier.** If the project's scanner entry shows
+  `research.exists: true` with `research.age_days` ≤ **90** (the staleness window), read
+  `business/market-research.md`, fold its cited findings into the evidence section, set
+  `evidence: researched`, and do **not** dispatch the agent. assess needs only triage-level
+  evidence (competitors, pricing, channels, demand), and **every** persisted tier contains
+  that — a fresh `brief`, `standard`, or `deep` artifact (or a legacy `full`/`triage` one:
+  `full` ≈ `deep`, `triage` ≈ `brief`) is all sufficient for a verdict. Note in the body that
+  the verdict reused the dated research artifact. If that artifact is only `brief`/`triage`
+  and the operator later wants sizing or competitor-marketing, mention that
+  `/business:market-research` can deepen it — but that's a pointer, not a reason to re-research
+  now.
 - **Otherwise dispatch.** If there's no artifact, or it's stale (`age_days` > 90), dispatch
   the **market-researcher** agent (`${CLAUDE_PLUGIN_ROOT}/agents/market-researcher.md`) at
-  **`depth: triage`** with the project, the audience hypothesis, the repo path, and
+  **`depth: triage`** with the project, the confirmed audience, the repo path, and
   candidate channels. It returns cited competitors, pricing signal, channel norms, and
   demand evidence — never a verdict. Fold its findings in and set `evidence: researched`.
-  (assess does a fast viability pass, so `triage` depth is correct here; the deeper `full`
-  pass belongs to `/business:market-research`, which persists the artifact this phase
-  reuses.)
+  (assess does a fast viability pass, so `triage` depth is correct here; the deeper
+  `standard`/`deep` pass belongs to `/business:market-research`, which persists the artifact
+  this phase reuses.)
 
 If research is unavailable (offline, WebSearch denied) or `--research` was not passed,
 proceed on local evidence, set `evidence: local-only`, and say so explicitly — the
