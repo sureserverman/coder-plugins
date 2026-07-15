@@ -34,7 +34,10 @@ def check(cond, label):
 CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
          "edgey", "badenum", "boolschema", "badtarget",
          "research", "researchnew", "researchbad", "researchmalformed",
-         "planned", "plannew", "planbad"]
+         "planned", "plannew", "planbad",
+         # schema-2 (tiered depth) coverage
+         "research2deep", "research2brief", "research2baddepth",
+         "plan2", "plan2nodepth"]
 
 
 def tree_hash(root):
@@ -224,7 +227,9 @@ def test_contract(tmp):
     check(P.get("happy", {}).get("errors") == [],
           "happy: still no errors despite the new research probe")
 
-    # researchnew — market-research.md schema 2 → explicit upgrade error, not misparse
+    # researchnew — market-research.md schema 3 (past its schema-2 ceiling) →
+    # explicit upgrade error, not misparse. (Schema 2 is now a SUPPORTED version;
+    # the upgrade-boundary fixture moved to 3 in lockstep with the raised ceiling.)
     rn = P.get("researchnew", {})
     check(rn.get("assessed") is True, "researchnew: assessed true")
     check(rn.get("verdict") == "monetize", "researchnew: BUSINESS.md still parses (verdict monetize)")
@@ -271,8 +276,8 @@ def test_contract(tmp):
     check((P.get("happy", {}).get("plan") or {}).get("exists") is False,
           "happy: plan.exists false (no plan.md)")
     check(set((P.get("happy", {}).get("plan") or {}).keys())
-          == {"exists", "date", "age_days", "status"},
-          "happy: absent plan block has the uniform shape")
+          == {"exists", "date", "age_days", "status", "depth"},
+          "happy: absent plan block has the uniform shape (incl. schema-2 depth)")
     check(P.get("happy", {}).get("errors") == [],
           "happy: still no errors despite the new plan probe")
 
@@ -293,6 +298,49 @@ def test_contract(tmp):
     pberrs = " | ".join(pb.get("errors", []))
     check("status" in pberrs, "planbad: status enum error recorded")
     check("market_research" in pberrs, "planbad: missing market_research error recorded")
+
+    # --- schema-2 (tiered depth) coverage ---------------------------------
+
+    # research2deep — schema-2 market-research at the `deep` tier parses clean
+    r2d = P.get("research2deep", {})
+    check(r2d.get("assessed") is True, "research2deep: assessed true")
+    check((r2d.get("research") or {}).get("exists") is True, "research2deep: research.exists true")
+    check((r2d.get("research") or {}).get("depth") == "deep", "research2deep: depth deep (schema 2)")
+    check((r2d.get("research") or {}).get("confidence") == "high", "research2deep: confidence high")
+    check((r2d.get("research") or {}).get("date") == "2026-07-01", "research2deep: research.date parsed")
+    check(r2d.get("errors") == [], f"research2deep: no errors (got {r2d.get('errors')})")
+
+    # research2brief — schema-2 market-research at the `brief` tier parses clean
+    r2b = P.get("research2brief", {})
+    check((r2b.get("research") or {}).get("depth") == "brief", "research2brief: depth brief (schema 2)")
+    check((r2b.get("research") or {}).get("confidence") == "low", "research2brief: confidence low")
+    check(r2b.get("errors") == [], f"research2brief: no errors (got {r2b.get('errors')})")
+
+    # research2baddepth — legacy `depth: full` at schema 2 → per-field depth error,
+    # project still assessed (schema-1's triage|full is NOT valid at schema 2)
+    r2x = P.get("research2baddepth", {})
+    check(r2x.get("assessed") is True, "research2baddepth: assessed true")
+    check(r2x.get("verdict") == "monetize", "research2baddepth: BUSINESS.md still parses")
+    check((r2x.get("research") or {}).get("depth") is None,
+          "research2baddepth: legacy 'full' depth nulled at schema 2")
+    r2xerrs = " | ".join(r2x.get("errors", []))
+    check("depth" in r2xerrs and "schema 2" in r2xerrs,
+          f"research2baddepth: schema-2 depth enum error recorded (got {r2x.get('errors')})")
+
+    # plan2 — schema-2 plan at the `standard` tier: plan.depth exposed in the JSON
+    p2 = P.get("plan2", {})
+    check(p2.get("assessed") is True, "plan2: assessed true")
+    check((p2.get("plan") or {}).get("exists") is True, "plan2: plan.exists true")
+    check((p2.get("plan") or {}).get("status") == "draft", "plan2: plan.status draft")
+    check((p2.get("plan") or {}).get("depth") == "standard", "plan2: plan.depth standard exposed")
+    check(p2.get("errors") == [], f"plan2: no errors (got {p2.get('errors')})")
+
+    # plan2nodepth — schema-2 plan missing its required depth → per-field error
+    p2n = P.get("plan2nodepth", {})
+    check(p2n.get("assessed") is True, "plan2nodepth: assessed true")
+    check((p2n.get("plan") or {}).get("depth") is None, "plan2nodepth: missing depth nulled")
+    p2nerrs = " | ".join(p2n.get("errors", []))
+    check("depth" in p2nerrs, "plan2nodepth: missing-depth error recorded")
 
 
 def test_gtm_degrades_without_portfolio_unify():

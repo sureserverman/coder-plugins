@@ -52,8 +52,17 @@ field, so recomputing it risks disagreeing with the table you just wrote.
 - **By verdict:** counts of monetize / free-for-reputation / internal-only / park.
 - **Pipeline:** how many rows in each Stage (modeled / launched / tracked), read off the
   rendered table.
-- **Staleness:** projects whose `last_reviewed_age_days` is large — candidates for a fresh
-  `/business:track` or re-assessment.
+- **Staleness — three axes:** surface each independently, since they point at different
+  refresh actions:
+  - **Review staleness:** projects whose `last_reviewed_age_days` is large — candidates for a
+    fresh `/business:track` or re-assessment.
+  - **Research staleness:** rows whose **Research** cell carries a `STALE` marker (the
+    `market-research.md` is > 90 days old) — suggest `/business:market-research` to refresh
+    the evidence (offer to deepen the tier if it's only `brief`).
+  - **Plan staleness:** rows whose **Plan** cell carries a `STALE` marker (the `plan.md` is
+    > 90 days old) — suggest re-running `/business:business-plan` to recompose against current
+    evidence. Read the `STALE` markers off the rendered table (they're the same 90-day window
+    the skills and `compass` use), and cite the row.
 - **Loudly:** every `couldnt_assess` entry and every project with `errors` — surfaced, not
   smoothed over. If any exist, say so plainly.
 

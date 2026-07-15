@@ -17,6 +17,7 @@ Generated: 2026-07-11
 |---------|---------|-------|-------|----------|---------|------|----------|
 | big-projects/[[xray-host]] | monetize | paid | launched | 0d | 2026-07-11 (5) | active | 4d |
 | servers/[[bootstrapscripts]] | monetize | oss-services | tracked | 0d | 2026-07-11 (4) | draft | 30d |
+| android/[[foo-app]] | monetize | paid | modeled | 120d | — | draft STALE | 120d STALE |
 | web/[[text-vault]] | internal-only | — | assessed | 0d | — | — | — |
 
 ## Not yet assessed (M) — triage gap
@@ -48,11 +49,19 @@ Generated: 2026-07-11
   values (a metric left blank or that failed numeric parse is `null` and does not count),
   or `—` if none.
 - **Plan** reflects `plan.md`: the plan's `status` (`draft`/`active`) when one exists,
-  `yes` when it exists but its `status` didn't parse, or `—` when there's no plan.
+  `yes` when it exists but its `status` didn't parse, or `—` when there's no plan. A plan
+  older than the **90-day staleness window** carries a ` STALE` marker after its status
+  (e.g. `draft STALE`).
 - **Research** reflects `market-research.md`: its age as `<n>d` when one exists (so a stale
   research pass is visible at a glance), `yes` when it exists but its date didn't parse, or
-  `—` when there's none. Both columns are additive — a project scanned before this support,
-  or without those artifacts, renders `—` and never breaks the table.
+  `—` when there's none. A pass older than the **90-day staleness window** carries a
+  ` STALE` marker after its age (e.g. `120d STALE`). Both columns are additive — a project
+  scanned before this support, or without those artifacts, renders `—` and never breaks the
+  table.
+- **Staleness** — the ` STALE` marker fires when the artifact's age is **strictly greater
+  than 90 days** (a 90-day-old artifact is not yet stale). The window matches the one
+  `assess`/`business-plan` use to decide reuse-vs-refresh and the `compass` review nag, so a
+  reader, the skills, and the portfolio compass all agree on what "stale" means.
 - **Not yet assessed** lists projects the scanner returned with `assessed: false` — a
   triage gap, not an error; the whole point is to see what still needs a verdict.
 - **Couldn't assess** and **Errors** sections appear only when non-empty (degrade loudly:

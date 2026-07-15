@@ -4,6 +4,40 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-15
+
+### Added
+- **Operator-selected depth tiers (`brief` | `standard` | `deep`)** for
+  `/business:market-research` and `/business:business-plan`. Each skill asks the tier up
+  front and scales effort and output to it; the tier is recorded in the artifact frontmatter
+  (**schema 2**). `market-research.md` and `plan.md` moved to schema 2 — schema 1 artifacts
+  still parse (legacy `market-research` depth `triage`≈`brief`, `full`≈`deep`; legacy plans
+  have no depth). `business-scan.py` now enforces **per-artifact schema ceilings** and
+  validates `depth` against each file's own schema, and exposes `plan.depth`.
+- **Competitor-marketing research.** The `market-researcher` agent and `market-research.md`
+  gained (at `standard`/`deep`) a **Competitor marketing** section — channels, campaigns
+  cited to ad-transparency libraries, detected tooling, messaging/keywords — and a
+  **Customer personas** section (1 at standard, 2–3 at deep), same cite-or-evidenced-absence
+  discipline.
+- **Elaborated business plan (twelve sections).** `plan.md` adds **Customer personas** and
+  **SWOT & positioning** (a SWOT grid + one-sentence positioning statement) and an expanded,
+  competitor-marketing-informed **Marketing & sales** playbook. `business-plan` reuses
+  research only when its effective depth is `standard`+.
+- **Questions-first.** `assess`, `market-research`, and `business-plan` now confirm inferred
+  facts (audience, geography, substitutes, willingness-to-pay, competitor seeds, scenario
+  assumptions) one question at a time instead of silently assuming them.
+- **Marketing funnel metrics.** `track` offers an optional, one-answer-skippable funnel block;
+  `manual.visits`/`signups`/`conversion_pct`/`cac_usd` are documented conventions (the
+  `<source>.<metric>` parse contract already accepts them — no scanner change).
+- **Staleness flags.** `global-business.md` marks the Plan/Research cells `STALE` when the
+  artifact is strictly `> 90` days old; `biz-portfolio` reports the three staleness axes, and
+  the planning `compass` skill nags on stale research/plans (its business object gained
+  `research_age_days`/`plan_age_days`).
+
+### Fixed
+- De-duplicated the light-frontmatter parse/scan stanzas in `business-scan.py` (shared
+  `_project_mismatch` / `_date_or_null` / `_scan_light_artifact` helpers; closes BL-005).
+
 ## [0.3.0] - 2026-07-12
 
 ### Added

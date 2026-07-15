@@ -78,18 +78,29 @@ def test_compass_absent_is_unchanged(tmp):
 
 
 def test_compass_present_attaches_business(tmp):
-    """Present-mode: the assessed project gains a 'business' key with its verdict;
-    the unassessed project does not."""
-    env, _ = make_env(tmp, business_absent=False)
+    """Present-mode: the assessed project gains a 'business' key with its verdict
+    and the research/plan ages; the unassessed project does not. alpha gets a
+    market-research.md (present → int age) but NO plan.md (absent → null), so both
+    the artifact-present and artifact-absent paths of the new age keys are exercised."""
+    env, vault = make_env(tmp, business_absent=False)
     if not (ROOT / "business" / "scripts" / "business-scan.py").exists():
         print("  skip  compass present-mode (business plugin not in tree)")
         return
+    # alpha: add a schema-2 market-research.md (age becomes a real int); leave plan.md absent
+    (vault / "Portfolio" / "ai-tools" / "alpha" / "business" / "market-research.md").write_text(
+        "---\nschema: 2\nproject: alpha\nresearched: 2026-07-01\ndepth: brief\n"
+        "confidence: medium\n---\n# Market research: alpha\n")
     r = subprocess.run([sys.executable, str(COMPASS_SCAN)], capture_output=True, text=True, env=env)
     check(r.returncode == 0, f"compass-scan (present): exit 0 ({r.stderr.strip()[:120]})")
     doc = json.loads(r.stdout)
     by = {p["name"]: p for p in doc["projects"]}
-    check(by.get("alpha", {}).get("business", {}).get("verdict") == "monetize",
+    ab = by.get("alpha", {}).get("business", {})
+    check(ab.get("verdict") == "monetize",
           "compass-scan (present): assessed project carries business.verdict")
+    check(isinstance(ab.get("research_age_days"), int) and ab["research_age_days"] >= 0,
+          f"compass-scan (present): research_age_days is int (artifact present) — got {ab.get('research_age_days')!r}")
+    check(ab.get("plan_age_days") is None,
+          f"compass-scan (present): plan_age_days null (no plan.md) — got {ab.get('plan_age_days')!r}")
     check("business" not in by.get("beta", {}),
           "compass-scan (present): unassessed project has no business key")
 

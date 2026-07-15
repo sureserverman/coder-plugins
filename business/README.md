@@ -11,19 +11,19 @@ plugin's `portfolio` and `compass` skills can read business state.
 |-------|------|
 | `/business:assess` | Viability triage → `business/BUSINESS.md` verdict (monetize / free-for-reputation / internal-only / park). Opt-in `--research` (reuses a fresh `market-research.md`). |
 | `/business:revenue-model` | Monetization model, pricing, channels, numeric dated targets for an assess-passed project. |
-| `/business:market-research` | Deep, cited market pass (competitors, pricing, TAM/SAM/SOM, trends, positioning) → `business/market-research.md`. Writes nothing if WebSearch is unavailable. |
-| `/business:business-plan` | Compose verdict + model + research + gtm + metrics into a full ten-section `business/plan.md`. |
+| `/business:market-research` | Tiered (`brief`/`standard`/`deep`), cited market pass — competitors, pricing, TAM/SAM/SOM, trends, positioning, plus competitor-marketing teardown and customer personas at `standard`/`deep` → `business/market-research.md`. Asks the tier + confirms scope up front. Writes nothing if WebSearch is unavailable. |
+| `/business:business-plan` | Compose verdict + model + research + gtm + metrics into a tiered twelve-section `business/plan.md` (adds Customer personas and SWOT & positioning). Asks the depth tier and confirms gaps up front. |
 | `/business:launch` | Go-to-market plan → `business/gtm-plan.md`, guarded by `MATURITY.md` state. |
-| `/business:track` | Record actuals → `business/metrics.md`, diff vs targets, bump Last reviewed. |
-| `/business:biz-portfolio` | Sweep every project, rebuild `global-business.md`. |
+| `/business:track` | Record actuals (incl. optional marketing funnel) → `business/metrics.md`, diff vs targets, bump Last reviewed. |
+| `/business:biz-portfolio` | Sweep every project, rebuild `global-business.md` (flags stale research/plans). |
 
 ## Artifacts (in the vault)
 
 Per project, under `<vault_dir>/Portfolio/<area>/<project>/business/`:
 
 - `BUSINESS.md` — canonical, schema-versioned. Sole machine-readable index.
-- `market-research.md` — deep, cited market evidence (schema 1; `research` block).
-- `plan.md` — full ten-section business plan (schema 1; `plan` block).
+- `market-research.md` — tiered, cited market evidence (schema 2; `research` block with `depth`).
+- `plan.md` — tiered twelve-section business plan (schema 2; `plan` block with `depth`).
 - `gtm-plan.md` — dated go-to-market checklist (portfolio-unify-parseable).
 - `metrics.md` — append-only actuals log.
 

@@ -250,11 +250,19 @@ def business_map():
             gtm = p.get("gtm") if isinstance(p.get("gtm"), dict) else None
             model = (p.get("monetization") or {}).get("model") \
                 if isinstance(p.get("monetization"), dict) else None
+            research = p.get("research") if isinstance(p.get("research"), dict) else None
+            plan = p.get("plan") if isinstance(p.get("plan"), dict) else None
             out[p["name"]] = {
                 "verdict": p.get("verdict"),
                 "model": model,
                 "gtm_pct": gtm.get("pct") if gtm else None,
                 "last_reviewed_age_days": p.get("last_reviewed_age_days"),
+                # research/plan age (days) when the artifact exists, else None — so compass
+                # can flag stale market-research/plan alongside stale review. Additive.
+                "research_age_days": research.get("age_days")
+                    if research and research.get("exists") else None,
+                "plan_age_days": plan.get("age_days")
+                    if plan and plan.get("exists") else None,
                 "stage": ("tracked" if p.get("metrics") else "launched" if gtm
                           else "modeled" if model else "assessed"),
             }
