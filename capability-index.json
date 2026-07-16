@@ -351,6 +351,16 @@
       "requires_enablement": false
     },
     {
+      "description": "Use to sweep every portfolio project's GitHub repo for failed workflows, open issues, stale PRs, and security alerts, then triage picked findings into per-project backlogs. Triggers on \"check github health\", \"repo health sweep\", \"portfolio CI status\". Report-first \u2014 writes only what the user picks.",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "repo-health",
+      "path": "git-github/skills/repo-health/SKILL.md",
+      "plugin": "git-github",
+      "requires_enablement": false
+    },
+    {
       "description": "Use when the user asks for a second opinion, cross-tool review, or multi-model review of a diff. Triggers: \"get reviews from other tools\", \"second opinion on this diff\", \"cross-check this change\", \"multi-model review\". For a single authoritative local review, use code-review instead.",
       "disable_model_invocation": false,
       "kind": "skill",

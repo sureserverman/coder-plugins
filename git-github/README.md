@@ -15,8 +15,9 @@ Everyday git/GitHub operations for Claude Code: draft commits and PRs that match
 | `code-review` | "review this", "review my implementation", "check this commit against the plan", "security review" | Scopes the diff (uncommitted / staged / commit / PR / plan-stage) and dispatches the `code-reviewer` subagent for a single-tool authoritative review. |
 | `request-external-reviews` | "get reviews from other tools", "second opinion on this diff", "multi-model review" | Dispatches the same diff to sibling CLIs (codex, gemini, opencode — plus claude when the caller is Cursor) in non-interactive read-only mode and aggregates findings with consensus marking. |
 | `code-comment-audit` | "audit my comments", "are my comments useful", "review the comments in this file" | Disciplined comment pass: surfaces magic numbers, ordering constraints, workarounds, and un-introduced entry points where a concrete *why* exists; removes comments that just restate the code. |
+| `repo-health` | "check github health", "any failed workflows across my projects", "repo health sweep" | Runs the bundled `repo-health-scan.py` over every registry project with a GitHub remote: red default-branch workflows, open issues, stale PRs, Dependabot alerts. Report-first; findings the user picks are filed into per-project backlogs via `planning:backlog`, with URL-keyed dedup and zombie-entry detection on re-sweeps. |
 
-All nine skills auto-trigger on the phrases above. There is no umbrella slash command — each skill stands alone.
+All skills auto-trigger on the phrases above. There is no umbrella slash command — each skill stands alone.
 
 ## Agent
 
@@ -37,7 +38,7 @@ as `git-github:code-reviewer` with no "if installed" fallback.
 /plugin install git-github@coder-plugins
 ```
 
-`gh` (GitHub CLI) is required for `create-pr` and the GitHub-release step of `release-tag`. The other skills work with plain `git`.
+`gh` (GitHub CLI) is required for `create-pr`, `repo-health`, and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
 
 ## Design rules
 
