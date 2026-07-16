@@ -28,8 +28,13 @@ GitHub remote, and emits one JSON document: per project, latest workflow-run
 conclusion per workflow on the default branch (`ci`), open issues with ages
 and labels (`issues`), open PRs idle ≥ `stale_pr_days` (`prs.stale`), open
 Dependabot alerts by severity (`security`), plus `backlog_zombies` — BL
-entries whose linked GitHub item has since closed. Findings whose URL is
-already filed in the project's backlog carry `triaged_as: "BL-NNN"`.
+entries that have resolved upstream (issue/PR closed, or a filed red workflow
+that is now green). Findings already filed in the project's backlog carry
+`triaged_as: "BL-NNN"`. **Dedup granularity differs by kind:** issues and PRs
+dedup precisely by URL/number; CI dedups at **repo level** — a run URL is
+ephemeral (every push mints a new one), so a `gh-ci` backlog entry referencing
+any `actions/runs/…` URL for the repo marks *all* of that repo's currently-red
+workflows as triaged, and flags a recovery zombie if nothing is red anymore.
 Projects without a GitHub remote land in `no_remote`; unassessable ones in
 `couldnt_assess`. This skill's job is **judgment only**: severity ranking,
 narration, and the triage conversation. Never re-derive facts the JSON
@@ -71,8 +76,9 @@ oldest untriaged issue, then stale PRs. Per project, one block:
 - **Stale PRs** — number, title, idle days, draft flag.
 - **Security** — open Dependabot alerts by severity.
 - **Zombie BL entries** — from `backlog_zombies`: "BL-014 links
-  issue #12, closed upstream — remove it?" (removal also goes through the
-  backlog skill, only on user confirmation).
+  issue #12, closed upstream — remove it?" or "BL-016's CI is green again —
+  remove it?" (removal also goes through the backlog skill, only on user
+  confirmation).
 
 Green-and-quiet projects get one collapsed line ("12 repos healthy: …").
 End with the Couldn't-assess footer, always.
@@ -84,8 +90,12 @@ item), and each pick becomes one `planning:backlog` `add` with:
 
 - **Title:** short imperative restatement (e.g. "Fix red release workflow").
 - **Source:** `github — <canonical URL of the run/issue/PR/alert>`.
-  The URL is the dedup key: the next sweep's cross-check matches on it,
-  so keep exactly one canonical GitHub URL in the entry.
+  The URL is the dedup key: the next sweep's cross-check matches on it. Keep
+  exactly one canonical GitHub URL per entry. For issues/PRs that's the
+  `/issues/N` or `/pull/N` URL (matched precisely). For CI, an
+  `/actions/runs/…` URL is fine — the run id is ephemeral, so it's matched at
+  repo level (its presence tells the next sweep "this repo's CI is already
+  tracked"); don't file the same repo's CI twice expecting per-workflow dedup.
 - **Reason:** why it's deferred rather than fixed now (ask if unclear).
 - **Next step:** concrete (e.g. "re-run with debug logging", "reproduce
   locally then plan").

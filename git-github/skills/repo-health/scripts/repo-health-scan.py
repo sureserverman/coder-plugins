@@ -40,6 +40,13 @@ GITHUB_REMOTE_RE = re.compile(
 BACKLOG_URL_RE = re.compile(
     r"https://github\.com/(?P<owner>[^/\s]+)/(?P<repo>[^/\s]+)/(?:issues|pull)/(?P<num>\d+)"
 )
+# Workflow-run URLs inside a backlog.md. Matched only to establish that a repo's
+# CI is *already tracked* — the run id itself is ephemeral (every push mints a
+# new one), so CI dedup is repo-level (repo + "has a CI backlog entry"), never
+# keyed on the exact run. See cross_check().
+CI_URL_RE = re.compile(
+    r"https://github\.com/(?P<owner>[^/\s]+)/(?P<repo>[^/\s]+)/actions/runs/(?P<runid>\d+)"
+)
 BL_HEADER_RE = re.compile(r"^##\s+(BL-\d{3})\s+—", re.M)
 
 
@@ -217,8 +224,11 @@ def backlog_refs(vault, proj, slug):
         body = text[m.end(): sections[i + 1].start() if i + 1 < len(sections) else len(text)]
         for um in BACKLOG_URL_RE.finditer(body):
             if f"{um.group('owner')}/{um.group('repo')}" == slug:
-                refs.append({"bl_id": m.group(1), "url": um.group(0),
+                refs.append({"kind": "item", "bl_id": m.group(1), "url": um.group(0),
                              "number": int(um.group("num"))})
+        for cm in CI_URL_RE.finditer(body):
+            if f"{cm.group('owner')}/{cm.group('repo')}" == slug:
+                refs.append({"kind": "ci", "bl_id": m.group(1), "url": cm.group(0)})
     return refs
 
 
@@ -228,13 +238,20 @@ def upstream_state(slug, number):
 
 def cross_check(project, refs, slug):
     """Mark findings already triaged into the backlog; flag zombie BL entries
-    whose upstream item is closed."""
+    whose upstream item has resolved.
+
+    Issue/PR refs dedup precisely by URL/number. CI refs dedup at *repo level*:
+    a run URL is ephemeral, so its presence only means "this repo's CI is
+    already tracked" — every currently-red workflow is marked triaged, and if
+    nothing is red anymore the entry is flagged as a recovery zombie."""
+    item_refs = [r for r in refs if r["kind"] == "item"]
+    ci_refs = [r for r in refs if r["kind"] == "ci"]
     open_urls = {i["url"] for i in project.get("issues", {}).get("items", [])}
     open_urls |= {p["url"] for p in project.get("prs", {}).get("stale", [])}
     open_numbers = {i["number"] for i in project.get("issues", {}).get("items", [])}
     zombies = []
     triaged = []
-    for ref in refs:
+    for ref in item_refs:
         if ref["url"] in open_urls or ref["number"] in open_numbers:
             triaged.append(ref)
         else:
@@ -253,6 +270,16 @@ def cross_check(project, refs, slug):
         bl = next((r["bl_id"] for r in triaged if r["url"] == pr["url"]), None)
         if bl:
             pr["triaged_as"] = bl
+    # CI: repo-level dedup. Skip when the CI lane errored (unknown red state).
+    ci = project.get("ci", {})
+    if ci_refs and "error" not in ci:
+        red = [w for w in ci.get("workflows", []) if w["conclusion"] in RED_CONCLUSIONS]
+        if red:
+            for w in red:
+                w["triaged_as"] = ci_refs[0]["bl_id"]
+        else:
+            for r in ci_refs:
+                zombies.append({**r, "note": "no red workflow on default branch — CI may have recovered"})
     return zombies
 
 

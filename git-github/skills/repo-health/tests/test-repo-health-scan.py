@@ -125,6 +125,16 @@ Deferred items.
 - **Reason:** deferred
 - **Next step:** plan
 - **Tags:** gh-issue
+
+---
+
+## BL-003 — Fix red CI on main
+
+- **Opened:** 2026-07-16
+- **Source:** github — https://github.com/tester/alpha/actions/runs/3
+- **Reason:** deferred
+- **Next step:** triage
+- **Tags:** gh-ci
 """
 
 
@@ -207,6 +217,9 @@ projects:
     names = [w["workflow"] for w in ci["workflows"]]
     check(names == ["ci", "release"], "latest run per workflow, default branch only")
     check(ci["red_count"] == 1, "one red workflow (latest ci run = failure)")
+    red_wf = next(w for w in ci["workflows"] if w["conclusion"] == "failure")
+    check(red_wf.get("triaged_as") == "BL-003",
+          "red CI workflow deduped repo-level against a gh-ci backlog entry")
 
     iss = a["issues"]
     check(iss["open_count"] == 2, "two open issues")

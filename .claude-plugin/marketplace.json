@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.14.1"
+    "version": "0.14.2"
   },
   "plugins": [
     {
@@ -124,7 +124,7 @@
       "name": "git-github",
       "source": "./git-github",
       "description": "Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, run a single-tool authoritative code review via the bundled read-only code-reviewer agent (also consumed by planning's executing-plans for per-task and per-stage review), audit a repo or diff for faked verification — stubbed gate tasks, tests that never ran, fabricated evidence, hidden exclusions — via gate-audit (the after-the-fact enforcement of planning's honest-gates rules), dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, sweep every portfolio project's GitHub repo for red default-branch workflows, unaddressed issues, stale PRs, and open Dependabot alerts via a deterministic gh-CLI scanner and triage picked findings into per-project backlogs (repo-health), review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. The GitHub Actions workflow lane also emits findings on plugin-dev's shared deterministic contract via scripts/validate.sh. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "category": "development",
       "tags": [
         "git",
