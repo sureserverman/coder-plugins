@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.14.0"
+    "version": "0.14.1"
   },
   "plugins": [
     {
@@ -30,7 +30,7 @@
     {
       "name": "android-dev",
       "source": "./android-dev",
-      "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), Compose layout patterns and Compose/Espresso/MockWebServer testing patterns, multi-device emulator orchestration via bundled MCP stack, mock server generation, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
+      "description": "Android development plugin: Gradle build management, a per-stage on-device verify gate (build the debug APK, detect an adb device, install + smoke-launch + run instrumented tests), UI/UX design with Material 3 and Figma including a screenshot-grading evaluator loop (emulator captures scored against a weighted design rubric by a separate evaluator), multi-device emulator orchestration via MCP, mock server generation from app sources, automated screenshot capture across phone and tablet form factors, release signing, and end-to-end publishing flows for F-Droid and Google Play.",
       "version": "1.6.0",
       "category": "development",
       "tags": [
@@ -57,7 +57,7 @@
     {
       "name": "release-promo",
       "source": "./release-promo",
-      "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (subreddit-aware, including Matrix subs r/matrixprotocol and r/matrixdotorg, plus r/selfhosted, r/programming, language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel. Never autoposts.",
+      "description": "Drafts release-announcement posts for the platforms a project actually belongs on. Skills for Reddit (with explicit guidance for Matrix subs r/matrixprotocol and r/matrixdotorg, plus language and topic subs), This Week in Matrix, Hacker News Show HN, Lobsters, and Fediverse. The /promote-release command surveys the repo, picks eligible channels, and drafts one post per channel.",
       "version": "0.2.0",
       "category": "development",
       "tags": [
@@ -98,7 +98,7 @@
     {
       "name": "infra-build",
       "source": "./infra-build",
-      "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift.",
+      "description": "Make a project buildable by the three publishing pipelines under ~/dev/infra: utils (Debian .deb via pkgskel + reprepro), build-for-mac (Rust → macOS .pkg via GitHub Actions), and publish-images (multi-arch Docker → DockerHub/GHCR/Quay/GitLab/ECR). Skills audit readiness, scaffold the missing file layout, and register the project in both the data file and the workflow YAML in lockstep so the two never drift. A deterministic validation lane (scripts/validate.sh → validate-deb.sh + validate-readiness.sh, on a shared JSON finding contract) owns the mechanical deb-tree and source-repo checks; the skills add the cross-repo registration-sync judgment.",
       "version": "0.2.1",
       "category": "development",
       "tags": [
@@ -212,7 +212,7 @@
     {
       "name": "browser-extensions",
       "source": "./browser-extensions",
-      "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter.",
+      "description": "Authoring and shipping browser extensions (WebExtensions) for Chrome, Firefox, and Firefox for Android. Skill `browser-extensions` covers manifest v3 migration, content scripts, permissions, store rejections, and the Firefox-for-Android caveats. Skill `amo-compliance-check` runs a preflight audit (manifest, permissions justification, minified-source rules, addon ID) before submission to addons.mozilla.org and ships a `scripts/amo-check.py` linter. The mechanical AMO checks also emit findings on the plugin-dev shared JSON contract via `scripts/validate.sh` (the `validate-amo.sh` lane).",
       "version": "0.2.1",
       "category": "development",
       "tags": [
@@ -234,7 +234,7 @@
     {
       "name": "loadout",
       "source": "./loadout",
-      "description": "Per-project + per-task plugin scoping. Layers a sticky tech baseline (android/rust/web-ext/python/plugin-dev/...) with on-demand task overlays (security-audit/release/wiki/refactor/...) and writes the resulting enabledPlugins map to .claude/settings.local.json — so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically on first entry to a project via SessionStart hook; toggle overlays with /loadout +<task> and /loadout -<task>.",
+      "description": "Per-project plus per-task plugin loadouts. Layers a sticky tech baseline (android/rust/web-ext/...) with on-demand task overlays (security-audit/release/wiki/...) and writes the resulting `enabledPlugins` map to .claude/settings.local.json so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically from Cargo.toml / build.gradle / manifest.json on first entry; task overlays toggle via /loadout +name and /loadout -name.",
       "version": "0.1.0",
       "category": "development",
       "tags": [
@@ -255,7 +255,7 @@
     {
       "name": "i18n",
       "source": "./i18n",
-      "description": "Internationalization for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next/react-intl/Vue i18n/next-intl JSON, Android strings.xml, iOS .strings/.stringsdict/.xcstrings, Flutter ARB, Rails YAML, Django gettext, Qt .ts, .NET .resx, Java .properties) via Python signature scripts and runs detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source — TSV with file/line/likelihood for LLM triage), and diff-catalogs.py (per-locale missing/extra/placeholder-mismatch report). Skill `i18n-translate` orchestrates an LLM translation pass via the sonnet-pinned `translator` subagent that preserves placeholders (printf, ICU MessageFormat, Handlebars, positional Android format specifiers) and expands plurals to the target's CLDR categories (en/de/es: one+other; ru/pl/uk: one+few+many+other; ar: zero+one+two+few+many+other; ja/ko/zh: other only); ships extract-missing.py and validate-placeholders.py with brace-balanced ICU parsing, printf-type-signature check, HTML tag balance, and per-locale CLDR plural-category presence check. Skill `i18n-formats` documents per-format escaping, plural-form headers, and metadata gotchas. The three skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate` for both gap-fill and new-locale scaffold, `/i18n:i18n-formats`). Nothing autocommits.",
+      "description": "Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. Skill `i18n-formats` documents per-format gotchas. Sonnet-pinned translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. The three skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`, `/i18n:i18n-formats`).",
       "version": "0.4.0",
       "category": "development",
       "tags": [
@@ -326,7 +326,7 @@
     {
       "name": "ui-design",
       "source": "./ui-design",
-      "description": "Opinionated per-platform UI design, review, and facelift subagents — one expert per surface: ui-web (WCAG 2.2 AA / WAI-ARIA / semantic HTML), ui-gnome (GNOME HIG + libadwaita), ui-macos (Apple HIG + SwiftUI/AppKit), ui-windows (Fluent 2 + WinUI 3/WPF), and ui-garmin (Garmin Connect IQ / Monkey C watch UI, power-budget- and device-matrix-aware). Each runs surface-detection → review → facelift/greenfield/accessibility protocols and cites platform guidelines by name. Android UI lives in android-dev (android-dev:ui-android).",
+      "description": "Opinionated per-platform UI design, review, and facelift subagents — one expert per surface. ui-web (WCAG 2.2 AA / WAI-ARIA / semantic HTML, framework-agnostic), ui-gnome (GNOME HIG + libadwaita, adaptive GTK4), ui-macos (Apple HIG + SwiftUI/AppKit, menu-bar-first), ui-windows (Fluent 2 + WinUI 3/WPF), and ui-garmin (Garmin Connect IQ / Monkey C watch faces, data fields, widgets, glances — power-budget- and device-matrix-aware). Each runs a surface-detection → design-review → facelift / greenfield / accessibility protocol and cites its platform guidelines by name. Android UI lives in the android-dev plugin (android-dev:ui-android).",
       "version": "0.1.1",
       "category": "development",
       "tags": [
@@ -351,7 +351,7 @@
     {
       "name": "testing",
       "source": "./testing",
-      "description": "Generalist, strongly-opinionated testing subagent (testing-expert). Triage-first: run/debug tests, author tests, coverage gap-analysis, review for smells, coach methodology. Opinionated about the test pyramid, mutation-score-over-line-coverage, and an OWASP baseline; cites Beck, Fowler, Meszaros, Feathers, Google Testing, OWASP WSTG, Stryker, Hypothesis, axe-core. Dispatched as testing:testing-expert by planning's executing-plans / dispatching-parallel-agents, or directly.",
+      "description": "Generalist, strongly-opinionated testing subagent (testing-expert). Triage-first: covers running/debugging tests, authoring new tests, coverage gap-analysis, reviewing tests for smells, and coaching methodology. Opinionated about the test pyramid, mutation-score-over-line-coverage, and an OWASP baseline; cites Beck, Fowler, Meszaros, Feathers, Google Testing, OWASP WSTG, Stryker, Hypothesis, and axe-core by name. Dispatched as testing:testing-expert — by planning's executing-plans / dispatching-parallel-agents for test-stack tasks, or directly.",
       "version": "0.1.1",
       "category": "development",
       "tags": [
