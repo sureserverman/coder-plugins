@@ -1,0 +1,35 @@
+name: validate-plan-progress
+
+# Guards the executing-plans statusline renderer. plan-progress.py turns the
+# .claude/plan-progress.json state file (maintained by the executing-plans
+# skill at each execution transition) plus the plan's authoritative Status
+# fields (parsed via the shared portfolio-unify plan-parser regexes) into a
+# one-line progress bar. The fixture suite asserts the silence-when-idle
+# contract (a statusline must never print a traceback), the Status counts,
+# bar geometry, per-phase glyphs, walk-up discovery, and staleness marking.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/executing-plans/scripts/plan-progress.py'
+      - 'planning/skills/executing-plans/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  pull_request:
+    paths:
+      - 'planning/skills/executing-plans/scripts/plan-progress.py'
+      - 'planning/skills/executing-plans/tests/**'
+      - 'planning/skills/portfolio/scripts/portfolio-unify.py'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install pyyaml
+      - name: Run plan-progress fixture tests
+        run: python3 planning/skills/executing-plans/tests/test-plan-progress.py
