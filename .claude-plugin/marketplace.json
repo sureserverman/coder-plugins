@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (planning, git-github, release-promo, infra-build, loadout, stingy-agents), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.15.0"
+    "version": "0.16.0"
   },
   "plugins": [
     {
