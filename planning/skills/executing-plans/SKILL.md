@@ -123,8 +123,11 @@ running at full weight:
    command-ish gate rarely has such a check. (This is the one place "everything else is
    unchanged from Standard" below does **not** apply — the close-out evaluator's default
    flips from on to off at Light.)
-5. **Close-out is one stated bump.** Run the full suite one final time, reconcile the
-   backlog (`Closes BL-NNN`), and append the `**Completed:**` line. For version bumps,
+5. **Close-out is one stated bump.** Run the full suite one final time — unless the
+   single gate's full-suite run was the last thing to execute with no commits landed
+   after it, in which case that run counts as the close-out run (one full pass, not
+   two) — reconcile the backlog (`Closes BL-NNN`), and append the `**Completed:**`
+   line. For version bumps,
    apply a **single stated SemVer bump** to what changed and its mirror — in this repo,
    name the plugin's `.claude-plugin/plugin.json` **and** the root marketplace entry
    explicitly (that pair) rather than running the full mirror-grep ritual. State your call
@@ -292,7 +295,7 @@ Every task follows this loop. No task is "done" until its test is green.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work.
 6. **Quick review gate (Tier 1).** Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. Handle the verdict by severity:
-   - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run the test and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
+   - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
    - **Important / Suggestion → advisory.** Do not act on them now. Append them to the plan file as a note under the task (`**Review notes (Task N.M):** …`) so the stage gate's deep review (Step 3.5) can triage the batch. They never block the task.
    - **Skip for trivial/non-code diffs.** Docs-only, config-only, pure version-bump, or comment-only diffs don't need Tier 1 — note the skip and proceed. Honor a `Review: skip` task annotation and the global opt-out (see References) the same way.
 
@@ -309,12 +312,19 @@ When every task in the stage is green, run the stage gate:
 
 - Each gate check has a specific pass criterion (a command output, a test result, a manual verification)
 - Run them in order; stop at the first failure
-- Run the full existing test suite as part of the gate (regressions check)
+- **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
+- **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass (see Phase Close-out).
+- A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while the Tier-2 review below is dispatched — the two are independent.
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, if the
 project's platform ships a stage-verify skill, invoke it as the final gate step
 — it proves the stage on the real artifact, not just the test suite. A failure
-there is a gate failure (handle it like any other below). Match by project type:
+there is a gate failure (handle it like any other below). Brief the stage-verify
+skill with the gate's tier: at an intermediate gate it verifies at stage-scope
+(touched-module instrumented tests); at the final gate it runs the full device
+suite (plan-scope) — and that run IS the plan-scope pass's device portion, not
+an addition to it (don't run the declared `plan-scope:` device suite separately
+and then the hook's again). Match by project type:
 
 | Project type (detector) | Stage-verify skill |
 |-------------------------|--------------------|
@@ -360,7 +370,7 @@ opt-out as Tier 1.
 1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
 2. Add a new test covering that interaction to the relevant task
 3. Run that task through its Red-Green loop again
-4. Re-run the gate
+4. Re-run the failed check(s) and any check whose inputs the fix touched — not every gate check from scratch
 
 **If the gate passes:** mark the stage complete, append the stage's handoff note to the plan (see Context resets below), commit with `"Stage N green"`, and start Step 3.1 for the next stage.
 
@@ -464,7 +474,7 @@ Return to Phase 1 (critique) when:
 
 When every stage is green:
 
-1. Run the **full** test suite one more time from a clean state (don't trust the per-stage runs)
+1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
 3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail. A FAIL here is a stop condition: surface it to the user before merge. Skip only on explicit user opt-out.
 4. **Bump versions for what changed.** A completed plan almost always shifts a
@@ -520,6 +530,7 @@ When every stage is green:
 - Append a handoff note at every passed gate — the plan file, not the transcript, is what survives a context reset
 - Bump versions at close-out for whatever the plan changed, including every mirror of the version string
 - Keep `.claude/plan-progress.json` current at every transition and delete it when close-out finishes
+- Scope gates by tier: stage-scope at intermediate gates, fix-scope after review fixes, exactly one clean plan-scope pass at close-out (../planning-projects/references/test-scope-tiers.md)
 
 ---
 
@@ -552,5 +563,6 @@ When every stage is green:
   behavior changes back instead of applying them.
 - **testing-expert agent** — invoke when a task's test is ambiguous, flaky, or the plan's coverage is thin
 - **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
+- **test-scope-tiers reference** (`../planning-projects/references/test-scope-tiers.md`) — the shared scope policy Step 3.3 (fix-scope), Step 3.5 (stage-scope), and Close-out (plan-scope) follow
 
 **Review opt-out.** Both review tiers are default-on. Disable them per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped at Tier 1 without needing an annotation. If `git-github:code-reviewer` isn't installed, note it and fall back to the goal-evaluator alone; a missing reviewer is not a gate failure.

@@ -232,6 +232,8 @@ Verify each of these and report the result:
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding. Starting Stage 1 with a broken preflight is how you end up debugging environment issues instead of building features.
 
+For a project whose full test suite is expensive (see references/test-scope-tiers.md), the plan declares its stage-scope and plan-scope test commands here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution.
+
 ---
 
 ## Phase 2 — Stage Breakdown
@@ -403,6 +405,10 @@ Date: [YYYY-MM-DD]
 - [ ] [Check 1]: [how to verify]
 - [ ] [Check 2]: [how to verify]
 
+**Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
+- stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]
+- plan-scope:  [the single full clean pass, quarantined tests included]
+
 ---
 
 ## Stage 1: [Name]
@@ -431,7 +437,7 @@ Date: [YYYY-MM-DD]
 
 ### Stage 1 Gate
 - [ ] [Integration check]
-- [ ] [Full test suite passes]
+- [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
 - [ ] [Stage goal verified end-to-end]
 
 ---
@@ -447,7 +453,9 @@ Date: [YYYY-MM-DD]
 [Tasks with Depends on / Blocks / Parallel fields...]
 
 ### Stage 2 Gate
-[Checks...]
+[Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
+regression check above with the plan-scope bullet instead:
+- [ ] [Full clean test pass (plan-scope — the plan's single full run)]
 ```
 
 ---
@@ -507,7 +515,7 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 ### What a stage gate checks
 
 - **Integration**: The tasks in this stage interact correctly (e.g., the API endpoint serves data from the database schema that was just created)
-- **Regressions**: The full existing test suite still passes — the new work didn't break old work
+- **Regressions**: Scoped to the gate's position in the plan. Intermediate gates check at **stage-scope** — cheap host-side checks (unit tests, lint, static/architecture checks, build) run in full, and any expensive suite (device/instrumented/e2e) is restricted to the modules the stage touched, never `clean`. The final gate (and close-out) runs **plan-scope** — one full clean pass, quarantined slow tests included. If the project's full suite is cheap (well under ~5 min), skip the tiering and just run it in full at every gate. Scope policy: references/test-scope-tiers.md.
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
 - **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
 
@@ -582,7 +590,7 @@ Each sub-agent needs enough context to work independently:
 ### Guardrails
 
 - **No cross-task file conflicts.** Before dispatching parallel tasks, verify they don't modify the same files. If two tasks edit the same file, they must run sequentially even if the dependency graph says they're independent
-- **Merge check after parallel tasks complete.** If multiple sub-agents wrote code in the same stage, run the test suite before the stage gate to catch integration issues introduced by parallel work
+- **Merge check after parallel tasks complete.** If multiple sub-agents wrote code in the same stage, run the test suite before the stage gate to catch integration issues introduced by parallel work — at stage-scope on an expensive suite (references/test-scope-tiers.md), same as the gate it precedes
 - **Failed task blocks its dependents.** If Task 2.1 fails and escalates, do not dispatch Tasks 2.3 and 2.4 that depend on it. Mark them as BLOCKED and surface the entire chain to the user
 
 ---
@@ -604,6 +612,7 @@ Before showing the plan to the user, verify:
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
+- [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files
@@ -658,4 +667,5 @@ and treat the rest as Standard-only.
 | Research-free planning | "I'll figure out the API as I go" | You won't. Research first, plan second, build third |
 | Asymmetric dependencies | Task A says it blocks B, but B doesn't list A in Depends on — the graph is broken | Always write both directions. If you add a Depends on, update the other task's Blocks |
 | Parallel file conflicts | Two sub-agents edit the same file simultaneously, producing merge conflicts or silent overwrites | Check file paths before dispatching. If tasks touch the same file, force sequential execution |
+| Full suite at every gate | On an expensive suite (device/e2e), every intermediate gate re-proves unchanged code — hours of wall-clock lost per plan, plus `clean` wiping incremental state each time | Tier the scope — stage-scope at intermediate gates, one clean plan-scope pass at the final gate (references/test-scope-tiers.md) |
 | Planning without clarifying | The prompt says "build a dashboard" so you plan a React app, but the user wanted a CLI tool | If the prompt is ambiguous about scope, target, or constraints, ask before you plan. A 30-second question saves a 30-minute rewrite |
