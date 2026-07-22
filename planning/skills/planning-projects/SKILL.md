@@ -590,7 +590,7 @@ Each sub-agent needs enough context to work independently:
 ### Guardrails
 
 - **No cross-task file conflicts.** Before dispatching parallel tasks, verify they don't modify the same files. If two tasks edit the same file, they must run sequentially even if the dependency graph says they're independent
-- **Merge check after parallel tasks complete.** If multiple sub-agents wrote code in the same stage, run the test suite before the stage gate to catch integration issues introduced by parallel work
+- **Merge check after parallel tasks complete.** If multiple sub-agents wrote code in the same stage, run the test suite before the stage gate to catch integration issues introduced by parallel work — at stage-scope on an expensive suite (references/test-scope-tiers.md), same as the gate it precedes
 - **Failed task blocks its dependents.** If Task 2.1 fails and escalates, do not dispatch Tasks 2.3 and 2.4 that depend on it. Mark them as BLOCKED and surface the entire chain to the user
 
 ---

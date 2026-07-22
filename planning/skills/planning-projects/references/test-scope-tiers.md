@@ -72,8 +72,9 @@ commands** block — in Preflight or as a conventions line near it:
 - plan-scope:  <command — the single full clean pass, quarantined tests included>
 ```
 
-If the project is under the threshold, declare that instead ("full suite ~90s —
-tiering not applicable") so the executor knows the omission is deliberate.
+If the project is under the threshold, the block is simply omitted (the plan
+template includes it only for expensive suites); optionally note "full suite
+~90s — tiering not applicable" so the executor knows the omission is deliberate.
 `fix-scope` needs no declaration: it is derived per-fix (the touched classes plus
 the task's own `Test:`). Task-level `Test:` fields are already task-scope by
 construction.

@@ -322,7 +322,9 @@ project's platform ships a stage-verify skill, invoke it as the final gate step
 there is a gate failure (handle it like any other below). Brief the stage-verify
 skill with the gate's tier: at an intermediate gate it verifies at stage-scope
 (touched-module instrumented tests); at the final gate it runs the full device
-suite (plan-scope). Match by project type:
+suite (plan-scope) — and that run IS the plan-scope pass's device portion, not
+an addition to it (don't run the declared `plan-scope:` device suite separately
+and then the hook's again). Match by project type:
 
 | Project type (detector) | Stage-verify skill |
 |-------------------------|--------------------|
