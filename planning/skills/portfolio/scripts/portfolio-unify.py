@@ -195,8 +195,9 @@ def parse_plan_status(text, plan_rel):
     likewise emits one but with signal `status-partial` (started, unfinished —
     still open work, distinguishable from never-begun); `[x]` means done and
     emits nothing. Raw unchecked bullets are ignored entirely — Status is the
-    only task-state source, and git stage evidence is not consulted. Deferred blocks still surface (explicit
-    parking register, independent of task state). Master-plan registers use
+    only task-state source, and git stage evidence is not consulted. Deferred
+    blocks still surface (explicit parking register, independent of task
+    state). Master-plan registers use
     `### Sub-plan N:` headers, so their Status fields have no Task context and
     emit nothing."""
     out = []
