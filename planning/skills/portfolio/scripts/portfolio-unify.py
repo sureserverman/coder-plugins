@@ -87,6 +87,49 @@ def vault_dir():
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)
 STAGEHDR_RE = re.compile(r"^##\s+Stage\s+(\d+)", re.I)
 GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
+# ---------------------------------------------------------------------------
+# PLAN-STATUS CONTRACT — single definition; compass-scan.py and plan-progress.py
+# import it via importlib rather than restating it. Decided 2026-07-24 for
+# BL-001 (compass-scan blind spots). Rationale is recorded here, at the owner,
+# because a change to this one regex silently alters done/total math in every
+# consumer at once.
+#
+# (a) `[~]` IS a first-class parsed state — "partial / in flight".
+#     Counted in TOTAL, never in DONE. A partially-done task is not done;
+#     counting it done would let a plan report 100% with work outstanding,
+#     while the previous behaviour (excluded from the character class, so
+#     excluded from both numerator and denominator) made the task vanish from
+#     progress entirely — the plan looked smaller instead of less finished.
+#     portfolio-unify emits a candidate for it, with signal `status-partial`
+#     distinct from `status-unexecuted`: residual work is still open work, but
+#     "started and unfinished" is not the same backlog item as "never begun".
+#
+#     Consumers MUST classify through `status_state()` below and MUST NOT test
+#     `group(1) != " "` — under the widened class that idiom silently reports a
+#     partial task as DONE, which is strictly worse than the bug being fixed.
+#
+# (b) Abandonment is a STRUCTURED marker, not a prose heuristic:
+#         **Abandoned:** YYYY-MM-DD — <reason>
+#     mirroring the `**Completed:**` line plans already carry, and parsed by
+#     ABANDONED_RE below. It is the only thing that suppresses a plan from
+#     compass `next`.
+#
+#     Why not a banner heuristic over prose like "OBSOLETE — DO NOT IMPLEMENT":
+#     that text is unbounded natural language, so any regex over it carries
+#     both false positives (a plan *about* deprecating something; a task titled
+#     "remove the OBSOLETE banner"; a Research Summary quoting one) and false
+#     negatives ("superseded by", "shelved", "do not build"). A false positive
+#     hides live work from `next` — the same class of failure BL-001 exists to
+#     fix, merely inverted, and a silent one. A deterministic parser must not
+#     take a fuzzy signal as authoritative.
+#
+#     The marker's cost — authors must adopt it — is bounded, and its
+#     non-adoption failure mode is the STATUS QUO (the plan keeps looking
+#     active), not a regression. To blunt that cost without reintroducing
+#     false-positive risk, ABANDON_HINT_RE below detects banner prose and
+#     consumers surface it as a NON-SUPPRESSING advisory ("looks abandoned; no
+#     **Abandoned:** marker"), so the nudge is visible but never acted on.
+# ---------------------------------------------------------------------------
 STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX])\]")
 
 

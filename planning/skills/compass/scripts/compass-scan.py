@@ -22,6 +22,11 @@ from pathlib import Path
 
 # Reuse the authoritative plan-parser pieces from the portfolio skill (stable
 # sibling layout inside the planning plugin). Hyphenated filename → importlib.
+# The plan-status contract (what `[ ]` / `[x]` / `[~]` mean, and why
+# abandonment is a structured **Abandoned:** marker rather than a prose-banner
+# heuristic) is defined and argued once, at portfolio-unify.py's STATUS_RE —
+# read it there before changing anything here. This module classifies via
+# pu.status_state() and never tests the captured character directly.
 _UNIFY = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfolio-unify.py"
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
