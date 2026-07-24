@@ -194,6 +194,18 @@ def test_partial_and_abandoned(tmp):
     check("not suppressed" in (rumor["note"] or ""),
           "banner carries a non-suppressing advisory nudging the real marker")
 
+    # --- notes accumulate; a later note never silently wins ------------------
+    # Tier-1 review catch: banner prose + a stale **Completed:** + an open task
+    # are all true at once. The stale-close-out warning used to overwrite the
+    # banner advisory, dropping the nudge exactly where it is most needed.
+    haunted = plans_a["2026-07-24-haunted-plan.md"]
+    check("not suppressed" in (haunted["note"] or ""),
+          "banner advisory survives alongside a stale-close-out note")
+    check("completed marker present" in (haunted["note"] or ""),
+          "stale-close-out note still reported")
+    check(haunted["abandoned"] is False and haunted["active"] is True,
+          "banner + stale Completed still never suppresses")
+
     # --- the live plans are untouched by either mechanism -------------------
     widget = plans_a["2026-06-01-widget-plan.md"]
     check(widget["abandoned"] is False and widget["note"] is None,

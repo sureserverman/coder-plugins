@@ -58,6 +58,13 @@ COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(\S+)", re.M)
 MASTER_HEAD_RE = re.compile(r"^#\s+Master Plan:", re.M)
 
 
+def _add_note(state, msg):
+    """Accumulate a plan note. Notes are diagnostics the operator must see —
+    an abandon advisory and a stale-close-out warning can both be true of one
+    plan, so they concatenate rather than the later one silently winning."""
+    state["note"] = f"{state['note']}; {msg}" if state.get("note") else msg
+
+
 def plan_state(text, fname):
     """State of one executing-plans plan file, via the authoritative Status
     path (portfolio-unify regexes). Returns None for master plans (register
@@ -98,11 +105,11 @@ def plan_state(text, fname):
         # ranked as available work (see rank-eligible filtering in SKILL.md).
         state["active"] = False
     if abandon_advisory:
-        state["note"] = abandon_advisory
+        _add_note(state, abandon_advisory)
     if not tasks:
         # legacy/malformed plan: degrade, never drop
         state["active"] = state["active"] and not cm
-        state["note"] = state["note"] or "stage unknown (no parseable Status fields)"
+        _add_note(state, "stage unknown (no parseable Status fields)")
         return state
     # Partial tasks are still open: an in-flight task is the natural `next_task`
     # and must not let a plan read as finished.
@@ -112,11 +119,14 @@ def plan_state(text, fname):
         state["stage"] = stage
         state["next_task"] = f"Task {num}: {desc}"
         if cm:
-            state["note"] = f"completed marker present but {len(open_tasks)} task(s) still open"
+            # Append, never overwrite: a banner advisory may already be here,
+            # and SKILL.md's hard rule is that the advisory is always surfaced.
+            _add_note(state,
+                      f"completed marker present but {len(open_tasks)} task(s) still open")
     else:
         state["active"] = False
         if not cm and not abandoned:
-            state["note"] = "all tasks done but no close-out line"
+            _add_note(state, "all tasks done but no close-out line")
     return state
 
 
