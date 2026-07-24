@@ -1,6 +1,6 @@
 # planning
 
-A ten-skill pipeline (v0.12.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fourteen-skill pipeline (v0.24.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -17,6 +17,10 @@ Install the plugin:
 ## The pipeline
 
 ```
+compass                 ── (optional entry point) what's in flight, what to
+    │                      work on next, what's going stale — across every
+    │                      project. Report-only; picks the work, never runs it.
+    ▼
 vague idea
     │
     ▼
@@ -27,15 +31,22 @@ architecting-projects   ── (designs with a structural surface) research 2–
     │                      architecture candidates via parallel researcher
     │                      agents, user approves one, write the ARCH-ID doc.
     ▼
-planning-projects       ── stage the work: tasks with Depends on / Blocks /
-    │                      Parallel fields, Red-Green max cycles, stage gates.
+planning-projects       ── triage a format first (Direct / Light / Standard /
+    │                      Master), then stage the work: tasks with Depends on /
+    │                      Blocks / Parallel fields, Red-Green cycles, gates.
     ▼
-executing-plans         ── drive the plan: Red-Green loops, respect stage
+executing-plans         ── drive the plan: Red-Green loops, tiered test-scope
     │                      gates, fan independent tasks out for parallel run.
     ▼
 dispatching-parallel-agents  ── one agent per task marked Parallel YES whose
                                dependencies are all green; integrate results
                                respecting the dependency graph.
+
+  ┌─ cross-cutting, no fixed position in the flow ────────────────────────┐
+  │ honest-gates       ── the integrity contract every gate above obeys.  │
+  │ capability-router  ── reach a marketplace skill/agent whose plugin    │
+  │                       isn't enabled this session.                     │
+  └───────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Skills
@@ -46,7 +57,7 @@ Use **before** any non-trivial creative or implementation work — new features,
 
 **Triggers:** "I'm thinking about adding X", "what's the best way to", "should I refactor", "design a new", "let's brainstorm".
 
-### `architecting-projects` (NEW in v0.17.0)
+### `architecting-projects` (since v0.17.0)
 
 Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that `planning-projects` consumes. Derives 2–4 stack-concrete candidates, fans out one sonnet-pinned `architecture-researcher` agent per candidate in parallel (uncited claims are discarded), presents a comparison matrix for explicit approval, then writes a parser-safe `*-architecture.md` with stable `ARCH-NN` section IDs beside the plan. Plans cite the ARCH-IDs on structure-creating tasks and carry an architecture-conformance check in their final stage gate. On existing codebases, **re-architecture mode** (v0.18.0) inventories the current module map, requires each candidate's research to address the migration explicitly, and adds an `ARCH-NN Migration map` section whose ordered, build-green steps seed the plan's stage order.
 
@@ -56,15 +67,38 @@ Use after a design is validated (or on a direct architecture request) to produce
 
 Produces a staged plan for a non-trivial project with phase gates before execution. Plans use a strict format with Stages, Tasks, `Depends on` / `Blocks` / `Parallel` fields, Red-Green max cycles, and Stage gates that `executing-plans` can drive mechanically.
 
+**Format ladder (since v0.22.1).** Every request is triaged to a format *first*, so the apparatus scales to the size of the job — and a trivial request may be declined a plan file entirely:
+
+| Format | Shape | Use when |
+|---|---|---|
+| **Direct** | no plan file — just do it | the job is trivial and self-evident |
+| **Light** | one stage, 2–5 tasks, one gate (`*-light-plan.md`) | small but worth a test-and-gate backbone |
+| **Standard** | multiple stages, full task fields, per-stage gates | the default for non-trivial work |
+| **Master** | 2–7 sub-plans linked by a register (`*-master-plan.md`) | >~6 stages / >~25 tasks, or several independently shippable workstreams |
+
+The Light and Master formats are specified in `skills/planning-projects/references/light-plan-format.md` and `master-plan-format.md`; both are parser-safe by construction (zero `portfolio unify` backlog candidates, locked by the `validate-plan-parser` CI fixture suite).
+
 For big projects (roughly >6 stages / >25 tasks, or multiple independently shippable workstreams) it **decomposes** the work into 2–7 independently executable **sub-plans** linked by one **master plan**: the master holds the shared research, a sub-plan register (Status / plan link / Goal / cross-plan `Depends on`+`Blocks` / `Parallel`), and a `**Gate:**` block of integration checks per entry. The canonical format lives in `skills/planning-projects/references/master-plan-format.md` and is parser-safe by construction — a master plan yields zero backlog candidates in `portfolio unify` (locked by the `validate-plan-parser` CI fixture suite); the sub-plans carry the real tasks.
 
 **Triggers:** "plan", "roadmap", "how should I build", "break this down", "what are the steps", "create a plan", "what order should I do this".
 
 ### `executing-plans`
 
-Takes a plan file produced by `planning-projects` and executes it. Drives Red-Green loops, respects the stage-gate model, and dispatches independent tasks through `dispatching-parallel-agents`. Also executes **master plans** (`*-master-plan.md`): sub-plans run in register dependency order, each via the normal single-plan flow (ideally one per fresh session — the master file is the cross-session handoff artifact); each sub-plan completion flips its register `Status`, runs that entry's cross-plan `**Gate:**` checks, and commits `"Sub-plan N green"`; version bumps are deferred from sub-plan close-outs to the single master close-out.
+Takes a plan file produced by `planning-projects` and executes it. Drives Red-Green loops, respects the stage-gate model, and dispatches independent tasks through `dispatching-parallel-agents`. It executes every rung of the format ladder — a **light plan** runs with proportionate machinery (Preflight-lite, inline no-parallel execution, one whole-diff review instead of per-task Tier-1, opt-in evaluator, a single stated version bump). Also executes **master plans** (`*-master-plan.md`): sub-plans run in register dependency order, each via the normal single-plan flow (ideally one per fresh session — the master file is the cross-session handoff artifact); each sub-plan completion flips its register `Status`, runs that entry's cross-plan `**Gate:**` checks, and commits `"Sub-plan N green"`; version bumps are deferred from sub-plan close-outs to the single master close-out.
 
 Preflight includes a **git bootstrap** — if the project isn't a repo it runs `git init` (and offers a GitHub remote) so the per-task commits have somewhere to land. Execution **runs to completion**: stage gates are checkpoints, not approval gates, so it doesn't pause between green stages to ask permission — only the documented stop conditions halt it. At each stage gate it invokes a matching **platform stage-verify skill** (Android → `android-stage-verify`: build the debug APK, and if an adb device is attached, install + smoke-launch + run instrumented tests). At close-out it **bumps versions** for whatever the plan changed, across every mirror of the version string (e.g. a plugin's `plugin.json` and the root `marketplace.json`).
+
+**Tiered test-scope gates (v0.24.0).** Gates run the tests their tier warrants rather than the whole suite every time — cheap host-side checks always run in full, expensive suites (device / instrumented / e2e) are scoped:
+
+- **fix-scope** — after a review fix inside a Red-Green cycle: the task's own `Test:` plus the test classes the fix touched.
+- **stage-scope** — at an intermediate stage gate: restricted to the modules the stage's commits touched, never `clean`.
+- **plan-scope** — exactly one clean full pass, at close-out (the final stage's gate runs at this tier).
+
+A scoped gate report always discloses what actually ran. Policy lives in `skills/planning-projects/references/test-scope-tiers.md`, shared with `planning-projects`.
+
+**Two-tier code review.** Execution wires in `git-github`'s read-only `code-reviewer` agent on a distinct axis from the goal-evaluator (*code quality* vs *goal attainment*): **Tier 1** on each green task's diff, where a Critical finding blocks the task and is fixed within the same Red-Green cycle budget; **Tier 2** on the full stage diff at the gate, where a Critical is a gate failure and advisories are surfaced for triage. Trivial/non-code diffs are auto-skipped.
+
+**Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
@@ -79,6 +113,20 @@ Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the sp
 Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel YES` and all their dependencies are green. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
+
+Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `ui-android`, `testing-expert`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
+
+### `honest-gates`
+
+The integrity contract behind every gate in this plugin — and any acceptance check, test command, or "done" claim elsewhere. A gate is **GREEN** only when its real command ran *here* and passed; otherwise it is **RED** or **BLOCKED**. Never a stubbed task, fabricated evidence, a hidden exclusion, or a self-graded miss. Includes escalation rules for a genuinely blocked gate, so "I couldn't run it" stays distinguishable from "it passed". Applies eagerly — it does not wait to be asked.
+
+**Triggers:** any point where something must pass, build, run, or be measured — before reporting a gate green, registering a build/test task, or recording test/benchmark evidence.
+
+### `capability-router`
+
+Reaches a marketplace capability — a skill or a subagent — **even when its plugin isn't enabled in this session**. Enablement only controls what Claude Code injects at session start; every component's files are on disk regardless. Looks the capability up in `capability-index.json` and loads it from disk (reading a SKILL.md, or injecting an agent body with its `model` pin). This is the ad-hoc entry point to the same disk-resolution flow `executing-plans` and `dispatching-parallel-agents` use mid-plan. Components that need runtime registration (hooks, MCP) can't be lazy-loaded — those stop and ask you to enable the plugin.
+
+**Triggers:** "load the Rust expert", "which plugin covers X", "write idiomatic Rust", "review my game design".
 
 ### `no-fafo-debugging`
 
@@ -101,7 +149,7 @@ Owns behavior contracts at `docs/workflows/`. Provides `capture`, `extend`, `aud
 
 **Triggers:** "capture this workflow", "audit workflows against the diff", "this PR changes documented behavior".
 
-### `project-maturity` (NEW in v0.5.0)
+### `project-maturity` (since v0.5.0)
 
 Scaffolds and audits a per-project `docs/MATURITY.md` checklist across six publishing-readiness axes: Documentation, Security, Packaging, UI/UX, i18n, Testing & CI. Three subcommands:
 
@@ -113,7 +161,19 @@ Scaffolds and audits a per-project `docs/MATURITY.md` checklist across six publi
 
 **v0.5.1:** the UI/UX icon auto-detector now recognizes the WebExtension layout — an `icons/` dir holding `icon*.{png,svg}` beside a `manifest.json` (e.g. `mozilla/icons/`, `chrome/icons/`, or root `icons/`) — in addition to root-level `icon.*`/`app-icon.*` and Android `res/mipmap-*`.
 
-### `portfolio` (NEW in v0.5.0)
+### `compass`
+
+The portfolio **work orchestrator** — decides *what to work on*, where `portfolio` maintains the artifacts. Answers three questions across every registry project, grounded in evidence reconstructed fresh each run (no maintained state, nothing to drift):
+
+- `compass now` — what is in flight? (in-progress plan stages, current task)
+- `compass next` — what should I pick up? Ranked by momentum > almost-shippable > unblocking > staleness, with cited evidence on every recommendation.
+- `compass review` — a periodic sweep: what's going stale, what's parked, where the gaps are.
+
+The deterministic `compass-scan.py` (CI-guarded, reusing `portfolio-unify`'s plan-parser regexes) rebuilds the cross-project picture from plan stages, backlog open/parked counts, maturity gaps, integration edges, and git recency; the judgment layer only ranks. Respects `Parked:` annotations in backlogs. **Report-only** — it recommends, and never launches work or writes portfolio artifacts.
+
+**Triggers:** "what should I work on next", "what's in flight", "portfolio review", "what's going stale".
+
+### `portfolio` (since v0.5.0)
 
 Cross-project orchestrator. Single user-facing entry point that ties registry + per-project unification + per-project maturity into one command. Subcommands:
 
@@ -128,7 +188,7 @@ Default flow composes the four in order: `scan → unify (dry-run) → maturity 
 
 ## Why a separate plugin
 
-All twelve skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; portfolio → backlog + project-maturity + dispatching-parallel-agents). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All fourteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; executing-plans/dispatching-parallel-agents → capability-router's disk-resolution flow; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 
