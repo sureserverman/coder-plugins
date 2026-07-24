@@ -52,7 +52,13 @@ def find_state(start):
 
 
 def parse_plan(text):
-    """(done, total, stage_count) via the portfolio-unify Status contract."""
+    """(done, total, stage_count) via the portfolio-unify Status contract.
+
+    A `[~]` partial task counts toward `total` but never toward `done`, so the
+    bar shows the plan as less finished rather than shorter — classification
+    goes through pu.status_state(), never `!= " "` (which would fill the bar
+    for an in-flight task).
+    """
     stages = set()
     done = total = 0
     in_task = False
@@ -65,7 +71,7 @@ def parse_plan(text):
         sm = pu.STATUS_RE.match(line)
         if sm and in_task:
             total += 1
-            done += sm.group(1) != " "
+            done += pu.status_state(sm.group(1)) == "done"
             in_task = False
     return done, total, len(stages)
 

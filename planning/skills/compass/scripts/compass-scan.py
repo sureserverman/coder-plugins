@@ -69,7 +69,8 @@ def plan_state(text, fname):
     if fname.endswith("-master-plan.md") or MASTER_HEAD_RE.search(text):
         return None
     cm = COMPLETED_RE.search(text)
-    tasks = []          # (stage, num, desc, done)
+    abandoned, abandon_advisory = pu.plan_terminal_state(text)
+    tasks = []          # (stage, num, desc, state) — state per pu.status_state
     cur_stage = None
     cur_task = None
     for line in text.splitlines():
@@ -81,17 +82,31 @@ def plan_state(text, fname):
             cur_task = (cur_stage, tm.group(1), tm.group(2).strip())
         sm = pu.STATUS_RE.match(line)
         if sm and cur_task:
-            tasks.append(cur_task + (sm.group(1) != " ",))
+            # Classify via the owner's helper, never `!= " "`: that idiom reads
+            # a `[~]` partial task as DONE (see portfolio-unify.py's contract).
+            tasks.append(cur_task + (pu.status_state(sm.group(1)),))
             cur_task = None
+    # A partial task is unfinished work: it counts toward `total` (the plan is
+    # less finished, not smaller) but never toward `done`.
     state = {"file": fname, "active": True, "stage": None, "next_task": None,
-             "done": sum(1 for t in tasks if t[3]), "total": len(tasks),
+             "done": sum(1 for t in tasks if t[3] == "done"),
+             "partial": sum(1 for t in tasks if t[3] == "partial"),
+             "total": len(tasks), "abandoned": abandoned,
              "completed": cm.group(1) if cm else None, "note": None}
+    if abandoned:
+        # Terminal state: parsed and listed like any other plan, but never
+        # ranked as available work (see rank-eligible filtering in SKILL.md).
+        state["active"] = False
+    if abandon_advisory:
+        state["note"] = abandon_advisory
     if not tasks:
         # legacy/malformed plan: degrade, never drop
-        state["active"] = not cm
-        state["note"] = "stage unknown (no parseable Status fields)"
+        state["active"] = state["active"] and not cm
+        state["note"] = state["note"] or "stage unknown (no parseable Status fields)"
         return state
-    open_tasks = [t for t in tasks if not t[3]]
+    # Partial tasks are still open: an in-flight task is the natural `next_task`
+    # and must not let a plan read as finished.
+    open_tasks = [t for t in tasks if t[3] != "done"]
     if open_tasks:
         stage, num, desc, _ = open_tasks[0]
         state["stage"] = stage
@@ -100,7 +115,7 @@ def plan_state(text, fname):
             state["note"] = f"completed marker present but {len(open_tasks)} task(s) still open"
     else:
         state["active"] = False
-        if not cm:
+        if not cm and not abandoned:
             state["note"] = "all tasks done but no close-out line"
     return state
 

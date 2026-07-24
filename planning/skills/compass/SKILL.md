@@ -52,6 +52,17 @@ without it). Never invent a business fact for a project with no `business` key.
   reason>` line (see the backlog skill's file format) is excluded from `next`
   recommendations; mention parked items only in `review` (with their reason),
   or when their parked-until date has passed.
+- **Respect abandonment.** A plan carrying a `**Abandoned:** <date> — <reason>`
+  marker arrives with `"abandoned": true` and `"active": false`. Never
+  recommend it in `next`, and never count its open tasks as available work — it
+  is suppressed from *recommendation*, not hidden from the *board*: it stays
+  listed (in `review`, and in `now` when asked for a full listing) with its
+  reason, so abandoning work never makes it invisible. The **marker is the only
+  authoritative signal**: a plan whose prose merely says "OBSOLETE — DO NOT
+  IMPLEMENT" arrives active, with a `note` advising that the marker is missing.
+  Surface that advisory; do not act on it. Treating unbounded prose as a gate
+  would hide live work — the same failure as recommending dead work, only
+  quieter.
 - **Degrade loudly.** Plans with `"note": "stage unknown …"` are still active
   work — list them as such. Every scan `errors` entry and every
   `couldnt_assess` project appears in a **"Couldn't assess"** footer on every
@@ -71,7 +82,10 @@ List projects that have at least one plan with `"active": true`, ordered by
 git recency (freshest first). Per project: the plan file, current stage,
 next task (verbatim from `next_task`), done/total counts, and `age_days`.
 Plans with a degradation `note` go in the same board with the note shown.
-End with the Couldn't-assess footer.
+Declared-abandoned plans (`"abandoned": true`) are not in-flight and so are not
+on this board by default; when the user asks for a full listing, include them
+in a clearly separated "abandoned" group with their reason rather than omitting
+them silently. End with the Couldn't-assess footer.
 
 ## `next` — ranked recommendations
 
@@ -92,6 +106,8 @@ Rank candidate work items with these signals, in this order:
    GTM 0%) — launch next". This boosts *shipping something already validated to sell*
    above a fresh start; it never fires for projects with no `business` key.
 
+Only plans with `"abandoned": false` are ever ranked here.
+
 Output the top 5–7 as a ranked list; each entry = one sentence of
 recommendation + one line of cited evidence. Parked items are excluded
 (Hard rules). Close with one sentence on what was deliberately NOT
@@ -102,8 +118,17 @@ see review").
 
 Surface drift, one section each (explicit-negative when a section is empty):
 
-- **Abandoned mid-stage** — active plans whose project's last commit is older
-  than 30 days.
+- **Stalled mid-stage** — active plans whose project's last commit is older
+  than 30 days. This is a *staleness inference* from git recency, and is
+  deliberately named apart from the formal `**Abandoned:**` marker below: a
+  stalled plan is still live work that has gone quiet, and is still ranked by
+  `next`. Ask whether it should carry the marker; never assume it.
+- **Declared abandoned** — plans arriving with `"abandoned": true`, listed with
+  their marker reason. They are excluded from `next` by the Hard rules but
+  belong here so abandoning work never makes it invisible. Include, in the same
+  section, plans carrying the missing-marker advisory `note` (banner prose, no
+  marker) — these are still active and still ranked; the ask is for the author
+  to add the marker or drop the banner.
 - **Stale backlogs** — projects with open backlog items and no commit in 60+
   days.
 - **Ship-ready but unshipped** — maturity open-count of 0 (or only claims
