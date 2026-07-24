@@ -76,7 +76,7 @@ def plan_state(text, fname):
     if fname.endswith("-master-plan.md") or MASTER_HEAD_RE.search(text):
         return None
     cm = COMPLETED_RE.search(text)
-    abandoned, abandon_advisory = pu.plan_terminal_state(text)
+    abandoned, abandon_advisory, abandon_reason = pu.plan_terminal_state(text)
     tasks = []          # (stage, num, desc, state) — state per pu.status_state
     cur_stage = None
     cur_task = None
@@ -99,6 +99,9 @@ def plan_state(text, fname):
              "done": sum(1 for t in tasks if t[3] == "done"),
              "partial": sum(1 for t in tasks if t[3] == "partial"),
              "total": len(tasks), "abandoned": abandoned,
+             # SKILL.md lists a suppressed plan WITH its reason — the scanner
+             # must therefore carry it, not just the boolean.
+             "abandoned_reason": abandon_reason,
              "completed": cm.group(1) if cm else None, "note": None}
     if abandoned:
         # Terminal state: parsed and listed like any other plan, but never

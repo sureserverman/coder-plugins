@@ -78,7 +78,7 @@ def resolve_package(target):
     # rather than at each branch: classifying by shape and redacting only the
     # branches that "look like" a URL is what let a bare `user:TOKEN@host`
     # target reach a committed metrics.md unredacted.
-    safe = c.redact(target)[:60]
+    safe = c.safe_label(target)
     if not target:
         # `Path("").is_dir()` is True (it is `.`), so without this guard an
         # unset caller variable silently resolves against the CWD and reports
@@ -102,7 +102,8 @@ def resolve_package(target):
         if data.get("private") is True:
             # A private package is never on the registry; say so plainly rather
             # than reporting it as an unknown package.
-            return None, f"{c.redact(str(data['name']))[:60]} is marked private in package.json"
+            return None, (f"{c.safe_label(data['name'])} is marked private "
+                          f"in package.json")
         name = str(data["name"])
         # File contents are as untrusted as a CLI argument here: the caller is
         # invited to point this at any repo path, and this name becomes both the
@@ -110,7 +111,7 @@ def resolve_package(target):
         # check as the bare-name path — validation must not be asymmetric across
         # the two ways a name can arrive.
         if len(name) > NPM_NAME_MAX or not NPM_NAME_RE.match(name):
-            return None, (f"package.json name {c.redact(name)[:60]} is not a "
+            return None, (f"package.json name {c.safe_label(name)} is not a "
                           f"valid npm package name")
         return name, None
     if _probe(p, "exists"):
@@ -143,7 +144,7 @@ def _quote(pkg):
 def get_downloads(pkg, period, key):
     url = DOWNLOADS_API.format(period=period, pkg=_quote(pkg))
     data, err = c.get_json(
-        url, not_found_reason=f"package {c.redact(pkg)[:60]} not found on npm")
+        url, not_found_reason=f"package {c.safe_label(pkg)} not found on npm")
     if err:
         return None, f"{key}: {err}"
     if isinstance(data, dict) and data.get("error"):
@@ -163,7 +164,7 @@ def get_downloads(pkg, period, key):
 def get_versions(pkg):
     url = REGISTRY_API.format(pkg=_quote(pkg))
     data, err = c.get_json(
-        url, not_found_reason=f"package {c.redact(pkg)[:60]} not found on npm")
+        url, not_found_reason=f"package {c.safe_label(pkg)} not found on npm")
     if err:
         return None, f"npm.versions: {err}"
     if not isinstance(data, dict) or not isinstance(data.get("versions"), dict):

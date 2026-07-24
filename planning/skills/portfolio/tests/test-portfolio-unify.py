@@ -323,10 +323,17 @@ banner_text = (FIXTURES / "2026-07-24-banner-only-plan.md").read_text()
 live_text = (FIXTURES / "2026-07-24-partial-status-plan.md").read_text()
 check(
     "**Abandoned:** marker flags the plan abandoned, with no advisory",
-    mod.plan_terminal_state(aband_text) == (True, None),
+    mod.plan_terminal_state(aband_text)[:2] == (True, None),
     f"got: {mod.plan_terminal_state(aband_text)}",
 )
-ab_flag, ab_note = mod.plan_terminal_state(banner_text)
+check(
+    "the marker's REASON is returned, not discarded — compass lists a "
+    "suppressed plan with its reason",
+    mod.plan_terminal_state(aband_text)[2]
+    == "2026-07-20 — superseded by the widget rewrite",
+    f"got: {mod.plan_terminal_state(aband_text)[2]!r}",
+)
+ab_flag, ab_note, ab_reason = mod.plan_terminal_state(banner_text)
 check(
     "banner prose WITHOUT the marker is never flagged abandoned",
     ab_flag is False,
@@ -338,8 +345,13 @@ check(
     f"got: {ab_note}",
 )
 check(
+    "banner-only plan carries no abandonment reason",
+    ab_reason is None,
+    f"got: {ab_reason!r}",
+)
+check(
     "an ordinary live plan is neither abandoned nor advised",
-    mod.plan_terminal_state(live_text) == (False, None),
+    mod.plan_terminal_state(live_text) == (False, None, None),
     f"got: {mod.plan_terminal_state(live_text)}",
 )
 

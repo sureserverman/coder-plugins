@@ -60,15 +60,22 @@ ADDON_API = _BASE + "/api/v5/addons/addon/{addon}/"
 
 
 def collect(addon):
-    if not addon or addon.startswith("-"):
+    if not addon:
         return c.document("addon", None, METRICS,
                           reasons={"_": "no addon id given"})
+    if addon.startswith("-"):
+        # Distinct from the empty case: an id WAS given, it just can't be one
+        # (a leading dash is an option, not an addon) — saying "no addon id
+        # given" for `--help` told the operator the wrong thing.
+        return c.document("addon", None, METRICS,
+                          reasons={"_": f"{c.safe_label(addon)} looks like a "
+                                        f"command-line option, not an addon id"})
     if len(addon) > AMO_ID_MAX or not AMO_ID_RE.match(addon):
         # Refuse anything that cannot be a legal AMO id, rather than carrying
         # it. Only THIS reason redacts — the argument is untrusted here, and a
         # rejected id is exactly where a userinfo string would otherwise land.
         return c.document("addon", None, METRICS,
-                          reasons={"_": f"{c.redact(addon)[:60]} is not a valid "
+                          reasons={"_": f"{c.safe_label(addon)} is not a valid "
                                         f"AMO addon id (slug, numeric id, or GUID)"})
     # Past validation the id is safe to echo verbatim; encode for the URL, where
     # a raw unicode or space-bearing id would raise outside every degrade path.
@@ -99,10 +106,19 @@ def collect(addon):
         if reason:
             reasons[key] = f"{key}: {reason}"
 
-    # Falling back to `addon` is safe only because it passed AMO_ID_RE above —
-    # an unvalidated fallback here is how a hostile argument would reach the
-    # subject field of a committed metrics.md.
-    slug = data.get("slug") if isinstance(data.get("slug"), str) else addon
+    # BOTH branches must be validated. The fallback (`addon`) passed AMO_ID_RE
+    # at the top — but the PRIMARY branch is upstream-supplied, and an untrusted
+    # response is exactly as untrusted as an argument. Without this check a
+    # response carrying `{"slug": "evil\ninjected: 999"}` put a raw newline in
+    # the subject field of a line-oriented, committed metrics.md — defeating the
+    # `\Z` anchoring done for the argument path one function above.
+    upstream = data.get("slug")
+    slug = upstream if (isinstance(upstream, str)
+                        and len(upstream) <= AMO_ID_MAX
+                        and AMO_ID_RE.match(upstream)) else addon
+    if slug is addon and isinstance(upstream, str):
+        reasons["_"] = (f"upstream slug {c.safe_label(upstream)} is not a valid "
+                        f"AMO id; reporting the requested id instead")
     return c.document("addon", slug, METRICS, values, reasons)
 
 

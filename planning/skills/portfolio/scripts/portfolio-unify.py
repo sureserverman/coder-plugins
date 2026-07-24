@@ -162,9 +162,12 @@ def status_state(ch):
 
 
 def plan_terminal_state(text):
-    """(abandoned, advisory) for one plan's full text.
+    """(abandoned, advisory, reason) for one plan's full text.
 
-    `abandoned` is True only on the structured marker. `advisory` is a short
+    `abandoned` is True only on the structured marker, and `reason` carries the
+    marker's own text (None when not abandoned) — compass lists a suppressed
+    plan WITH its reason, so discarding the captured group would leave the
+    judgment layer unable to follow its own instruction. `advisory` is a short
     note when banner prose is present WITHOUT the marker — surfaced to the
     operator, never acted on, so a false-positive banner match can never hide
     live work.
@@ -179,13 +182,14 @@ def plan_terminal_state(text):
     turning an author's one-line marker into a destructive action with a far
     wider blast radius than the ranking change it was introduced for.
     """
-    if ABANDONED_RE.search(text):
-        return True, None
+    am = ABANDONED_RE.search(text)
+    if am:
+        return True, None, am.group(1).strip()
     m = ABANDON_HINT_RE.search(text)
     if m:
         return False, (f"looks abandoned ({m.group(1).lower()} banner) but "
-                       f"carries no **Abandoned:** marker — not suppressed")
-    return False, None
+                       f"carries no **Abandoned:** marker — not suppressed"), None
+    return False, None, None
 
 
 def parse_plan_status(text, plan_rel):

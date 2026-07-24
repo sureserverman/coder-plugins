@@ -177,6 +177,12 @@ def test_partial_and_abandoned(tmp):
     # --- abandoned: suppressed from recommendation, NOT hidden --------------
     ghost = plans_a["2026-07-24-ghost-plan.md"]
     check(ghost["abandoned"] is True, "**Abandoned:** marker parsed")
+    check(ghost["abandoned_reason"] == "2026-07-22 — superseded by the widget pipeline",
+          f"the marker's reason reaches the scan JSON — SKILL.md tells the "
+          f"judgment layer to list a suppressed plan WITH its reason, so the "
+          f"boolean alone is not enough ({ghost.get('abandoned_reason')!r})")
+    check(rumor_reason_absent := plans_a["2026-07-24-rumor-plan.md"]["abandoned_reason"] is None,
+          "a banner-only plan carries no abandonment reason")
     check(ghost["active"] is False,
           "abandoned plan is not rankable as available work")
     check("2026-07-24-ghost-plan.md" in plans_a,

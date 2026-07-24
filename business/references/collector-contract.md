@@ -48,10 +48,20 @@ This is the property that matters most: **a collector never fails the run.**
 Two, and callers branch on them:
 
 - **`reasons["_"]`** — one whole-collection failure explaining every null at
-  once (target not identifiable, network unreachable, dependency missing). When
-  all values are null, a caller checks `"_"` first.
-- **`reasons["<channel>.<metric>"]`** — a per-metric failure while siblings
-  succeeded (e.g. a metric behind an auth wall the others don't need).
+  once, raised **before any request goes out**: the target isn't identifiable,
+  or a required dependency is missing.
+- **`reasons["<channel>.<metric>"]`** — a per-metric failure (a metric behind an
+  auth wall the others don't need — *and* any shared failure in a collector that
+  issues one request per metric).
+
+**`"_"` is not guaranteed to be present.** A collector that makes one call per
+metric reports even a shared failure — an unknown target, an unreachable
+network — once per metric rather than under `"_"`, because each call fails
+independently. `collect-npm.py` behaves this way; `collect-github.py` and
+`collect-amo.py` do a pre-flight check and so can use `"_"`. A caller checks
+`"_"` first, then falls through to the per-metric reasons; when they all say the
+same thing, that repetition *is* the whole-collection signal. Do not write a
+consumer that assumes `"_"` exists whenever everything is null.
 
 Reasons are short, human-facing, and safe to commit — they land in `metrics.md`
 in front of the operator.

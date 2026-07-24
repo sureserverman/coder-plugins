@@ -65,6 +65,18 @@ def redact(text):
     return re.sub(r"[^/@\s]+@", "", text)
 
 
+def safe_label(text, limit=60):
+    """Make an untrusted string safe to write into a reason.
+
+    Redact, then COLLAPSE ALL WHITESPACE, then truncate. The whitespace step
+    matters as much as redaction: `metrics.md` is line-oriented, so a newline
+    inside a reason can split one bullet into two or fabricate a whole line —
+    the same hazard the id grammars anchor with `\\Z` to avoid. Use this
+    anywhere a caller-supplied or upstream-supplied value is echoed.
+    """
+    return re.sub(r"\s+", " ", redact(str(text))).strip()[:limit]
+
+
 def get_json(url, not_found_reason=None):
     """Fetch and parse JSON. Returns (parsed, None) or (None, short_reason).
 
@@ -87,13 +99,19 @@ def get_json(url, not_found_reason=None):
         return None, f"network unreachable ({str(e.reason)[:60]})"
     except (TimeoutError, OSError) as e:
         return None, f"network error ({str(e)[:60]})"
-    except (UnicodeError, http.client.HTTPException) as e:
+    except (UnicodeError, http.client.InvalidURL) as e:
         # Defense in depth behind quote_id(): a malformed URL raises these
         # *outside* the OSError/URLError families, so without this clause an
         # un-encoded target escapes every degrade path and exits non-zero —
         # the one thing the best-effort contract forbids. Belongs here, in the
         # shared helper, so future collectors inherit the guarantee.
         return None, f"malformed request URL ({type(e).__name__})"
+    except http.client.HTTPException as e:
+        # A response-side protocol failure (truncated body, bad chunking).
+        # Kept SEPARATE from the URL case above — InvalidURL subclasses
+        # HTTPException, so a single clause blamed the URL for what is really a
+        # broken response, and the operator read a wrong explanation.
+        return None, f"incomplete or invalid HTTP response ({type(e).__name__})"
     try:
         return json.loads(body), None
     except ValueError:
