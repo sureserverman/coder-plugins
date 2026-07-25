@@ -68,7 +68,7 @@ what was decided and why. Superseded entries stay — the history is the point.
 | `Domains` | yes | Comma-separated domain slugs this decision touches. Drives the domain roll-up. Use `none` for a decision genuinely specific to this project. |
 | `Source` | yes | What produced the decision — a plan file, an architecture doc plus its `ARCH-NN`, a code review, a sec-audit report, or `direct` when taken in conversation. |
 | `Reason` | yes | **The point of the register.** The constraint, the evidence, the trade-off accepted, and what was rejected. A `Reason` that only restates the decision is a defect. |
-| `Global` | no | Wikilink to the domain entry this rolls up into, `[[decisions/<domain>#GDEC-<DOM>-NNN]]`. Present exactly when the decision has been promoted. |
+| `Global` | no | Wikilink to the domain entry this rolls up into, `[[decisions/<domain>#GDEC-<DOM>-NNN]]`. Present when the decision has been promoted. `none` (optionally with a trailing reason) is also allowed, to say explicitly that the decision is project-local and promotion was considered — it parses as no link. |
 
 ### Recording a sec-audit recommendation
 
@@ -139,9 +139,15 @@ assertion alone.
 - `## By domain` — one section per domain file, listing its GDEC entries with
   status and the projects each applies to.
 - `## By project` — a table of per-project decision counts (total / accepted /
-  superseded), each project as an area-qualified wikilink.
+  superseded), each project as an area-qualified wikilink. A project with any
+  malformed entry carries a ⚠️ beside its count.
+- `## Malformed entries (review)` — every flagged entry named by project, ID (or
+  raw heading), and defect: malformed heading, missing field, duplicate field.
+  It exists because "something is wrong with one of twelve decisions" is not an
+  actionable flag.
 - `## Asymmetries (review)` — one-sided links, both directions.
-- `## Unresolved targets` — links pointing at entries that do not exist.
+- `## Unresolved targets` — links pointing at entries that do not exist,
+  including a GDEC id defined in two domain files (an ambiguous target).
 
 Rendering goes through `write_if_changed()`, so a rebuild with no upstream
 change is a no-op — the same idempotency guarantee the other globals carry.
@@ -164,13 +170,33 @@ the moment a decision lands.
 The deterministic reader in `portfolio-rebuild.py` follows these, and
 `tests/test-portfolio-decisions.py` locks them:
 
-1. A block starts at `^## DEC-\d+ — ` (project) or `^## GDEC-[A-Z]+-\d+ — `
-   (domain) and runs to the next `^## ` or EOF.
-2. Fields are `- **Name:** value` lines; a field may wrap onto continuation
-   lines, which are joined with a single space.
-3. A block missing a required field is **reported, not dropped** — it appears in
+1. **Block boundaries are found with a generic `^## ` match**, and the ID shape
+   is validated *afterwards*. Boundaries are deliberately NOT detected with the
+   strict ID regex: a heading that misses the em-dash (a plain hyphen is the
+   common slip) would then start no block at all, and its body would either be
+   dropped outright — if it were the first heading — or silently swallowed into
+   the previous block's last field. Either way a binding decision disappears,
+   which is the one outcome this register exists to prevent.
+2. A heading that fails `^DEC-\d+ — ` (project) or `^GDEC-[A-Z]+-\d+ — `
+   (domain) yields a **flagged entry** carrying the raw heading, not a skipped
+   one. It is listed by project and verbatim under `## Malformed entries
+   (review)` in the roll-up. The heading must be repaired before the entry's
+   other fields mean anything, so such an entry is excluded from counts, from
+   domain grouping, and from `last_decided`; if it also carries a `Global:`
+   link, that link is reported as unresolvable rather than followed.
+3. Fields are `- **Name:** value` lines; a field may wrap onto continuation
+   lines, which are joined with a single space. A horizontal rule (`---`,
+   `***`, `___`) never joins into a field value.
+4. A field repeated inside one block keeps the last value and is **flagged** as
+   a duplicate — the register's job is catching exactly this kind of
+   hand-editing slip, so it must not pass silently.
+5. A block missing a required field is **reported, not dropped** — it appears in
    the roll-up flagged, so a malformed entry is visible rather than silently
    invisible. Same degrade-never-drop contract the compass collectors use.
-4. A file that is unreadable or has no recognizable blocks contributes zero
+6. A file that is unreadable or has no recognizable blocks contributes zero
    entries and one error line; it never aborts the rebuild.
-5. `Domains` values are lowercased and whitespace-stripped before grouping.
+7. `Domains` values are lowercased and whitespace-stripped before grouping;
+   `none` expands to no domains and is not a malformation.
+8. IDs are matched as `DEC-\d+` / `GDEC-[A-Z]+-\d+`. Zero-padding to three
+   digits is the authoring convention (above), not a parser requirement — a
+   `DEC-7` parses, it is simply not how entries should be written.

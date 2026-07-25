@@ -34,14 +34,14 @@ def check(cond, label):
         FAILURES.append(label)
 
 
-def make_env(tmp, business_absent=True):
-    """A throwaway HOME + vault with two projects, one carrying a business/
-    assessment. Returns (env, vault)."""
+def make_env(tmp, business_absent=True, names=("alpha", "beta")):
+    """A throwaway HOME + vault with `names` projects, the first carrying a
+    business/ assessment. Returns (env, vault)."""
     home = tmp / "home"
     vault = tmp / "vault"
     (home / ".claude").mkdir(parents=True)
-    for area, name in (("ai-tools", "alpha"), ("ai-tools", "beta")):
-        (vault / "Portfolio" / area / name).mkdir(parents=True)
+    for name in names:
+        (vault / "Portfolio" / "ai-tools" / name).mkdir(parents=True)
     # alpha carries a business assessment; beta does not
     (vault / "Portfolio" / "ai-tools" / "alpha" / "business").mkdir()
     (vault / "Portfolio" / "ai-tools" / "alpha" / "business" / "BUSINESS.md").write_text(
@@ -52,7 +52,7 @@ def make_env(tmp, business_absent=True):
     repos = tmp / "dev" / "ai-tools"
     repos.mkdir(parents=True)
     reg = "projects:\n"
-    for name in ("alpha", "beta"):
+    for name in names:
         (repos / name).mkdir()
         reg += f"  - name: {name}\n    area: ai-tools\n    path: {repos/name}\n    enabled: true\n"
     (home / ".claude" / "projects-registry.yaml").write_text(reg)
@@ -128,6 +128,82 @@ def test_compass_broken_business_degrades(tmp):
         check(ok, f"compass-scan (broken business: {label}): valid envelope, no business keys")
 
 
+def _fake_scanner(tmp, label, payload):
+    """A stand-in business-scan.py that prints exactly `payload` as JSON."""
+    fake = tmp / f"fake-{label}.py"
+    fake.write_text(f"print({json.dumps(payload)!r})\n")
+    return str(fake)
+
+
+# One group entry (alpha + gamma) plus one ungrouped assessed project (beta),
+# shaped as business-scan.py emits them. Deliberately distinct values per entry
+# so a mis-keyed lookup shows up as the wrong verdict rather than passing.
+GROUP_ENTRY = {
+    "name": "suite", "area": None, "group": True,
+    "members": ["ai-tools/alpha", "ai-tools/gamma"],
+    "assessed": True, "verdict": "monetize",
+    "monetization": {"model": "paid"}, "gtm": {"pct": 50}, "metrics": [],
+    "last_reviewed_age_days": 1,
+    "research": {"exists": True, "age_days": 7},
+    "plan": {"exists": False, "age_days": None},
+}
+UNGROUPED_ENTRY = {
+    "name": "beta", "area": "ai-tools", "assessed": True, "verdict": "later",
+    "monetization": None, "gtm": None, "metrics": [],
+    "last_reviewed_age_days": 3,
+    "research": {"exists": False, "age_days": None},
+    "plan": {"exists": False, "age_days": None},
+}
+EXPECT_GROUPED = {"verdict": "monetize", "model": "paid", "gtm_pct": 50,
+                  "last_reviewed_age_days": 1, "research_age_days": 7,
+                  "plan_age_days": None, "stage": "launched", "group": "suite"}
+EXPECT_UNGROUPED = {"verdict": "later", "model": None, "gtm_pct": None,
+                    "last_reviewed_age_days": 3, "research_age_days": None,
+                    "plan_age_days": None, "stage": "assessed"}
+
+
+def test_compass_group_aware(tmp):
+    """A business group is not a registry project: it must not add a project row,
+    but each member must carry the GROUP's business state tagged `group: <slug>`.
+    Ungrouped projects keep exactly today's block."""
+    env, _ = make_env(tmp, business_absent=True, names=("alpha", "beta", "gamma"))
+    env = dict(env, BUSINESS_SCAN_PATH=_fake_scanner(
+        tmp, "groups", {"groups": ["suite"], "projects": [GROUP_ENTRY, UNGROUPED_ENTRY]}))
+    r = subprocess.run([sys.executable, str(COMPASS_SCAN)], capture_output=True, text=True, env=env)
+    check(r.returncode == 0, f"compass-scan (groups): exit 0 ({r.stderr.strip()[:120]})")
+    doc = json.loads(r.stdout)
+    by = {p["name"]: p for p in doc["projects"]}
+    check("suite" not in by, "compass-scan (groups): group slug is NOT a top-level project row")
+    check(set(by) == {"alpha", "beta", "gamma"},
+          f"compass-scan (groups): only registry projects have rows — got {sorted(by)}")
+    for member in ("alpha", "gamma"):
+        check(by.get(member, {}).get("business") == EXPECT_GROUPED,
+              f"compass-scan (groups): member {member} carries the group's block + group:suite "
+              f"— got {by.get(member, {}).get('business')!r}")
+    check(by.get("beta", {}).get("business") == EXPECT_UNGROUPED,
+          f"compass-scan (groups): ungrouped project's block unchanged (no 'group' key) "
+          f"— got {by.get('beta', {}).get('business')!r}")
+
+
+def test_compass_no_group_keys_is_backward_compatible(tmp):
+    """Older business plugin: scanner JSON with no `groups`/`group`/`members` keys
+    at all must produce exactly today's per-project blocks."""
+    env, _ = make_env(tmp, business_absent=True)
+    legacy_alpha = dict(UNGROUPED_ENTRY, name="alpha", verdict="monetize",
+                        monetization={"model": "paid"})
+    env = dict(env, BUSINESS_SCAN_PATH=_fake_scanner(
+        tmp, "legacy", {"projects": [legacy_alpha, UNGROUPED_ENTRY]}))
+    r = subprocess.run([sys.executable, str(COMPASS_SCAN)], capture_output=True, text=True, env=env)
+    check(r.returncode == 0, f"compass-scan (no group keys): exit 0 ({r.stderr.strip()[:120]})")
+    by = {p["name"]: p for p in json.loads(r.stdout)["projects"]}
+    check(by.get("beta", {}).get("business") == EXPECT_UNGROUPED,
+          f"compass-scan (no group keys): block unchanged — got {by.get('beta', {}).get('business')!r}")
+    check(by.get("alpha", {}).get("business") ==
+          dict(EXPECT_UNGROUPED, verdict="monetize", model="paid", stage="modeled"),
+          f"compass-scan (no group keys): assessed block unchanged "
+          f"— got {by.get('alpha', {}).get('business')!r}")
+
+
 def test_portfolio_rebuild_absent_writes_no_global_business(tmp):
     env, vault = make_env(tmp, business_absent=True)
     r = subprocess.run([sys.executable, str(PORTFOLIO_REBUILD), "--write"],
@@ -161,6 +237,8 @@ def main():
     for fn in (test_compass_absent_is_unchanged,
                test_compass_present_attaches_business,
                test_compass_broken_business_degrades,
+               test_compass_group_aware,
+               test_compass_no_group_keys_is_backward_compatible,
                test_portfolio_rebuild_absent_writes_no_global_business,
                test_portfolio_rebuild_present_writes_global_business):
         with tempfile.TemporaryDirectory() as td:

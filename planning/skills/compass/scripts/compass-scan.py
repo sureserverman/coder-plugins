@@ -305,6 +305,13 @@ def business_map():
     isn't installed alongside (additive: compass works identically without it).
     BUSINESS_SCAN_PATH overrides the probe (used to force the layer off in tests).
 
+    A business group (`group: true`, see business/references/group-format.md) is
+    NOT a registry project and gets no key of its own: its state is fanned out to
+    each member under the qualified "<area>/<name>" key it declares, tagged with
+    `group: <slug>`, so a per-project view still answers "does this repo have a
+    business case". Older business plugins emit no group keys at all and take the
+    plain per-project path unchanged.
+
     NEVER raises: the business layer is optional and independently versioned, so
     ANY failure (missing plugin, nonzero exit, timeout, malformed/unexpected-shape
     JSON) degrades to {} — a broken business scanner must not take down compass's
@@ -331,7 +338,7 @@ def business_map():
                 if isinstance(p.get("monetization"), dict) else None
             research = p.get("research") if isinstance(p.get("research"), dict) else None
             plan = p.get("plan") if isinstance(p.get("plan"), dict) else None
-            out[p["name"]] = {
+            block = {
                 "verdict": p.get("verdict"),
                 "model": model,
                 "gtm_pct": gtm.get("pct") if gtm else None,
@@ -345,6 +352,17 @@ def business_map():
                 "stage": ("tracked" if p.get("metrics") else "launched" if gtm
                           else "modeled" if model else "assessed"),
             }
+            if p.get("group"):
+                members = p.get("members")
+                if not isinstance(members, list):
+                    continue
+                for m in members:
+                    # Qualified key only: a group's state must never land on a
+                    # same-named project in another area.
+                    if isinstance(m, str) and "/" in m:
+                        out[m] = dict(block, group=p["name"])
+            else:
+                out[p["name"]] = block
         return out
     except Exception:      # timeout, JSON error, unexpected shape — degrade to no layer
         return {}
@@ -369,8 +387,11 @@ def main():
                     {"project": a, "why": w} for a, b, w in edges if b == name]
                 entry["depends_on"] = [
                     {"project": b, "why": w} for a, b, w in edges if a == name]
-                if name in biz:
-                    entry["business"] = biz[name]
+                # Grouped members are keyed "<area>/<name>"; ungrouped projects
+                # keep the bare-name key, so the fallback preserves old behaviour.
+                bz = biz.get(f"{entry['area']}/{name}") or biz.get(name)
+                if bz is not None:
+                    entry["business"] = bz
         except Exception as e:  # a broken project must not abort the sweep
             entry, reason = None, f"scan error: {e}"
         if entry is None:

@@ -12,8 +12,9 @@ Single user-facing skill that ties together every project in `~/dev/`:
 2. **Per-project unification** of plans ↔ backlog via the `backlog` skill's `unify` subcommand. Parser rules in `references/plan-parser.md`.
 3. **Per-project maturity audit** + roll-up via the `project-maturity` skill. Axes in `references/maturity-axes.md`.
 4. **Inter-project integration** edges, symmetry, and cross-project arcs. Formats in `references/integration-format.md` and `references/integration-plan-format.md`.
+5. **Architectural decisions**, per project and per architecture domain, rolled up to `global-decisions.md`. Format in `references/decisions-format.md`; authored through the `decisions` skill, never by this one.
 
-**Vault-canonical storage.** Operational docs do NOT live in repos. Each project's plans, backlog, maturity, and integration edges live in the Obsidian vault under `<vault_dir>/Portfolio/<area>/<name>/`. Global roll-ups live at `<vault_dir>/Portfolio/global-{backlog,maturity}.md` plus `integration-graph.md` and `integration-backlog.md`. Format templates in `references/global-formats.md`.
+**Vault-canonical storage.** Operational docs do NOT live in repos. Each project's plans, backlog, maturity, and integration edges live in the Obsidian vault under `<vault_dir>/Portfolio/<area>/<name>/`. Global roll-ups live at `<vault_dir>/Portfolio/global-{backlog,maturity,decisions}.md` plus `integration-graph.md` and `integration-backlog.md`. Format templates in `references/global-formats.md`.
 
 ## Resolver (read this before any read/write)
 
@@ -151,8 +152,9 @@ Operation:
    - Use the format-tolerant entry counter (h2/h3 `BL-NNN` + legacy freeform; see `references/global-formats.md`).
    - **Preserve the `<!-- BEGIN PRESERVE -->` ... `<!-- END PRESERVE -->` block** (the hand-curated `## Cross-project items`) byte-for-byte.
    - Sort by `area/name`. Render `**Last rebuilt:**` only when the rest of the content changed (idempotency).
-3. Build `<vault_dir>/Portfolio/global-maturity.md`: a table row per project that has a vault `MATURITY.md`, names as `[[wikilinks]]`, cells per the sparse-model legend, `ship_ready` from the per-axis thresholds.
-4. **Sidecar enrichment (v2)** — for every registered project, write the sentinel-delimited block into `<repo>/.claude/vault-context.md` (create the file if absent) per `references/sidecar-format.md`:
+3. Build `<vault_dir>/Portfolio/global-decisions.md` per `references/decisions-format.md`: a by-domain index of every `Portfolio/decisions/<domain>.md` register, a per-project count table (total / accepted / superseded) from each `<home>/decisions.md`, and three review sections — `Malformed entries`, `Asymmetries`, `Unresolved targets`. Link asymmetries between a project's `Global:` and a domain's `Applies to:` are **reported, never auto-fixed**: repairing one side would assert an edge about a project the run has not read, the same rule `integrate` follows. A project with no register contributes nothing and is not an error.
+4. Build `<vault_dir>/Portfolio/global-maturity.md`: a table row per project that has a vault `MATURITY.md`, names as `[[wikilinks]]`, cells per the sparse-model legend, `ship_ready` from the per-axis thresholds.
+5. **Sidecar enrichment (v2)** — for every registered project, write the sentinel-delimited block into `<repo>/.claude/vault-context.md` (create the file if absent) per `references/sidecar-format.md`:
    ```
    <!-- PORTFOLIO-STATUS-BEGIN — managed by /planning:portfolio rebuild; do not hand-edit -->
    ## Portfolio status
@@ -162,15 +164,16 @@ Operation:
    - **Backlog:** see [backlog.md](<portfolio_home>/backlog.md)
    - **Maturity:** see [MATURITY.md](<portfolio_home>/MATURITY.md)
    - **Ship-ready:** see [global dashboard](<vault_dir>/Portfolio/global-maturity.md)
+   - **Decisions:** see [decisions.md](<portfolio_home>/decisions.md)   (only when the file exists)
    - **⬆ Depends on:** [[X]] (why), …          (from this project's integration.md, if any)
    - **⬇ Impacts:** [[B]] (why), …             (from integration.md, if any)
    - **Inbound integration debt:** see [integration-backlog.md](<vault_dir>/Portfolio/integration-backlog.md)
    <!-- PORTFOLIO-STATUS-END -->
    ```
-   Pointer-only: counts/verdicts (backlog, maturity, ship-ready, debt) are NOT snapshotted into the block — the repo-committed sidecar lags the live vault, so the lines link to the source files instead. The static **Plans:** pointer makes any plan saved under `<portfolio_home>/plans/` discoverable without a rebuild. Full contract in `references/sidecar-format.md`. Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
-5. **Business layer (optional, additive)** — if the sibling **business** plugin is installed (the `portfolio-rebuild.py` probe resolves `business/scripts/business-scan.py` under the marketplace root and finds it), `rebuild` also regenerates `<vault_dir>/Portfolio/global-business.md` by piping `business-scan.py | business-rollup.py` (per the business plugin's `global-business-format.md`). When the business plugin is **absent**, this step is skipped with a single `business layer: unavailable` line and nothing else changes — the global-backlog / global-maturity / sidecar outputs are byte-identical either way (guarded by `tests/test-business-degradation.py`). `portfolio-rebuild.py` handles this probe; the roll-up is never truncated on a failed business sweep.
-6. **Security layer (additive)** — `rebuild` also regenerates `<vault_dir>/Portfolio/global-security.md` by piping `scripts/security-scan.py | scripts/security-rollup.py`, sweeping each project's `security/history.jsonl` (written by sec-audit v1.29+) into one dashboard: open CRITICAL/HIGH, trend, days since the last audit, and which projects have never been audited. Format and full input contract: `references/global-security-format.md`. Three rules it must not break — an unrecorded count renders `?` and **never `0`** (unmeasured is not clean); a `mode: "feeds"` run is flagged `⚠` because it re-checked dependency advisories without running any code lane; and `total_open` already includes accepted findings, so "open and not suppressed" is `total_open − accepted`. If the scripts are missing, fail, or time out, the step degrades to one `security layer: unavailable` line, leaves any existing `global-security.md` **intact** (never truncated), and every other output is byte-identical (guarded by `tests/test-security-degradation.py`).
-7. Report: `Rebuilt: global-backlog.md (N), global-maturity.md (M), sidecars enriched: K` plus the business- and security-layer statuses. (0 writes when everything matches prior content.)
+   Pointer-only: counts/verdicts (backlog, maturity, ship-ready, decisions, debt) are NOT snapshotted into the block — the repo-committed sidecar lags the live vault, so the lines link to the source files instead. The static **Plans:** pointer makes any plan saved under `<portfolio_home>/plans/` discoverable without a rebuild. Full contract in `references/sidecar-format.md`. Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
+6. **Business layer (optional, additive)** — if the sibling **business** plugin is installed (the `portfolio-rebuild.py` probe resolves `business/scripts/business-scan.py` under the marketplace root and finds it), `rebuild` also regenerates `<vault_dir>/Portfolio/global-business.md` by piping `business-scan.py | business-rollup.py` (per the business plugin's `global-business-format.md`). When the business plugin is **absent**, this step is skipped with a single `business layer: unavailable` line and nothing else changes — the global-backlog / global-maturity / sidecar outputs are byte-identical either way (guarded by `tests/test-business-degradation.py`). `portfolio-rebuild.py` handles this probe; the roll-up is never truncated on a failed business sweep.
+7. **Security layer (additive)** — `rebuild` also regenerates `<vault_dir>/Portfolio/global-security.md` by piping `scripts/security-scan.py | scripts/security-rollup.py`, sweeping each project's `security/history.jsonl` (written by sec-audit v1.29+) into one dashboard: open CRITICAL/HIGH, trend, days since the last audit, and which projects have never been audited. Format and full input contract: `references/global-security-format.md`. Three rules it must not break — an unrecorded count renders `?` and **never `0`** (unmeasured is not clean); a `mode: "feeds"` run is flagged `⚠` because it re-checked dependency advisories without running any code lane; and `total_open` already includes accepted findings, so "open and not suppressed" is `total_open − accepted`. If the scripts are missing, fail, or time out, the step degrades to one `security layer: unavailable` line, leaves any existing `global-security.md` **intact** (never truncated), and every other output is byte-identical (guarded by `tests/test-security-degradation.py`).
+8. Report: `Rebuilt: global-backlog.md (N), global-decisions.md (D), global-maturity.md (M), sidecars enriched: K` plus the business- and security-layer statuses. (0 writes when everything matches prior content.)
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
 
@@ -185,7 +188,7 @@ Sequence:
 3. maturity      — only if --include-maturity is set (default off during
                    the staged rollout window); audit existing MATURITY.md,
                    surface stale claims for refresh
-4. rebuild       — regenerate the two global files; report writes
+4. rebuild       — regenerate the global roll-ups; report writes
 ```
 
 **Idempotency guarantee:** if nothing has changed upstream (no new plans, no plan edits, no manual-claim refreshes), a second consecutive `portfolio` run produces ZERO writes — registry, per-project backlogs, MATURITY files, and both globals are byte-identical between runs. This is the §5 hard guarantee from the design doc.
