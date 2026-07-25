@@ -34,7 +34,15 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`stingy-agents`](./stingy-agents) | Three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work cheaply. |
 | [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
 
-Each plugin's directory has its own README with full component detail.
+Each plugin's directory has its own README documenting **every component it ships** — how it
+fires, what arguments it takes, what it writes and where, and what it needs to exist first.
+That is a contract, not a convention: [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)
+specifies it and `scripts/check-doc-coverage.py` enforces the mechanical half in CI, so a
+plugin cannot gain a component while its README quietly stops describing what ships.
+
+**New here, or want the plugins to compose?** [`docs/USAGE.md`](./docs/USAGE.md) walks the
+flows that span plugins — idea → shipped feature, deciding what to work on, the decisions
+register, shipping, the business pipeline, and how to avoid enabling everything at once.
 
 ## Usage
 
