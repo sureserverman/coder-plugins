@@ -63,8 +63,22 @@ field, so recomputing it risks disagreeing with the table you just wrote.
     > 90 days old) — suggest re-running `/business:business-plan` to recompose against current
     evidence. Read the `STALE` markers off the rendered table (they're the same 90-day window
     the skills and `compass` use), and cite the row.
+- **Business groups:** a group (`business/references/group-format.md`) is **one row, one
+  product** — its Project cell names the slug and every member. Report it as a single
+  business case; do not count its members separately in coverage or verdict totals, and
+  do not report those members as a triage gap, because they have no business state of
+  their own by design. The envelope's `groups` list names every non-fatal group.
 - **Loudly:** every `couldnt_assess` entry and every project with `errors` — surfaced, not
-  smoothed over. If any exist, say so plainly.
+  smoothed over. If any exist, say so plainly. Two group failures deserve naming when they
+  appear, because each hides a real contradiction rather than a gap:
+  - a **fatal manifest** (unknown or disabled member, fewer than two members, slug/directory
+    mismatch, unsupported schema) puts the whole group in `couldnt_assess`. It is assessed
+    *whole or not at all* — a revenue model computed over an unknown subset of a suite is
+    worse than no answer — so its members stay ordinary ungrouped projects meanwhile.
+  - a **member that kept its own `business/` directory** is an error on the group entry.
+    Someone assessed that repo standalone *and* as part of a suite; the two verdicts may
+    disagree, and nothing picks a winner. Say which member, and that the fix is to migrate
+    the artifacts into the group directory or drop the member.
 
 ## Hard rules
 
