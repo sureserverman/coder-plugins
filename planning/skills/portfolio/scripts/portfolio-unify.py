@@ -62,6 +62,28 @@ def plan_date(fname):
     m = re.match(r"(\d{4}-\d{2}-\d{2})", fname)
     return m.group(1) if m else "0000-00-00"
 
+
+STALE_DAYS = 90
+
+
+def stale_age_days(fname, today=None):
+    """Days since the plan's filename date stamp, or None when the name carries
+    no usable stamp — staleness unknown, never assumed (plan-parser.md § 3).
+
+    Deliberately NOT plan_date(): that returns "0000-00-00" for an unstamped
+    name, which is the right sentinel for the git-stage comparison (every commit
+    counts as later) but would read as infinitely old here and mark every legacy
+    file stale — the exact opposite of the documented fallback.
+    """
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", fname)
+    if not m:
+        return None
+    try:
+        d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:          # e.g. 2026-13-45 in a filename
+        return None
+    return ((today or datetime.date.today()) - d).days
+
 TASK_RE = re.compile(r"^###\s+Task\s+(\d+\.\d+):\s*(.+)$")
 STAGE_RE = re.compile(r"^##\s+Stage\s+\d+:")
 GATE_RE = re.compile(r"^###\s+Stage\s+\d+\s+Gate")
@@ -326,7 +348,7 @@ HEADER = ("# Backlog\n\nDeferred items from plan execution, code review, or ad-h
           "capture. Entries are removed when implemented; git history is the audit trail.\n\n---\n")
 
 
-def unify_project(home, write, repo_path):
+def unify_project(home, write, repo_path, include_stale=False):
     plans_dir = home / "plans"
     if not plans_dir.is_dir():
         return (0, 0, 0)
@@ -338,7 +360,22 @@ def unify_project(home, write, repo_path):
         rel = "plans/" + pf.relative_to(plans_dir).as_posix()
         pdate = plan_date(pf.name)
         done_stages = {sn for (cdate, sn) in gpairs if cdate >= pdate}
-        cands.extend(parse_plan(pf.read_text(errors="ignore"), rel, done_stages))
+        text = pf.read_text(errors="ignore")
+        normal = parse_plan(text, rel, done_stages)
+        cands.extend(normal)
+        if not include_stale:
+            continue
+        age = stale_age_days(pf.name)
+        if age is None or age <= STALE_DAYS:
+            continue
+        # Signal 3 lowers the bar for an old plan: re-parse with the git-stage
+        # suppression lifted, and keep only what signals 1-2 did NOT already
+        # emit. It adds items from plans the normal heuristics skip; it never
+        # relabels ones they found (plan-parser.md § 3).
+        seen = {c["source"] for c in normal}
+        for c in parse_plan(text, rel, set()):
+            if c["source"] not in seen:
+                cands.append(dict(c, signal="stale-plan-unchecked"))
     backlog = home / "backlog.md"
     btext = backlog.read_text() if backlog.exists() else HEADER
     have = existing_sources(btext)
@@ -361,6 +398,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--project")
+    ap.add_argument("--include-stale", action="store_true",
+                    help="also surface unresolved items in plans older than "
+                         f"{STALE_DAYS} days by filename stamp (off by default)")
     args = ap.parse_args()
     vd = vault_dir()
     reg = yaml.safe_load(REGISTRY.read_text())
@@ -370,7 +410,7 @@ def main():
     tot_new = tot_dup = tot_cand = 0
     for proj in projects:
         home = vd / "Portfolio" / proj["area"] / proj["name"]
-        n, d, c = unify_project(home, args.write, proj["path"])
+        n, d, c = unify_project(home, args.write, proj["path"], args.include_stale)
         tot_new += n; tot_dup += d; tot_cand += c
         if c:
             print(f"  {proj['area']}/{proj['name']}: {n} new, {d} dup, {c} candidates")
