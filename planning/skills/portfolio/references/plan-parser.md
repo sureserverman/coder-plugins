@@ -69,9 +69,17 @@ with it). 441 of 450 plan files across the vault carry it. It measures
 age-since-authored — which is the question this signal asks.
 
 **Unstamped filename → staleness unknown.** A file whose name does not begin
-`YYYY-MM-DD-` is excluded from signal 3 and logged; it is still parsed for
-signals 1 and 2. This is the original spec's own rule for an unavailable
-timestamp, transferred unchanged.
+`YYYY-MM-DD-` is excluded from signal 3; it is still parsed for signals 1 and 2.
+This is the original spec's own rule for an unavailable timestamp, transferred
+unchanged.
+
+The exclusion is **silent** — there is no per-file log line. `portfolio-unify.py`
+prints only its two end-of-run summaries, and adding per-file output would change
+the default path's stdout, which the flag-off byte-identity invariant forbids.
+Note the consequence: an unstamped legacy plan is *doubly* invisible, because
+`plan_date()`'s `0000-00-00` sentinel also makes every commit count as later and
+so suppresses its items on the legacy path. `--include-stale` can never reach
+such a plan. Renaming it with a date stamp is the fix.
 
 **No duplication.** An item already emitted by signal 1 or 2 is never re-emitted
 as `stale-plan-unchecked`. The flag *adds* candidates from plans the normal

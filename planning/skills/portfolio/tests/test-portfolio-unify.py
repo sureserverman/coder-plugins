@@ -413,6 +413,28 @@ check("flag OFF: a git-suppressed old plan stays silent",
 check("flag ON: the old plan's suppressed items surface",
       on > off, f"expected >{off}, got {on}")
 
+# The signal LABEL itself, read back out of unify_project's real output rather
+# than reconstructed here — the earlier version built the label in the test, so
+# it could not have caught a mislabel in the script. Documented in three places
+# and asserted in none until close-out mutation testing found the gap.
+import tempfile as _tf, shutil as _sh
+_labels = []
+with _tf.TemporaryDirectory() as _td:
+    _h = Path(_td) / "h"
+    (_h / "plans").mkdir(parents=True)
+    _sh.copy(FIXTURES / STALE_FIXTURE[0], _h / "plans" / STALE_FIXTURE[0])
+    _bl = _h / "backlog.md"
+    _orig = mod.git_stage_evidence
+    mod.git_stage_evidence = lambda _p: DONE_STAGE
+    try:
+        mod.unify_project(_h, True, _td, True)      # --write, so entries render
+        _labels = [ln for ln in _bl.read_text().splitlines() if "Reason:" in ln]
+    finally:
+        mod.git_stage_evidence = _orig
+check("stale candidates render the documented signal label into the backlog",
+      _labels and all("stale-plan-unchecked" in ln for ln in _labels),
+      f"got {_labels}")
+
 # A plan dated today can never be stale — written at run time so it cannot age
 # into staleness the way a committed fixture would.
 import datetime as _dt
