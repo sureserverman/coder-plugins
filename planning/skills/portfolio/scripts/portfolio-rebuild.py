@@ -45,6 +45,147 @@ def count_backlog(home):
     return len(titles), titles[:3]
 
 
+# Block boundaries are found with a GENERIC `## ` heading match, then the ID
+# shape is validated per-section. Detecting boundaries with the strict ID regex
+# instead would make a mistyped heading (a plain hyphen where the format wants
+# an em-dash) invisible: its body would be swallowed into the previous block's
+# last field, or — if it were the first heading — dropped entirely. Either way a
+# binding decision disappears silently, which is the one outcome this register
+# exists to prevent.
+BLOCK_HEAD_RE = re.compile(r"^## +(.+?)\s*$", re.M)
+DEC_ID_RE = re.compile(r"^(DEC-\d+)\s+—\s+(.+)$")
+GDEC_ID_RE = re.compile(r"^(GDEC-[A-Z]+-\d+)\s+—\s+(.+)$")
+RULE_RE = re.compile(r"^(-{3,}|\*{3,}|_{3,})$")
+FIELD_LINE_RE = re.compile(r"^\s*-\s+\*\*([^:*]+):\*\*\s*(.*)$")
+GLOBAL_LINK_RE = re.compile(r"\[\[decisions/([A-Za-z0-9_-]+)#(GDEC-[A-Z]+-\d+)\]\]")
+APPLIES_LINK_RE = re.compile(r"([A-Za-z0-9_-]+)/\[\[([^\]]+)\]\]")
+PROJECT_REQUIRED = ("Decided", "Status", "Domains", "Source", "Reason")
+DOMAIN_REQUIRED = ("Decided", "Status", "Reason", "Applies to")
+
+
+def parse_decision_file(text, id_re, required):
+    """Parse `## <ID> — <title>` blocks into dicts (see references/decisions-format.md).
+
+    Degrade, never drop: a block missing a required field comes back with a
+    populated `missing` list rather than being skipped, so the roll-up can show
+    it as malformed. A silently-dropped decision is worse than a flagged one —
+    the register's whole job is that nothing binding goes unrecorded.
+    """
+    out = []
+    marks = list(BLOCK_HEAD_RE.finditer(text))
+    for i, m in enumerate(marks):
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        heading = m.group(1).strip()
+        fields, cur, dupes = {}, None, []
+        for line in text[m.end():end].splitlines():
+            fm = FIELD_LINE_RE.match(line)
+            if fm:
+                cur = fm.group(1).strip()
+                if cur in fields:
+                    dupes.append(cur)
+                fields[cur] = fm.group(2).strip()
+            elif cur and line.strip() and not RULE_RE.match(line.strip()):
+                # Continuation: wrapped prose, or the nested bullets of a list
+                # field like `Applies to`. Joined flat; links are re-extracted
+                # by regex, so the nesting carries no meaning we need to keep.
+                fields[cur] = (fields[cur] + " " + line.strip()).strip()
+        idm = id_re.match(heading)
+        if not idm:
+            # Flagged, not skipped — see BLOCK_HEAD_RE.
+            out.append({"id": None, "heading": heading, "title": heading, "fields": fields,
+                        "missing": list(required), "duplicates": dupes,
+                        "malformed_heading": True})
+            continue
+        out.append({"id": idm.group(1), "heading": heading, "title": idm.group(2).strip(),
+                    "fields": fields, "duplicates": dupes, "malformed_heading": False,
+                    "missing": [f for f in required if not fields.get(f)]})
+    return out
+
+
+def read_project_decisions(home):
+    """{entries, errors} for a project's decisions.md, or None if it has none."""
+    f = home / "decisions.md"
+    if not f.exists():
+        return None
+    try:
+        text = f.read_text(errors="ignore")
+    except OSError as e:
+        return {"entries": [], "errors": [f"unreadable: {e}"]}
+    entries = parse_decision_file(text, DEC_ID_RE, PROJECT_REQUIRED)
+    return {"entries": entries,
+            "errors": [] if entries else ["no DEC-NNN blocks found"]}
+
+
+def read_domain_decisions(vd):
+    """{domain_slug: {entries, errors}} across Portfolio/decisions/*.md."""
+    d = vd / "Portfolio" / "decisions"
+    out = {}
+    if not d.is_dir():
+        return out
+    for f in sorted(d.glob("*.md")):
+        try:
+            text = f.read_text(errors="ignore")
+        except OSError as e:
+            out[f.stem] = {"entries": [], "errors": [f"unreadable: {e}"]}
+            continue
+        entries = parse_decision_file(text, GDEC_ID_RE, DOMAIN_REQUIRED)
+        out[f.stem] = {"entries": entries,
+                       "errors": [] if entries else ["no GDEC blocks found"]}
+    return out
+
+
+def decision_domains(entry):
+    raw = entry["fields"].get("Domains", "")
+    return [d.strip().lower() for d in raw.split(",") if d.strip() and d.strip().lower() != "none"]
+
+
+def decision_symmetry(proj_decisions, domain_decisions):
+    """Cross-check Global: ↔ Applies to: in both directions.
+
+    Returns (asymmetries, unresolved). Reported, NEVER auto-fixed: repairing one
+    side would mean asserting an edge about a project this run has not read —
+    the same rule integration.md's symmetry check follows.
+    """
+    asym, unresolved = [], []
+    # index: gdec id -> (domain, set of applied-to project names)
+    gindex = {}
+    for domain, blk in sorted(domain_decisions.items()):
+        for e in blk["entries"]:
+            if e["id"] is None:
+                continue
+            applied = {n for _a, n in APPLIES_LINK_RE.findall(e["fields"].get("Applies to", ""))}
+            if e["id"] in gindex:
+                # Two domain files claiming one ID make every link to it
+                # ambiguous. Report it rather than let the later file win.
+                unresolved.append(f"`{e['id']}` is defined in both `{gindex[e['id']][0]}` "
+                                  f"and `{domain}` — link targets are ambiguous")
+                continue
+            gindex[e["id"]] = (domain, applied)
+
+    linked = {}                       # gdec id -> set of projects claiming it
+    for pname, blk in sorted(proj_decisions.items()):
+        if blk is None:               # project carries no decisions.md
+            continue
+        for e in blk["entries"]:
+            m = GLOBAL_LINK_RE.search(e["fields"].get("Global", ""))
+            if not m:
+                continue
+            domain, gid = m.group(1), m.group(2)
+            linked.setdefault(gid, set()).add(pname)
+            if gid not in gindex:
+                unresolved.append(f"{pname} {e['id']} → `{gid}` in `{domain}` (no such domain entry)")
+            elif pname not in gindex[gid][1]:
+                asym.append(f"{pname} {e['id']} links `{gid}`, but `{gid}` does not list {pname} under Applies to")
+
+    for gid, (domain, applied) in sorted(gindex.items()):
+        for pname in sorted(applied):
+            if proj_decisions.get(pname) is None:
+                unresolved.append(f"`{gid}` ({domain}) applies to {pname}, which has no decisions.md")
+            elif pname not in linked.get(gid, set()):
+                asym.append(f"`{gid}` ({domain}) lists {pname}, but no {pname} decision links back to it")
+    return asym, unresolved
+
+
 def maturity_axes(home):
     mp = home / "MATURITY.md"
     if not mp.exists():
