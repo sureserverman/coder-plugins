@@ -399,6 +399,29 @@ issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
 abstraction that should have been shared) surface here. Skip only on the same
 opt-out as Tier 1.
 
+**Decisions-conformance check (gate criterion, not advisory).** Check the stage's
+cumulative diff against the decisions in force.
+A change that contradicts a decision in force, without a `Supersedes` citation on its
+task, is a **gate failure** — handle it via the "If the gate fails" steps below.
+Two legal resolutions, and only two:
+
+- **Re-scope the change** so it stops contradicting the decision, or
+- **Record a deliberate supersede** (`decisions supersede`) and add the `Supersedes
+  DEC-NNN — <why>` citation to the task, making the override auditable.
+
+"The decision seems outdated" is not a third option — that judgment is exactly what
+`supersede` exists to record, and skipping it is how a register decays into fiction.
+
+**Disclose the check's limits (honest-gates).** Unlike a test command, this is a judgment
+call over a diff: it can miss a subtle contradiction, and a green result is not proof of
+conformance. So the gate report states **what was actually examined** — which IDs were
+checked against which parts of the diff — rather than asserting blanket conformance. A
+check that overstates its coverage is worse than one that admits its scope, because the
+next reader trusts it.
+
+Skip only when the stage's diff is genuinely non-code (docs-only, version-bump-only) and
+no decision in force bears on documentation.
+
 **If the gate fails:**
 
 1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
