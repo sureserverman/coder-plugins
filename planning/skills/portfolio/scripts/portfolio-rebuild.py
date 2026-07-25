@@ -59,6 +59,7 @@ RULE_RE = re.compile(r"^(-{3,}|\*{3,}|_{3,})$")
 FIELD_LINE_RE = re.compile(r"^\s*-\s+\*\*([^:*]+):\*\*\s*(.*)$")
 GLOBAL_LINK_RE = re.compile(r"\[\[decisions/([A-Za-z0-9_-]+)#(GDEC-[A-Z]+-\d+)\]\]")
 APPLIES_LINK_RE = re.compile(r"([A-Za-z0-9_-]+)/\[\[([^\]]+)\]\]")
+ANY_WIKILINK_RE = re.compile(r"\[\[([^\]#]+)\]\]")
 PROJECT_REQUIRED = ("Decided", "Status", "Domains", "Source", "Reason")
 DOMAIN_REQUIRED = ("Decided", "Status", "Reason", "Applies to")
 
@@ -106,6 +107,25 @@ def parse_decision_file(text, id_re, required):
     return out
 
 
+def duplicate_id_errors(entries):
+    """IDs claimed by more than one block in the same register.
+
+    Cross-FILE GDEC collisions are caught in decision_symmetry; this is the
+    within-file case, where two blocks share an ID and every reference to it
+    becomes ambiguous. Reported, not resolved — nothing here can know which
+    block the author meant to keep.
+    """
+    seen, dupes = set(), []
+    for e in entries:
+        if e["id"] is None:
+            continue
+        if e["id"] in seen and e["id"] not in dupes:
+            dupes.append(e["id"])
+        seen.add(e["id"])
+    return [f"`{d}` is defined by more than one block in this file — "
+            f"every reference to it is ambiguous" for d in dupes]
+
+
 def read_project_decisions(home):
     """{entries, errors} for a project's decisions.md, or None if it has none."""
     f = home / "decisions.md"
@@ -116,8 +136,10 @@ def read_project_decisions(home):
     except OSError as e:
         return {"entries": [], "errors": [f"unreadable: {e}"]}
     entries = parse_decision_file(text, DEC_ID_RE, PROJECT_REQUIRED)
-    return {"entries": entries,
-            "errors": [] if entries else ["no DEC-NNN blocks found"]}
+    errors = duplicate_id_errors(entries)
+    if not entries:
+        errors.append("no DEC-NNN blocks found")
+    return {"entries": entries, "errors": errors}
 
 
 def read_domain_decisions(vd):
@@ -133,8 +155,10 @@ def read_domain_decisions(vd):
             out[f.stem] = {"entries": [], "errors": [f"unreadable: {e}"]}
             continue
         entries = parse_decision_file(text, GDEC_ID_RE, DOMAIN_REQUIRED)
-        out[f.stem] = {"entries": entries,
-                       "errors": [] if entries else ["no GDEC blocks found"]}
+        errors = duplicate_id_errors(entries)
+        if not entries:
+            errors.append("no GDEC blocks found")
+        out[f.stem] = {"entries": entries, "errors": errors}
     return out
 
 
@@ -157,7 +181,16 @@ def decision_symmetry(proj_decisions, domain_decisions):
         for e in blk["entries"]:
             if e["id"] is None:
                 continue
-            applied = {n for _a, n in APPLIES_LINK_RE.findall(e["fields"].get("Applies to", ""))}
+            raw = e["fields"].get("Applies to", "")
+            applied = {n for _a, n in APPLIES_LINK_RE.findall(raw)}
+            # A bare [[name]] with no <area>/ prefix matches neither direction of
+            # the symmetry check, so it would silently not exist. Every other
+            # malformation in this lane surfaces somewhere; this one must too.
+            for bare in ANY_WIKILINK_RE.findall(raw):
+                if bare not in applied:
+                    unresolved.append(
+                        f"`{e['id']}` ({domain}) lists `[[{bare}]]` without an "
+                        f"`<area>/` prefix — it is not counted as an edge")
             if e["id"] in gindex:
                 # Two domain files claiming one ID make every link to it
                 # ambiguous. Report it rather than let the later file win.
@@ -187,7 +220,14 @@ def decision_symmetry(proj_decisions, domain_decisions):
             linked.setdefault(gid, set()).add(pname)
             if gid not in gindex:
                 unresolved.append(f"{pname} {e['id']} → `{gid}` in `{domain}` (no such domain entry)")
-            elif pname not in gindex[gid][1]:
+                continue
+            owner = gindex[gid][0]
+            if domain != owner:
+                # Resolving on the ID alone would report a link that points at a
+                # register which does not contain the entry as correct.
+                unresolved.append(f"{pname} {e['id']} links `{gid}` as `{domain}`, "
+                                  f"but that entry lives in `{owner}`")
+            if pname not in gindex[gid][1]:
                 asym.append(f"{pname} {e['id']} links `{gid}`, but `{gid}` does not list {pname} under Applies to")
 
     for gid, (domain, applied) in sorted(gindex.items()):

@@ -159,6 +159,24 @@ def main() -> int:
     chk(any("defined in both" in u and "GDEC-AND-003" in u for u in unres),
         f"cross-file GDEC id collision must be reported: {ublob}")
 
+    # BL-014(a): an Applies-to wikilink with no `<area>/` prefix matched neither
+    # direction of the symmetry check, so the edge silently did not exist.
+    chk(any("without an" in u and "appimage-control" in u for u in unres),
+        f"unprefixed Applies-to link must be flagged, not dropped: {ublob}")
+
+    # BL-015: resolving on the GDEC id alone reported a link pointing at a
+    # register that does not contain the entry as correct.
+    chk(any("GDEC-AND-011" in u and "links" in u and "but that entry lives in" in u
+            for u in unres),
+        f"a Global link naming the wrong domain file must be reported: {ublob}")
+
+    # BL-014(b): two blocks in one file claiming the same ID
+    dup = pr.read_project_decisions(port / "ai-tools" / "dup-ids")
+    chk(any("more than one block" in e and "DEC-001" in e for e in dup["errors"]),
+        f"a duplicate ID within one register must be reported: {dup['errors']}")
+    chk(len(dup["entries"]) == 2,
+        "both blocks are still parsed — the duplicate is flagged, not dropped")
+
     # A malformed heading doesn't stop the block's fields parsing, so such an
     # entry can still carry a Global: link. It must report as unresolvable, not
     # emit a garbled "<project> None links ..." line.

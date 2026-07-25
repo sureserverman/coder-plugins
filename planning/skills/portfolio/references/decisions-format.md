@@ -200,3 +200,21 @@ The deterministic reader in `portfolio-rebuild.py` follows these, and
 8. IDs are matched as `DEC-\d+` / `GDEC-[A-Z]+-\d+`. Zero-padding to three
    digits is the authoring convention (above), not a parser requirement — a
    `DEC-7` parses, it is simply not how entries should be written.
+9. **An ID claimed by two blocks in the same file is reported** — every
+   reference to it is ambiguous, and nothing here can know which block the
+   author meant. Both blocks are still parsed and listed; the duplicate is
+   flagged, not dropped. (The cross-*file* GDEC case is caught separately by the
+   symmetry check.)
+10. **An `Applies to` wikilink with no `<area>/` prefix is reported** under
+    `## Unresolved targets`. A bare `[[name]]` matches neither direction of the
+    symmetry check, so without this it would simply not exist as an edge —
+    invisible rather than wrong.
+11. **A `Global:` link's domain segment is checked against the register that
+    actually owns the GDEC id.** Resolving on the id alone would report a link
+    pointing at a file that does not contain the entry as correct.
+12. A `## `-prefixed line inside a field's continuation (e.g. a Reason quoting a
+    heading) is read as a block boundary — that is inherent to rule 1. It
+    degrades **visibly**: the quoted line becomes a flagged malformed-heading
+    entry and the following decision parses intact, so the truncation is
+    reported rather than silent. Avoid `## ` at the start of a continuation
+    line; indent it or use inline code.
