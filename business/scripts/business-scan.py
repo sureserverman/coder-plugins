@@ -42,6 +42,7 @@ except Exception:      # missing sibling, import-time error → degrade, don't c
     pu = None
 
 SUPPORTED_SCHEMA = 1                 # baseline: BUSINESS.md, metrics.md, gtm-plan.md
+SUPPORTED_GROUP_SCHEMA = 1           # business-groups/<slug>/group.md
 # Per-artifact schema ceilings. market-research.md and plan.md moved to schema 2
 # (tiered depth); BUSINESS.md stays at the baseline. The gate is parameterized by
 # the artifact's ceiling so each file degrades loudly only past its OWN max.
@@ -436,21 +437,15 @@ def _age_days(last_reviewed):
     return (datetime.date.today() - d).days
 
 
-def scan_project(proj, vault):
-    """Assess one registry project's business state. Returns (entry, None) or
-    (None, reason). A missing repo path is not fatal — business state lives in
-    the vault, keyed by area/name — so we assess regardless."""
-    home = vault / "Portfolio" / proj["area"] / proj["name"]
-    entry = {
-        "name": proj["name"],
-        "area": proj["area"],
-        "path": proj.get("path"),
-        "assessed": False,
-        "errors": [],
-    }
-    bdir = home / "business"
-    if not bdir.is_dir():
-        return entry, None      # triage gap, not an error
+def _read_business_dir(bdir, expected_project, entry):
+    """Fill `entry` from the business artifacts in `bdir`.
+
+    Shared by a single registry project (`<home>/business/`) and a business group
+    (`Portfolio/business-groups/<slug>/`) — the artifacts are identical in both
+    cases; only the directory and the name `project:` must match differ. Keeping
+    one reader is what stops a group's artifacts from drifting into a second,
+    subtly different contract.
+    """
     entry["assessed"] = True
     entry.update({
         "schema": None, "verdict": None, "audience": None, "evidence": None,
@@ -458,6 +453,7 @@ def scan_project(proj, vault):
         "monetization": None, "targets": None, "metrics": None, "gtm": None,
         "research": None, "plan": None,
     })
+    proj = {"name": expected_project}
 
     bmd = bdir / "BUSINESS.md"
     if not bmd.exists():
@@ -504,6 +500,130 @@ def scan_project(proj, vault):
          "status": None, "depth": None})
     entry["errors"].extend(perrs)
 
+
+def scan_project(proj, vault):
+    """Assess one registry project's business state. Returns (entry, None) or
+    (None, reason). A missing repo path is not fatal — business state lives in
+    the vault, keyed by area/name — so we assess regardless."""
+    home = vault / "Portfolio" / proj["area"] / proj["name"]
+    entry = {
+        "name": proj["name"],
+        "area": proj["area"],
+        "path": proj.get("path"),
+        "assessed": False,
+        "errors": [],
+    }
+    bdir = home / "business"
+    if not bdir.is_dir():
+        return entry, None      # triage gap, not an error
+    _read_business_dir(bdir, proj["name"], entry)
+    return entry, None
+
+
+def load_groups(vault, projects):
+    """Read Portfolio/business-groups/*/group.md — see references/group-format.md.
+
+    Returns (groups, member_index). `groups` entries are dicts with dir/group/
+    members/errors/fatal; `member_index` maps "<area>/<name>" -> group slug for
+    every member of a NON-fatal group, so the caller can suppress those projects'
+    own rows. A fatal group claims no members: a suite assessed over an unknown
+    subset is worse than no answer, so it degrades whole rather than in part.
+    """
+    gdir = vault / "Portfolio" / "business-groups"
+    groups, member_index, claimed = [], {}, {}
+    if not gdir.is_dir():
+        return groups, member_index
+    enabled = {f"{p['area']}/{p['name']}" for p in projects}
+
+    for d in sorted(x for x in gdir.iterdir() if x.is_dir()):
+        man = d / "group.md"
+        g = {"dir": d, "slug": d.name, "group": d.name, "members": [],
+             "created": None, "errors": [], "fatal": None}
+        if not man.exists():
+            g["fatal"] = "group.md is missing"
+            groups.append(g)
+            continue
+        try:
+            fm, ferrs = _extract_frontmatter(man.read_text(errors="ignore"), "group.md")
+        except Exception as e:
+            g["fatal"] = f"group.md: {e}"
+            groups.append(g)
+            continue
+        if fm is None:
+            g["fatal"] = "; ".join(ferrs) or "group.md: no YAML frontmatter"
+            groups.append(g)
+            continue
+
+        schema, fatal = _schema_gate(fm, "group.md", max_schema=SUPPORTED_GROUP_SCHEMA)
+        if fatal is not None:
+            g["fatal"] = "; ".join(fatal[1])
+            groups.append(g)
+            continue
+
+        declared = fm.get("group")
+        if declared and declared != d.name:
+            # The directory is what the resolver finds, so a mismatch would make
+            # the group addressable under two different names.
+            g["fatal"] = (f"group.md declares group {declared!r} but lives in "
+                          f"directory {d.name!r}")
+            groups.append(g)
+            continue
+
+        members = fm.get("members") or []
+        if not isinstance(members, list) or not all(isinstance(m, str) for m in members):
+            g["fatal"] = "group.md: 'members' must be a list of '<area>/<name>' strings"
+            groups.append(g)
+            continue
+        if len(members) < 2:
+            g["fatal"] = (f"group.md lists {len(members)} member(s); a business group "
+                          f"needs at least 2 (one member is just a project)")
+            groups.append(g)
+            continue
+
+        unknown = [m for m in members if m not in enabled]
+        if unknown:
+            g["fatal"] = ("group.md names member(s) that are not enabled registry "
+                          f"projects: {', '.join(sorted(unknown))}")
+            groups.append(g)
+            continue
+
+        g["members"], g["created"], g["schema"] = members, fm.get("created"), schema
+
+        # A member's own business/ dir is reported, never silently overridden:
+        # someone assessed that repo standalone AND as part of a suite, and the
+        # two verdicts may disagree. Choosing one would hide the contradiction.
+        for m in members:
+            area, _, name = m.partition("/")
+            if (vault / "Portfolio" / area / name / "business").is_dir():
+                g["errors"].append(
+                    f"member {m} has its own business/ directory, which this group "
+                    f"supersedes — migrate it into the group dir or drop the member")
+            if m in claimed:
+                g["errors"].append(f"member {m} is also claimed by group {claimed[m]!r}")
+            else:
+                claimed[m] = d.name
+                member_index[m] = d.name
+        groups.append(g)
+
+    return groups, member_index
+
+
+def scan_group(g, vault):
+    """Assess one business group. Returns an entry shaped like a project entry
+    plus `group: True` and `members`, or (None, reason) when the manifest is
+    fatally malformed."""
+    entry = {
+        "name": g["slug"],
+        "area": None,
+        "path": str(g["dir"]),
+        "group": True,
+        "members": g["members"],
+        "assessed": False,
+        "errors": list(g["errors"]),
+    }
+    if g["fatal"]:
+        return None, g["fatal"]
+    _read_business_dir(g["dir"], g["slug"], entry)
     return entry, None
 
 
@@ -516,7 +636,30 @@ def main():
         "projects": [],
         "couldnt_assess": [],
     }
+    # Groups first: a grouped member must not also emit its own row, or the
+    # roll-up would double-count one product. See references/group-format.md.
+    try:
+        groups, member_index = load_groups(vault, projects)
+    except Exception as e:          # the group layer must never abort the sweep
+        groups, member_index = [], {}
+        out["group_errors"] = [f"group discovery failed: {e}"]
+    out["groups"] = sorted(set(member_index.values()))
+
+    for g in groups:
+        try:
+            entry, reason = scan_group(g, vault)
+        except Exception as e:
+            entry, reason = None, f"scan error: {e}"
+        if entry is None:
+            out["couldnt_assess"].append(
+                {"name": g["slug"], "area": None, "path": str(g["dir"]),
+                 "group": True, "reason": reason})
+        else:
+            out["projects"].append(entry)
+
     for proj in projects:
+        if f"{proj['area']}/{proj['name']}" in member_index:
+            continue                # covered by its group's entry
         try:
             entry, reason = scan_project(proj, vault)
         except Exception as e:      # a broken project must not abort the sweep

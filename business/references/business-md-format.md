@@ -13,7 +13,7 @@ fact the scanner needs in prose; if it isn't in the frontmatter, the scanner can
 ```yaml
 ---
 schema: 1
-project: <registry name, e.g. multitor-android>
+project: <registry name, e.g. multitor-android — or a group slug; see group-format.md>
 verdict: monetize            # one of: monetize | free-for-reputation | internal-only | park
 audience: <one line — who the end result is for>
 evidence: local-only         # one of: local-only | researched
@@ -26,6 +26,13 @@ monetization:
 targets: []                  # numeric, dated goals — see below
 ---
 ```
+
+### `project` (required, string)
+
+The owning project's **registry name** — or, when this file lives under
+`Portfolio/business-groups/<slug>/`, the **group slug** (`group-format.md`). The
+scanner checks the value against whichever of the two it resolved the file through,
+so a copy-pasted `project:` from another project still reports as a mismatch.
 
 ### `verdict` (required, enum)
 
