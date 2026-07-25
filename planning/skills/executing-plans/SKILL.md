@@ -290,7 +290,10 @@ need its working trace), **output-heavy** (builds, broad greps, long test logs, 
 reads the orchestrator would otherwise absorb), and **not latency-critical**, hand it
 to a single stack-matched subagent instead of running it inline. This keeps the
 orchestrator's window on plan state and gates rather than filling it with churn it will
-never reference again. It is a context-hygiene move, **not** a token saving — the
+never reference again. **Brief it with the decisions in force that bear on the task**,
+exactly as the parallel path does (`../dispatching-parallel-agents/SKILL.md` § Prompt
+template) — both dispatch paths, one convention. A delegated task is no less bound by the
+register than an inline one; it is just less able to discover that on its own. It is a context-hygiene move, **not** a token saving — the
 subagent's intermediate tokens still burn. Keep a task inline when it is coupled to
 accumulated session context, needs iterative back-and-forth, or is a quick targeted
 edit. Pick the subagent type (and the stack skill it should load first) from the

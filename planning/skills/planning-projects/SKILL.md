@@ -641,6 +641,7 @@ Each sub-agent needs enough context to work independently:
 - File paths and patterns from the project context
 - The Red-Green loop rules (attempt, test, diagnose, fix, retest, max 3 cycles)
 - The stack skill to invoke first, if the routing table names one for this task's stack — so the agent authors to that stack's conventions instead of generic defaults
+- The **decisions in force that bear on this task** (from the plan's `## Decisions in force`) — only the relevant entries, same discipline as the research extract. A sub-agent never reads the register, so a constraint absent from its prompt is one it cannot honor
 - What to do on failure: report back with the error and diagnosis, don't keep looping silently
 
 ### Guardrails
