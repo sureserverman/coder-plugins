@@ -134,27 +134,86 @@ def global_digest(vault: Path, slugs):
     }
 
 
+def registered_names(registry=None):
+    """Project names in ~/.claude/projects-registry.yaml.
+
+    Read-only, and deliberately reads nothing beyond the existing
+    path/name/area/enabled/added fields — DEC-002 records why a new registry key
+    is a change eight parsers must tolerate, so this lane adds none.
+    """
+    reg = registry if registry is not None else pr.REGISTRY
+    if not Path(reg).exists():
+        return set()
+    try:
+        import yaml
+        data = yaml.safe_load(Path(reg).read_text()) or {}
+    except Exception:
+        return set()
+    return {p.get("name") for p in (data.get("projects") or []) if p.get("name")}
+
+
+def project_digest(vault: Path, area, name, registry=None):
+    """The per-project DEC half, or an explicit `absent` state.
+
+    A brand-new project has no registry entry and no decisions.md — that is a
+    normal state, not an error. Returning `absent` (rather than failing, or
+    silently skipping the whole scan) is what keeps the global half reachable
+    for exactly the project that has the least local context and most needs it.
+    """
+    if not area or not name:
+        return {"project_register": "absent",
+                "project_reason": "no project identified (--project/--area not given)",
+                "project": []}
+
+    home = vault / "Portfolio" / area / name
+    read = pr.read_project_decisions(home)
+    if read is None:
+        registered = name in registered_names(registry)
+        reason = (f"{home}/decisions.md does not exist — project is registered but has "
+                  "recorded no decisions yet" if registered else
+                  f"{name} is not in the projects registry; no portfolio home at {home}")
+        return {"project_register": "absent", "project_reason": reason, "project": []}
+
+    rows = [digest_entry(e, "(project)") for e in read["entries"]]
+    return {"project_register": "present",
+            "project_reason": "",
+            "project": rows,
+            "project_errors": read["errors"]}
+
+
 def render_text(result):
     """Human-readable digest. Flags and supersessions are visible, not implied."""
+    if result.get("project_register") == "present":
+        print(f"# Project decisions ({len(result['project'])})")
+    elif "project_register" in result:
+        print(f"# Project decisions: absent — {result.get('project_reason','')}")
+    for r in result.get("project", []):
+        _render_row(r)
+
     rows = result["global"]
+    print(f"# Domain decisions ({len(rows)})")
     if not rows:
         print("no decisions bind the requested domains")
     for r in rows:
-        marks = []
-        if r["superseded"]:
-            marks.append("SUPERSEDED")
-        if r["malformed"]:
-            marks.append("MALFORMED: missing " + ", ".join(r["missing"]) if r["missing"]
-                         else "MALFORMED: unparseable heading")
-        mark = ("  [" + "; ".join(marks) + "]") if marks else ""
-        ident = r["id"] or f"<unparseable heading: {r['heading']}>"
-        print(f"{ident} — {r['title']}  ({r['status']}; {r['domain']}){mark}")
-        if r["reason"]:
-            print(f"    {r['reason']}")
-        if r["applies_to"]:
-            print(f"    applies to: {r['applies_to']}")
+        _render_row(r)
     for e in result["errors"]:
         print(f"register error: {e}", file=sys.stderr)
+
+
+def _render_row(r):
+    marks = []
+    if r["superseded"]:
+        marks.append("SUPERSEDED")
+    if r["malformed"]:
+        marks.append("MALFORMED: missing " + ", ".join(r["missing"]) if r["missing"]
+                     else "MALFORMED: unparseable heading")
+    mark = ("  [" + "; ".join(marks) + "]") if marks else ""
+    ident = r["id"] or f"<unparseable heading: {r['heading']}>"
+    print(f"{ident} — {r['title']}  ({r['status']}; {r['domain']}){mark}")
+    if r["reason"]:
+        print(f"    {r['reason']}")
+    if r["applies_to"]:
+        print(f"    applies to: {r['applies_to']}")
 
 
 def main(argv=None):
@@ -169,6 +228,8 @@ def main(argv=None):
                     help="Comma-separated domain slugs to digest (e.g. android,tor).")
     ap.add_argument("--format", choices=("text", "json"), default="text",
                     help="Output shape. json is for programmatic callers.")
+    ap.add_argument("--project", default="", help="Project name (registry `name`).")
+    ap.add_argument("--area", default="", help="Project area (registry `area`).")
     args = ap.parse_args(argv)
 
     # The one place the user's config is read. Missing vault_dir exits loudly
@@ -192,6 +253,7 @@ def main(argv=None):
         ap.error("nothing to do: pass --list-domains or --domains <slug,...>")
 
     result = global_digest(vault, slugs)
+    result.update(project_digest(vault, args.area, args.project))
 
     if args.format == "json":
         print(json.dumps(result, indent=2))
