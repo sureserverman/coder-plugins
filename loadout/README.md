@@ -74,3 +74,35 @@ User profiles **override** bundled profiles with the same name (full replacement
 - **Session restart required to apply.** Claude Code reads `enabledPlugins` once at startup; mid-session toggling needs the `/plugin` UI manually.
 - **First entry loads with global defaults.** The auto-detect hook can't influence the current session — only the next one.
 - **Profiles are bundled with this plugin.** Adjust them by editing your `~/.claude/loadouts/` overrides; don't fork the plugin for personal preferences.
+
+
+## Worked example
+
+```text
+/plugin install loadout@coder-plugins
+
+/loadout
+```
+
+With no arguments it reports the current project's loadout and what is enabled. Set a sticky tech
+baseline and layer a task overlay on top:
+
+```text
+/loadout tech rust            # sticky — persists in .claude/loadout.json, committed
+/loadout task security-audit  # overlay — adds sec-audit for this line of work
+/loadout reset                # clear both
+```
+
+The baseline answers "what is this project built in"; overlays answer "what am I doing right now".
+They compose, and the union is written to the gitignored `settings.local.json`.
+
+**Remember the restart.** Claude Code reads `enabledPlugins` once at startup, so a loadout change
+applies to your *next* session, not the current one — the single most common source of "I enabled
+it and nothing happened".
+
+## Related plugins
+
+- Every other plugin in this marketplace is a candidate for a profile.
+- **`planning`** — `capability-router` solves the adjacent problem from the other direction: it
+  reaches one skill or agent from disk **without** enabling its plugin, via `capability-index.json`.
+  Use `loadout` for a durable per-project set; use `capability-router` for a one-off need.

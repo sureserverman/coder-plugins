@@ -12,6 +12,23 @@ Drafts release-announcement posts for the platforms a project actually belongs o
 | `lobsters-post` | Lobsters | You have an invite and a focused, technically substantive announcement. |
 | `fediverse-post` | Mastodon / Fediverse | You want a 500-char toot with hashtags and CW where appropriate. |
 
+### All five channel skills are dispatch-only
+
+Every skill in that table carries `disable-model-invocation: true`. Two consequences:
+
+- **They never fire on their own**, and their descriptions are not injected into session context — they cost nothing when you are not releasing.
+- **They are reached through `/promote-release`**, which dispatches one `post-drafter` invocation per eligible channel. You *can* still invoke one directly as `/release-promo:reddit-promo`, but nothing will route to it automatically, so if you are waiting for a channel skill to trigger from conversation, it will not.
+
+## Agent
+
+### `post-drafter`
+
+Drafts one channel's post from the survey the orchestrator ran. **Pinned to `haiku`** — this is bounded, format-following work over facts already gathered, so it runs ~10× cheaper and keeps repo survey output out of the orchestrator's context. Fanned out one invocation per channel, in parallel.
+
+## Artifacts
+
+**Nothing is written to disk and nothing is posted.** The bundle of drafts is returned in the conversation for you to copy, edit, and submit yourself. This plugin never opens a browser, never authenticates, and never submits — a design rule, not a limitation to work around.
+
 ## Slash command
 
 ```
