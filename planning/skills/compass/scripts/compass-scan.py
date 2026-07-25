@@ -5,7 +5,8 @@ Walks ~/.claude/projects-registry.yaml and, per enabled project, gathers the
 work-state evidence the compass SKILL.md ranks: in-flight plan state (reusing
 the authoritative plan-parser regexes from portfolio-unify.py — one contract,
 one implementation), backlog open/parked counts, maturity axis summary,
-integration-graph edges, and git recency. Emits ONE JSON document on stdout.
+decision-register summary, integration-graph edges, and git recency. Emits ONE
+JSON document on stdout.
 
 Read-only by construction: never writes under the vault or any repo.
 Projects that cannot be assessed land in `couldnt_assess` with a reason —
@@ -31,6 +32,15 @@ _UNIFY = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfo
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pu)
+
+# Same reasoning for the decisions register: portfolio-rebuild.py owns the
+# decisions.md contract (block boundaries, required fields, the degrade-never-
+# drop rule for a malformed heading). Reimplementing those regexes here would
+# fork the format — read references/decisions-format.md, not this file.
+_REBUILD = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfolio-rebuild.py"
+_rspec = importlib.util.spec_from_file_location("portfolio_rebuild", _REBUILD)
+pr = importlib.util.module_from_spec(_rspec)
+_rspec.loader.exec_module(pr)
 
 import yaml  # noqa: E402  (after pu import, which also needs it)
 
@@ -207,6 +217,28 @@ def collect_maturity(home):
             "open": sum(a["open"] for a in axes.values())}
 
 
+def collect_decisions(home, errors):
+    """Decision-register summary, or None when the project has no decisions.md.
+
+    Malformed entries (`id is None`) are excluded from every field: a heading
+    the parser could not key must not inflate a count or, worse, contribute a
+    stray `Decided` date that reads as the project's most recent decision.
+    Register-level read problems come back as DATA from read_project_decisions
+    (it degrades internally rather than raising), so they are lifted into the
+    project's errors[] here — the collector's own try/except would never see them.
+    """
+    blk = pr.read_project_decisions(home)
+    if blk is None:
+        return None
+    for e in blk["errors"]:
+        errors.append(f"decisions: {e}")
+    entries = [e for e in blk["entries"] if e.get("id")]
+    dates = [e["fields"].get("Decided") for e in entries if e["fields"].get("Decided")]
+    return {"count": len(entries),
+            "domains": sorted({d for e in entries for d in pr.decision_domains(e)}),
+            "last_decided": max(dates) if dates else None}
+
+
 def load_edges(vault):
     """Parse integration-graph.md once: list of (dependent, upstream, why)."""
     f = vault / "Portfolio" / "integration-graph.md"
@@ -237,6 +269,7 @@ def scan_project(proj, vault):
         "backlog": (lambda: collect_backlog(home),
                     {"open": 0, "parked": 0, "parked_items": []}),
         "maturity": (lambda: collect_maturity(home), None),
+        "decisions": (lambda: collect_decisions(home, entry["errors"]), None),
     }
     for key, (fn, fallback) in collectors.items():
         try:
