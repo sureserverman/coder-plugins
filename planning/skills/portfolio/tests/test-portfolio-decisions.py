@@ -92,7 +92,7 @@ def main() -> int:
     # is swallowed into the previous block's last field (mid file).
     mh = pr.read_project_decisions(port / "android" / "malformed-headings")
     hids = [e["id"] for e in mh["entries"]]
-    chk(hids == [None, "DEC-002", None, "DEC-001"],
+    chk(hids == [None, "DEC-002", None, "DEC-001", None],
         f"malformed headings must be flagged in place, not dropped: {hids}")
 
     bad_first = mh["entries"][0]
@@ -159,6 +159,15 @@ def main() -> int:
     chk(any("defined in both" in u and "GDEC-AND-003" in u for u in unres),
         f"cross-file GDEC id collision must be reported: {ublob}")
 
+    # A malformed heading doesn't stop the block's fields parsing, so such an
+    # entry can still carry a Global: link. It must report as unresolvable, not
+    # emit a garbled "<project> None links ..." line.
+    mh_sym, mh_unres = pr.decision_symmetry({"malformed-headings": mh}, doms)
+    chk(not any(" None " in a for a in mh_sym + mh_unres),
+        f"a None id must never be interpolated into a report line: {mh_sym + mh_unres}")
+    chk(any("malformed heading" in u and "fix the heading first" in u for u in mh_unres),
+        f"malformed heading + Global link must be reported as unresolvable: {mh_unres}")
+
     # a project with no decisions.md must not crash the symmetry check
     projs_with_none = dict(projs)
     projs_with_none["tens-town"] = pr.read_project_decisions(port / "android" / "tens-town")
@@ -167,6 +176,60 @@ def main() -> int:
         pr.decision_symmetry(projs_with_none, doms)
     except Exception as exc:                                  # noqa: BLE001
         chk(False, f"None-valued project must degrade, not crash: {exc!r}")
+
+    # ---- roll-up render ---------------------------------------------------
+    reg = [{"area": "android", "name": "multitor-android"},
+           {"area": "android", "name": "nice-dns-android"},
+           {"area": "android", "name": "malformed-headings"},
+           {"area": "ai-tools", "name": "orphan-proj"},
+           {"area": "android", "name": "tens-town"}]        # no decisions.md
+    md = pr.render_global_decisions(vault, reg)
+
+    for section in ("# Global Decisions", "## By domain", "## By project",
+                    "## Asymmetries (review)", "## Unresolved targets"):
+        chk(section in md, f"roll-up missing section {section!r}")
+
+    chk("### android" in md and "### rust" in md, "each domain register needs a section")
+    chk("**GDEC-AND-003** — Circuit isolation" in md, "domain entries must be listed")
+    chk("android/[[multitor-android]]" in md,
+        "applies-to must render as an area-qualified wikilink")
+    chk("| android/[[multitor-android]] | 3" in md,
+        f"per-project count row wrong:\n{md}")
+    chk("| ai-tools/[[orphan-proj]] | 1 | 1 | 0 | – |" in md,
+        "a project with no domains renders an en-dash, not an empty cell")
+    chk("tens-town" not in md.split("## Asymmetries")[0].split("## By project")[1],
+        "a project with no decisions.md must not get a count row")
+
+    # Malformed entries must be VISIBLE and ATTRIBUTABLE in the roll-up — the
+    # register's contract is a flagged entry a reader can act on, not a bare
+    # warning glyph in a count cell.
+    chk("## Malformed entries (review)" in md, "roll-up needs a malformed-entry section")
+    mal = md.split("## Malformed entries (review)")[1].split("## Asymmetries")[0]
+    chk("DEC-005" in mal and "missing:" in mal,
+        f"a block missing required fields must be named with what it lacks:\n{mal}")
+    chk("malformed heading" in mal and "Hyphen instead of em-dash" in mal,
+        f"a malformed heading must be named verbatim:\n{mal}")
+    chk("duplicate field(s): Status" in mal, f"duplicate fields must be named:\n{mal}")
+    chk("android/[[multitor-android]] DEC-005" in mal,
+        "each malformed entry must say which project it is in")
+
+    # the two report buckets carry the real findings
+    tail = md.split("## Asymmetries (review)")[1]
+    chk("GDEC-AND-011" in tail, f"asymmetry must be reported in the roll-up:\n{tail}")
+    chk("defined in both" in tail, "id collision must be reported in the roll-up")
+    chk("_None._" not in tail.split("## Unresolved targets")[0],
+        "asymmetry section should not claim None when one exists")
+
+    # ---- idempotency: write_if_changed must write once, not twice ---------
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        target = Path(td) / "global-decisions.md"
+        chk(pr.write_if_changed(target, md) is True, "first write must happen")
+        chk(pr.write_if_changed(target, md) is False,
+            "second identical write must be a no-op — rebuild idempotency guarantee")
+        stamped = md.replace(f"**Last rebuilt:** {pr.TODAY}", "**Last rebuilt:** 2020-01-01")
+        chk(pr.write_if_changed(target, stamped) is False,
+            "a changed rebuild timestamp alone must NOT count as a change")
 
     # ---- read-only guarantee ---------------------------------------------
     before = sorted(p.name for p in (port / "decisions").iterdir())

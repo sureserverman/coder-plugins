@@ -37,3 +37,14 @@
 - **Domains:** android
 - **Source:** direct
 - **Reason:** Intact.
+
+---
+
+## DEC-000 - Malformed heading that still carries a Global link
+
+- **Decided:** 2026-06-28
+- **Status:** accepted
+- **Domains:** android
+- **Source:** direct
+- **Reason:** The heading typo must not produce a "None links ..." report line.
+- **Global:** [[decisions/android#GDEC-AND-011]]
