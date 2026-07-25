@@ -15,6 +15,7 @@ on:
       - 'planning/skills/portfolio/tests/fixtures/decisions/**'
       - 'planning/skills/portfolio/references/decisions-format.md'
       - 'planning/skills/decisions/**'
+      - 'planning/skills/decisions/scripts/tests/**'
       - '.github/workflows/validate-portfolio-decisions.yml'
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - 'planning/skills/portfolio/tests/fixtures/decisions/**'
       - 'planning/skills/portfolio/references/decisions-format.md'
       - 'planning/skills/decisions/**'
+      - 'planning/skills/decisions/scripts/tests/**'
       - '.github/workflows/validate-portfolio-decisions.yml'
   workflow_dispatch:
 
@@ -37,5 +39,7 @@ jobs:
       - run: pip install pyyaml
       - name: Run decisions-register fixture tests
         run: python3 planning/skills/portfolio/tests/test-portfolio-decisions.py
+      - name: Run decisions relevance-lane fixture tests
+        run: python3 planning/skills/decisions/scripts/tests/test-decisions-relevant.py
       - name: Run compass fixture tests (consumes the same parser)
         run: python3 planning/skills/compass/tests/test-compass-scan.py
