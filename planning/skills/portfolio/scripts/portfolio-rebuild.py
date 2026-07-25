@@ -91,7 +91,11 @@ def parse_decision_file(text, id_re, required):
                 fields[cur] = (fields[cur] + " " + line.strip()).strip()
         idm = id_re.match(heading)
         if not idm:
-            # Flagged, not skipped — see BLOCK_HEAD_RE.
+            # Flagged, not skipped — see BLOCK_HEAD_RE. `missing` is a
+            # don't-care sentinel here (every required field, regardless of what
+            # the body actually holds): the heading has to be repaired before
+            # per-field state means anything, and every consumer branches on
+            # `id is None` first.
             out.append({"id": None, "heading": heading, "title": heading, "fields": fields,
                         "missing": list(required), "duplicates": dupes,
                         "malformed_heading": True})

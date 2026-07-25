@@ -272,8 +272,8 @@ def test_decisions(tmp):
     projects = {p["name"]: p for p in out["projects"]}
 
     dec = projects["alpha"]["decisions"]
-    check(set(dec) == {"count", "domains", "last_decided"},
-          "decisions block shape is {count, domains, last_decided}")
+    check(set(dec) == {"count", "malformed", "domains", "last_decided"},
+          "decisions block shape is {count, malformed, domains, last_decided}")
     check(dec["count"] == 2,
           "only well-formed entries counted (the plain-hyphen heading is excluded)")
     check(dec["domains"] == ["rust", "ubuntu"],
@@ -281,15 +281,18 @@ def test_decisions(tmp):
     check(dec["last_decided"] == "2026-07-10",
           "last_decided is the newest Decided date among well-formed entries — "
           "the malformed entry's later 2026-09-09 must not win")
+    check(dec["malformed"] == 1,
+          "a register with SOME bad entries must still report them — compass has to "
+          "see the same cleanup signal global-decisions.md shows, not just count them out")
     check(not any(e.startswith("decisions:") for e in projects["alpha"]["errors"]),
-          "a clean register logs no error")
+          "an entry-level defect is a `malformed` count, not a register-level error")
 
     check(projects["beta"]["decisions"] is None,
           "project with no decisions.md emits null (the fallback), never a crash")
 
     check("delta" in projects,
           "corrupt register never drops the project from the scan")
-    check(projects["delta"]["decisions"] == {"count": 0, "domains": [],
+    check(projects["delta"]["decisions"] == {"count": 0, "malformed": 0, "domains": [],
                                              "last_decided": None},
           "corrupt register degrades to an empty summary")
     check(any(e.startswith("decisions:") for e in projects["delta"]["errors"]),

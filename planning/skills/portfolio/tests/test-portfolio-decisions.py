@@ -269,10 +269,19 @@ def main() -> int:
             "re-writing an unchanged sidecar must report no write")
 
     # ---- read-only guarantee ---------------------------------------------
-    before = sorted(p.name for p in (port / "decisions").iterdir())
+    # Asserted around the functions that actually touch disk. decision_symmetry
+    # operates purely on already-parsed dicts, so wrapping it alone would be a
+    # check that cannot fail.
+    def tree_state():
+        return sorted((str(p.relative_to(port)), p.stat().st_mtime_ns, p.stat().st_size)
+                      for p in port.rglob("*") if p.is_file())
+
+    before = tree_state()
+    pr.render_global_decisions(vault, reg)      # reads every register
+    pr.read_domain_decisions(vault)
     pr.decision_symmetry(projs, doms)
-    chk(before == sorted(p.name for p in (port / "decisions").iterdir()),
-        "symmetry check must never write into the registers")
+    chk(before == tree_state(),
+        "the decisions rebuild path must never write into the vault registers")
 
     if fails:
         print("FAILURES:", file=sys.stderr)

@@ -217,26 +217,31 @@ def collect_maturity(home):
             "open": sum(a["open"] for a in axes.values())}
 
 
-def collect_decisions(home, errors):
-    """Decision-register summary, or None when the project has no decisions.md.
+def collect_decisions(home):
+    """(summary, errors) — summary is None when the project has no decisions.md.
 
-    Malformed entries (`id is None`) are excluded from every field: a heading
-    the parser could not key must not inflate a count or, worse, contribute a
-    stray `Decided` date that reads as the project's most recent decision.
-    Register-level read problems come back as DATA from read_project_decisions
-    (it degrades internally rather than raising), so they are lifted into the
-    project's errors[] here — the collector's own try/except would never see them.
+    Malformed entries (`id is None`) are excluded from count/domains/last_decided:
+    a heading the parser could not key must not inflate a count or, worse,
+    contribute a stray `Decided` date that reads as the project's most recent
+    decision. They are surfaced as `malformed` instead of dropped, so a compass
+    ranking sees the same "this register needs cleanup" signal that
+    global-decisions.md's Malformed-entries section shows.
+
+    Returns errors rather than raising: read_project_decisions degrades
+    internally, so register-level problems arrive as data and the dispatch
+    loop's try/except would never see them.
     """
     blk = pr.read_project_decisions(home)
     if blk is None:
-        return None
-    for e in blk["errors"]:
-        errors.append(f"decisions: {e}")
+        return None, []
     entries = [e for e in blk["entries"] if e.get("id")]
     dates = [e["fields"].get("Decided") for e in entries if e["fields"].get("Decided")]
+    malformed = (sum(1 for e in blk["entries"] if not e.get("id"))
+                 + sum(1 for e in entries if e.get("missing") or e.get("duplicates")))
     return {"count": len(entries),
+            "malformed": malformed,
             "domains": sorted({d for e in entries for d in pr.decision_domains(e)}),
-            "last_decided": max(dates) if dates else None}
+            "last_decided": max(dates) if dates else None}, list(blk["errors"])
 
 
 def load_edges(vault):
@@ -269,14 +274,22 @@ def scan_project(proj, vault):
         "backlog": (lambda: collect_backlog(home),
                     {"open": 0, "parked": 0, "parked_items": []}),
         "maturity": (lambda: collect_maturity(home), None),
-        "decisions": (lambda: collect_decisions(home, entry["errors"]), None),
+        "decisions": (lambda: collect_decisions(home), None),
     }
     for key, (fn, fallback) in collectors.items():
         try:
-            entry[key] = fn()
+            res = fn()
         except Exception as e:  # degrade per collector, never drop the project
             entry[key] = fallback
             entry["errors"].append(f"{key}: {e}")
+            continue
+        # A collector may return (value, errors) to report problems it handled
+        # internally rather than raised — the only way a source that degrades on
+        # its own (read_project_decisions) can still surface what it found.
+        if isinstance(res, tuple):
+            res, errs = res
+            entry["errors"] += [f"{key}: {m}" for m in errs]
+        entry[key] = res
     try:
         git_info, git_err = collect_git(path)
     except Exception as e:  # git binary/exec failure degrades like any collector
