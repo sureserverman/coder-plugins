@@ -221,6 +221,28 @@ No architecture doc for a plan with obvious structural surface? State it explici
 the Research Summary ("no architecture doc — structure decided inline") rather than
 leaving the reader to wonder whether one was consulted.
 
+### Citing decisions on tasks
+
+Decisions use the **same citation mechanism as `ARCH-NN`** — deliberately, so
+`executing-plans` needs no special handling for either:
+
+- **A task constrained by a decision cites it:** `Honors DEC-003` on the task line. This
+  is what carries the constraint from the register to the person (or agent) implementing
+  the task, who may never read the register itself.
+- **A task that deliberately overrides one cites it with a reason:**
+  `Supersedes GDEC-AND-002 — Orbot dropped per-app mode in 17.4`. The citation is what
+  makes the override *auditable* rather than silent, and it is the executor's instruction
+  to record the supersede at close-out.
+- **Emit the conformance gate:** the plan's final stage gate carries
+  `- [ ] No change contradicts a decision in force (DEC-NNN / GDEC-… — list the IDs
+  actually in scope); any Supersedes citation has been recorded via decisions supersede`.
+- **Per DEC-001**, a citation restates the constraint in the entry's own words. A decision
+  sourced from a sec-audit never brings the report body into the plan.
+
+An uncited change that contradicts an accepted decision is a **gate failure** in
+`executing-plans`, not an advisory — silently violating a recorded decision is the exact
+failure the register exists to prevent.
+
 ### Project context
 
 Read the codebase before planning against it:
@@ -488,6 +510,8 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]
+- [ ] [No change contradicts a decision in force (list the DEC/GDEC IDs in scope);
+      any Supersedes citation has been recorded via `decisions supersede`]
 ```
 
 ---
@@ -652,6 +676,7 @@ Before showing the plan to the user, verify:
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
 - [ ] If an architecture doc exists for this topic: every structure-creating task cites its ARCH-ID, the final stage gate carries the architecture-conformance check, and no task contradicts an approved ARCH section
+- [ ] The decisions scan ran and its result is written into `## Decisions in force` (including the explicit `none — registers consulted: …` form, and `project register: absent` on a new project); tasks constrained by an entry cite it (`Honors DEC-NNN`), any deliberate override cites it (`Supersedes …— <why>`), and the final stage gate carries the decisions-conformance check
 
 **Additionally, for a decomposed project (master plan + sub-plans):**
 
