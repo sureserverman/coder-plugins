@@ -111,8 +111,9 @@ Manually:
 
 2. Components (`skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`) live at the **plugin root**, never inside `.claude-plugin/`.
 3. Register the plugin in `.claude-plugin/marketplace.json` under `plugins` — match the existing entries' shape (`name`, `source`, `description`, `version`, `category`, `tags`, `strict`).
-4. Validate with the `plugin-validator` agent from `plugin-dev`.
-5. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
+4. **Write `README.md` to [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)** — every component documented with how it fires, its arguments, what it writes, and its prerequisites. `python3 scripts/check-doc-coverage.py` must exit 0; CI runs it on every push. Arriving documented is cheap, retrofitting is not.
+5. Validate with the `plugin-validator` agent from `plugin-dev`.
+6. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
 
 ### Description budget
 
