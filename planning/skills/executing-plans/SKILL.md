@@ -196,6 +196,16 @@ but never over *finishing the work*.
 3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies? (The parallel-conflict and stage-oversize checks are moot for a light plan — one stage, inline execution.)
 4. **If concerns exist, surface them to the user before starting.** A plan with an unrunnable test or a dependency cycle will waste an entire Red-Green budget before the problem is found
 
+5. **Read the plan's `## Decisions in force`.** These are the constraints the plan was
+   written under — the architectural decisions the register holds, carried into the plan
+   file precisely so a session that never reads the register still implements under them.
+   Note which tasks carry `Honors DEC-NNN` (a constraint to respect) and which carry
+   `Supersedes …` (a deliberate override you will record at close-out).
+
+   **A plan with no such section is not a plan with no decisions.** Every plan written
+   before this convention lacks one. Treat its absence as *"not recorded"*, never as
+   *"none apply"* — run the scan yourself at Preflight (below) and proceed on that result.
+
 Create a TodoWrite list mirroring the plan: one task per stage, sub-items per task. Mark the current stage as `in_progress` only when Preflight passes.
 
 ## Phase 2 — Preflight
@@ -208,6 +218,30 @@ Run every check in the Preflight section and report pass/fail:
 - Access / permissions verified
 - Baseline test suite passes
 - **Version control is live** — see below
+- **Decisions in force are current** — see below
+
+### Decisions re-check (the plan's snapshot can be stale)
+
+The decisions register **accretes between planning and execution**. A plan written last
+month can be executed against a register that has since gained a constraint, or superseded
+one the plan still honors — the same staleness problem the plan's own age signals, applied
+to a second artifact.
+
+So Preflight does not trust the recorded section: re-run the scan and diff it.
+
+1. Call the `decisions` skill's `relevant` operation for this project and its stacks
+   (`../decisions/references/domain-slugs.md`).
+2. Diff the result against the plan's `## Decisions in force`:
+   - **New entry in scope** → surface it before Stage 1. It may invalidate a task.
+   - **An entry the plan honors is now superseded** → surface it. The plan may be
+     implementing a constraint that no longer holds.
+   - **Unchanged** → say so in one line and proceed.
+3. **A plan with no section** (written before the convention): report the scan result as
+   the working set and proceed. Absence is not exemption.
+
+Surfacing here is cheap; discovering it at the gate costs a stage. This is a report, not a
+stop condition — unless the diff invalidates a task outright, in which case it is a
+plan defect and returns to `planning-projects` (§ When to revisit earlier steps).
 
 ### Git bootstrap (hard prerequisite for commit-per-task)
 
