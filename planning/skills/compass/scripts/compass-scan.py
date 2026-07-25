@@ -22,6 +22,11 @@ from pathlib import Path
 
 # Reuse the authoritative plan-parser pieces from the portfolio skill (stable
 # sibling layout inside the planning plugin). Hyphenated filename → importlib.
+# The plan-status contract (what `[ ]` / `[x]` / `[~]` mean, and why
+# abandonment is a structured **Abandoned:** marker rather than a prose-banner
+# heuristic) is defined and argued once, at portfolio-unify.py's STATUS_RE —
+# read it there before changing anything here. This module classifies via
+# pu.status_state() and never tests the captured character directly.
 _UNIFY = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfolio-unify.py"
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
@@ -53,6 +58,13 @@ COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(\S+)", re.M)
 MASTER_HEAD_RE = re.compile(r"^#\s+Master Plan:", re.M)
 
 
+def _add_note(state, msg):
+    """Accumulate a plan note. Notes are diagnostics the operator must see —
+    an abandon advisory and a stale-close-out warning can both be true of one
+    plan, so they concatenate rather than the later one silently winning."""
+    state["note"] = f"{state['note']}; {msg}" if state.get("note") else msg
+
+
 def plan_state(text, fname):
     """State of one executing-plans plan file, via the authoritative Status
     path (portfolio-unify regexes). Returns None for master plans (register
@@ -64,7 +76,8 @@ def plan_state(text, fname):
     if fname.endswith("-master-plan.md") or MASTER_HEAD_RE.search(text):
         return None
     cm = COMPLETED_RE.search(text)
-    tasks = []          # (stage, num, desc, done)
+    abandoned, abandon_advisory, abandon_reason = pu.plan_terminal_state(text)
+    tasks = []          # (stage, num, desc, state) — state per pu.status_state
     cur_stage = None
     cur_task = None
     for line in text.splitlines():
@@ -76,27 +89,47 @@ def plan_state(text, fname):
             cur_task = (cur_stage, tm.group(1), tm.group(2).strip())
         sm = pu.STATUS_RE.match(line)
         if sm and cur_task:
-            tasks.append(cur_task + (sm.group(1) != " ",))
+            # Classify via the owner's helper, never `!= " "`: that idiom reads
+            # a `[~]` partial task as DONE (see portfolio-unify.py's contract).
+            tasks.append(cur_task + (pu.status_state(sm.group(1)),))
             cur_task = None
+    # A partial task is unfinished work: it counts toward `total` (the plan is
+    # less finished, not smaller) but never toward `done`.
     state = {"file": fname, "active": True, "stage": None, "next_task": None,
-             "done": sum(1 for t in tasks if t[3]), "total": len(tasks),
+             "done": sum(1 for t in tasks if t[3] == "done"),
+             "partial": sum(1 for t in tasks if t[3] == "partial"),
+             "total": len(tasks), "abandoned": abandoned,
+             # SKILL.md lists a suppressed plan WITH its reason — the scanner
+             # must therefore carry it, not just the boolean.
+             "abandoned_reason": abandon_reason,
              "completed": cm.group(1) if cm else None, "note": None}
+    if abandoned:
+        # Terminal state: parsed and listed like any other plan, but never
+        # ranked as available work (see rank-eligible filtering in SKILL.md).
+        state["active"] = False
+    if abandon_advisory:
+        _add_note(state, abandon_advisory)
     if not tasks:
         # legacy/malformed plan: degrade, never drop
-        state["active"] = not cm
-        state["note"] = "stage unknown (no parseable Status fields)"
+        state["active"] = state["active"] and not cm
+        _add_note(state, "stage unknown (no parseable Status fields)")
         return state
-    open_tasks = [t for t in tasks if not t[3]]
+    # Partial tasks are still open: an in-flight task is the natural `next_task`
+    # and must not let a plan read as finished.
+    open_tasks = [t for t in tasks if t[3] != "done"]
     if open_tasks:
         stage, num, desc, _ = open_tasks[0]
         state["stage"] = stage
         state["next_task"] = f"Task {num}: {desc}"
         if cm:
-            state["note"] = f"completed marker present but {len(open_tasks)} task(s) still open"
+            # Append, never overwrite: a banner advisory may already be here,
+            # and SKILL.md's hard rule is that the advisory is always surfaced.
+            _add_note(state,
+                      f"completed marker present but {len(open_tasks)} task(s) still open")
     else:
         state["active"] = False
-        if not cm:
-            state["note"] = "all tasks done but no close-out line"
+        if not cm and not abandoned:
+            _add_note(state, "all tasks done but no close-out line")
     return state
 
 

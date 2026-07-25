@@ -108,11 +108,14 @@ field that `executing-plans` flips to `[x]` on green. When a plan has `Status:`
 fields, they are **authoritative** — no heuristic, no git archaeology.
 Implemented by `parse_plan_status()` in `portfolio-unify.py`:
 
-- **Detection:** any line matching `^\s*-\s*\*\*Status:\*\*\s*\[[ xX]\]` puts the
+- **Detection:** any line matching `^\s*-\s*\*\*Status:\*\*\s*\[[ xX~]\]` puts the
   whole file on the authoritative path. The checkbox is required: a
   checkbox-less field like `- **Status:** Draft` does NOT trigger the
   authoritative path — the file degrades gracefully to the legacy heuristic
-  instead of silently losing its candidates.
+  instead of silently losing its candidates. The character class must stay in
+  lockstep with `STATUS_RE`'s: when `~` was present in one and absent from the
+  other, an all-partial plan matched neither, fell to the legacy heuristic, and
+  emitted its gate bullets instead of its tasks.
 - Task with `- **Status:** [x]` → DONE, never a candidate — including any stray
   raw `- [ ]` bullet left in its body (suppressed; Status is the only
   task-state source).
@@ -121,6 +124,13 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   `### Task N.N:` header, and `source_locator` = `Stage N / Task N.N` (or
   `Task N.N` when no enclosing stage is detectable). The task's body bullets
   are never emitted as separate candidates.
+- Task with `- **Status:** [~]` → **partial / in flight** → exactly ONE
+  candidate per task, identical in shape to the above but with
+  `signal: status-partial`. A partial task counts toward a plan's `total` and
+  never toward its `done`: it is unfinished work, and the distinct signal keeps
+  "started but unfinished" separable from "never begun". Consumers classify via
+  `status_state()` in `portfolio-unify.py` — testing the captured character
+  with `!= " "` reads a partial task as DONE and is never correct.
 - Raw unchecked bullets outside task bodies (gates, ad-hoc checklists) are
   likewise ignored — in authoritative mode the ONLY candidate sources are
   `Status: [ ]` fields and Deferred blocks.
@@ -134,6 +144,29 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   context and emits nothing.
 - A plan with a `**Completed:** <date>` close-out line and all `[x]` is fully
   done (and, by the rules above, yields zero task candidates).
+
+### Abandonment: `**Abandoned:**` (terminal state, parsed — not prose)
+
+A plan that will never be finished carries a column-0 marker mirroring the
+`**Completed:**` close-out line:
+
+```
+**Abandoned:** YYYY-MM-DD — <reason>
+```
+
+Parsed by `plan_terminal_state()` in `portfolio-unify.py`. Rules:
+
+- The **marker is the only authoritative signal**, and it affects **ranking
+  only**: an abandoned plan is never recommended by compass `next`, but stays
+  visible in a full listing and still yields its open-task candidates for human
+  triage in `unify`. Suppressing those would let a one-line marker silently
+  delete work from the only view that still lists it.
+- **Prose banners are advisory, never authoritative.** Text like
+  `OBSOLETE — DO NOT IMPLEMENT` is detected and surfaced as a note ("looks
+  abandoned … not suppressed") so the author can add the real marker, but it
+  never suppresses anything. A deterministic parser must not treat unbounded
+  natural language as a gate: a false positive there hides live work, which is
+  a worse and quieter failure than the missing suppression it would fix.
 
 The heuristic signals above (unchecked `[ ]` bullets, git-stage evidence)
 remain the fallback for **legacy plans** that predate the `Status:` field.

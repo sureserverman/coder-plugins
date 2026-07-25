@@ -20,6 +20,11 @@ from pathlib import Path
 
 # Reuse the authoritative plan-parser pieces from the portfolio skill (stable
 # sibling layout inside the planning plugin). Hyphenated filename → importlib.
+# The plan-status contract (what `[ ]` / `[x]` / `[~]` mean) is defined and
+# argued once, at portfolio-unify.py's STATUS_RE — read it there before
+# changing anything here. This module classifies via pu.status_state() and
+# never tests the captured character directly: a partial task counts toward
+# the bar's denominator but never fills it.
 _UNIFY = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfolio-unify.py"
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
@@ -47,7 +52,13 @@ def find_state(start):
 
 
 def parse_plan(text):
-    """(done, total, stage_count) via the portfolio-unify Status contract."""
+    """(done, total, stage_count) via the portfolio-unify Status contract.
+
+    A `[~]` partial task counts toward `total` but never toward `done`, so the
+    bar shows the plan as less finished rather than shorter — classification
+    goes through pu.status_state(), never `!= " "` (which would fill the bar
+    for an in-flight task).
+    """
     stages = set()
     done = total = 0
     in_task = False
@@ -60,7 +71,7 @@ def parse_plan(text):
         sm = pu.STATUS_RE.match(line)
         if sm and in_task:
             total += 1
-            done += sm.group(1) != " "
+            done += pu.status_state(sm.group(1)) == "done"
             in_task = False
     return done, total, len(stages)
 

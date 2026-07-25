@@ -257,6 +257,104 @@ check(
     f"got: {mut}",
 )
 
+# (i) — the `[~]` partial state (BL-001). All three Status characters asserted
+# together: `[x]` emits nothing, `[ ]` → status-unexecuted, `[~]` →
+# status-partial. Partial is open work, but distinguishable from never-begun.
+partial = candidates("2026-07-24-partial-status-plan.md")
+partial_by_signal = {}
+for c in partial:
+    partial_by_signal.setdefault(c["signal"], []).append(c)
+check(
+    "partial: `[~]` task lands in the status-partial bucket",
+    [c["title"] for c in partial_by_signal.get("status-partial", [])]
+    == ["PARTIAL-INFLIGHT: started but unfinished"],
+    f"got: {partial}",
+)
+check(
+    "partial: `[ ]` task still lands in status-unexecuted, not status-partial",
+    [c["title"] for c in partial_by_signal.get("status-unexecuted", [])]
+    == ["PARTIAL-OPEN: never started"],
+    f"got: {partial}",
+)
+check(
+    "partial: `[x]` task still emits nothing, and gate bullets excluded",
+    not any(
+        "PARTIAL-DONE" in c["title"] or "PARTIAL-GATE-MARKER" in c["title"]
+        for c in partial
+    ),
+    f"got: {partial}",
+)
+check(
+    "partial: locator + signal set are exactly the two open tasks",
+    set(partial_by_signal) == {"status-unexecuted", "status-partial"}
+    and len(partial) == 2,
+    f"got signals: {set(partial_by_signal)}, n={len(partial)}",
+)
+
+# status_state() is the only sanctioned classifier — `!= " "` reads `[~]` as
+# done, which is worse than the bug being fixed. Lock the mapping directly.
+check(
+    "status_state maps the three contract characters",
+    (mod.status_state(" "), mod.status_state("x"), mod.status_state("X"),
+     mod.status_state("~")) == ("open", "done", "done", "partial"),
+    f"got: {[mod.status_state(c) for c in ' xX~']}",
+)
+
+# Lockstep guard: the authoritative-path DETECTION class must match STATUS_RE's.
+# An all-partial plan previously matched neither, fell to the legacy heuristic,
+# and emitted its gate bullet instead of its task.
+allpartial = candidates("2026-07-24-all-partial-plan.md")
+check(
+    "all-partial plan takes the authoritative path, not the legacy heuristic",
+    [(c["title"], c["signal"]) for c in allpartial]
+    == [("ALLPARTIAL-A: in flight", "status-partial")],
+    f"got: {allpartial}",
+)
+check(
+    "all-partial plan does not leak its gate bullet",
+    not any("ALLPARTIAL-GATE-MARKER" in c["title"] for c in allpartial),
+    f"got: {allpartial}",
+)
+
+# (j) — abandonment: the structured marker is authoritative; banner prose is
+# advisory only and must never suppress.
+aband_text = (FIXTURES / "2026-07-24-abandoned-plan.md").read_text()
+banner_text = (FIXTURES / "2026-07-24-banner-only-plan.md").read_text()
+live_text = (FIXTURES / "2026-07-24-partial-status-plan.md").read_text()
+check(
+    "**Abandoned:** marker flags the plan abandoned, with no advisory",
+    mod.plan_terminal_state(aband_text)[:2] == (True, None),
+    f"got: {mod.plan_terminal_state(aband_text)}",
+)
+check(
+    "the marker's REASON is returned, not discarded — compass lists a "
+    "suppressed plan with its reason",
+    mod.plan_terminal_state(aband_text)[2]
+    == "2026-07-20 — superseded by the widget rewrite",
+    f"got: {mod.plan_terminal_state(aband_text)[2]!r}",
+)
+ab_flag, ab_note, ab_reason = mod.plan_terminal_state(banner_text)
+check(
+    "banner prose WITHOUT the marker is never flagged abandoned",
+    ab_flag is False,
+    f"got: {(ab_flag, ab_note)}",
+)
+check(
+    "banner prose WITHOUT the marker yields a non-suppressing advisory",
+    ab_note is not None and "not suppressed" in ab_note,
+    f"got: {ab_note}",
+)
+check(
+    "banner-only plan carries no abandonment reason",
+    ab_reason is None,
+    f"got: {ab_reason!r}",
+)
+check(
+    "an ordinary live plan is neither abandoned nor advised",
+    mod.plan_terminal_state(live_text) == (False, None, None),
+    f"got: {mod.plan_terminal_state(live_text)}",
+)
+
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")
     sys.exit(1)

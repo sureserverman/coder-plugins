@@ -9,8 +9,11 @@ entries tagged `auto-unified`. Dry-run by default.
 Candidate signals (accept-all policy):
   - Status-authoritative tasks     (plans carrying `- **Status:**` fields, from
                                      planning-projects v0.5.1+: Task N.N with
-                                     `Status: [ ]` -> one candidate per task;
-                                     `[x]` -> done, stray body bullets ignored)
+                                     `Status: [ ]` -> one candidate per task
+                                     (signal status-unexecuted); `[~]` -> one
+                                     candidate, signal status-partial (started,
+                                     unfinished); `[x]` -> done, emits nothing;
+                                     stray body bullets ignored)
   - unchecked Task N.N tasks       (legacy plans without Status fields:
                                      ### Task N.N: with an unchecked `- [ ]`
                                      body bullet, or no `- [x]` in its body)
@@ -21,6 +24,10 @@ Excluded: Preflight bullets; Stage Gate bullets (acceptance criteria that restat
 a stage's definition-of-done — `### Stage N Gate` headers and `**Stage Gate:**`
 bold markers — NOT deferred work); *-done.md historical summaries; stale-plan
 items unless --include-stale (off by default).
+
+A `**Abandoned:** YYYY-MM-DD — reason` marker is a terminal state parsed here
+(plan_terminal_state) for consumers; it suppresses a plan from compass `next`
+ranking only — unify still emits its open tasks for human triage.
 
 See backlog/SKILL.md `### unify` + references/plan-parser.md for the spec.
 """
@@ -87,16 +94,114 @@ def vault_dir():
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)
 STAGEHDR_RE = re.compile(r"^##\s+Stage\s+(\d+)", re.I)
 GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
-STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX])\]")
+# ---------------------------------------------------------------------------
+# PLAN-STATUS CONTRACT — single definition; compass-scan.py and plan-progress.py
+# import it via importlib rather than restating it. Decided 2026-07-24 for
+# BL-001 (compass-scan blind spots). Rationale is recorded here, at the owner,
+# because a change to this one regex silently alters done/total math in every
+# consumer at once.
+#
+# (a) `[~]` IS a first-class parsed state — "partial / in flight".
+#     Counted in TOTAL, never in DONE. A partially-done task is not done;
+#     counting it done would let a plan report 100% with work outstanding,
+#     while the previous behaviour (excluded from the character class, so
+#     excluded from both numerator and denominator) made the task vanish from
+#     progress entirely — the plan looked smaller instead of less finished.
+#     portfolio-unify emits a candidate for it, with signal `status-partial`
+#     distinct from `status-unexecuted`: residual work is still open work, but
+#     "started and unfinished" is not the same backlog item as "never begun".
+#
+#     Consumers MUST classify through `status_state()` below and MUST NOT test
+#     `group(1) != " "` — under the widened class that idiom silently reports a
+#     partial task as DONE, which is strictly worse than the bug being fixed.
+#
+# (b) Abandonment is a STRUCTURED marker, not a prose heuristic:
+#         **Abandoned:** YYYY-MM-DD — <reason>
+#     mirroring the `**Completed:**` line plans already carry, and parsed by
+#     ABANDONED_RE below. It is the only thing that suppresses a plan from
+#     compass `next`.
+#
+#     Why not a banner heuristic over prose like "OBSOLETE — DO NOT IMPLEMENT":
+#     that text is unbounded natural language, so any regex over it carries
+#     both false positives (a plan *about* deprecating something; a task titled
+#     "remove the OBSOLETE banner"; a Research Summary quoting one) and false
+#     negatives ("superseded by", "shelved", "do not build"). A false positive
+#     hides live work from `next` — the same class of failure BL-001 exists to
+#     fix, merely inverted, and a silent one. A deterministic parser must not
+#     take a fuzzy signal as authoritative.
+#
+#     The marker's cost — authors must adopt it — is bounded, and its
+#     non-adoption failure mode is the STATUS QUO (the plan keeps looking
+#     active), not a regression. To blunt that cost without reintroducing
+#     false-positive risk, ABANDON_HINT_RE below detects banner prose and
+#     consumers surface it as a NON-SUPPRESSING advisory ("looks abandoned; no
+#     **Abandoned:** marker"), so the nudge is visible but never acted on.
+# ---------------------------------------------------------------------------
+STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX~])\]")
+
+# Terminal-state markers, both anchored at column 0 like the `**Completed:**`
+# line executing-plans appends at close-out. ABANDONED_RE is authoritative;
+# ABANDON_HINT_RE is advisory only (see the contract note above) and is
+# deliberately NOT consulted by any suppression decision.
+ABANDONED_RE = re.compile(r"^\*\*Abandoned:\*\*\s*(.+)$", re.M)
+ABANDON_HINT_RE = re.compile(
+    r"^[>#*_\s]{0,8}\b(OBSOLETE|SUPERSEDED|ABANDONED|DO NOT IMPLEMENT)\b", re.M)
+
+
+def status_state(ch):
+    """Classify a STATUS_RE capture into the contract's three states.
+
+    The ONLY sanctioned way to read a Status character. Consumers must not test
+    the captured char themselves — `!= " "` silently reads `[~]` as done.
+    """
+    if ch == "~":
+        return "partial"
+    if ch in ("x", "X"):
+        return "done"
+    return "open"
+
+
+def plan_terminal_state(text):
+    """(abandoned, advisory, reason) for one plan's full text.
+
+    `abandoned` is True only on the structured marker, and `reason` carries the
+    marker's own text (None when not abandoned) — compass lists a suppressed
+    plan WITH its reason, so discarding the captured group would leave the
+    judgment layer unable to follow its own instruction. `advisory` is a short
+    note when banner prose is present WITHOUT the marker — surfaced to the
+    operator, never acted on, so a false-positive banner match can never hide
+    live work.
+
+    DELIBERATELY NOT CALLED by parse_plan/unify_project in this module — it is
+    contract API for consumers, like STATUS_RE itself. Abandonment suppresses a
+    plan from compass `next` (a *ranking* decision) and nothing else; unify
+    keeps emitting an abandoned plan's open tasks as backlog candidates on
+    purpose. Those candidates are proposed for human acceptance, never
+    auto-written, so surfacing them costs a triage decision while suppressing
+    them would silently delete work from the only view that still lists it —
+    turning an author's one-line marker into a destructive action with a far
+    wider blast radius than the ranking change it was introduced for.
+    """
+    am = ABANDONED_RE.search(text)
+    if am:
+        return True, None, am.group(1).strip()
+    m = ABANDON_HINT_RE.search(text)
+    if m:
+        return False, (f"looks abandoned ({m.group(1).lower()} banner) but "
+                       f"carries no **Abandoned:** marker — not suppressed"), None
+    return False, None, None
 
 
 def parse_plan_status(text, plan_rel):
     """Authoritative path (plan-parser.md § Authoritative signal) for plans that
     carry per-task `- **Status:**` fields: Task N.N with `Status: [ ]` emits ONE
-    candidate (title = the task description); `[x]` means done. Raw unchecked
-    bullets are ignored entirely — Status is the only task-state source, and git
-    stage evidence is not consulted. Deferred blocks still surface (explicit
-    parking register, independent of task state). Master-plan registers use
+    candidate (signal `status-unexecuted`, title = the task description); `[~]`
+    likewise emits one but with signal `status-partial` (started, unfinished —
+    still open work, distinguishable from never-begun); `[x]` means done and
+    emits nothing. Raw unchecked bullets are ignored entirely — Status is the
+    only task-state source, and git stage evidence is not consulted. Deferred
+    blocks still surface (explicit parking register, independent of task
+    state). Master-plan registers use
     `### Sub-plan N:` headers, so their Status fields have no Task context and
     emit nothing."""
     out = []
@@ -124,11 +229,14 @@ def parse_plan_status(text, plan_rel):
             continue
         sm = STATUS_RE.match(line)
         if sm and cur_task:
-            if sm.group(1) == " ":
+            st = status_state(sm.group(1))
+            if st != "done":
                 num, desc = cur_task
                 loc = f"Stage {cur_stage} / Task {num}" if cur_stage else f"Task {num}"
                 out.append({"source": f"{plan_rel} — {loc}",
-                            "title": desc, "signal": "status-unexecuted"})
+                            "title": desc,
+                            "signal": ("status-unexecuted" if st == "open"
+                                       else "status-partial")})
             cur_task = None       # one Status field per task; consume it
     return out
 
@@ -143,7 +251,11 @@ def parse_plan(text, plan_rel, done_stages):
     # Detection requires the checkbox, matching STATUS_RE: a checkbox-less
     # `- **Status:** Draft` line must NOT capture the file for the
     # authoritative path (which would silently drop its legacy candidates).
-    if re.search(r"(?m)^\s*-\s*\*\*Status:\*\*\s*\[[ xX]\]", text):
+    # The class must stay in lockstep with STATUS_RE's — when `[~]` was absent
+    # here, a plan whose tasks were ALL partial matched nothing, fell through
+    # to the legacy heuristic, and emitted its raw `- [ ]` gate bullets as
+    # candidates instead of its tasks.
+    if re.search(r"(?m)^\s*-\s*\*\*Status:\*\*\s*\[[ xX~]\]", text):
         return parse_plan_status(text, plan_rel)
     out = []
     lines = text.splitlines()

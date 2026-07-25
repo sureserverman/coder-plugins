@@ -103,3 +103,6 @@ dist/
 # ===== sec-audit artifacts =====
 sec-audit-report-*.md
 sec-audit-findings-*.jsonl
+
+# Plan execution state (ephemeral session state, never committed)
+.claude/plan-progress.json

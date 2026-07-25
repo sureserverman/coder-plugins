@@ -52,6 +52,11 @@ When **more than one** source-prefixed key shares the same suffix (e.g. `manual.
 `github.stars`, or a future `store.installs` alongside `manual.installs` for an `installs`
 target), resolve to a single value by this **source precedence**, highest trust first:
 
+0. **Keys whose value is null this cycle are skipped entirely** before precedence is
+   applied. A null means "couldn't collect", so it carries no information to prefer — and
+   ranking it above a populated key would let a degraded collector mask the very figure the
+   operator supplied to cover for it. Only if *every* candidate is null does the suffix
+   resolve to null.
 1. `github.*` — auto-collected, highest trust.
 2. `manual.*` — operator-entered.
 3. any **other source** prefix, in ascending **alphabetical** order of the prefix

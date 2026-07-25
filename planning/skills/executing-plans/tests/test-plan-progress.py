@@ -43,6 +43,24 @@ PLAN = """# Plan: demo feature
 - **Status:** [ ]
 """
 
+# BL-001: the `[~]` partial state. One task of each kind, so the bar must read
+# 1/3 — the partial task counts toward the denominator (the plan is less
+# finished) but never fills the bar. Under the old `!= " "` classification it
+# would have read 2/3, reporting in-flight work as done.
+PARTIAL_PLAN = """# Plan: partial states
+
+## Stage 1 — mixed
+
+### Task 1.1: finished
+- **Status:** [x]
+
+### Task 1.2: in flight
+- **Status:** [~]
+
+### Task 1.3: not started
+- **Status:** [ ]
+"""
+
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -94,6 +112,16 @@ def main():
     print("walk-up discovery from subdirectory:")
     r, out = run(repo / "sub" / "dir")
     check("3/5" in out, "state found from nested cwd")
+
+    print("BL-001 partial `[~]` state:")
+    ppartial = repo / "plans" / "partial-plan.md"
+    ppartial.write_text(PARTIAL_PLAN)
+    write_state(repo, plan=str(ppartial), phase="task", stage=1, task="1.2",
+                task_desc="in flight")
+    r, out = run(repo)
+    check("1/3" in out, "partial counted in total, not in done (1/3)")
+    check("2/3" not in out, "partial NOT counted as done (would be 2/3)")
+    check("(33%)" in out, "percentage reflects partial as unfinished")
 
     print("gate phase:")
     write_state(repo, plan=str(plan), phase="gate", stage=2)

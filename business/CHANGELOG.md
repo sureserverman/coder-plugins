@@ -4,6 +4,36 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-25
+
+### Added
+- **Per-channel metric collectors (BL-002).** `scripts/collect-npm.py` (`npm.downloads_last_week`,
+  `npm.downloads_last_month`, `npm.versions` — accepts a package name or a repo path with a
+  `package.json`) and `scripts/collect-amo.py` (`amo.daily_users`, `amo.downloads_last_week`,
+  `amo.rating_count`, `amo.rating_average` — accepts a slug, numeric id, or GUID). Both public
+  and unauthenticated. `track` runs them alongside `collect-github.py` and folds their values
+  into `metrics.md` under their own `<channel>.*` keys. Play and donation platforms are
+  deliberately deferred: both need per-project credentials rather than a public read.
+- **`references/collector-contract.md`** — the contract every collector must meet, extracted
+  from `collect-github.py`: one JSON document on stdout, `values` always carrying every known
+  metric key (null when uncollected), degrade-to-null-plus-reason, **exit 0 even when nothing
+  collected**, non-zero only on a usage error, secret redaction, and the `<channel>.<metric>`
+  namespace. Includes the test checklist a new collector must satisfy.
+- **`scripts/_collector.py`** — shared best-effort HTTP, reason accumulation, redaction, and
+  document emission, so a new channel is mechanical. `collect-github.py` is deliberately not
+  retrofitted onto it (it has a passing suite and no behavior to gain).
+
+### Changed
+- **`track` Phase 2 no longer prompts for metrics a collector now reaches**, and a
+  hand-supplied figure covering a degraded collector is recorded under `manual.<suffix>` —
+  never the collector's own `<channel>.*` key — so the prefix stays an honest provenance record.
+
+### Fixed
+- **Null metrics can no longer be masked by source precedence** (`references/metrics-format.md`):
+  a key whose value is null this cycle is skipped *before* precedence ranking. Previously a
+  degraded `github.clones_14d` (rank 1) outranked a populated `manual.clones_14d`, so the diff
+  reported "unknown" for the very figure the operator supplied to cover the failure.
+
 ## [0.4.0] - 2026-07-15
 
 ### Added

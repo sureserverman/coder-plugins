@@ -153,6 +153,71 @@ def test_plan_state(tmp):
           "malformed plan carries the degradation note, not dropped")
 
 
+def test_partial_and_abandoned(tmp):
+    """BL-001: the `[~]` partial state and abandoned-plan suppression."""
+    print("[partial + abandoned]")
+    home, vault = make_env(tmp)
+    out = run_scan(home)
+    projects = {p["name"]: p for p in out["projects"]}
+    plans_a = {p["file"]: p for p in projects["alpha"]["plans"]}
+
+    # --- `[~]` is counted as decided, never silently dropped -----------------
+    partial = plans_a["2026-07-24-partial-plan.md"]
+    check((partial["done"], partial["total"]) == (1, 3),
+          "partial task counts toward total, never toward done (1/3)")
+    check(partial["done"] != 2,
+          "partial NOT classified as done (the `!= \" \"` bug would give 2)")
+    check(partial["partial"] == 1, "partial tasks reported in their own count")
+    check(partial["total"] == 3,
+          "partial task not dropped from total (old behaviour gave 2)")
+    check(partial["next_task"] == "Task 1.2: Wire the middle",
+          "an in-flight task is the next task, not skipped over")
+    check(partial["active"] is True, "a plan with partial work is still active")
+
+    # --- abandoned: suppressed from recommendation, NOT hidden --------------
+    ghost = plans_a["2026-07-24-ghost-plan.md"]
+    check(ghost["abandoned"] is True, "**Abandoned:** marker parsed")
+    check(ghost["abandoned_reason"] == "2026-07-22 — superseded by the widget pipeline",
+          f"the marker's reason reaches the scan JSON — SKILL.md tells the "
+          f"judgment layer to list a suppressed plan WITH its reason, so the "
+          f"boolean alone is not enough ({ghost.get('abandoned_reason')!r})")
+    check(rumor_reason_absent := plans_a["2026-07-24-rumor-plan.md"]["abandoned_reason"] is None,
+          "a banner-only plan carries no abandonment reason")
+    check(ghost["active"] is False,
+          "abandoned plan is not rankable as available work")
+    check("2026-07-24-ghost-plan.md" in plans_a,
+          "abandoned plan still LISTED — suppressed from recommendation, "
+          "not hidden from the board")
+    check(ghost["total"] == 1 and ghost["next_task"] == "Task 1.1: Summon the ghost",
+          "abandoned plan's tasks stay parsed and visible")
+
+    # --- banner prose is advisory only, never suppressing --------------------
+    rumor = plans_a["2026-07-24-rumor-plan.md"]
+    check(rumor["abandoned"] is False,
+          "prose banner alone never marks a plan abandoned")
+    check(rumor["active"] is True,
+          "prose banner never suppresses — a false positive would hide live work")
+    check("not suppressed" in (rumor["note"] or ""),
+          "banner carries a non-suppressing advisory nudging the real marker")
+
+    # --- notes accumulate; a later note never silently wins ------------------
+    # Tier-1 review catch: banner prose + a stale **Completed:** + an open task
+    # are all true at once. The stale-close-out warning used to overwrite the
+    # banner advisory, dropping the nudge exactly where it is most needed.
+    haunted = plans_a["2026-07-24-haunted-plan.md"]
+    check("not suppressed" in (haunted["note"] or ""),
+          "banner advisory survives alongside a stale-close-out note")
+    check("completed marker present" in (haunted["note"] or ""),
+          "stale-close-out note still reported")
+    check(haunted["abandoned"] is False and haunted["active"] is True,
+          "banner + stale Completed still never suppresses")
+
+    # --- the live plans are untouched by either mechanism -------------------
+    widget = plans_a["2026-06-01-widget-plan.md"]
+    check(widget["abandoned"] is False and widget["note"] is None,
+          "an ordinary live plan is neither abandoned nor advised")
+
+
 def test_signals(tmp):
     print("[signals]")
     home, vault = make_env(tmp)
@@ -194,6 +259,8 @@ def main():
         test_envelope_and_unconfigured(Path(td))
     with tempfile.TemporaryDirectory() as td:
         test_plan_state(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_partial_and_abandoned(Path(td))
     with tempfile.TemporaryDirectory() as td:
         test_signals(Path(td))
     if FAILURES:
