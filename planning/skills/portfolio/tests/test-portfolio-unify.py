@@ -43,6 +43,9 @@ parse_plan = mod.parse_plan
 
 failures = []
 
+import datetime
+TODAY_ = datetime.date(2026, 7, 25)   # fixed 'today' so date assertions never drift
+
 
 def check(name, cond, detail=""):
     if cond:
@@ -354,6 +357,186 @@ check(
     mod.plan_terminal_state(live_text) == (False, None, None),
     f"got: {mod.plan_terminal_state(live_text)}",
 )
+
+# --- signal 3: stale-plan candidates (--include-stale, BL-016) --------------
+# Opt-in, keyed on the filename YYYY-MM-DD stamp (NOT git — the vault is not a
+# repo; NOT mtime — a migration reset five plans to one date). plan-parser.md § 3.
+
+# Date arithmetic, with `today` injected so these never drift with the calendar.
+check("90-day boundary: 91 days is stale",
+      mod.stale_age_days("2026-04-25-x-plan.md", TODAY_) > mod.STALE_DAYS,
+      f"got {mod.stale_age_days('2026-04-25-x-plan.md', TODAY_)}")
+check("90-day boundary: exactly 90 days is NOT stale",
+      not (mod.stale_age_days("2026-04-26-x-plan.md", TODAY_) > mod.STALE_DAYS),
+      "90 days must sit inside the window")
+check("unstamped filename -> staleness UNKNOWN, never assumed",
+      mod.stale_age_days("unstamped-legacy-plan.md") is None,
+      "an unstamped name must not read as infinitely old")
+check("plan_date's 0000-00-00 sentinel is NOT reused for staleness",
+      mod.plan_date("unstamped-legacy-plan.md") == "0000-00-00"
+      and mod.stale_age_days("unstamped-legacy-plan.md") is None,
+      "reusing the sentinel would flag every unstamped legacy file stale")
+check("invalid date in a filename -> unknown, not a crash",
+      mod.stale_age_days("2026-13-45-x-plan.md") is None, "must catch ValueError")
+check("future-dated stamp is not stale",
+      mod.stale_age_days("2099-01-01-x-plan.md", TODAY_) < 0, "negative age")
+
+
+def run_unify(names, include_stale, evidence, extra=None):
+    """unify_project end-to-end over a throwaway vault home. git_stage_evidence
+    is stubbed because signal 3 only ADDS items the git-stage suppression hid —
+    without stage evidence there is nothing for it to surface, so a test that
+    skipped the stub would pass no matter what the flag did."""
+    import tempfile, shutil
+    with tempfile.TemporaryDirectory() as td:
+        home = Path(td) / "h"
+        (home / "plans").mkdir(parents=True)
+        for n in names:
+            shutil.copy(FIXTURES / n, home / "plans" / n)
+        for fname, body in (extra or {}).items():
+            (home / "plans" / fname).write_text(body)
+        orig = mod.git_stage_evidence
+        mod.git_stage_evidence = lambda _p: evidence
+        try:
+            return mod.unify_project(home, False, td, include_stale)
+        finally:
+            mod.git_stage_evidence = orig
+
+
+STALE_FIXTURE = ["2020-01-01-stale-legacy-plan.md"]
+DONE_STAGE = {("2026-01-01", 1)}          # a commit that marks Stage 1 executed
+
+_, _, off = run_unify(STALE_FIXTURE, False, DONE_STAGE)
+_, _, on = run_unify(STALE_FIXTURE, True, DONE_STAGE)
+check("flag OFF: a git-suppressed old plan stays silent",
+      off == 0, f"expected 0, got {off}")
+check("flag ON: the old plan's suppressed items surface",
+      on > off, f"expected >{off}, got {on}")
+
+# The signal LABEL itself, read back out of unify_project's real output rather
+# than reconstructed here — the earlier version built the label in the test, so
+# it could not have caught a mislabel in the script. Documented in three places
+# and asserted in none until close-out mutation testing found the gap.
+import tempfile as _tf, shutil as _sh
+_labels = []
+with _tf.TemporaryDirectory() as _td:
+    _h = Path(_td) / "h"
+    (_h / "plans").mkdir(parents=True)
+    _sh.copy(FIXTURES / STALE_FIXTURE[0], _h / "plans" / STALE_FIXTURE[0])
+    _bl = _h / "backlog.md"
+    _orig = mod.git_stage_evidence
+    mod.git_stage_evidence = lambda _p: DONE_STAGE
+    try:
+        mod.unify_project(_h, True, _td, True)      # --write, so entries render
+        _labels = [ln for ln in _bl.read_text().splitlines() if "Reason:" in ln]
+    finally:
+        mod.git_stage_evidence = _orig
+check("stale candidates render the documented signal label into the backlog",
+      _labels and all("stale-plan-unchecked" in ln for ln in _labels),
+      f"got {_labels}")
+
+# BL-017: backlog/SKILL.md documents `Tags: auto-unified` PLUS the plan's filename
+# date stamp. render_entry emitted only `auto-unified` from the start, and nothing
+# asserted the line — which is exactly how the claim drifted unnoticed for months.
+_tag_lines, _unstamped_tags = [], []
+with _tf.TemporaryDirectory() as _td:
+    _h = Path(_td) / "h"
+    (_h / "plans").mkdir(parents=True)
+    _sh.copy(FIXTURES / STALE_FIXTURE[0], _h / "plans" / STALE_FIXTURE[0])
+    _sh.copy(FIXTURES / "unstamped-legacy-plan.md", _h / "plans" / "unstamped-legacy-plan.md")
+    mod.unify_project(_h, True, _td, False)
+    for _ln in (_h / "backlog.md").read_text().splitlines():
+        if _ln.startswith("- **Tags:**"):
+            (_unstamped_tags if "2020-01-01" not in _ln else _tag_lines).append(_ln)
+
+check("a unified entry is tagged with its plan's filename date stamp",
+      _tag_lines and all("auto-unified" in ln and "2020-01-01" in ln for ln in _tag_lines),
+      f"got {_tag_lines}")
+check("an unstamped plan contributes no fake date tag",
+      _unstamped_tags and all(ln.strip() == "- **Tags:** auto-unified" for ln in _unstamped_tags),
+      f"the 0000-00-00 sentinel must never be emitted as a tag; got {_unstamped_tags}")
+
+# The stamp is attached in ONE place — the loop over parse_plan's full return — so
+# every signal family gets it for free. That is the design's virtue and its risk:
+# a future edit that special-cases one branch would regress silently. Assert the
+# tag on each family rather than trusting the single-loop invariant to hold.
+def _tags_for(fixture, include_stale=False, evidence=None):
+    with _tf.TemporaryDirectory() as _d:
+        _hh = Path(_d) / "h"
+        (_hh / "plans").mkdir(parents=True)
+        _sh.copy(FIXTURES / fixture, _hh / "plans" / fixture)
+        _o = mod.git_stage_evidence
+        mod.git_stage_evidence = lambda _p: (evidence or set())
+        try:
+            mod.unify_project(_hh, True, _d, include_stale)
+        finally:
+            mod.git_stage_evidence = _o
+        body = (_hh / "backlog.md").read_text()
+        return [l for l in body.splitlines() if l.startswith("- **Tags:**")], body
+
+for _fx, _stamp, _sig in (
+        ("2026-07-24-partial-status-plan.md", "2026-07-24", "status-"),
+        ("2026-07-14-light-inprogress-plan.md", "2026-07-14", "deferred-section"),
+):
+    _t, _body = _tags_for(_fx)
+    check(f"{_sig} entries carry the plan's date stamp ({_fx})",
+          _t and all(_stamp in l for l in _t) and _sig in _body,
+          f"tags={_t}")
+
+_t, _body = _tags_for(STALE_FIXTURE[0], include_stale=True, evidence=DONE_STAGE)
+check("stale-plan-unchecked entries carry the plan's date stamp too",
+      _t and all("2020-01-01" in l for l in _t) and "stale-plan-unchecked" in _body,
+      f"tags={_t}")
+
+# A plan dated today can never be stale — written at run time so it cannot age
+# into staleness the way a committed fixture would.
+import datetime as _dt
+_today_name = f"{_dt.date.today().isoformat()}-fresh-plan.md"
+_fresh = ("# Project Plan: Fresh\n\n## Stage 1: S\n\n### Task 1.1: T\n"
+          "- [ ] a recent unresolved item\n")
+_, _, fresh_off = run_unify([], False, DONE_STAGE, extra={_today_name: _fresh})
+_, _, fresh_on = run_unify([], True, DONE_STAGE, extra={_today_name: _fresh})
+check("a plan dated today contributes no STALE extras",
+      fresh_on == fresh_off,
+      f"off={fresh_off} on={fresh_on} — a same-day plan must never be stale "
+      f"(its own normal candidates are expected and unaffected by the flag)")
+
+# The 90-day boundary through unify_project, not just the helper. Both plans are
+# written at run time and dated relative to today, so the pair straddles the
+# threshold forever instead of ageing across it like a committed fixture would.
+_body = ("# Project Plan: Boundary\n\n## Stage 1: S\n\n### Task 1.1: T\n"
+         "- [ ] a suppressed unresolved item\n")
+_at90 = (_dt.date.today() - _dt.timedelta(days=mod.STALE_DAYS)).isoformat()
+_at91 = (_dt.date.today() - _dt.timedelta(days=mod.STALE_DAYS + 1)).isoformat()
+# Stage evidence must post-date each plan for the suppression to apply, which is
+# what leaves anything for signal 3 to surface.
+_ev = {(_dt.date.today().isoformat(), 1)}
+_, _, b90_off = run_unify([], False, _ev, extra={f"{_at90}-boundary-plan.md": _body})
+_, _, b90_on = run_unify([], True, _ev, extra={f"{_at90}-boundary-plan.md": _body})
+_, _, b91_off = run_unify([], False, _ev, extra={f"{_at91}-boundary-plan.md": _body})
+_, _, b91_on = run_unify([], True, _ev, extra={f"{_at91}-boundary-plan.md": _body})
+check(f"exactly {mod.STALE_DAYS} days old is NOT stale (no extras under the flag)",
+      b90_on == b90_off, f"off={b90_off} on={b90_on} — the window must be exclusive")
+check(f"{mod.STALE_DAYS + 1} days old IS stale (extras appear under the flag)",
+      b91_on > b91_off, f"off={b91_off} on={b91_on} — one day past must surface")
+
+# The unstamped fallback, through the real code path rather than the helper.
+_, _, uns_off = run_unify(["unstamped-legacy-plan.md"], False, DONE_STAGE)
+_, _, uns_on = run_unify(["unstamped-legacy-plan.md"], True, DONE_STAGE)
+check("an unstamped plan contributes no stale candidates even with a done stage",
+      uns_on == uns_off, f"off={uns_off} on={uns_on} — unknown age must not surface")
+
+# Tier-1 raised a Source-key collision (the legacy locator encodes the Stage but
+# not Task N.N). Verified UNREACHABLE here: `normal` and the stale re-parse differ
+# only at whole-stage granularity, so a colliding pair is always wholly in both or
+# wholly in neither. The dedup key is (source, title) anyway as defence in depth;
+# this locks the property the reachability argument rests on.
+_, _, all_suppressed = run_unify(STALE_FIXTURE, True, DONE_STAGE)
+_, _, none_suppressed = run_unify(STALE_FIXTURE, True, set())
+check("stale diff is whole-stage: every item surfaces when its stage is done",
+      all_suppressed == none_suppressed,
+      f"done-stage={all_suppressed} no-evidence={none_suppressed} — a partial "
+      f"difference would make the Source-key collision reachable")
 
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")

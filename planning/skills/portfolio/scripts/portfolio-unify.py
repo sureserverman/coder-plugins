@@ -22,7 +22,10 @@ Candidate signals (accept-all policy):
                                      register, not a task-state heuristic)
 Excluded: Preflight bullets; Stage Gate bullets (acceptance criteria that restate
 a stage's definition-of-done — `### Stage N Gate` headers and `**Stage Gate:**`
-bold markers — NOT deferred work); *-done.md historical summaries.
+bold markers — NOT deferred work); *-done.md historical summaries; stale-plan
+items unless --include-stale (off by default — staleness from the filename
+YYYY-MM-DD stamp, since the vault is not a git repo and mtime is rewritten by
+migrations).
 
 A `**Abandoned:** YYYY-MM-DD — reason` marker is a terminal state parsed here
 (plan_terminal_state) for consumers; it suppresses a plan from compass `next`
@@ -61,6 +64,28 @@ def git_stage_evidence(repo_path):
 def plan_date(fname):
     m = re.match(r"(\d{4}-\d{2}-\d{2})", fname)
     return m.group(1) if m else "0000-00-00"
+
+
+STALE_DAYS = 90
+
+
+def stale_age_days(fname, today=None):
+    """Days since the plan's filename date stamp, or None when the name carries
+    no usable stamp — staleness unknown, never assumed (plan-parser.md § 3).
+
+    Deliberately NOT plan_date(): that returns "0000-00-00" for an unstamped
+    name, which is the right sentinel for the git-stage comparison (every commit
+    counts as later) but would read as infinitely old here and mark every legacy
+    file stale — the exact opposite of the documented fallback.
+    """
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", fname)
+    if not m:
+        return None
+    try:
+        d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:          # e.g. 2026-13-45 in a filename
+        return None
+    return ((today or datetime.date.today()) - d).days
 
 TASK_RE = re.compile(r"^###\s+Task\s+(\d+\.\d+):\s*(.+)$")
 STAGE_RE = re.compile(r"^##\s+Stage\s+\d+:")
@@ -314,19 +339,25 @@ def max_bl(backlog_text):
 
 
 def render_entry(bid, c):
+    # The originating plan's filename stamp rides along as a tag, so a unified
+    # entry stays greppable back to the plan that produced it. The "0000-00-00"
+    # sentinel (unstamped filename) is deliberately NOT emitted — a fake date in
+    # a tag is worse than no tag.
+    stamp = c.get("plan_date")
+    tags = "auto-unified" + (f", {stamp}" if stamp and stamp != "0000-00-00" else "")
     return (f"## BL-{bid:03d} — {c['title'][:80]}\n\n"
             f"- **Opened:** {TODAY}\n"
             f"- **Source:** {c['source']}\n"
             f"- **Reason:** Auto-unified from plan ({c['signal']}).\n"
             f"- **Next step:** TBD — opened by unify on {TODAY}; review and refine.\n"
-            f"- **Tags:** auto-unified\n\n---\n")
+            f"- **Tags:** {tags}\n\n---\n")
 
 
 HEADER = ("# Backlog\n\nDeferred items from plan execution, code review, or ad-hoc "
           "capture. Entries are removed when implemented; git history is the audit trail.\n\n---\n")
 
 
-def unify_project(home, write, repo_path):
+def unify_project(home, write, repo_path, include_stale=False):
     plans_dir = home / "plans"
     if not plans_dir.is_dir():
         return (0, 0, 0)
@@ -338,7 +369,30 @@ def unify_project(home, write, repo_path):
         rel = "plans/" + pf.relative_to(plans_dir).as_posix()
         pdate = plan_date(pf.name)
         done_stages = {sn for (cdate, sn) in gpairs if cdate >= pdate}
-        cands.extend(parse_plan(pf.read_text(errors="ignore"), rel, done_stages))
+        text = pf.read_text(errors="ignore")
+        normal = parse_plan(text, rel, done_stages)
+        for c in normal:
+            c["plan_date"] = pdate
+        cands.extend(normal)
+        if not include_stale:
+            continue
+        age = stale_age_days(pf.name)
+        if age is None or age <= STALE_DAYS:
+            continue
+        # Signal 3 lowers the bar for an old plan: re-parse with the git-stage
+        # suppression lifted, and keep only what signals 1-2 did NOT already
+        # emit. It adds items from plans the normal heuristics skip; it never
+        # relabels ones they found (plan-parser.md § 3).
+        # Keyed on (source, title), not source alone: the legacy `unchecked-open`
+        # locator encodes the Stage but not the Task N.N, so two tasks in one
+        # stage whose bullets share a 50-char prefix produce the same source.
+        # Deduping on that key would silently DROP a real stale candidate, and a
+        # false negative is the worse failure for a register meant to surface
+        # forgotten work.
+        seen = {(c["source"], c["title"]) for c in normal}
+        for c in parse_plan(text, rel, set()):
+            if (c["source"], c["title"]) not in seen:
+                cands.append(dict(c, signal="stale-plan-unchecked", plan_date=pdate))
     backlog = home / "backlog.md"
     btext = backlog.read_text() if backlog.exists() else HEADER
     have = existing_sources(btext)
@@ -361,6 +415,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--project")
+    ap.add_argument("--include-stale", action="store_true",
+                    help="also surface unresolved items in plans older than "
+                         f"{STALE_DAYS} days by filename stamp (off by default)")
     args = ap.parse_args()
     vd = vault_dir()
     reg = yaml.safe_load(REGISTRY.read_text())
@@ -370,7 +427,7 @@ def main():
     tot_new = tot_dup = tot_cand = 0
     for proj in projects:
         home = vd / "Portfolio" / proj["area"] / proj["name"]
-        n, d, c = unify_project(home, args.write, proj["path"])
+        n, d, c = unify_project(home, args.write, proj["path"], args.include_stale)
         tot_new += n; tot_dup += d; tot_cand += c
         if c:
             print(f"  {proj['area']}/{proj['name']}: {n} new, {d} dup, {c} candidates")

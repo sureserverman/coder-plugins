@@ -34,20 +34,67 @@ Pattern for heading detection: `^#{2,3} Deferred$`
 
 Boundary patterns that close the block: `^## ` (any level-2 heading) or `^---$`.
 
-### 3. Stale-plan candidates — NOT IMPLEMENTED
+### 3. Stale-plan candidates (opt-in via `--include-stale`)
 
-This reference described a third signal — plans untouched by git for 90 days
-surfacing all their unresolved items behind an opt-in `--include-stale` flag —
-from 2026-05-23 until 2026-07-25. **No such flag and no such signal ever existed
-in `portfolio-unify.py`.** `argparse` registers only `--write` and `--project`,
-and the string `stale` appears nowhere in the parser's logic.
+A plan authored long ago that still carries unresolved items is quiet debt: no
+one is working it, and nothing else surfaces it. This signal finds those, and is
+**off by default** because on ~30 projects it would otherwise flood the sweep.
 
-The section is kept as a stub rather than deleted so the idea is not silently
-lost, and because a contract document that quietly drops a signal is as
-confusing as one that invents it. Anyone implementing it should treat the design
-above as a starting sketch, not a spec: the 90-day window, the "lower the bar to
-stale + any unresolved item" rule, and the interaction with signals 1–2 all need
-deciding, and the churn risk on ~30 projects is the reason it was opt-in.
+**Staleness comes from the plan's filename date stamp**, not from git and not
+from mtime:
+
+```
+2026-04-15-foo-plan.md   ->   authored 2026-04-15
+```
+
+A plan is stale when `today - <filename stamp> > 90 days`.
+
+**Why not git.** The original sketch specified `git log -1 --format=%ct -- <plan-path>`.
+Plans are vault-canonical, and **the vault is not a git repository** — verified:
+`git rev-parse --is-inside-work-tree` under `/mnt/vault` returns *fatal: not a
+git repository*. That design predates the `portfolio migrate` move, when plans
+lived in `<repo>/docs/plans/` and were tracked. Implemented as written, every
+plan's staleness would be permanently unknown.
+
+**Why not mtime.** mtime is available but records the last *write*, which a
+migration, a `cp`, or an `executing-plans` Status flip all trigger. Verified on
+the live vault: the five oldest coder-plugins plans (stamps 2026-04-28 through
+2026-05-15) all carry `mtime = 2026-05-23`, the migration copy date, and six
+plans share that mtime exactly. A plan executed yesterday and one bulk-copied
+last month are indistinguishable.
+
+**Why the filename stamp works.** It is assigned at authoring, survives copies
+and migrations, and is already load-bearing (`unify --write` tags new entries
+with it). 441 of 450 plan files across the vault carry it. It measures
+age-since-authored — which is the question this signal asks.
+
+**Unstamped filename → staleness unknown.** A file whose name does not begin
+`YYYY-MM-DD-` is excluded from signal 3; it is still parsed for signals 1 and 2.
+This is the original spec's own rule for an unavailable timestamp, transferred
+unchanged.
+
+The exclusion is **silent** — there is no per-file log line. `portfolio-unify.py`
+prints only its two end-of-run summaries, and adding per-file output would change
+the default path's stdout, which the flag-off byte-identity invariant forbids.
+Note the consequence: an unstamped legacy plan is *doubly* invisible, because
+`plan_date()`'s `0000-00-00` sentinel also makes every commit count as later and
+so suppresses its items on the legacy path. `--include-stale` can never reach
+such a plan. Renaming it with a date stamp is the fix.
+
+**No duplication.** An item already emitted by signal 1 or 2 is never re-emitted
+as `stale-plan-unchecked`. The flag *adds* candidates from plans the normal
+heuristics skip; it never relabels ones they already found.
+
+**Scope: signal 3 only ever fires on legacy plans.** It surfaces what the
+git-stage suppression hid, and that suppression exists only on the legacy
+heuristic path — `parse_plan_status()` never consults `done_stages`, so a plan
+carrying `- **Status:**` fields (every modern plan, Light plan, sub-plan and
+master register) already surfaces all its open work unconditionally through
+signals 1 and 2. For those plans `--include-stale` is a structural no-op, and
+that is correct, not a bug: there is nothing hidden for it to reveal. Verified:
+a 2000-day-old Status-path plan with a git-confirmed-done stage yields an
+identical candidate set with and without the flag. Expect the flag to fire
+rarely, and only on the oldest checkbox-era plans.
 
 ## Candidate output shape
 
@@ -67,17 +114,19 @@ Field definitions:
   - Task checkbox: `Stage N / Task N.N` (if a stage grouping is detectable from context) or `Task N.N` alone.
   - Deferred bullet: `Deferred / bullet K` (K is 1-based index within the Deferred block).
 - **`title`** — the item text, stripped of its structural prefix. For a task header the `### Task N.N: ` prefix is removed; for a bullet the `- [ ] ` or `- ` prefix is removed. No further transformation.
-- **`signal`** — one of four values, and these are the complete set the parser emits:
+- **`signal`** — one of five values, and these are the complete set the parser emits:
   - `status-unexecuted` — a task whose `- **Status:**` field is `[ ]`.
   - `status-partial` — a task whose `Status` is `[~]`: started but unfinished. Distinct from `status-unexecuted` because residual work is still open work, but the task is not untouched.
   - `unchecked-open` — an unchecked `- [ ]` bullet inside a Task N.N section. Preflight and Stage Gate bullets are NOT a source.
   - `deferred-section` — any bullet under an explicit Deferred heading.
 
-  There is no `unchecked-task` and no `stale-plan-unchecked`; both were named here for months and neither was ever emitted.
+  - `stale-plan-unchecked` — an unresolved item in a plan older than 90 days by filename stamp, emitted **only** under `--include-stale` and only for items the four signals above did not already emit.
+
+  There is no `unchecked-task`; it was named here for months and never emitted.
 
 ## Hard rules
 
-1. **Scope is signals 1 and 2 only.** Signal 3 (staleness) is not implemented — see above. This keeps backlog churn away from plans that are simply old but already complete.
+1. **Default scope is signals 1 and 2 only.** Signal 3 (staleness) activates only when `--include-stale` is passed. This keeps backlog churn away from plans that are simply old but already complete.
 
 2. **Source field format in `docs/backlog.md`.** When an accepted candidate is written into a project's backlog by the `backlog add` operation, the `Source:` field MUST be formatted as:
 

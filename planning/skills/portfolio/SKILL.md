@@ -61,7 +61,7 @@ Drift reporting is the mitigation for the "registry rots" failure mode — every
 
 ### `unify` — derive backlog candidates for every enabled project, in parallel
 
-Inputs: optional `--project <abs-path>` (limit to one project; matched against the registry `path`), optional `--write` (default off).
+Inputs: optional `--project <abs-path>` (limit to one project; matched against the registry `path`), optional `--include-stale` (default off — surfaces unresolved items in plans older than 90 days by filename stamp), optional `--write` (default off).
 
 Operation:
 

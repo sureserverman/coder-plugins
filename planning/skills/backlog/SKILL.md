@@ -113,7 +113,7 @@ For ingestion by other skills (e.g. `planning-projects` Phase 0 research). Retur
 
 ### `unify` — derive backlog candidates from this project's plans
 
-Inputs: optional `--project <absolute-repo-path>` (limit the sweep to one project; matched against the registry's `path` field, so a bare name will match nothing), optional `--write` (off by default — dry-run is the default behavior). There are no other flags.
+Inputs: optional `--project <absolute-repo-path>` (limit the sweep to one project; matched against the registry's `path` field, so a bare name will match nothing), optional `--include-stale` (off by default — see the signal list below), optional `--write` (off by default — dry-run is the default behavior). There are no other flags.
 
 **Plans source.** Always `<portfolio_home>/plans/` (resolver). There is no repo-mode and no plans-dir override: storage is vault-canonical, so a project that still keeps plans in `docs/plans/` must be migrated (`portfolio migrate`) before `unify` can see them.
 
@@ -130,7 +130,7 @@ Returns a structure of the shape:
 Operation:
 
 1. Resolve the plans directory: `<project-path>/<plans-dir>`. If it does not exist, return `{candidates: [], existing: [...], duplicates_skipped: 0}` with a note in the report; this is not an error.
-2. Read every `*.md` file in that directory. For each, apply the parser rules documented in `../portfolio/references/plan-parser.md`: task `Status:` fields that are not done, unchecked bullets inside a Task section, and Deferred-section bullets.
+2. Read every `*.md` file in that directory. For each, apply the parser rules documented in `../portfolio/references/plan-parser.md`: task `Status:` fields that are not done, unchecked bullets inside a Task section, and Deferred-section bullets — plus, only when `--include-stale` is passed, unresolved items in plans older than 90 days.
 3. Construct each candidate's `Source` string as `<plans-dir>/<plan-filename> — <source_locator>` (em-dash, single space each side), matching the byte-for-byte equality the dedup rule requires.
 4. Read the project's `docs/backlog.md` (auto-create from the standard header template if missing). Build the set of existing `Source` values.
 5. For each candidate whose `Source` exactly matches an existing entry's `Source`, drop it and increment `duplicates_skipped`. (This is exact string equality — no fuzzy match, no token overlap; the duplicate-guard in `add` already handles fuzzy-title cases.)
@@ -140,7 +140,7 @@ When `--write` is set, every candidate becomes a new BL entry via `add`, with au
 
 - `Source:` the constructed `Source` string from step 3
 - `Opened:` today's ISO date
-- `Reason:` one-line auto-summary including the signal — one of `status-unexecuted` (a task whose `Status:` is `[ ]`), `status-partial` (`[~]` — started but unfinished; residual work is still open work), `unchecked-open` (an unchecked bullet inside a Task section), or `deferred-section` (a bullet under an explicit Deferred heading)
+- `Reason:` one-line auto-summary including the signal — one of `status-unexecuted` (a task whose `Status:` is `[ ]`), `status-partial` (`[~]` — started but unfinished; residual work is still open work), `unchecked-open` (an unchecked bullet inside a Task section), `deferred-section` (a bullet under an explicit Deferred heading), or `stale-plan-unchecked` (an unresolved item in a plan older than 90 days by filename stamp, emitted only under `--include-stale`)
 - `Next step:` `TBD — opened by unify on <date>; review and refine.`
 - `Tags:` `auto-unified` plus the plan's filename date stamp as a tag (e.g. `2026-04-15`)
 
@@ -148,7 +148,7 @@ When `--write` is set, every candidate becomes a new BL entry via `add`, with au
 
 - Dry-run (no `--write`) is the default. Writes only happen on explicit confirm or `--write`.
 - Dedup is exact `Source` equality. Never fuzzy. Never re-summarize an existing entry's text.
-- **There is no staleness signal.** A `--include-stale` flag and a stale-plan candidate signal were documented here for months but never implemented; the enumeration above is the complete set the parser emits. Tracked as a feature request in the backlog rather than left as a false claim.
+- `--include-stale` is **off by default**. Staleness comes from the plan's filename `YYYY-MM-DD` stamp — not git (the vault is not a repository) and not mtime (a migration rewrote it) — and a filename with no stamp is *unknown age*, never assumed stale. The flag only adds items the git-stage suppression hid; it never relabels ones the other signals already found. Full rules: `../portfolio/references/plan-parser.md` § 3.
 - Malformed or unparseable plan files are skipped with a one-line log entry; the run continues.
 - Re-running `unify --write` immediately after the previous accept produces zero new candidates (idempotency by construction, because every accepted candidate's `Source` now lives in `docs/backlog.md` and matches by step 5).
 
