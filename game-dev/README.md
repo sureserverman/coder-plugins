@@ -60,6 +60,38 @@ into a generic subagent with its `model` pin.
 - ScriptableObjects for shared data in Unity; no LINQ / string concat in `Update`.
 - Object pool for any high-churn entity (bullets, particles, FX); initialize on reuse, not on construction.
 
+## Artifacts
+
+Nothing persisted. Design reviews and mechanic sessions return in conversation; the agent edits
+your game source only when you ask it to implement something.
+
+## Worked example
+
+```text
+/plugin install game-dev@coder-plugins
+
+/game-mechanic grapple
+```
+
+A guided design session for one mechanic: intent, inputs, feel parameters, failure modes, and how
+it interacts with what already exists — ending with concrete starting values (coyote time, buffer
+windows) flagged as *starting points to tune via playtest*, not settled numbers.
+
+```text
+/game-review
+```
+
+Reviews the current design or build across mechanics, feel, camera, UX/FTUE, and accessibility —
+where **Game Accessibility Guidelines Basic tier is treated as a ship gate**, not a nice-to-have,
+for anything intended for release.
+
+## Related plugins
+
+- **`planning`** — `dispatching-parallel-agents` routes game-design work to `game-design-expert`;
+  `brainstorming` is the better entry point for "should this game exist" questions.
+- **`ui-design`** — menu, HUD, and settings UI is ordinary platform UI; pair with the matching
+  surface agent.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
