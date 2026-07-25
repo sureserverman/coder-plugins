@@ -291,6 +291,10 @@ def write_sidecar(repo, home, vd, write):
              f"- **Backlog:** see [backlog.md]({home}/backlog.md)",
              f"- **Maturity:** see [MATURITY.md]({home}/MATURITY.md)",
              f"- **Ship-ready:** see [global dashboard]({vd}/Portfolio/global-maturity.md)"]
+    # Conditional, unlike the lines above: most projects have no decisions.md,
+    # and a pointer to a file that doesn't exist is worse than no pointer.
+    if (home / "decisions.md").exists():
+        lines.append(f"- **Decisions:** see [decisions.md]({home}/decisions.md)")
     if dep:
         lines.append("- **⬆ Depends on:** " + ", ".join(f"[[{t}]] ({w})" for t, w in dep))
     if imp:

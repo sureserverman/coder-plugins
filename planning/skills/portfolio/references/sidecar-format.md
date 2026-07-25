@@ -37,6 +37,7 @@ receives a fresh appended block.
 - **Backlog:** see [backlog.md](<portfolio_home>/backlog.md)
 - **Maturity:** see [MATURITY.md](<portfolio_home>/MATURITY.md)
 - **Ship-ready:** see [global dashboard](<vault>/Portfolio/global-maturity.md)
+- **Decisions:** see [decisions.md](<portfolio_home>/decisions.md)   ← only when the file exists
 - **⬆ Depends on:** [[X]] (why), [[Y]] (why)        ← upstreams this project relies on
 - **⬇ Impacts:** [[B]] (why), [[C]] (why)            ← downstreams a change here may break
 - **Inbound integration debt:** see [integration-backlog.md](<vault>/Portfolio/integration-backlog.md)
@@ -68,6 +69,7 @@ nothing to regenerate.
 | `Backlog` | Static link to `<portfolio_home>/backlog.md`. Pointer only — the open-item count is **not** read or embedded (it would go stale against the live file). |
 | `Maturity` | Static link to `<portfolio_home>/MATURITY.md`. Pointer only — the per-axis emoji row is **not** read or embedded. |
 | `Ship-ready` | Static link to `<vault>/Portfolio/global-maturity.md`. Pointer only — the ✅/❌ verdict is **not** derived or embedded; the dashboard is authoritative. |
+| `Decisions` | Static link to `<portfolio_home>/decisions.md` (format: decisions-format.md). Pointer only — the decision count is **not** embedded. **Conditional:** the line is emitted only when the file exists, unlike every other pointer above. Most projects have no register yet, and a link to a file that does not exist is worse than no link. |
 | `Depends on` | Read from this project's `<portfolio_home>/integration.md`, `depends_on:` section. Each entry is an Obsidian wikilink to the upstream project plus a one-phrase reason. Cross-checked for consistency against `<vault>/Portfolio/integration-graph.md`. |
 | `Impacts` | Read from this project's `<portfolio_home>/integration.md`, `impacts:` section. Each entry is an Obsidian wikilink to the downstream project plus a one-phrase reason. Cross-checked against `integration-graph.md`. |
 | `Inbound integration debt` | Static link to `<vault>/Portfolio/integration-backlog.md`. Pointer only — the item count is **not** embedded. |

@@ -231,6 +231,43 @@ def main() -> int:
         chk(pr.write_if_changed(target, stamped) is False,
             "a changed rebuild timestamp alone must NOT count as a change")
 
+    # ---- sidecar pointer line ---------------------------------------------
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as td:
+        repo = Path(td) / "repo"
+        (repo / ".claude").mkdir(parents=True)
+        vd = Path(td) / "vault"
+
+        # project WITHOUT a register: no Decisions line at all
+        bare = vd / "Portfolio" / "x" / "bare"
+        bare.mkdir(parents=True)
+        pr.write_sidecar(repo, bare, vd, True)
+        sc = (repo / ".claude" / "vault-context.md").read_text()
+        chk("**Decisions:**" not in sc,
+            "no decisions.md → no pointer line (a link to a missing file is worse than none)")
+        chk("**Backlog:**" in sc, "unconditional pointers must still be written")
+
+        # project WITH a register: pointer appears, still pointer-only
+        withdec = vd / "Portfolio" / "x" / "withdec"
+        withdec.mkdir(parents=True)
+        (withdec / "decisions.md").write_text("# Decisions\n\n---\n\n## DEC-001 — t\n\n"
+                                              "- **Decided:** 2026-01-01\n- **Status:** accepted\n"
+                                              "- **Domains:** rust\n- **Source:** direct\n"
+                                              "- **Reason:** because.\n")
+        repo2 = Path(td) / "repo2"
+        (repo2 / ".claude").mkdir(parents=True)
+        pr.write_sidecar(repo2, withdec, vd, True)
+        sc2 = (repo2 / ".claude" / "vault-context.md").read_text()
+        line = [l for l in sc2.splitlines() if l.startswith("- **Decisions:**")]
+        chk(len(line) == 1, f"exactly one Decisions pointer expected: {line}")
+        chk(str(withdec / "decisions.md") in line[0], f"pointer must resolve: {line[0]}")
+        chk(not any(ch.isdigit() for ch in line[0].split("](")[0]),
+            f"pointer-only: no count may be embedded: {line[0]}")
+
+        # idempotent: a second identical write is a no-op
+        chk(pr.write_sidecar(repo2, withdec, vd, True) is False,
+            "re-writing an unchanged sidecar must report no write")
+
     # ---- read-only guarantee ---------------------------------------------
     before = sorted(p.name for p in (port / "decisions").iterdir())
     pr.decision_symmetry(projs, doms)
