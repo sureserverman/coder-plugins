@@ -1,0 +1,34 @@
+name: validate-security-scan
+
+on:
+  push:
+    paths:
+      - 'planning/skills/portfolio/scripts/security-scan.py'
+      - 'planning/skills/portfolio/scripts/security-rollup.py'
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-security-*.py'
+      - '.github/workflows/validate-security-scan.yml'
+  pull_request:
+    paths:
+      - 'planning/skills/portfolio/scripts/security-scan.py'
+      - 'planning/skills/portfolio/scripts/security-rollup.py'
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-security-*.py'
+      - '.github/workflows/validate-security-scan.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install pyyaml
+      - name: run security roll-up suites
+        run: |
+          for t in planning/skills/portfolio/tests/test-security-*.py; do
+            echo "== $t"
+            python3 "$t"
+          done

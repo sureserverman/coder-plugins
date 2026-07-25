@@ -245,6 +245,36 @@ def rebuild_global_business(vd, scan, rollup):
     return write_if_changed(vd / "Portfolio" / "global-business.md", roll.stdout)
 
 
+def rebuild_global_security(vd, write):
+    """Run security-scan | security-rollup and write global-security.md.
+
+    Same contract as the business layer: True written, False unchanged, None on
+    failure — degrade loudly and leave any existing file intact, because a
+    truncated security dashboard is worse than a stale one.
+    """
+    here = Path(__file__).resolve().parent
+    scan, rollup = here / "security-scan.py", here / "security-rollup.py"
+    if not (scan.exists() and rollup.exists()):
+        return None
+    try:
+        s = subprocess.run([sys.executable, str(scan)], capture_output=True,
+                           text=True, timeout=120)
+        if s.returncode != 0:
+            print(f"security-scan failed: {s.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+            return None
+        r = subprocess.run([sys.executable, str(rollup)], input=s.stdout,
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            print(f"security-rollup failed: {r.stderr.strip().splitlines()[:1]}", file=sys.stderr)
+            return None
+    except subprocess.TimeoutExpired:
+        print("security layer timed out — left global-security.md untouched", file=sys.stderr)
+        return None
+    if not write:
+        return "DRY-RUN"
+    return write_if_changed(vd / "Portfolio" / "global-security.md", r.stdout)
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser()
@@ -276,8 +306,14 @@ def main():
     else:
         biz_status = "business layer: unavailable (business plugin not installed)"
 
+    # Security layer — additive and independent of the business layer; a
+    # failure here must not disturb anything rendered above.
+    sec = rebuild_global_security(vd, args.write)
+    sec_status = ("security layer: unavailable (scripts missing)" if sec is None
+                  else f"global-security written: {sec}")
+
     print(f"sidecars enriched: {enriched} | global-backlog written: {wrote_gb} | "
-          f"global-maturity written: {wrote_gm} | {biz_status} | "
+          f"global-maturity written: {wrote_gm} | {biz_status} | {sec_status} | "
           f"{'WRITE' if args.write else 'DRY-RUN'}")
 
 
