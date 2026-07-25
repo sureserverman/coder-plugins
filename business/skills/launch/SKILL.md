@@ -79,3 +79,17 @@ checkbox contract. Zero ticked at creation is correct (`done: 0`).
 
 Suggest `/business:track` for the first metrics pass once launch actions start landing,
 and `/business:biz-portfolio` to see this project in the roll-up.
+
+## Business groups
+
+For a group (`../../references/group-format.md`), resolve to
+`<vault_dir>/Portfolio/business-groups/<slug>/` and write one `gtm-plan.md` for the whole
+suite.
+
+**Ship-readiness gates on the weakest member.** Read every member's own
+`<vault_dir>/Portfolio/<area>/<name>/MATURITY.md` — maturity stays per repo, because it is
+a property of a codebase, not of a revenue model — and gate the launch on the least-ready
+one, naming it. A suite ships when all of it ships; a polished server behind an
+unshippable admin client is not ready, and a GTM plan that averages the two hides exactly
+the thing that will delay the launch.
+

@@ -5,7 +5,8 @@ Walks ~/.claude/projects-registry.yaml and, per enabled project, gathers the
 work-state evidence the compass SKILL.md ranks: in-flight plan state (reusing
 the authoritative plan-parser regexes from portfolio-unify.py — one contract,
 one implementation), backlog open/parked counts, maturity axis summary,
-integration-graph edges, and git recency. Emits ONE JSON document on stdout.
+decision-register summary, integration-graph edges, and git recency. Emits ONE
+JSON document on stdout.
 
 Read-only by construction: never writes under the vault or any repo.
 Projects that cannot be assessed land in `couldnt_assess` with a reason —
@@ -31,6 +32,15 @@ _UNIFY = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfo
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pu)
+
+# Same reasoning for the decisions register: portfolio-rebuild.py owns the
+# decisions.md contract (block boundaries, required fields, the degrade-never-
+# drop rule for a malformed heading). Reimplementing those regexes here would
+# fork the format — read references/decisions-format.md, not this file.
+_REBUILD = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "portfolio-rebuild.py"
+_rspec = importlib.util.spec_from_file_location("portfolio_rebuild", _REBUILD)
+pr = importlib.util.module_from_spec(_rspec)
+_rspec.loader.exec_module(pr)
 
 import yaml  # noqa: E402  (after pu import, which also needs it)
 
@@ -207,6 +217,33 @@ def collect_maturity(home):
             "open": sum(a["open"] for a in axes.values())}
 
 
+def collect_decisions(home):
+    """(summary, errors) — summary is None when the project has no decisions.md.
+
+    Malformed entries (`id is None`) are excluded from count/domains/last_decided:
+    a heading the parser could not key must not inflate a count or, worse,
+    contribute a stray `Decided` date that reads as the project's most recent
+    decision. They are surfaced as `malformed` instead of dropped, so a compass
+    ranking sees the same "this register needs cleanup" signal that
+    global-decisions.md's Malformed-entries section shows.
+
+    Returns errors rather than raising: read_project_decisions degrades
+    internally, so register-level problems arrive as data and the dispatch
+    loop's try/except would never see them.
+    """
+    blk = pr.read_project_decisions(home)
+    if blk is None:
+        return None, []
+    entries = [e for e in blk["entries"] if e.get("id")]
+    dates = [e["fields"].get("Decided") for e in entries if e["fields"].get("Decided")]
+    malformed = (sum(1 for e in blk["entries"] if not e.get("id"))
+                 + sum(1 for e in entries if e.get("missing") or e.get("duplicates")))
+    return {"count": len(entries),
+            "malformed": malformed,
+            "domains": sorted({d for e in entries for d in pr.decision_domains(e)}),
+            "last_decided": max(dates) if dates else None}, list(blk["errors"])
+
+
 def load_edges(vault):
     """Parse integration-graph.md once: list of (dependent, upstream, why)."""
     f = vault / "Portfolio" / "integration-graph.md"
@@ -237,13 +274,22 @@ def scan_project(proj, vault):
         "backlog": (lambda: collect_backlog(home),
                     {"open": 0, "parked": 0, "parked_items": []}),
         "maturity": (lambda: collect_maturity(home), None),
+        "decisions": (lambda: collect_decisions(home), None),
     }
     for key, (fn, fallback) in collectors.items():
         try:
-            entry[key] = fn()
+            res = fn()
         except Exception as e:  # degrade per collector, never drop the project
             entry[key] = fallback
             entry["errors"].append(f"{key}: {e}")
+            continue
+        # A collector may return (value, errors) to report problems it handled
+        # internally rather than raised — the only way a source that degrades on
+        # its own (read_project_decisions) can still surface what it found.
+        if isinstance(res, tuple):
+            res, errs = res
+            entry["errors"] += [f"{key}: {m}" for m in errs]
+        entry[key] = res
     try:
         git_info, git_err = collect_git(path)
     except Exception as e:  # git binary/exec failure degrades like any collector
@@ -258,6 +304,13 @@ def business_map():
     """Optional business-plugin state keyed by project name — {} when the plugin
     isn't installed alongside (additive: compass works identically without it).
     BUSINESS_SCAN_PATH overrides the probe (used to force the layer off in tests).
+
+    A business group (`group: true`, see business/references/group-format.md) is
+    NOT a registry project and gets no key of its own: its state is fanned out to
+    each member under the qualified "<area>/<name>" key it declares, tagged with
+    `group: <slug>`, so a per-project view still answers "does this repo have a
+    business case". Older business plugins emit no group keys at all and take the
+    plain per-project path unchanged.
 
     NEVER raises: the business layer is optional and independently versioned, so
     ANY failure (missing plugin, nonzero exit, timeout, malformed/unexpected-shape
@@ -285,7 +338,7 @@ def business_map():
                 if isinstance(p.get("monetization"), dict) else None
             research = p.get("research") if isinstance(p.get("research"), dict) else None
             plan = p.get("plan") if isinstance(p.get("plan"), dict) else None
-            out[p["name"]] = {
+            block = {
                 "verdict": p.get("verdict"),
                 "model": model,
                 "gtm_pct": gtm.get("pct") if gtm else None,
@@ -299,6 +352,17 @@ def business_map():
                 "stage": ("tracked" if p.get("metrics") else "launched" if gtm
                           else "modeled" if model else "assessed"),
             }
+            if p.get("group"):
+                members = p.get("members")
+                if not isinstance(members, list):
+                    continue
+                for m in members:
+                    # Qualified key only: a group's state must never land on a
+                    # same-named project in another area.
+                    if isinstance(m, str) and "/" in m:
+                        out[m] = dict(block, group=p["name"])
+            else:
+                out[p["name"]] = block
         return out
     except Exception:      # timeout, JSON error, unexpected shape — degrade to no layer
         return {}
@@ -323,8 +387,11 @@ def main():
                     {"project": a, "why": w} for a, b, w in edges if b == name]
                 entry["depends_on"] = [
                     {"project": b, "why": w} for a, b, w in edges if a == name]
-                if name in biz:
-                    entry["business"] = biz[name]
+                # Grouped members are keyed "<area>/<name>"; ungrouped projects
+                # keep the bare-name key, so the fallback preserves old behaviour.
+                bz = biz.get(f"{entry['area']}/{name}") or biz.get(name)
+                if bz is not None:
+                    entry["business"] = bz
         except Exception as e:  # a broken project must not abort the sweep
             entry, reason = None, f"scan error: {e}"
         if entry is None:

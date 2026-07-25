@@ -31,6 +31,11 @@ def check(cond, label):
         FAILURES.append(label)
 
 
+# Members referenced by the business-group fixtures. They carry no business/
+# dir of their own (except grpconflict1, which deliberately does — see the
+# conflict case), so they also prove a grouped member emits no standalone row.
+GROUP_MEMBERS = ["grpmember1", "grpmember2", "grpconflict1", "grpconflict2"]
+
 CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
          "edgey", "badenum", "boolschema", "badtarget",
          "research", "researchnew", "researchbad", "researchmalformed",
@@ -58,7 +63,7 @@ def run_scanner(tmp):
     (home / ".claude" / "portfolio-config.yaml").write_text(
         f"version: 1\nvault_dir: {vault}\n")
     reg = "projects:\n"
-    for name in CASES:
+    for name in CASES + GROUP_MEMBERS:
         reg += (f"  - name: {name}\n"
                 f"    area: ai-tools\n"
                 f"    path: {tmp}/dev/ai-tools/{name}\n"
@@ -86,8 +91,11 @@ def test_contract(tmp):
     for k in ("generated", "vault_dir", "supported_schema", "projects", "couldnt_assess"):
         check(k in doc, f"envelope has '{k}'")
     check(doc["supported_schema"] == 1, "supported_schema == 1")
-    check(len(doc["projects"]) == len(CASES), f"all {len(CASES)} projects present")
-    check(doc["couldnt_assess"] == [], "couldnt_assess empty for well-formed registry")
+    # suite-ok + suite-conflict assess; their 4 members are suppressed as rows.
+    # suite-single/unknown/newschema/mismatch are fatal -> couldnt_assess.
+    check(len(doc["projects"]) == len(CASES) + 2,
+          f"all {len(CASES)} projects + 2 group entries present, members suppressed "
+          f"(got {len(doc['projects'])})")
 
     P = by_name(doc)
 
@@ -359,9 +367,85 @@ def test_gtm_degrades_without_portfolio_unify():
         check(True, "parse_gtm degrades (raises, caught per-project) when portfolio-unify missing")
 
 
+def test_groups(tmp):
+    """Business groups: one row per group, members suppressed, fatal manifests
+    degrade whole rather than in part (references/group-format.md)."""
+    print("[groups]")
+    doc, _ = run_scanner(tmp)
+    P = by_name(doc)
+    ca = {c["name"]: c for c in doc["couldnt_assess"]}
+
+    # --- the happy group ------------------------------------------------
+    g = P.get("suite-ok", {})
+    check(g.get("group") is True, "suite-ok: entry marked group")
+    check(g.get("members") == ["ai-tools/grpmember1", "ai-tools/grpmember2"],
+          f"suite-ok: members carried through ({g.get('members')})")
+    check(g.get("assessed") is True, "suite-ok: assessed")
+    check(g.get("verdict") == "monetize", "suite-ok: verdict read from the group dir")
+    check(not any("does not match" in e for e in g.get("errors", [])),
+          f"suite-ok: project: <group-slug> is accepted, not a mismatch ({g.get('errors')})")
+    check(g.get("gtm") == {"done": 1, "total": 3, "pct": 33},
+          f"suite-ok: gtm parsed from the group dir ({g.get('gtm')})")
+
+    # members must NOT also appear as their own rows — one product, one row
+    for m in ("grpmember1", "grpmember2"):
+        check(m not in P, f"{m}: grouped member emits no standalone row")
+    check(doc.get("groups") == ["suite-conflict", "suite-ok"],
+          f"envelope lists non-fatal group slugs ({doc.get('groups')})")
+
+    # --- aggregate vs per-member metrics --------------------------------
+    m = g.get("metrics") or {}
+    vals = m.get("values", {})
+    brk = m.get("breakdown", {})
+    check(vals.get("github.stars") == 512, f"suite-ok: aggregate key parsed ({vals})")
+    check(not any("@" in k for k in vals),
+          f"suite-ok: breakdown keys must NOT sit in values — the suffix-after-last-dot "
+          f"target rule would make every member claim the same target ({list(vals)})")
+    check(brk.get("github.stars@ai-tools/grpmember1") == 431
+          and brk.get("github.stars@ai-tools/grpmember2") == 81,
+          f"suite-ok: per-member breakdown retained for attribution ({brk})")
+
+    # BL-012: one track cycle can degrade several metrics at once; a single-string
+    # note kept only the last reason, exactly when provenance matters most.
+    notes = m.get("notes")
+    check(isinstance(notes, list) and len(notes) == 2,
+          f"suite-ok: every note in a block is retained, not just the last ({notes})")
+    check(any("grpmember2 clones" in n for n in notes or []),
+          f"suite-ok: the FIRST note survives (BL-012) ({notes})")
+    check(vals.get("note") == notes[-1] if notes else False,
+          "suite-ok: values['note'] still carries the last note for old consumers")
+
+    # --- conflict: member keeps its own business/ ------------------------
+    c = P.get("suite-conflict", {})
+    check(c.get("group") is True, "suite-conflict: still assessed as a group")
+    check(any("has its own business/ directory" in e and "grpconflict1" in e
+              for e in c.get("errors", [])),
+          f"suite-conflict: member's own business/ is REPORTED, not silently "
+          f"overridden ({c.get('errors')})")
+    check("grpconflict1" not in P,
+          "suite-conflict: the conflicting member still emits no second row")
+
+    # --- fatal manifests degrade WHOLE ----------------------------------
+    check("suite-single" in ca and "at least 2" in ca["suite-single"]["reason"],
+          f"single-member group rejected ({ca.get('suite-single')})")
+    check("suite-unknown" in ca and "not enabled registry" in ca["suite-unknown"]["reason"],
+          f"unknown member -> couldnt_assess ({ca.get('suite-unknown')})")
+    check("suite-newschema" in ca and "newer than supported" in ca["suite-newschema"]["reason"],
+          f"group.md schema gate applies ({ca.get('suite-newschema')})")
+    check("suite-mismatch" in ca and "directory" in ca["suite-mismatch"]["reason"],
+          f"group slug must equal its directory ({ca.get('suite-mismatch')})")
+    for slug in ("suite-single", "suite-unknown", "suite-newschema", "suite-mismatch"):
+        check(slug not in P, f"{slug}: a fatal group emits no assessed row")
+    # a fatal group must not claim its members either — they stay their own projects
+    check("grpmember1" not in P and "grpmember2" not in P,
+          "members of suite-ok stay suppressed; fatal groups claim nobody")
+
+
 def main():
     with tempfile.TemporaryDirectory() as td:
         test_contract(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_groups(Path(td))
     test_gtm_degrades_without_portfolio_unify()
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")

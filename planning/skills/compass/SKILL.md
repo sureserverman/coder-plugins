@@ -25,8 +25,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/compass/scripts/compass-scan.py
 
 It emits one JSON document: per project, in-flight plan state (stage, next
 unchecked task — parsed with the same authoritative regexes portfolio-unify
-uses), backlog open/parked counts, maturity axis summaries, integration-graph
-edges (`dependents` / `depends_on`), and git recency (`age_days`, UTC).
+uses), backlog open/parked counts, maturity axis summaries, the decision-register
+summary (`decisions`), integration-graph edges (`dependents` / `depends_on`), and
+git recency (`age_days`, UTC).
 This skill's job is **judgment only**: ranking, narration, and the agenda.
 Never re-derive facts the JSON already carries; never present a fact the JSON
 doesn't back.
@@ -38,6 +39,10 @@ last_reviewed_age_days, research_age_days, plan_age_days, stage}`. `research_age
 when that artifact doesn't exist). When the plugin is absent, no project has a `business`
 key — every business-aware rule below is simply skipped (additive; compass is unchanged
 without it). Never invent a business fact for a project with no `business` key.
+A project belonging to a **business group** carries that group's business object plus a
+`group: <slug>` key: the verdict, model and targets are the whole suite's, not this repo's
+alone — say so when narrating it, and never recommend business work on the member in
+isolation. The group itself is not a registry project and has no row of its own.
 
 ## Hard rules
 
@@ -153,6 +158,28 @@ Surface drift, one section each (explicit-negative when a section is empty):
 
 End with a **focused agenda**: 3 items max, drawn from the sections above,
 each with its evidence line.
+
+## Decision register
+
+When a project carries a `decisions.md`, its scan entry has a `decisions` object:
+`{count, malformed, domains, last_decided}` (`../portfolio/references/decisions-format.md`).
+`count` and `domains` cover only well-formed entries; `malformed` counts entries the
+parser flagged — a bad heading, a missing required field, a duplicated field. A project
+without a register has `decisions: null`, which is the normal case and never a finding.
+
+Use it two ways, and only these two:
+
+- **`review` — surface `malformed > 0`** as a cleanup item, citing the count. The whole
+  value of the register is that a binding decision is never silently lost, so a flagged
+  entry nobody looks at defeats the point. `global-decisions.md` names each one.
+- **`next` / `now` — treat decisions as context, never as work.** A register is not a
+  backlog and a project is not more urgent for having one. Where a recommendation
+  touches an area a decision binds (its `domains` overlap the work), say so and cite the
+  register, so the work starts from the constraint instead of rediscovering it.
+
+Never infer that a project *needs* a decision recorded from the absence of a register.
+Most projects legitimately have none; manufacturing that finding across 80 projects is
+noise, and the hard rule against presenting facts the JSON doesn't back applies here too.
 
 ## Integration
 

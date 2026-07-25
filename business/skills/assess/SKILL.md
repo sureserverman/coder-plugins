@@ -142,3 +142,37 @@ preserved `model`'s monetization/targets on a re-assessment — that's on you, p
 
 - `monetize` / `free-for-reputation` → suggest `/business:revenue-model` next.
 - `park` / `internal-only` → done; the verdict is the deliverable. No launch, no model.
+
+## Business groups
+
+This skill operates on a **business group** as readily as on a single project. When the
+target is a group slug (or the named project is a member of one — the scanner's `groups`
+list and each entry's `members` name them), resolve the working directory to
+`<vault_dir>/Portfolio/business-groups/<slug>/` instead of `<home>/business/`, and write
+`project: <group-slug>` in any artifact frontmatter. Format and membership rules:
+`../../references/group-format.md`.
+
+A group is **one business case**: one audience, one price, one set of targets. Never
+produce a per-member verdict, model, or plan — that is the split the group exists to
+prevent.
+
+### Creating a group
+
+`assess` is where a group comes into being, because the question "is this one product or
+two?" is the same question as "whose business case is this?". When the user names two or
+more project directories as one product — or when assessing a project whose value is
+obviously inseparable from a sibling (a server and its admin client, a CLI and its GUI) —
+propose the group before assessing:
+
+1. Confirm the membership and a slug with the user. **Never infer a group silently**;
+   grouping changes which repos stop having a business case of their own.
+2. Verify each member is an enabled registry entry and belongs to no other group.
+3. Write `<vault_dir>/Portfolio/business-groups/<slug>/group.md` per
+   `../../references/group-format.md` (`schema: 1`, `group:` equal to the directory name,
+   `members:` ≥ 2, `created:` today).
+4. If a member already has its own `<home>/business/` directory, say so and ask: those
+   artifacts must move into the group directory (with `project:` changed to the slug) or
+   the member must be dropped. Do not migrate them silently — a standalone verdict and a
+   suite verdict may genuinely disagree, and the scanner reports the clash until a human
+   resolves it.
+5. Then assess the group as one project.

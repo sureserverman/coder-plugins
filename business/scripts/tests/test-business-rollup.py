@@ -179,8 +179,52 @@ def test_empty():
           "empty: degrade sections omitted when empty")
 
 
+def test_groups():
+    """A business group renders as ONE row naming both members; a group entry's
+    `area: None` must not break sorting (group-format.md)."""
+    print("[groups]")
+    doc = {
+        "generated": "2026-07-25",
+        "projects": [
+            {"name": "xray-suite", "area": None, "group": True,
+             "members": ["big-projects/xray-host", "big-projects/xray-host-admin"],
+             "assessed": True, "errors": [], "verdict": "monetize",
+             "monetization": {"model": "paid"},
+             "metrics": {"date": "2026-07-25", "values": {"github.stars": 512}},
+             "gtm": {"done": 1, "total": 3, "pct": 33},
+             "last_reviewed_age_days": 0},
+            {"name": "solo", "area": "ai-tools", "assessed": True, "errors": [],
+             "verdict": "park", "monetization": {"model": None},
+             "last_reviewed_age_days": 5},
+            {"name": "brokengroup", "area": None, "group": True, "members": [],
+             "assessed": True, "errors": ["member x is also claimed by group 'y'"],
+             "verdict": "monetize", "monetization": {"model": None},
+             "last_reviewed_age_days": 1},
+        ],
+        "couldnt_assess": [],
+    }
+    md = run(doc).stdout
+
+    check("xray-suite — group: big-projects/[[xray-host]] + "
+          "big-projects/[[xray-host-admin]]" in md,
+          "group renders one row naming the slug and both members")
+    check(md.count("xray-suite") == 1, "a group occupies exactly one row")
+    check("| ai-tools/[[solo]] |" in md,
+          "an ungrouped project still renders as an area-qualified wikilink")
+    check("None/[[xray-suite]]" not in md,
+          "a group's null area must never leak into the cell")
+    check("tracked" in md.split("xray-suite")[1].split("\n")[0],
+          "stage/actuals logic is unchanged for a group row")
+    check("brokengroup — group (no members)" in md,
+          "a group with no usable members still renders, flagged")
+    check("member x is also claimed by group" in md,
+          "group-level errors surface in the Errors section")
+
+
+
 def main():
     test_render()
+    test_groups()
     test_empty()
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")

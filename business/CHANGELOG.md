@@ -4,6 +4,37 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-25
+
+### Added
+- **Business project groups.** Several registry projects can now form one business
+  project via a vault manifest at `Portfolio/business-groups/<slug>/group.md`
+  (`references/group-format.md`), with the group's business artifacts beside it. The
+  scanner emits one entry per group (`group: true`, `members`) and suppresses grouped
+  members' own rows; `global-business.md` renders a group as a single row naming every
+  member; `compass-scan.py` attaches the group's state to each member tagged with
+  `group: <slug>`. `assess` creates groups, `track` collects per member and sums into
+  aggregate keys, `launch` gates on the weakest member's `MATURITY.md`.
+  Membership deliberately does **not** live in `~/.claude/projects-registry.yaml` —
+  eight independent consumers parse it with a fixed field set.
+- **Per-member metric breakdown.** A `metrics.md` key containing `@` (e.g.
+  `github.stars@big-projects/xray-host`) parses into a new `breakdown` block, never into
+  `values`, so it is never target-matched and never counted as an actual. Without this the
+  suffix-after-last-`.` target rule would make every member's key claim the same target and
+  silently discard all but one.
+
+### Fixed
+- **BL-012: `metrics.md` allowed only one `- note:` per block.** A block may now carry a
+  note per degraded metric and all are retained in a new `notes` list. One `track` cycle
+  can degrade several metrics at once — a private npm package nulls all three `npm.*` keys
+  while a missing push token separately kills `github.clones_14d` — and the single-string
+  note kept only the last reason, exactly in the runs where per-metric provenance matters
+  most. `values["note"]` still carries the last note for consumers written against the old
+  contract.
+- The roll-up's sort key used `x.get("area", "")`, but a group entry carries `area`
+  present-and-`None` and a dict default only applies to a *missing* key — sorting a group
+  beside a project raised `TypeError`. Would have crashed the first real group sweep.
+
 ## [0.5.0] - 2026-07-25
 
 ### Added

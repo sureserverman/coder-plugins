@@ -34,7 +34,23 @@ one dated block per review; nothing is ever edited or deleted (git history is th
   - **value** is a number (int/float) or empty (unknown this cycle → the scanner records `null`).
     Non-finite floats (`inf`/`nan`) are rejected to `null` too, so the emitted JSON stays
     RFC-8259 valid for every consumer.
-  - `- note: <free text>` is carried as a string, never diffed.
+  - `- note: <free text>` is carried as a string, never diffed. **A block may carry more
+    than one `note` line**, and every one is retained in the `notes` list. One `track`
+    cycle can degrade several metrics at once — a private npm package nulls all three
+    `npm.*` keys while a missing push token separately kills `github.clones_14d` — and a
+    single note silently kept only the last reason, exactly in the runs where per-metric
+    provenance matters most (BL-012). Write **one `note` per degraded metric**, naming it.
+    `values["note"]` still holds the last note, for consumers written against the
+    single-string contract before this change.
+  - A key containing `@` is a **per-member breakdown** line — `github.stars@<area>/<name>`,
+    used only by business groups (`group-format.md`). It is parsed into `breakdown`, never
+    into `values`, and is therefore never target-matched: the suffix-after-last-`.` rule
+    below would otherwise make every member's key claim the same target and silently
+    discard all but one. Breakdown lines are attribution, not actuals — they do not count
+    toward the roll-up's `Actuals (N)`.
+- The scanner emits `{date, values, notes, breakdown}` for the latest block: `values` are
+  the aggregate metrics, `notes` is the list of every note line in that block, `breakdown`
+  holds the `@member` attribution keys.
 - The scanner takes the **last** dated block as "latest actuals" and exposes it in JSON;
   earlier blocks are history. A `## ` heading that isn't a `YYYY-MM-DD` date is treated as
   prose and ignored, so a stray section can't become the reported "latest" block. A

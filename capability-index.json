@@ -581,6 +581,16 @@
       "requires_enablement": false
     },
     {
+      "description": "Use to record, read, or promote architectural decisions and the reasons behind them \u2014 per-project and per-architecture-domain. Triggers on \"record this decision\", \"why did we choose X\", \"log this sec-audit recommendation\", \"promote this to the android decisions\", \"what binds all Rust projects\".",
+      "disable_model_invocation": false,
+      "kind": "skill",
+      "model": null,
+      "name": "decisions",
+      "path": "planning/skills/decisions/SKILL.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
       "description": "Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on \"dispatch these tasks in parallel\", \"run these Parallel YES tasks\", \"fan out these independent fixes\".",
       "disable_model_invocation": false,
       "kind": "skill",

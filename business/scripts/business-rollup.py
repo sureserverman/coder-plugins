@@ -30,8 +30,25 @@ def _cell(x):
 
 def _wl(p):
     """Area-qualified wikilink, matching portfolio-rebuild.py — two projects in
-    different areas may share a name slug (registry-format.md documents this)."""
+    different areas may share a name slug (registry-format.md documents this).
+
+    A business group has no area of its own; it renders as its slug followed by
+    its members, so one product occupies one row while both repos stay
+    navigable (group-format.md)."""
+    if p.get("group"):
+        members = " + ".join(
+            f"{_cell(m.split('/', 1)[0])}/[[{_cell(m.split('/', 1)[1])}]]"
+            for m in (p.get("members") or []) if "/" in m)
+        return f"{_cell(p['name'])} — group: {members}" if members else \
+               f"{_cell(p['name'])} — group (no members)"
     return f"{_cell(p.get('area'))}/[[{_cell(p['name'])}]]"
+
+
+def _sort_key(p):
+    """Sort projects and groups together. `area` is present-but-None on a group
+    entry, so `.get("area", "")` would return None and make the comparison
+    against a str raise — the default only applies to a MISSING key."""
+    return (p.get("area") or "", p.get("name") or "")
 
 
 def stage_of(p):
@@ -109,7 +126,7 @@ def render(doc):
     if assessed:
         out.append("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |")
         out.append("|---------|---------|-------|-------|----------|---------|------|----------|")
-        for p in sorted(assessed, key=lambda x: (x.get("area", ""), x["name"])):
+        for p in sorted(assessed, key=_sort_key):
             model = _cell((p.get("monetization") or {}).get("model") or "—")
             out.append(f"| {_wl(p)} | {_cell(p.get('verdict') or '—')} | {model} "
                        f"| {stage_of(p)} | {reviewed_of(p)} | {actuals_of(p)} "
@@ -121,7 +138,7 @@ def render(doc):
     out.append(f"## Not yet assessed ({len(unassessed)}) — triage gap")
     out.append("")
     if unassessed:
-        links = ", ".join(_wl(p) for p in sorted(unassessed, key=lambda x: (x.get("area", ""), x["name"])))
+        links = ", ".join(_wl(p) for p in sorted(unassessed, key=_sort_key))
         out.append(f"- {links}")
     else:
         out.append("_All registry projects have a verdict._")
@@ -138,7 +155,7 @@ def render(doc):
     if errored:
         out.append(f"## Errors ({len(errored)})")
         out.append("")
-        for p in sorted(errored, key=lambda x: (x.get("area", ""), x["name"])):
+        for p in sorted(errored, key=_sort_key):
             tag = "" if p.get("assessed") else " (unassessed)"
             for e in p["errors"]:
                 out.append(f"- {_wl(p)}{tag}: {_cell(e)}")

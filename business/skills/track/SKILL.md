@@ -156,3 +156,29 @@ project's `metrics` shows the new dated block as latest, `last_reviewed_age_days
 `track` is meant to run periodically (monthly is typical). The `compass` integration flags
 a project whose `last_reviewed` is stale, so recording actuals keeps it off the review
 agenda and keeps the target diffs meaningful.
+
+## Business groups
+
+A group (`../../references/group-format.md`) is tracked as one business case whose metrics
+come from several repos. Resolve the working directory to
+`<vault_dir>/Portfolio/business-groups/<slug>/` and:
+
+1. **Run each collector once per member.** `collect-github.py <member-repo-path>` for every
+   member; `collect-npm.py` / `collect-amo.py` per member only where that member's channel
+   appears in the group's `monetization.channels`.
+2. **Sum into aggregate keys.** Write the flat `<source>.<metric>` key as the sum across
+   members (`github.stars: 512`). These are the only keys targets match against.
+3. **Write one `@member` line per member per metric** — `github.stars@<area>/<name>: 431` —
+   for attribution. The scanner parses these into `breakdown`, never `values`, so they are
+   never target-matched and never counted as actuals.
+4. **One `note` per degraded metric**, naming which member and why
+   (`- note: grpmember2 clones unavailable — no push access`). Several notes per block are
+   expected and all are retained; do not merge distinct failures into one sentence.
+5. Write a **single dated block** for the whole cycle, and bump `last_reviewed` in the
+   group's `BUSINESS.md`.
+
+A member whose collector fails does not abort the cycle: null that member's contribution,
+say so in a note, and record the aggregate over the members that did report — stating in
+the report that the aggregate is partial. Silently summing a subset would present a
+partial number as a total.
+

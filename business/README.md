@@ -29,6 +29,30 @@ Per project, under `<vault_dir>/Portfolio/<area>/<project>/business/`:
 
 Roll-up: `<vault_dir>/Portfolio/global-business.md`.
 
+### Business groups
+
+Several repos that are really **one product** — a server and its admin client, a CLI and
+its GUI — are grouped into a single business case. The manifest and the group's artifacts
+live together:
+
+```
+<vault_dir>/Portfolio/business-groups/<slug>/group.md      # schema 1: group, members[>=2], created
+<vault_dir>/Portfolio/business-groups/<slug>/BUSINESS.md   # project: <slug>
+… plus plan.md / market-research.md / gtm-plan.md / metrics.md
+```
+
+Membership lives in the vault, **not** in `~/.claude/projects-registry.yaml`: eight
+independent consumers parse that registry with a fixed field set, so a grouping key there
+would couple all of them to one plugin's feature. `assess` creates a group (never
+silently — grouping decides which repos stop having a business case of their own); every
+other skill then treats it as one project. `track` runs each collector once per member,
+sums into the flat `<source>.<metric>` keys that targets match, and records per-member
+`@<area>/<name>` breakdown lines for attribution. `launch` gates on the **weakest
+member's** `MATURITY.md` — a suite ships when all of it ships. `global-business.md`
+renders the group as one row naming every member.
+
+Full rules: `references/group-format.md`.
+
 ## Determinism boundary
 
 `scripts/business-scan.py` is the **only** parser of the business artifacts. It

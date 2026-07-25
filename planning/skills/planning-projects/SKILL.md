@@ -143,6 +143,13 @@ If an Obsidian vault is linked (check `vault-context:status`), search it for:
 
 Check the project's existing plans for prior design decisions: `<portfolio_home>/plans/` in the vault (the canonical location), falling back to `<repo>/docs/plans/` and `docs/` only if no `vault_dir` is configured or the project predates migration.
 
+### Decisions scan
+
+Read `<portfolio_home>/decisions.md` (per-project `DEC-NNN` entries) and the `Portfolio/decisions/<domain>.md` registers for every stack the plan touches — `../portfolio/references/decisions-format.md`. Unlike a plan, these carry the *reason* a constraint exists, including security recommendations recorded from sec-audit runs whose reports are local-only and unreadable from here.
+
+- A task that would contradict an accepted decision is a planning bug. Either the plan supersedes the decision deliberately — say so on the task, and have the executor record the supersede at close-out — or the task is re-scoped.
+- A plan that *creates* a binding constraint should add a task to record it (`decisions add`), so the next plan inherits the reason rather than rediscovering it.
+
 ### Backlog scan
 
 Call the `backlog` skill (`read` or `list`) and check `docs/backlog.md` for open entries that touch the new plan's scope — same component, same tags, or named in `Source`. For each match:

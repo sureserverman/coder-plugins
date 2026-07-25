@@ -148,3 +148,16 @@ array means the file doesn't conform — e.g. a schema-2 file must not carry a l
   this fresh artifact instead of re-researching).
 - If it's assess-passed → suggest `/business:business-plan` to fold this research into a
   full business plan, and `/business:biz-portfolio` to see the research age in the roll-up.
+
+## Business groups
+
+This skill operates on a **business group** as readily as on a single project. When the
+target is a group slug (or the named project is a member of one — the scanner's `groups`
+list and each entry's `members` name them), resolve the working directory to
+`<vault_dir>/Portfolio/business-groups/<slug>/` instead of `<home>/business/`, and write
+`project: <group-slug>` in any artifact frontmatter. Format and membership rules:
+`../../references/group-format.md`.
+
+A group is **one business case**: one audience, one price, one set of targets. Never
+produce a per-member verdict, model, or plan — that is the split the group exists to
+prevent.
