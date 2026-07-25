@@ -22,7 +22,10 @@ Candidate signals (accept-all policy):
                                      register, not a task-state heuristic)
 Excluded: Preflight bullets; Stage Gate bullets (acceptance criteria that restate
 a stage's definition-of-done — `### Stage N Gate` headers and `**Stage Gate:**`
-bold markers — NOT deferred work); *-done.md historical summaries.
+bold markers — NOT deferred work); *-done.md historical summaries; stale-plan
+items unless --include-stale (off by default — staleness from the filename
+YYYY-MM-DD stamp, since the vault is not a git repo and mtime is rewritten by
+migrations).
 
 A `**Abandoned:** YYYY-MM-DD — reason` marker is a terminal state parsed here
 (plan_terminal_state) for consumers; it suppresses a plan from compass `next`
