@@ -35,6 +35,42 @@ Resolve `portfolio_home` per `../portfolio/references/registry-format.md`: read
 refuse and fail loudly — never fall back to a path inside the repo.** That
 fallback is what the vault-canonical storage law exists to prevent.
 
+### A project not yet in the registry
+
+A brand-new project has no registry entry, so `portfolio_home` does not resolve
+and there is no `decisions.md` to read. This is a **first-class supported state,
+not an edge case** — and it is the state in which the register matters most.
+
+The two halves fail independently:
+
+- **The per-domain half is global.** `<vault>/Portfolio/decisions/<domain>.md`
+  is keyed by domain, not by project, so it is reachable with no registry entry
+  at all. A greenfield Android app inherits every `GDEC-AND-*` constraint the
+  portfolio has accumulated before it has written a line of code.
+- **Only the per-project half is missing**, and a project that has made no
+  decisions has nothing to miss.
+
+So in this state the **global half is authoritative and sufficient**. Report
+`project_register: absent` with the reason, return the domain digest, and carry
+on.
+
+**How the state ends.** `planning-projects` auto-registers the project as part of
+writing its first plan (its § Output location step 3 appends
+`path`/`name`/`area`/`enabled`/`added`). Once that entry exists, `portfolio_home`
+resolves and the first `decisions add` creates the per-project register. Nothing
+here needs to force registration; it happens on the normal path.
+
+**No registry field is added for any of this** — per **DEC-002**, eight parsers
+read `projects-registry.yaml` with a fixed field set, so a new key there is a
+change all eight must tolerate. The greenfield path needs no new state: it is an
+absence, and an absence is already representable.
+
+**The failure this closes.** The tempting shortcut is to skip the decisions scan
+when `portfolio_home` doesn't resolve. That inverts the register's purpose — the
+project with the least local context ends up consulting the fewest constraints,
+and every platform lesson the portfolio has already paid for is invisible to the
+one codebase still cheap enough to change.
+
 **Announce at start:** "Using the decisions skill — <add|list|read|relevant|promote|supersede> on <path>."
 
 ---
