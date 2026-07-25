@@ -1,0 +1,55 @@
+name: validate-doc-coverage
+
+# Guards the plugin README contract (docs/plugin-readme-contract.md): every
+# plugin the marketplace ships has a README, and every component on disk is
+# named in it. The failure this prevents is silent — a plugin gains a skill and
+# the README, which nothing checks, quietly stops describing what ships.
+#
+# Coverage only. The guard cannot tell a usage section from a name in a list;
+# see the contract for what it deliberately does not enforce.
+#
+# NOTE: expected RED until the Stage 2/3 README work lands (the guard is
+# authored first, on purpose, so the docs have something to turn green).
+
+on:
+  push:
+    paths:
+      - '*/README.md'
+      - 'README.md'
+      - '*/skills/*/SKILL.md'
+      - '*/agents/*.md'
+      - '*/commands/*.md'
+      - '.claude-plugin/marketplace.json'
+      - 'scripts/check-doc-coverage.py'
+      - 'scripts/doc-coverage-allow.txt'
+      - 'scripts/_frontmatter_common.py'
+      - 'docs/plugin-readme-contract.md'
+      - '.github/workflows/validate-doc-coverage.yml'
+  pull_request:
+    paths:
+      - '*/README.md'
+      - 'README.md'
+      - '*/skills/*/SKILL.md'
+      - '*/agents/*.md'
+      - '*/commands/*.md'
+      - '.claude-plugin/marketplace.json'
+      - 'scripts/check-doc-coverage.py'
+      - 'scripts/doc-coverage-allow.txt'
+      - 'scripts/_frontmatter_common.py'
+      - 'docs/plugin-readme-contract.md'
+      - '.github/workflows/validate-doc-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Component coverage across every plugin README
+        run: python3 scripts/check-doc-coverage.py
+      - name: Coverage summary (informational)
+        if: always()
+        run: python3 scripts/check-doc-coverage.py --summary
