@@ -168,3 +168,16 @@ Rules:
   they DO appear as a row in `global-maturity.md` if they have a
   `docs/MATURITY.md`. A project with neither file contributes nothing to
   either global file.
+
+## Evidence scope prefixes
+
+`[x] auto:` evidence carries a scope prefix naming the tree it resolves against
+— `repo:` (the project working tree) or `portfolio:` (the project's portfolio
+home, `<vault_dir>/Portfolio/<area>/<name>`). `portfolio:` exists because
+sec-audit v1.29+ writes its security report to `<portfolio_home>/security/reports/`
+and nothing into the audited repo.
+
+Both are ordinary auto-evidence for rendering purposes: `cell()` and
+`ship_ready()` count `- [x]` lines and do not parse the prefix, so a
+`portfolio:`-scoped tick counts exactly like a `repo:`-scoped one. Full syntax in
+`maturity-axes.md`.
