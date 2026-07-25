@@ -59,3 +59,40 @@ The skills are model-triggered and also invocable directly:
 | Write back to catalog files | LLM (preserves comments/order) | gettext metadata, ARB `@key` blocks, Android `<!-- -->` comments are easy to clobber with naive serializers |
 
 Nothing autoposts. Nothing rewrites source code without showing the diff first. Translations are written to catalog files, not committed.
+
+## Artifacts
+
+Everything lands in **your project's existing catalog paths** — this plugin introduces no files of its own and writes nothing to the vault:
+
+| Written | Where |
+|---|---|
+| Filled/updated translations | your framework's catalog files (`locale/*/LC_MESSAGES/*.po`, `res/values-*/strings.xml`, `lib/l10n/*.arb`, `config/locales/*.yml`, …) |
+| A scaffolded new locale | the same layout, for the new locale code |
+| Audit + coverage findings | returned in conversation only — nothing persisted |
+
+Catalog files are written **preserving comments and key order**, because gettext metadata, ARB `@key` blocks, and Android `<!-- -->` comments are all easy to clobber with a naive serializer.
+
+### Prerequisites
+
+An existing i18n setup. These skills work *within* your framework's conventions — `i18n-audit` detects the framework from its signature files, and if a project has no catalogs at all, the audit tells you that rather than inventing a layout.
+
+## Worked example
+
+```text
+/plugin install i18n@coder-plugins
+
+"is this app translation-ready?"
+```
+
+`i18n-audit` runs `detect-framework.py` (finds, say, Flutter `.arb`), `scan-hardcoded.py` (surfaces strings still in source, with the LLM judging which are genuinely user-facing), and `diff-catalogs.py` (missing/stale keys per locale).
+
+```text
+"add Spanish translations"
+```
+
+`i18n-translate` extracts the missing keys, dispatches the `translator` agent with the source excerpt and style guide, and validates the result with `validate-placeholders.py` before writing back — so a translation that dropped a `{count}` placeholder or lost a CLDR plural category fails validation instead of silently shipping.
+
+## Related plugins
+
+- **`planning`** — `project-maturity`'s i18n axis records the durable translation-readiness verdict; `dispatching-parallel-agents` routes catalog translation to `i18n:translator`.
+- **`android-dev`** / **`ui-design`** — string externalization is a UI concern; pair an audit with a UI review when retrofitting i18n.

@@ -17,6 +17,18 @@ plugin's `portfolio` and `compass` skills can read business state.
 | `/business:track` | Record actuals (incl. optional marketing funnel) → `business/metrics.md`, diff vs targets, bump Last reviewed. |
 | `/business:biz-portfolio` | Sweep every project, rebuild `global-business.md` (flags stale research/plans). |
 
+All seven are invocable as `/business:<skill>` and also fire on natural language ("is this worth monetizing", "size the market", "how are we doing vs targets"). They form a pipeline — `assess` gates the rest, since a project that shouldn't be monetized doesn't need a revenue model — but each runs standalone once its predecessor's verdict exists.
+
+## Agent
+
+### `market-researcher`
+
+Gathers **cited** market evidence for one project: competitors and their pricing, market signals, distribution-channel norms. Dispatched by `market-research` (and by `assess --research`) — one agent per research axis, in parallel — rather than invoked directly.
+
+**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `Bash`, `WebFetch`, `WebSearch`.
+
+**Prerequisite that actually bites:** it needs **WebSearch**. Without it there is no evidence to gather, and the skills that depend on it **write nothing rather than emitting an uncited guess** — a market-research file that reads like research but was produced from training data is worse than no file, because the next reader trusts it.
+
 ## Artifacts (in the vault)
 
 Per project, under `<vault_dir>/Portfolio/<area>/<project>/business/`:
