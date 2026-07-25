@@ -372,9 +372,15 @@ def unify_project(home, write, repo_path, include_stale=False):
         # suppression lifted, and keep only what signals 1-2 did NOT already
         # emit. It adds items from plans the normal heuristics skip; it never
         # relabels ones they found (plan-parser.md § 3).
-        seen = {c["source"] for c in normal}
+        # Keyed on (source, title), not source alone: the legacy `unchecked-open`
+        # locator encodes the Stage but not the Task N.N, so two tasks in one
+        # stage whose bullets share a 50-char prefix produce the same source.
+        # Deduping on that key would silently DROP a real stale candidate, and a
+        # false negative is the worse failure for a register meant to surface
+        # forgotten work.
+        seen = {(c["source"], c["title"]) for c in normal}
         for c in parse_plan(text, rel, set()):
-            if c["source"] not in seen:
+            if (c["source"], c["title"]) not in seen:
                 cands.append(dict(c, signal="stale-plan-unchecked"))
     backlog = home / "backlog.md"
     btext = backlog.read_text() if backlog.exists() else HEADER
