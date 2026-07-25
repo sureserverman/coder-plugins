@@ -449,7 +449,15 @@ the handoff artifact.
   ```
   **Stage N handoff:** <deviations from plan, surprises found, decisions made,
   anything a fresh context needs that the Status flips don't capture>
+  **Decisions in force:** <the DEC/GDEC IDs still binding, plus any Supersedes
+  citation raised in this stage and not yet recorded>
   ```
+
+  The decisions line is not redundant with the plan's `## Decisions in force`
+  section: a fresh session reads the handoff notes to learn *the current state*,
+  and a constraint that surfaced mid-stage (a supersede raised at Stage 2, a new
+  entry the Preflight re-check caught) exists nowhere else. A constraint absent
+  from the handoff is one the next session will not know about.
 
   Committed with the `"Stage N green"` commit. Keep it to a few lines — it is
   a briefing, not a log.
@@ -558,15 +566,32 @@ When every stage is green:
      breaking), state your call and let the user override — don't silently skip.
 5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-7. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
-8. Report to the user with:
+7. **Reconcile the decisions register.** Two directions, both easy to forget and both
+   corrosive when skipped:
+   - **Supersedes citations → record them.** Scan the plan for `Supersedes DEC-NNN` /
+     `Supersedes GDEC-…` on any task. For each, call the `decisions` skill (`supersede`)
+     with the replacement entry. Until this runs, the register still asserts a constraint
+     the code no longer honors — and the *next* plan will be written against it.
+     `planning-projects` promises this step on the planner's behalf ("the executor records
+     the supersede at close-out"); this is where that promise is kept.
+   - **New constraints created → record them.** Execution discovers things planning
+     couldn't: an approach that turned out to be blocked, a platform limit hit at Stage 3,
+     a cost knowingly accepted to get a stage green. Each is a decision whether or not
+     anyone called it one. Call `decisions add` with the reason — the constraint, the
+     evidence, the alternative rejected, the cost accepted. If you cannot name a rejected
+     alternative or a cost, it probably wasn't a decision; don't pad the register.
+   - Reference the recorded IDs in the close-out report and commit message.
+
+8. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
+9. Report to the user with:
    - Stages completed
    - Total commits
    - Version bumps applied (component → old → new)
    - Plan location for future reference
    - Backlog items closed (by ID) and any new ones opened during execution
+   - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
-9. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
+10. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
 
 ---
 
@@ -609,6 +634,7 @@ When every stage is green:
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
 - **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts; its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
+- **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only when the user opts out or every check is a command.
 - **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, advisories are surfaced for triage). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
