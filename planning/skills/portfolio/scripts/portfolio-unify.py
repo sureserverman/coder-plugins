@@ -339,12 +339,18 @@ def max_bl(backlog_text):
 
 
 def render_entry(bid, c):
+    # The originating plan's filename stamp rides along as a tag, so a unified
+    # entry stays greppable back to the plan that produced it. The "0000-00-00"
+    # sentinel (unstamped filename) is deliberately NOT emitted — a fake date in
+    # a tag is worse than no tag.
+    stamp = c.get("plan_date")
+    tags = "auto-unified" + (f", {stamp}" if stamp and stamp != "0000-00-00" else "")
     return (f"## BL-{bid:03d} — {c['title'][:80]}\n\n"
             f"- **Opened:** {TODAY}\n"
             f"- **Source:** {c['source']}\n"
             f"- **Reason:** Auto-unified from plan ({c['signal']}).\n"
             f"- **Next step:** TBD — opened by unify on {TODAY}; review and refine.\n"
-            f"- **Tags:** auto-unified\n\n---\n")
+            f"- **Tags:** {tags}\n\n---\n")
 
 
 HEADER = ("# Backlog\n\nDeferred items from plan execution, code review, or ad-hoc "
@@ -365,6 +371,8 @@ def unify_project(home, write, repo_path, include_stale=False):
         done_stages = {sn for (cdate, sn) in gpairs if cdate >= pdate}
         text = pf.read_text(errors="ignore")
         normal = parse_plan(text, rel, done_stages)
+        for c in normal:
+            c["plan_date"] = pdate
         cands.extend(normal)
         if not include_stale:
             continue
@@ -384,7 +392,7 @@ def unify_project(home, write, repo_path, include_stale=False):
         seen = {(c["source"], c["title"]) for c in normal}
         for c in parse_plan(text, rel, set()):
             if (c["source"], c["title"]) not in seen:
-                cands.append(dict(c, signal="stale-plan-unchecked"))
+                cands.append(dict(c, signal="stale-plan-unchecked", plan_date=pdate))
     backlog = home / "backlog.md"
     btext = backlog.read_text() if backlog.exists() else HEADER
     have = existing_sources(btext)

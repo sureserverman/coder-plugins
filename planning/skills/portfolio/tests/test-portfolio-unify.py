@@ -435,6 +435,59 @@ check("stale candidates render the documented signal label into the backlog",
       _labels and all("stale-plan-unchecked" in ln for ln in _labels),
       f"got {_labels}")
 
+# BL-017: backlog/SKILL.md documents `Tags: auto-unified` PLUS the plan's filename
+# date stamp. render_entry emitted only `auto-unified` from the start, and nothing
+# asserted the line — which is exactly how the claim drifted unnoticed for months.
+_tag_lines, _unstamped_tags = [], []
+with _tf.TemporaryDirectory() as _td:
+    _h = Path(_td) / "h"
+    (_h / "plans").mkdir(parents=True)
+    _sh.copy(FIXTURES / STALE_FIXTURE[0], _h / "plans" / STALE_FIXTURE[0])
+    _sh.copy(FIXTURES / "unstamped-legacy-plan.md", _h / "plans" / "unstamped-legacy-plan.md")
+    mod.unify_project(_h, True, _td, False)
+    for _ln in (_h / "backlog.md").read_text().splitlines():
+        if _ln.startswith("- **Tags:**"):
+            (_unstamped_tags if "2020-01-01" not in _ln else _tag_lines).append(_ln)
+
+check("a unified entry is tagged with its plan's filename date stamp",
+      _tag_lines and all("auto-unified" in ln and "2020-01-01" in ln for ln in _tag_lines),
+      f"got {_tag_lines}")
+check("an unstamped plan contributes no fake date tag",
+      _unstamped_tags and all(ln.strip() == "- **Tags:** auto-unified" for ln in _unstamped_tags),
+      f"the 0000-00-00 sentinel must never be emitted as a tag; got {_unstamped_tags}")
+
+# The stamp is attached in ONE place — the loop over parse_plan's full return — so
+# every signal family gets it for free. That is the design's virtue and its risk:
+# a future edit that special-cases one branch would regress silently. Assert the
+# tag on each family rather than trusting the single-loop invariant to hold.
+def _tags_for(fixture, include_stale=False, evidence=None):
+    with _tf.TemporaryDirectory() as _d:
+        _hh = Path(_d) / "h"
+        (_hh / "plans").mkdir(parents=True)
+        _sh.copy(FIXTURES / fixture, _hh / "plans" / fixture)
+        _o = mod.git_stage_evidence
+        mod.git_stage_evidence = lambda _p: (evidence or set())
+        try:
+            mod.unify_project(_hh, True, _d, include_stale)
+        finally:
+            mod.git_stage_evidence = _o
+        body = (_hh / "backlog.md").read_text()
+        return [l for l in body.splitlines() if l.startswith("- **Tags:**")], body
+
+for _fx, _stamp, _sig in (
+        ("2026-07-24-partial-status-plan.md", "2026-07-24", "status-"),
+        ("2026-07-14-light-inprogress-plan.md", "2026-07-14", "deferred-section"),
+):
+    _t, _body = _tags_for(_fx)
+    check(f"{_sig} entries carry the plan's date stamp ({_fx})",
+          _t and all(_stamp in l for l in _t) and _sig in _body,
+          f"tags={_t}")
+
+_t, _body = _tags_for(STALE_FIXTURE[0], include_stale=True, evidence=DONE_STAGE)
+check("stale-plan-unchecked entries carry the plan's date stamp too",
+      _t and all("2020-01-01" in l for l in _t) and "stale-plan-unchecked" in _body,
+      f"tags={_t}")
+
 # A plan dated today can never be stale — written at run time so it cannot age
 # into staleness the way a committed fixture would.
 import datetime as _dt
