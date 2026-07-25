@@ -352,10 +352,24 @@ def parse_plan(text, expected_project=None):
 
 
 def parse_metrics(text):
-    """Latest dated block of metrics.md → {date, values} or None."""
-    blocks = []          # (date_str, {key: value})
+    """Latest dated block of metrics.md → {date, values, notes, breakdown} or None.
+
+    `values` holds aggregate metrics only. A key containing `@` is a per-member
+    breakdown line (`github.stars@<area>/<name>`, groups only) and goes to
+    `breakdown` instead: it must never reach target matching, because the
+    suffix-after-last-`.` rule would make every member's key claim the same
+    target and silently discard all but one (references/group-format.md).
+
+    `notes` is a LIST. One `track` cycle can degrade several metrics at once —
+    a private npm package nulls three keys while a missing push token separately
+    kills github.clones_14d — and a single-string note silently kept only the
+    last reason, exactly in the runs where provenance matters most (BL-012).
+    `values["note"]` is retained as the last note for backward compatibility
+    with consumers written against the single-string contract.
+    """
+    blocks = []          # (date_str, values, notes, breakdown)
     cur_date = None
-    cur = {}
+    cur, notes, brk = {}, [], {}
     for line in text.splitlines():
         s = line.strip()
         if s.startswith("## "):
@@ -363,30 +377,36 @@ def parse_metrics(text):
             # heading — a stray non-date "## " section (prose, copy-paste
             # artifact) must NOT become the reported "latest" block.
             if cur_date is not None:
-                blocks.append((cur_date, cur))
-                cur_date, cur = None, {}
+                blocks.append((cur_date, cur, notes, brk))
+                cur_date, cur, notes, brk = None, {}, [], {}
             hdr = s[3:].strip()
             if DATE_RE.match(hdr):
-                cur_date, cur = hdr, {}
+                cur_date, cur, notes, brk = hdr, {}, [], {}
             continue
         if cur_date is not None and s.startswith("- ") and ":" in s:
             key, _, val = s[2:].partition(":")
             key = key.strip()
             val = val.strip()
             if key == "note":
-                cur[key] = val
-            elif val == "":
-                cur[key] = None
+                notes.append(val)
+                cur[key] = val           # last note wins, for pre-BL-012 consumers
+                continue
+            if val == "":
+                parsed = None
             elif NUM_RE.match(val):      # rejects inf/nan → JSON-safe, never Infinity/NaN tokens
-                cur[key] = float(val) if "." in val else int(val)
+                parsed = float(val) if "." in val else int(val)
             else:
-                cur[key] = None          # non-numeric metric → null, block still parses
+                parsed = None            # non-numeric metric → null, block still parses
+            if "@" in key:
+                brk[key] = parsed        # per-member attribution, never target-matched
+            else:
+                cur[key] = parsed
     if cur_date is not None:
-        blocks.append((cur_date, cur))
+        blocks.append((cur_date, cur, notes, brk))
     if not blocks:
         return None
-    date_str, values = blocks[-1]
-    return {"date": date_str, "values": values}
+    date_str, values, notes, brk = blocks[-1]
+    return {"date": date_str, "values": values, "notes": notes, "breakdown": brk}
 
 
 def parse_gtm(text):

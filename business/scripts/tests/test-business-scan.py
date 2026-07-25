@@ -394,10 +394,26 @@ def test_groups(tmp):
           f"envelope lists non-fatal group slugs ({doc.get('groups')})")
 
     # --- aggregate vs per-member metrics --------------------------------
-    vals = (g.get("metrics") or {}).get("values", {})
+    m = g.get("metrics") or {}
+    vals = m.get("values", {})
+    brk = m.get("breakdown", {})
     check(vals.get("github.stars") == 512, f"suite-ok: aggregate key parsed ({vals})")
-    check(any("@" in k for k in vals),
-          f"suite-ok: per-member breakdown keys retained ({list(vals)})")
+    check(not any("@" in k for k in vals),
+          f"suite-ok: breakdown keys must NOT sit in values — the suffix-after-last-dot "
+          f"target rule would make every member claim the same target ({list(vals)})")
+    check(brk.get("github.stars@ai-tools/grpmember1") == 431
+          and brk.get("github.stars@ai-tools/grpmember2") == 81,
+          f"suite-ok: per-member breakdown retained for attribution ({brk})")
+
+    # BL-012: one track cycle can degrade several metrics at once; a single-string
+    # note kept only the last reason, exactly when provenance matters most.
+    notes = m.get("notes")
+    check(isinstance(notes, list) and len(notes) == 2,
+          f"suite-ok: every note in a block is retained, not just the last ({notes})")
+    check(any("grpmember2 clones" in n for n in notes or []),
+          f"suite-ok: the FIRST note survives (BL-012) ({notes})")
+    check(vals.get("note") == notes[-1] if notes else False,
+          "suite-ok: values['note'] still carries the last note for old consumers")
 
     # --- conflict: member keeps its own business/ ------------------------
     c = P.get("suite-conflict", {})
