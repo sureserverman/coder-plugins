@@ -120,6 +120,65 @@ def check(fixture: str, exp: dict, failures: list) -> None:
         fail(f"no error on item {exp['error_item']!r}: {out['errors']}")
 
 
+# --- portfolio-hosted sec-audit reports (BL-003) --------------------------
+# From sec-audit v1.29 the report lives at
+# <portfolio_home>/security/reports/sec-audit-<ts>.md and NOTHING is written into
+# the repo, so without --portfolio-home the Security axis can never fire again
+# for any audited project. Each case pins one behaviour of that path.
+PORTFOLIO_CASES = [
+    # (label, project fixture, portfolio-home fixture or None,
+    #  expected fired items, expected scope, notes, errors)
+    ("portfolio-only fires with scope=portfolio",
+     "portfolio-audited", "portfolio-home", {"sec-audit"}, "portfolio", 0, 0),
+    ("without --portfolio-home the same project cannot fire",
+     "portfolio-audited", None, set(), None, 0, 0),
+    ("newest wins across both roots (portfolio newer than repo)",
+     "portfolio-both", "portfolio-both-home", {"sec-audit"}, "portfolio", 0, 0),
+    ("repo-only still fires with scope=repo (no regression)",
+     "portfolio-both", None, set(), None, 1, 0),
+    ("portfolio report with CRITICALs -> note, not a tick",
+     "portfolio-dirty", "portfolio-dirty-home", set(), None, 1, 0),
+    ("portfolio report missing Findings header -> stale-detector error",
+     "portfolio-stale", "portfolio-stale-home", set(), None, 0, 1),
+]
+
+
+def run_with_home(fixture: str, home: str | None) -> dict:
+    cmd = [sys.executable, str(SCRIPT), str(FIXTURES / fixture)]
+    if home:
+        cmd += ["--portfolio-home", str(FIXTURES / home)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise AssertionError(f"{fixture}: exited {proc.returncode}\n{proc.stderr}")
+    return json.loads(proc.stdout)
+
+
+def check_portfolio(failures: list) -> None:
+    for label, fixture, home, want_items, want_scope, n_notes, n_errors in PORTFOLIO_CASES:
+        out = run_with_home(fixture, home)
+        sec = out["detectors"]["security"]
+        got = {i["item"] for i in sec}
+        if got != want_items:
+            failures.append(f"{label}: fired {sorted(got)}, expected {sorted(want_items)}")
+        if want_scope is not None:
+            got_scope = next((i.get("scope") for i in sec if i["item"] == "sec-audit"), None)
+            if got_scope != want_scope:
+                failures.append(f"{label}: scope {got_scope!r}, expected {want_scope!r}")
+        sec_notes = [n for n in out["notes"] if n.startswith("security:")]
+        sec_errors = [e for e in out["errors"] if e.get("axis") == "security"]
+        if len(sec_notes) != n_notes:
+            failures.append(f"{label}: {len(sec_notes)} security notes, expected {n_notes}: {sec_notes}")
+        if len(sec_errors) != n_errors:
+            failures.append(f"{label}: {len(sec_errors)} security errors, expected {n_errors}: {sec_errors}")
+
+    # A portfolio home that does not exist is NORMAL (project never audited, or
+    # no vault) and must be silent, not an error.
+    out = run_with_home("portfolio-audited", "definitely-not-here")
+    if out["detectors"]["security"] or [e for e in out["errors"] if e.get("axis") == "security"]:
+        failures.append("absent portfolio home should be silent, "
+                        f"got {out['detectors']['security']} / {out['errors']}")
+
+
 def main() -> int:
     if not SCRIPT.exists():
         print(f"FAIL: detector script not found at {SCRIPT}", file=sys.stderr)
@@ -127,13 +186,15 @@ def main() -> int:
     failures: list = []
     for fixture, exp in EXPECTED.items():
         check(fixture, exp, failures)
+    check_portfolio(failures)
     if failures:
         print("FAILURES:")
         for f in failures:
             print(f"  - {f}")
         return 1
     print(f"OK — {len(EXPECTED)} fixtures passed "
-          f"({', '.join(EXPECTED)})")
+          f"({', '.join(EXPECTED)}) "
+          f"+ {len(PORTFOLIO_CASES)} portfolio-report cases")
     return 0
 
 

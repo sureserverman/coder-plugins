@@ -41,6 +41,21 @@ satisfied the rule. Written by `project-maturity audit`; never written by
 hand. Because the evidence is embedded, reviewers can verify the tick without
 re-running the tool.
 
+The evidence path carries a **scope prefix** naming the tree it resolves against:
+
+```
+[x] auto:repo:<path>         relative to the project working tree (the default)
+[x] auto:portfolio:<path>    relative to the project's portfolio home
+                             (<vault_dir>/Portfolio/<area>/<name>)
+```
+
+`portfolio:` exists because some evidence deliberately lives outside the repo.
+From **sec-audit v1.29** the security report is written to
+`<portfolio_home>/security/reports/sec-audit-<ts>.md` and **nothing** is written
+into the audited repo, so no repo-relative path could ever name it. Both are
+ordinary `auto:` evidence — they differ only in which root resolves the path,
+and count identically for ticks and ship-readiness.
+
 **Manual claim:**
 
 ```
@@ -202,11 +217,20 @@ skill. The auto-detector reads the report header to extract finding counts.
 
 ### Auto-detect rules
 
-1. Glob for `sec-audit-report-*.md` at the project root. If no files match,
-   there is no auto-tick.
-2. Sort matches lexically (filenames follow the pattern
-   `sec-audit-report-YYYYMMDD-HHMM.md`, so lexical order equals
-   chronological order). Take the last entry — that is the newest report.
+1. Glob **both** locations sec-audit has used:
+   - `sec-audit-report-*.md` at the project root (pre-v1.29 layout), and
+   - `<portfolio_home>/security/reports/sec-audit-*.md` (v1.29+, where the
+     report now lives and **nothing** is written into the repo).
+
+   If neither matches, there is no auto-tick. The portfolio location is only
+   searched when the caller passes `--portfolio-home`; an absent or unreadable
+   portfolio home is normal (never audited / no vault) and is silent, not an
+   error.
+2. Sort ALL matches from both roots by their `YYYYMMDD-HHMM` stamp (lexical
+   order equals chronological order) and take the last — that is the newest
+   report, whichever tree it came from. A project audited before and after the
+   v1.29 move therefore resolves to its genuinely newest report, not to
+   whichever root was searched first.
 3. Parse the header line of that file using the regex:
 
    ```
@@ -214,7 +238,9 @@ skill. The auto-detector reads the report header to extract finding counts.
    ```
 
 4. If both captured groups 1 (CRITICAL) and 2 (HIGH) are `0` → auto-tick
-   "sec-audit clean" with `auto:<relative-path-to-report>`.
+   "sec-audit clean" with `auto:<scope>:<path>`, where `<scope>` is `repo` or
+   `portfolio` per the root the winning report came from (the detector returns
+   it as a `scope` field alongside the bare path).
 5. If the file exists but CRITICAL > 0 or HIGH > 0 → no auto-tick. The
    finding counts are recorded as an annotation so the user sees the block
    reason without opening the file.

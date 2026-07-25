@@ -171,18 +171,43 @@ def detect_documentation(root: Path):
 FINDINGS_RE = re.compile(r"^\*\*Findings:\*\*\s*(\d+)\s+CRITICAL,\s*(\d+)\s+HIGH")
 
 
-def detect_security(root: Path):
+def _security_reports(root: Path, portfolio_home: Path | None):
+    """Every sec-audit report visible for this project, newest last.
+
+    Two layouts, because sec-audit changed where it writes:
+      * pre-v1.29 — `sec-audit-report-<ts>.md` in the repo root
+      * v1.29+    — `<portfolio_home>/security/reports/sec-audit-<ts>.md`, and
+                    NOTHING in the repo at all
+    Both are searched so a project that was audited before and after the move
+    still resolves to its genuinely newest report. `scope` is returned alongside
+    the (bare) evidence path rather than baked into it: the two roots are
+    different trees, and the SKILL — not this script — is what renders the
+    `auto:<scope>:<path>` claim line.
+    """
+    found = []  # (timestamp_key, scope, bare_evidence, path)
+    for p in root.glob("sec-audit-report-*.md"):
+        found.append((p.name.replace("sec-audit-report-", ""),
+                      "repo", rel(root, p), p))
+    if portfolio_home:
+        for p in (portfolio_home / "security" / "reports").glob("sec-audit-*.md"):
+            found.append((p.name.replace("sec-audit-", ""),
+                          "portfolio", f"security/reports/{p.name}", p))
+    # Filenames carry a sortable YYYYMMDD-HHMM stamp, so lexical == chronological.
+    found.sort(key=lambda t: t[0])
+    return found
+
+
+def detect_security(root: Path, portfolio_home: Path | None = None):
     fired, notes, errors = [], [], []
-    reports = sorted(root.glob("sec-audit-report-*.md"))
+    reports = _security_reports(root, portfolio_home)
     if not reports:
         return fired, notes, errors
-    newest = reports[-1]
-    ev = rel(root, newest)
+    _, scope, ev, newest = reports[-1]
     try:
         text = newest.read_text(encoding="utf-8", errors="replace")
     except OSError as e:
         errors.append({"axis": "security", "item": "sec-audit", "evidence": ev,
-                       "error": f"unreadable: {e}"})
+                       "scope": scope, "error": f"unreadable: {e}"})
         return fired, notes, errors
     m = None
     for line in text.splitlines():
@@ -191,13 +216,14 @@ def detect_security(root: Path):
             break
     if not m:
         errors.append({"axis": "security", "item": "sec-audit", "evidence": ev,
-                       "error": "Findings header line not found"})
+                       "scope": scope, "error": "Findings header line not found"})
         return fired, notes, errors
     crit, high = int(m.group(1)), int(m.group(2))
     if crit == 0 and high == 0:
-        fired.append({"item": "sec-audit", "evidence": ev})
+        fired.append({"item": "sec-audit", "evidence": ev, "scope": scope})
     else:
-        notes.append(f"security: {ev} present but {crit} CRITICAL, {high} HIGH — not clean")
+        notes.append(f"security: {scope}:{ev} present but {crit} CRITICAL, "
+                     f"{high} HIGH — not clean")
     return fired, notes, errors
 
 
@@ -424,16 +450,32 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Deterministic maturity-axis detectors.")
     ap.add_argument("project_path", nargs="?", default=".",
                     help="project working tree to scan (default: cwd)")
+    ap.add_argument("--portfolio-home", default=None,
+                    help="the project's portfolio home "
+                         "(<vault>/Portfolio/<area>/<name>). From sec-audit "
+                         "v1.29 the security report lives there and NOTHING is "
+                         "written into the repo, so without this the Security "
+                         "axis cannot fire for any audited project.")
     args = ap.parse_args(argv)
 
     root = Path(args.project_path).resolve()
     if not root.is_dir():
         print(f"error: {root} is not a directory", file=sys.stderr)
         return 2
+    portfolio_home = None
+    if args.portfolio_home:
+        ph = Path(args.portfolio_home).expanduser()
+        # A missing portfolio home is normal (project never audited / no vault),
+        # not an error — the detector simply finds no portfolio report.
+        portfolio_home = ph if ph.is_dir() else None
 
     detectors, notes, errors = {}, [], []
     for axis, fn in AXES:
-        fired, axis_notes, axis_errors = fn(root)
+        # Only the security detector takes a portfolio home; the rest are
+        # repo-tree-only by design. Kept explicit rather than passing **kwargs
+        # to every detector so the exception stays visible.
+        fired, axis_notes, axis_errors = (
+            fn(root, portfolio_home) if axis == "security" else fn(root))
         detectors[axis] = fired
         notes.extend(axis_notes)
         errors.extend(axis_errors)

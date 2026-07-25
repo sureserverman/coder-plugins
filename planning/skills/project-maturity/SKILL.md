@@ -20,9 +20,10 @@ But the **detectors scan the repo**, not the vault — README, packaging recipes
 
 - The checklist is read from / written to `<portfolio_home>/MATURITY.md`.
 - Detector inputs are globbed from `<project-path>` (the repo working tree).
-- Every auto-tick's evidence path is recorded with a `repo:` prefix (e.g. `[x] auto:repo:deb/package/DEBIAN/control`) so a reader of the vault checklist knows the evidence lives in the repo, not beside the checklist.
+- Every auto-tick's evidence path is recorded with a scope prefix so a reader of the vault checklist knows which tree the evidence lives in: `repo:` for the working tree (e.g. `[x] auto:repo:deb/package/DEBIAN/control`), `portfolio:` for evidence that lives beside the checklist (e.g. `[x] auto:portfolio:security/reports/sec-audit-20260724-1830.md`).
+- **Pass `--portfolio-home <portfolio_home>` to `audit-detectors.py`.** The Security axis needs it: from sec-audit v1.29 the report is written to `<portfolio_home>/security/reports/` and **nothing** is written into the audited repo, so without this argument the Security axis can never fire for any audited project. The script returns a `scope` field (`repo` | `portfolio`) on each fired item — render `auto:<scope>:<evidence>` from it and never hardcode `repo:`.
 
-Every `docs/MATURITY.md` reference below means `<portfolio_home>/MATURITY.md`; every detector path is `repo:`-relative to `<project-path>`.
+Every `docs/MATURITY.md` reference below means `<portfolio_home>/MATURITY.md`; detector paths are `repo:`-relative to `<project-path>`, except where a detector reports `scope: portfolio`, which is relative to `<portfolio_home>`.
 
 **Announce at start:** "Using the project-maturity skill — `<init|audit|get>` on `<portfolio_home>/MATURITY.md` (detectors scan `<project-path>`)."
 
