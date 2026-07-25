@@ -41,7 +41,7 @@ live together:
 … plus plan.md / market-research.md / gtm-plan.md / metrics.md
 ```
 
-Membership lives in the vault, **not** in `~/.claude/projects-registry.yaml`: six
+Membership lives in the vault, **not** in `~/.claude/projects-registry.yaml`: eight
 independent consumers parse that registry with a fixed field set, so a grouping key there
 would couple all of them to one plugin's feature. `assess` creates a group (never
 silently — grouping decides which repos stop having a business case of their own); every

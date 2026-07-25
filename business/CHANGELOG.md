@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `group: <slug>`. `assess` creates groups, `track` collects per member and sums into
   aggregate keys, `launch` gates on the weakest member's `MATURITY.md`.
   Membership deliberately does **not** live in `~/.claude/projects-registry.yaml` —
-  six independent consumers parse it with a fixed field set.
+  eight independent consumers parse it with a fixed field set.
 - **Per-member metric breakdown.** A `metrics.md` key containing `@` (e.g.
   `github.stars@big-projects/xray-host`) parses into a new `breakdown` block, never into
   `values`, so it is never target-matched and never counted as an actual. Without this the

@@ -21,9 +21,10 @@ The manifest lives in the vault beside the group's business artifacts:
 ## Why not a registry field
 
 `~/.claude/projects-registry.yaml` is the obvious place to record membership, and it
-is deliberately **not** used. Its format forbids bulk rewrites, and six independent
-consumers parse it with a fixed field set (four portfolio scripts, `compass-scan.py`,
-`business-scan.py`, `repo-health-scan.py`). A grouping key there couples all of them
+is deliberately **not** used. Its format forbids bulk rewrites, and eight independent
+consumers parse it with a fixed field set (five portfolio scripts — `rebuild`, `unify`,
+`integrate`, `migrate`, `security-scan` — plus `compass-scan.py`, `business-scan.py`
+and `repo-health-scan.py`). A grouping key there couples all of them
 to one plugin's feature. A vault manifest is read by exactly the two scripts that
 need it and follows the existing integration-arc precedent
 (`Portfolio/integrations/<arc>/` with its `spans:` list). Recorded as `DEC-002` in
