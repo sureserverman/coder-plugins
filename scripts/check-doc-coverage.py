@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""check-doc-coverage — every shipped component is named in its plugin's README.
+
+Enforces the mechanical half of docs/plugin-readme-contract.md:
+
+  * every plugin in .claude-plugin/marketplace.json has a README.md;
+  * every component on disk (skills/agents/commands, per the shared PATTERNS in
+    _frontmatter_common.py, excluding /tests/ and /fixtures/) has its name
+    present in that README;
+  * the README is not a stub relative to how many components it must cover.
+
+**What this CANNOT check.** It cannot tell a real usage section from a component
+name sitting in a bullet list. Coverage is a floor, not a quality bar: green
+means nothing is missing, NOT that anything is well explained. Read it as
+exactly that much, and do not let an allowlist entry substitute for writing the
+section — that inverts the guard into a way of recording what you skipped.
+
+Exceptions: scripts/doc-coverage-allow.txt, one `plugin/component` per line with
+a written reason after `#`, mirroring frontmatter-budget-allow.txt.
+
+Run: python3 scripts/check-doc-coverage.py [--summary] [--plugin NAME] [--max-missing N]
+"""
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
+ALLOWFILE = ROOT / "scripts" / "doc-coverage-allow.txt"
+
+_spec = importlib.util.spec_from_file_location(
+    "_frontmatter_common", ROOT / "scripts" / "_frontmatter_common.py")
+fc = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(fc)
+
+# A README carrying real usage prose runs well past this per component. The floor
+# only catches the degenerate case — a stub that lists names and stops — because
+# anything tighter would be a style rule masquerading as a correctness check.
+MIN_CHARS_BASE = 400
+MIN_CHARS_PER_COMPONENT = 120
+
+
+def plugins():
+    """[(name, dir)] for every plugin the marketplace actually ships."""
+    data = json.loads(MARKETPLACE.read_text())
+    out = []
+    for entry in data.get("plugins", []):
+        src = entry.get("source", "./" + entry["name"])
+        out.append((entry["name"], ROOT / src.lstrip("./")))
+    return sorted(out)
+
+
+def components(plugin_dir):
+    """[(kind, name)] shipped by a plugin, using the shared component rules."""
+    found = []
+    for kind, pattern in fc.PATTERNS:
+        # PATTERNS are marketplace-root-relative ("*/skills/*/SKILL.md"); strip
+        # the leading plugin segment to glob inside one plugin directory.
+        sub = pattern.split("/", 1)[1]
+        for path in sorted(plugin_dir.glob(sub)):
+            posix = "/" + path.relative_to(ROOT).as_posix()
+            if fc.is_excluded(posix):
+                continue
+            name = path.parent.name if kind == "skill" else path.stem
+            found.append((kind, name))
+    return found
+
+
+def load_allow():
+    """{(plugin, component)} exempted, each with a written reason."""
+    allowed = set()
+    if not ALLOWFILE.exists():
+        return allowed
+    for line in ALLOWFILE.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        entry = line.split("#", 1)[0].strip()
+        if "/" in entry:
+            p, c = entry.split("/", 1)
+            allowed.add((p.strip(), c.strip()))
+    return allowed
+
+
+def mentions(readme_text, name):
+    """Is this component named in the README?
+
+    Word-boundary match so `backlog` does not satisfy itself via `global-backlog`,
+    and so a hyphenated name is not matched by one of its halves.
+    """
+    return re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", readme_text) is not None
+
+
+def audit():
+    allowed = load_allow()
+    report = []
+    for name, pdir in plugins():
+        comps = components(pdir)
+        readme = pdir / "README.md"
+        if not readme.exists():
+            report.append({"plugin": name, "readme": False, "components": comps,
+                           "missing": [c for c in comps], "chars": 0, "stub": True})
+            continue
+        text = readme.read_text(errors="ignore")
+        missing = [(k, c) for k, c in comps
+                   if not mentions(text, c) and (name, c) not in allowed]
+        floor = MIN_CHARS_BASE + MIN_CHARS_PER_COMPONENT * len(comps)
+        report.append({"plugin": name, "readme": True, "components": comps,
+                       "missing": missing, "chars": len(text),
+                       "stub": len(text) < floor, "floor": floor})
+    return report
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="check-doc-coverage")
+    ap.add_argument("--summary", action="store_true",
+                    help="Print a documented/total table and exit 0.")
+    ap.add_argument("--plugin", default="", help="Check only this plugin.")
+    args = ap.parse_args(argv)
+
+    report = audit()
+    if args.plugin:
+        report = [r for r in report if r["plugin"] == args.plugin]
+        if not report:
+            print(f"no such plugin: {args.plugin}", file=sys.stderr)
+            return 2
+
+    if args.summary:
+        print(f"{'plugin':22s} {'components':>10s} {'documented':>11s} {'chars':>7s}")
+        for r in report:
+            n = len(r["components"])
+            print(f"{r['plugin']:22s} {n:>10d} {n - len(r['missing']):>11d} {r['chars']:>7d}"
+                  + ("" if r["readme"] else "   (no README)"))
+        return 0
+
+    failed = False
+    for r in report:
+        if not r["readme"]:
+            failed = True
+            print(f"FAIL {r['plugin']}: no README.md "
+                  f"({len(r['components'])} components undocumented)")
+            continue
+        if r["missing"]:
+            failed = True
+            print(f"FAIL {r['plugin']}: {len(r['missing'])} component(s) not named in README.md")
+            for kind, c in r["missing"]:
+                print(f"       - {kind} {c}")
+        if r["stub"]:
+            failed = True
+            print(f"FAIL {r['plugin']}: README.md is {r['chars']} chars, below the "
+                  f"{r['floor']}-char floor for {len(r['components'])} components")
+
+    if failed:
+        print("\ncoverage is a floor, not a quality bar — see docs/plugin-readme-contract.md",
+              file=sys.stderr)
+        return 1
+    print(f"OK — {len(report)} plugin(s): every shipped component is named in its README")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
