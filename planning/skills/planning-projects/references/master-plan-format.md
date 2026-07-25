@@ -57,6 +57,15 @@ Date: YYYY-MM-DD
 [Shared findings — everything that grounds more than one sub-plan. Each sub-plan
 carries its own summary too, scoped to what that sub-plan needs.]
 
+## Decisions in force
+
+[Non-checkbox bullets — the master is parser-safe by construction and a raw `- [ ]`
+outside a `**Gate:**` block would become a false backlog candidate.]
+
+- DEC-NNN — [title] (accepted; [domains]) — [the constraint in one line]
+
+**Registers consulted:** [...]   **Domains inferred:** [...]
+
 ## Sub-plans
 
 ### Sub-plan 1: [Name]
@@ -142,10 +151,36 @@ candidates by construction:
    the gate would leave them inside it.
 4. **The tasks live only in sub-plan files.** The master never restates them — restating
    would double-count candidates once in the master and once in the sub-plan.
+5. **`## Decisions in force` uses non-checkbox bullets**, same as in a Standard plan. It
+   sits above `## Sub-plans` and is subject to rule 1 like everything else outside a gate
+   block.
 
 A master plan following this file yields no candidates; its sub-plans yield exactly their
 own unchecked tasks. That invariant is locked by
 `../../portfolio/tests/test-portfolio-unify.py`.
+
+## Decisions across a decomposition
+
+The decisions scan runs **once, at master level** — the same economy as the shared
+Research Summary — and its result lives in the master's `## Decisions in force`.
+
+**Sub-plans reference it; they do not restate it.** A sub-plan whose tasks are constrained
+cites the IDs on those task lines (`Honors DEC-003`) and points at the master for the
+reasons:
+
+```markdown
+## Decisions in force
+See the master plan's `## Decisions in force` — DEC-003 and GDEC-SEC-001 bind this
+sub-plan's Stage 2.
+```
+
+Restating the entries in each sub-plan would duplicate a constraint the same way
+restating tasks would double-count candidates, and duplicated constraints drift: the copy
+that is not updated when a decision is superseded is the one someone implements from.
+
+Each sub-plan's own final stage gate still carries the conformance check for the IDs in
+*its* scope — a sub-plan is independently executable, so it must be independently
+verifiable.
 
 ## Execution semantics (summary)
 
