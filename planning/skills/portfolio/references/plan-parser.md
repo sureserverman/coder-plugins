@@ -77,6 +77,17 @@ timestamp, transferred unchanged.
 as `stale-plan-unchecked`. The flag *adds* candidates from plans the normal
 heuristics skip; it never relabels ones they already found.
 
+**Scope: signal 3 only ever fires on legacy plans.** It surfaces what the
+git-stage suppression hid, and that suppression exists only on the legacy
+heuristic path — `parse_plan_status()` never consults `done_stages`, so a plan
+carrying `- **Status:**` fields (every modern plan, Light plan, sub-plan and
+master register) already surfaces all its open work unconditionally through
+signals 1 and 2. For those plans `--include-stale` is a structural no-op, and
+that is correct, not a bug: there is nothing hidden for it to reveal. Verified:
+a 2000-day-old Status-path plan with a git-confirmed-done stage yields an
+identical candidate set with and without the flag. Expect the flag to fire
+rarely, and only on the oldest checkbox-era plans.
+
 ## Candidate output shape
 
 Each candidate is a structured record with the following fields:
