@@ -38,9 +38,9 @@ backlog unify \
      - `source_plan: docs/sample-plans/2026-04-15-partial-with-deferred-plan.md`
      - `source_locator: Stage 2 / Task 2.1`
      - `title: Implement bar`
-     - `signal: unchecked-task`
+     - `signal: unchecked-open`
    - Task 2.2 — `[ ] not started` → CANDIDATE
-     - `source_locator: Stage 2 / Task 2.2`, `title: Document bar`, `signal: unchecked-task`
+     - `source_locator: Stage 2 / Task 2.2`, `title: Document bar`, `signal: unchecked-open`
    - Stage 2 Gate — bullets skipped per the corrected rule
    - `## Deferred` block — one bullet `Pluggable bar backends — out of scope for v1; revisit when there's a second backend on the horizon.` → CANDIDATE
      - `source_locator: Deferred / bullet 1`

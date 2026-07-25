@@ -31,7 +31,7 @@ Expected from a unify pass over `proj-a-plans-and-backlog`:
 
 Expected from a unify pass over `proj-b-plans-only`:
 
-- 3 candidates from `2026-05-01-three-unchecked-plan.md`, all `unchecked-task` signal.
+- 3 candidates from `2026-05-01-three-unchecked-plan.md`, all `unchecked-open` signal.
 - `docs/backlog.md` auto-created with the existing-backlog template.
 
 Expected from a scan over the fixtures dir:

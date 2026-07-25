@@ -61,18 +61,18 @@ Drift reporting is the mitigation for the "registry rots" failure mode — every
 
 ### `unify` — derive backlog candidates for every enabled project, in parallel
 
-Inputs: optional `--project <abs-path>` (limit to one project), optional `--include-stale` (pass through to backlog skill), optional `--write` (default off).
+Inputs: optional `--project <abs-path>` (limit to one project; matched against the registry `path`), optional `--write` (default off).
 
 Operation:
 
 1. Load the registry; filter to entries with `enabled: true`. If `--project` is set, narrow to that one.
-2. For each project (up to 8 in flight), dispatch a sub-agent via the **dispatching-parallel-agents** skill. Each sub-agent invokes the `backlog` skill's `unify` subcommand on its project. The default `--plans-dir docs/plans` applies; sub-agent passes `--plans-dir docs/sample-plans` when the project path is under `planning/skills/portfolio/tests/fixtures/` (this is the gitignore-workaround documented in `tests/fixtures/README.md`).
+2. For each project (up to 8 in flight), dispatch a sub-agent via the **dispatching-parallel-agents** skill. Each sub-agent invokes the `backlog` skill's `unify` subcommand on its project.
 3. Each sub-agent returns its `{candidates, existing, duplicates_skipped}` structure.
 4. Aggregate into a tree-shaped report grouped by `area/name`:
 
    ```
    anon-tools/multitor (8 existing, 0 duplicates skipped, 2 new candidates):
-     + Stage 3 / Task 3.2     (unchecked-task)  Wire MT slot frames through evdev
+     + Stage 3 / Task 3.2     (status-unexecuted) Wire MT slot frames through evdev
      + Deferred / bullet 1    (deferred-section) Bluetooth HID jitter support
    android/and-hole (3 existing, 1 duplicate skipped, 0 new candidates):
      (no new candidates)
