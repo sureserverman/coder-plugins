@@ -128,6 +128,30 @@ Save as:
 <portfolio_home>/plans/YYYY-MM-DD-<topic>-architecture.md
 ```
 
+### Record the decision in the register
+
+An architecture doc is **event-shaped**: it captures one architecture exercise and
+is rarely reopened once its plan has executed. The decision it encodes outlives it
+— and binds projects that will never read this file. So after the doc is written
+and approved, append a `DEC-NNN` entry to `<portfolio_home>/decisions.md` via the
+`decisions` skill (`add`), with:
+
+- `Source:` this architecture doc's filename plus the `ARCH-NN` sections that carry
+  the decision (`2026-07-25-storage-architecture.md — ARCH-02, ARCH-03`);
+- `Reason:` the `## Decision` rationale *and* the discarded candidate from
+  `## Alternatives rejected` — a reason with no rejected alternative is a
+  restatement, not a reason;
+- `Domains:` the platform/stack slugs the decision binds (`android`, `rust`,
+  `ubuntu`, …), or `none` if it is genuinely project-local.
+
+If the decision constrains every project on a platform rather than just this one,
+follow with `decisions promote <DEC-NNN> --domain <slug>` so it lands in
+`Portfolio/decisions/<slug>.md` and both link directions are written. Format:
+`../portfolio/references/decisions-format.md`.
+
+This is the one step that makes an architectural choice findable by a project that
+did not exist when it was made.
+
 ### Parser-safety rules (MUST)
 
 The doc lands in the same `plans/` directory that `portfolio-unify` scans, so it is

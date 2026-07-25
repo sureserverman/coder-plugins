@@ -42,7 +42,8 @@ Create a task for each of these and work them in order. Do not skip ahead.
 Before asking anything of the user, gather what the repo already tells you. The fewer questions you ask, the better — questions you can answer from evidence should not be asked.
 
 - Read the root manifests and README to identify language, framework, conventions
-- Scan `docs/`, `docs/plans/`, `docs/adrs/` for prior decisions on this topic
+- Read `<portfolio_home>/decisions.md` and the `Portfolio/decisions/<domain>.md` registers for the stacks in scope — these are the project's *binding* prior decisions and their reasons (`../portfolio/references/decisions-format.md`). A design that contradicts an accepted decision must either supersede it explicitly or be re-scoped; silently violating one is the failure this register exists to prevent.
+- Scan `docs/`, `docs/plans/` for older, unregistered design notes on this topic
 - Recent commit history (`git log -30 --oneline`) for active work threads
 - Existing patterns in the codebase that a new feature should match (don't introduce a second HTTP client, a second test framework, a second auth flow)
 

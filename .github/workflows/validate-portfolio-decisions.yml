@@ -1,0 +1,41 @@
+name: validate-portfolio-decisions
+
+# Guards the planning plugin's decisions-register lane.
+# The register is hand-authored markdown, so the parser's degrade-never-drop
+# contract is the whole safety story: a malformed heading must stay VISIBLE
+# (flagged in place) rather than vanish or bleed into the previous entry, and a
+# link asymmetry must be reported and never auto-repaired. The fixture suite
+# pins those behaviours plus the rebuild's idempotency and read-only guarantees.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-portfolio-decisions.py'
+      - 'planning/skills/portfolio/tests/fixtures/decisions/**'
+      - 'planning/skills/portfolio/references/decisions-format.md'
+      - 'planning/skills/decisions/**'
+      - '.github/workflows/validate-portfolio-decisions.yml'
+  pull_request:
+    paths:
+      - 'planning/skills/portfolio/scripts/portfolio-rebuild.py'
+      - 'planning/skills/portfolio/tests/test-portfolio-decisions.py'
+      - 'planning/skills/portfolio/tests/fixtures/decisions/**'
+      - 'planning/skills/portfolio/references/decisions-format.md'
+      - 'planning/skills/decisions/**'
+      - '.github/workflows/validate-portfolio-decisions.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install pyyaml
+      - name: Run decisions-register fixture tests
+        run: python3 planning/skills/portfolio/tests/test-portfolio-decisions.py
+      - name: Run compass fixture tests (consumes the same parser)
+        run: python3 planning/skills/compass/tests/test-compass-scan.py

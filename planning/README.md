@@ -143,6 +143,37 @@ Owns the per-project deferred-work register at `docs/backlog.md`. Append on defe
 
 **Triggers:** "add to backlog", "defer this", "what's in the backlog", "BL-007 is done", "unify plans and backlog for this project".
 
+### `decisions` (since v0.27.0)
+
+Owns the architectural-decision register in two linked halves: per-project
+`<portfolio_home>/decisions.md` (`DEC-NNN`) and per-architecture-domain
+`Portfolio/decisions/<domain>.md` (`GDEC-<DOM>-NNN` — `android`, `ios`, `rust`,
+`ubuntu`, …). Every entry carries the **reason** behind the choice: the constraint,
+the evidence, the rejected alternative, the accepted cost.
+
+- `add` / `list` / `read` — record and consult decisions for one project.
+- `promote <DEC-NNN> --domain <slug>` — lift a project decision into its domain
+  register, writing **both** link directions in one step. That symmetry is what
+  makes the two halves one register instead of two.
+- `supersede` — replace a decision that no longer holds. The old entry stays, marked
+  `superseded by DEC-NNN`; its reason is the record of what was believed and why.
+
+`portfolio rebuild` reads both halves, renders `Portfolio/global-decisions.md`
+(by-domain index, per-project counts, malformed entries, link asymmetries,
+unresolved targets), and adds a `Decisions:` pointer to the repo sidecar. Symmetry
+gaps are **reported, never auto-fixed** — repairing one side would assert an edge
+about a project the run has not read. `compass-scan.py` surfaces a per-project
+`{count, malformed, domains, last_decided}` summary.
+
+**sec-audit recommendations** are recorded here under a hard rule: cite the report by
+filename and date, restate its substance in the entry's own words, and
+never embed the report body — those reports are local-only and gitignored
+across the portfolio.
+
+Format: `portfolio/references/decisions-format.md`.
+
+**Triggers:** "record this decision", "why did we choose X", "log this sec-audit recommendation", "promote this to the android decisions", "what binds all Rust projects".
+
 ### `workflow-spec` (v0.4.0+)
 
 Owns behavior contracts at `docs/workflows/`. Provides `capture`, `extend`, `audit` subcommands so behavior changes can be detected against a versioned spec.
