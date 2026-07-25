@@ -35,7 +35,7 @@ Resolve `portfolio_home` per `../portfolio/references/registry-format.md`: read
 refuse and fail loudly — never fall back to a path inside the repo.** That
 fallback is what the vault-canonical storage law exists to prevent.
 
-**Announce at start:** "Using the decisions skill — <add|list|read|promote|supersede> on <path>."
+**Announce at start:** "Using the decisions skill — <add|list|read|relevant|promote|supersede> on <path>."
 
 ---
 
@@ -77,6 +77,43 @@ first.
 For ingestion by other skills (`planning-projects` and `brainstorming` research
 phases, `architecting-projects` prior-art scan). Returns the file as text; the
 caller parses. With `--domain <slug>`, returns that domain register instead.
+
+### `relevant` — digest what binds this project
+
+The question a planner and an executor actually ask: *which recorded decisions
+constrain the work in front of me?* Unlike `read`, this resolves the domain
+registers for you and returns a compact digest of both halves rather than raw
+files.
+
+Inputs: optional `--domains <slug,...>`, `--project <name> --area <area>`,
+`--format text|json`.
+
+1. **Infer the domains** from the project's stack via `references/domain-slugs.md`
+   — that table is paired with `dispatching-parallel-agents`'s stack-routing
+   table, so the same signal that picks a subagent picks a register. When the
+   stack is ambiguous, pass every plausible slug: an extra register costs one
+   read, a missed one costs a violated constraint nobody catches until review.
+   Run `scripts/decisions-relevant.py --list-domains` to see which registers
+   exist right now.
+2. **Run** `scripts/decisions-relevant.py --domains <slugs> --project <name>
+   --area <area>`. It imports the same fixture-locked parser `portfolio rebuild`
+   uses, so the digest can't disagree with the roll-up.
+3. **Read the digest as-is.** Superseded entries come back **marked, not
+   filtered** — "we believed X and stopped" is what prevents the rejected
+   approach being re-proposed. Malformed blocks come back **flagged, not
+   dropped**; a decision that fails to parse is precisely the one to look at.
+
+**The three degrade states** — all normal, none an error:
+
+| State | Meaning |
+|---|---|
+| `project_register: present` | Both halves returned. |
+| `project_register: absent` (registered) | The project is in the registry but has recorded no decisions yet. The global half still binds it. |
+| `project_register: absent` (unregistered) | A brand-new project with no portfolio home. **The global half is authoritative and sufficient** — see below. |
+
+Never treat an absent project half as "no decisions apply". That inversion would
+make a greenfield project — the one with the least local context — the one that
+consults the fewest constraints.
 
 ### `promote` — lift a project decision into its domain register
 
