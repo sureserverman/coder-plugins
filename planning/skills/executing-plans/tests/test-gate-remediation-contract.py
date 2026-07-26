@@ -335,6 +335,49 @@ def main():
           affirmed_index(rg, r"no-fafo") != -1,
           "the Red-Green loop's diagnose rule does not route to no-fafo-debugging")
 
+    # 11 — (Task 1.2) The `Parallel:` field is defined as a DIRECTIVE, not a capability.
+    # The defect: planning-projects glossed it "can a sub-agent run this concurrently?"
+    # while executing-plans says "Dispatch". An executor reading the definition inferred
+    # no obligation and ran 18 tasks inline despite 5 marked YES. Anchored on the
+    # structural claim rather than one sentence (BL-031).
+    pp = SKILLS_ROOT / "planning-projects" / "SKILL.md"
+    pp_text = flat(pp.read_text(encoding="utf-8")) if pp.is_file() else ""
+    check("planning-projects/SKILL.md is readable", bool(pp_text),
+          "cannot verify the Parallel-field contract without the authoring skill")
+    check("the Parallel field is stated as an instruction to the executor",
+          affirms(pp_text, r"Parallel\*\*? field[^.]{0,120}(directive|instruction)"
+                           r"|(directive|instruction) to the executor"),
+          "the authoring skill does not say the field is a directive")
+    check("YES obligates dispatch",
+          affirms(pp_text, r"YES obligates dispatch|it is dispatched"),
+          "the authoring skill does not say YES obligates dispatch")
+    # The half that matters in the common case: most stages have ONE ready task, so if
+    # "nothing to run alongside" excuses inlining, the field stays optional in practice.
+    # affirms_predicate, NOT affirms: the subject is itself an absence ("NO concurrent
+    # sibling"), so the negation guard would reject the very wording that satisfies the
+    # requirement. Screen the predicate instead.
+    check("a lone ready task with no concurrent sibling is still dispatched",
+          affirms_predicate(pp_text, r"no concurrent sibling", r"still dispatched"),
+          "the no-sibling case is unaddressed, so the field reads optional whenever a "
+          "stage has one ready task — which is the common case")
+    # Presence checks alone are not enough: a mutation test showed that deleting one
+    # affirming sentence while leaving another elsewhere leaves the file CONTRADICTING
+    # itself and the suite still green. So also deny the permissive phrasings outright —
+    # this catches a restatement reappearing in a different sentence, which is how the
+    # rule would most naturally erode. Scoped to *dispatch* permissiveness, so the
+    # legitimate "executing-plans may still delegate a NO task on its own
+    # context-hygiene criteria" is untouched.
+    check("no permissive gloss survives in the authoring skill",
+          not re.search(r"can a sub-agent run this concurrently|it can be dispatched",
+                        pp_text, re.I),
+          "a permissive gloss of the Parallel field is still present")
+    permissive = re.search(
+        r"may be dispatched|need not be dispatched|dispatch is optional"
+        r"|at the executor.s discretion", pp_text, re.I)
+    check("no phrasing makes dispatch discretionary",
+          permissive is None,
+          f"discretionary-dispatch phrasing present: {permissive.group(0) if permissive else ''}")
+
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0
