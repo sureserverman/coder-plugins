@@ -200,6 +200,12 @@ def main():
          section(text, r"\*\*One review, not per-task", r"\*\*Both evaluator passes")),
         ("Integration summary (code-reviewer agent)",
          section(text, r"- \*\*git-github:code-reviewer agent\*\*", r"\n- \*\*")),
+        # Added after the Tier-2 stage review: Task 2.1's own review notes claimed the
+        # master-plan clause had been swept into this set, and it had not. A sibling the
+        # notes name but the sweep omits is the exact instance-vs-class gap this stage
+        # exists to close — reproduced by the stage's own remediation test.
+        ("master-plan sub-plan gate clause",
+         section(text, r"\*\*On a sub-plan's close-out\*\*", r"\n4\. \*\*Version bumps")),
     ]
     for label, block in sibling_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")

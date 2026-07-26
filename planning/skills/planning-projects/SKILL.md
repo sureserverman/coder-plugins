@@ -234,8 +234,12 @@ Decisions use the **same citation mechanism as `ARCH-NN`** — deliberately, so
   makes the override *auditable* rather than silent, and it is the executor's instruction
   to record the supersede at close-out.
 - **Emit the conformance gate:** the plan's final stage gate carries
-  `- [ ] No change contradicts a decision in force (DEC-NNN / GDEC-… — list the IDs
-  actually in scope); any Supersedes citation has been recorded via decisions supersede`.
+  `- [ ] **(judgment)** No change contradicts a decision in force (DEC-NNN / GDEC-… — list
+  the IDs actually in scope); any Supersedes citation has been recorded via decisions
+  supersede`. The marker is **required**, not optional: this is the canonical
+  "conformance judgment over a diff" the set-valued-check rule below names as needing a
+  reader, so a template emitting it unmarked would ship the one check shape the rule
+  forbids.
 - **Per DEC-001**, a citation restates the constraint in the entry's own words. A decision
   sourced from a sec-audit never brings the report body into the plan.
 
@@ -513,8 +517,9 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]
-- [ ] [No change contradicts a decision in force (list the DEC/GDEC IDs in scope);
-      any Supersedes citation has been recorded via `decisions supersede`]
+- [ ] **(judgment)** [No change contradicts a decision in force (list the DEC/GDEC IDs in
+      scope); any Supersedes citation has been recorded via `decisions supersede`] — a
+      conformance judgment over a diff; no sweep can prove it
 ```
 
 ---

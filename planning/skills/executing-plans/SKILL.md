@@ -73,8 +73,9 @@ gate and surfaces only at the master close-out — the most expensive place to f
    master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
    checks (they prove integration with previously completed sub-plans — a failure here
    is handled like any stage-gate failure — same severity classification, remediation
-   budget and exit criterion — traced to the responsible sub-plan/task or to the defect
-   class it belongs to), append
+   budget, and the same **exit criterion**, so each Important leaves the gate fixed or
+   recorded to the `backlog` with the user told — traced to the responsible
+   sub-plan/task or to the defect class it belongs to), append
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
@@ -728,7 +729,7 @@ When every stage is green:
 - Run to completion: stage gates are checkpoints, not approval gates — don't stop between green stages to ask permission
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
-- Respect the gate's **remediation budget** too — 2 rounds by default, counted and reported; a gate passes when no Critical remains and every Important is fixed or recorded, never when the detector finally goes quiet
+- Respect the gate's **remediation budget** too — counted and reported, with the default stated once at Step 3.5 rather than restated here; a gate passes when no Critical remains and every Important is fixed or recorded, never when the detector finally goes quiet
 - Repair the defect **class**, not the instance the gate happened to sample — name the set, sweep it
 - Stage gates check integration, not just aggregate task success; invoke the platform stage-verify skill there when one matches the project
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not

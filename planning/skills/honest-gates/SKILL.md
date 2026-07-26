@@ -105,9 +105,9 @@ Two rules with teeth, both drawn from observed failures rather than principle:
   the old text was wrong; it does not tell you the replacement is right. Verify the
   replacement against the source, exactly as if no sentence had been there. This has
   happened here: commit `178f988` ("correct two factual overreaches in the new
-  prose") introduced three *new* false claims, caught three commits later by
-  `edaeba2`, whose own message names the cause — corrections written from a
-  reviewer's negative finding without verifying the positive claim replacing it.
+  prose") introduced three *new* false claims, caught by `edaeba2` — the very next
+  commit — whose own message names the cause: corrections written from a reviewer's
+  negative finding without verifying the positive claim replacing it.
 - **Unrequested specificity is where errors hide.** A model pin nobody asked for, a
   count ("all 14 plugins"), an "every"/"never", a version number, a precise path —
   these read as authority and are rarely checked. Verify it or omit it. Vaguer and
