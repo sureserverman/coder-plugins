@@ -28,6 +28,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 import sys
 from pathlib import Path
 
@@ -45,10 +46,20 @@ def chk(cond, msg):
 
 
 def listing() -> set[str]:
-    """Suite paths the runner reports, as a set of repo-relative strings."""
+    """Suite paths the runner reports, as a set of repo-relative strings.
+
+    Deliberately NOT check=True: a nonzero --list (the runner refusing because of an
+    unsupported suite, an unreadable subtree, or leftover state from an interrupted
+    run) would raise CalledProcessError and abort the whole file with a traceback,
+    which is precisely the unstructured failure this suite's own reporting discipline
+    exists to avoid. Return the empty set and let the caller's chk() report it.
+    """
     out = subprocess.run(
         ["bash", str(RUNNER), "--list"],
-        capture_output=True, text=True, cwd=ROOT, check=True)
+        capture_output=True, text=True, cwd=ROOT)
+    if out.returncode != 0:
+        chk(False, f"--list exited {out.returncode}: {(out.stderr or out.stdout).strip()[:160]}")
+        return set()
     return {line.strip() for line in out.stdout.splitlines() if line.strip()}
 
 
@@ -98,12 +109,19 @@ try:
     chk(rel_sh in after, f"a .sh suite in an unseen directory is discovered ({rel_sh})")
     chk(rel_py in after, f"a .py suite in a bash-only plugin tree is discovered ({rel_py})")
 
-    print("group 3 — the comparison has teeth")
-    withheld = after - {rel_sh}
-    chk(bool((after - withheld) - set()),
-        "a listing with one path withheld differs from the full listing")
-    chk(sorted(walk_disk() - withheld) == [rel_sh],
-        "the disk-vs-listing diff names exactly the withheld path, not a vacuous empty set")
+    print("group 3 — the comparison has teeth (against a real listing, not set algebra)")
+    # The previous form asserted `bool((after - (after - {x})) - set())`, which is an
+    # identity: true for any set containing x, and therefore a restatement of group 2
+    # rather than a test. It never re-invoked the runner. This deletes the planted file
+    # from DISK and re-reads the runner's actual output.
+    planted_sh.unlink()
+    after_removal = listing()
+    chk(rel_sh not in after_removal,
+        "a suite deleted from disk disappears from a FRESH --list invocation")
+    chk(rel_py in after_removal,
+        "and its sibling is still listed, so the drop was specific, not a wholesale failure")
+    planted_sh.write_text("#!/usr/bin/env bash\nexit 0\n")
+    chk(rel_sh in listing(), "restoring the file brings it back — discovery is live, not cached")
 finally:
     for p in (planted_sh, planted_py):
         if p.exists():
@@ -148,11 +166,31 @@ chk(subprocess.run(["bash", str(RUNNER), "--list"], capture_output=True,
     "with only benign test-* paths present, --list succeeds")
 
 print("group 6 — --list is side-effect free and arguments are validated")
-sentinel = ROOT / ".run-tests-sentinel"
-if sentinel.exists():
-    sentinel.unlink()
-listing()
-chk(not sentinel.exists(), "--list did not execute suites (no sentinel written)")
+# The previous form checked for a sentinel nothing ever wrote, so it passed even if
+# --list executed every suite. This plants a suite that DOES write one when run.
+#
+# It runs in a THROWAWAY tree, never the real repo, for two reasons. Invoking the full
+# runner from inside a suite the runner discovers is unbounded recursion (this file ->
+# run-tests.sh -> this file -> ...) — found the hard way, the first cut hung until it
+# was killed. And a hard kill mid-test leaves planted files behind in the repo under
+# test, which is exactly what happened.
+with tempfile.TemporaryDirectory() as td:
+    tmp = Path(td)
+    (tmp / "scripts" / "tests").mkdir(parents=True)
+    shutil.copy(RUNNER, tmp / "scripts" / "run-tests.sh")
+    sentinel = tmp / "sentinel"
+    spy = tmp / "scripts" / "tests" / "test-planted-spy.sh"
+    spy.write_text(f"#!/usr/bin/env bash\ntouch '{sentinel}'\nexit 0\n")
+    tmp_runner = tmp / "scripts" / "run-tests.sh"
+
+    lst = subprocess.run(["bash", str(tmp_runner), "--list"],
+                         capture_output=True, text=True, cwd=tmp)
+    chk("scripts/tests/test-planted-spy.sh" in lst.stdout, "the spy suite is discovered")
+    chk(not sentinel.exists(),
+        "--list did NOT execute the spy suite (sentinel absent after a listing)")
+    subprocess.run(["bash", str(tmp_runner)], capture_output=True, text=True, cwd=tmp)
+    chk(sentinel.exists(),
+        "a full run DOES execute it — proving the sentinel is a live signal, not a dead check")
 
 bad = subprocess.run(["bash", str(RUNNER), "--bogus"],
                      capture_output=True, text=True, cwd=ROOT)

@@ -159,10 +159,16 @@ bash scripts/run-tests.sh --list   # print the suites it discovered, run nothing
 ```
 
 That is the canonical invocation — use it rather than hand-writing a glob. Suites are
-discovered by filename (`test-*.py`, `test-*.sh`) across the whole tree, so one in a new
-directory or a new language is picked up without editing the runner; `scripts/tests/test-run-tests-discovery.py`
-fails if discovery and the tree ever disagree. There is no pytest: suites are plain
-scripts run directly, and each exits non-zero on failure.
+discovered by filename (`test-*.py`, `test-*.sh`) across the whole tree, and validators by
+the `scripts/check-*.py` convention, so neither list has to be maintained by hand.
+`scripts/tests/test-run-tests-discovery.py` fails if discovery and the tree ever disagree.
+There is no pytest: suites are plain scripts run directly, and each exits non-zero on
+failure.
+
+A suite in a language the runner cannot execute is **flagged, not run** — it hard-fails the
+runner by name rather than being silently skipped. Making it actually execute means adding
+an interpreter to `run_one()`. The guarantee is "never silently skipped", not "runs
+anything".
 
 CI does not use the runner — it runs suites through path-filtered per-workflow jobs in
 `.github/workflows/`, so a change touching one area doesn't re-run everything. The runner

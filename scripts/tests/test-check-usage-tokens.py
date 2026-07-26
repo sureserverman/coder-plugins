@@ -214,6 +214,33 @@ check(run("/alpha:beta-only\n") == 1, "qualified token naming the wrong plugin F
 check(run("/run-thing\n| a | `thing-expert` | `do-thing` |\n") == 0,
       "a 3-column table whose last cell is a component, not a plugin, generates no claims")
 
+print("group 3d2 — attribution heuristics must not misfire on ordinary prose")
+# Reproduced by a Tier-2 review: the prose branch captured whatever word preceded the
+# kind-noun, so plain English yielded a claim against a plugin named "internal" and
+# failed a perfectly correct doc. Both branches now require a KNOWN plugin.
+for phrase in ["Use `thing-expert` (an internal agent) for this.\n",
+               "Use `thing-expert` (a legacy command) for this.\n",
+               "Use `do-thing` (the primary skill) here.\n"]:
+    check(run("/run-thing\n" + phrase) == 0,
+          f"ordinary prose is not an attribution claim: {phrase.strip()[:44]}")
+check(run("Use `thing-expert` (a `beta` agent) for this.\n") == 1,
+      "but a KNOWN plugin in the same position is still checked")
+# The table rule matches the routing table's real 3-cell shape; a 2-column row whose
+# last cell happens to name a real plugin must not become an attribution claim.
+check(run("/run-thing\n| `thing-expert` | `beta` |\n") == 0,
+      "a two-column row is not read as an attribution claim")
+check(run("| Task | `thing-expert` | `beta` |\n") == 1,
+      "a three-column row still is")
+
+print("group 3c2 — single-segment absolute paths in the new openers")
+# The widened opener set newly tokenizes /etc, /tmp, /var when wrapped. It fails SAFE
+# (a spurious FAIL, never a silent pass), but shipped with zero coverage.
+for frag in ["Logs land in (/tmp) during the run\n",
+             "Config lives in [/etc] on this host\n",
+             "State is under '/var' here\n"]:
+    rc = run("/run-thing\n" + frag)
+    check(rc == 1, f"single-segment path in a new opener fails LOUD, not silent: {frag.strip()[:40]}")
+
 print("group 3e — the guard refuses to pass when it cannot resolve")
 
 

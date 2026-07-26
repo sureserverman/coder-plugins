@@ -57,6 +57,11 @@ corpus into the repo would close that; until then this caveat is the honest stat
     EXECUTABLE.
   - `INLINE_SCRIPT`'s quote matching is not escape-aware, so an interpreter payload
     containing an escaped copy of its own delimiter truncates early.
+  - The `Scope:`-advisory (`unswept_scopes`) is REPORTED, never failed, and only for
+    stages that declare the field — so a plan predating it classifies identically. It
+    accepts either sanctioned shape (a sweep or a `(judgment)` marker) as covering the
+    declared set; it cannot tell whether the sweep actually covers the set the `Scope:`
+    names, only that the stage has one.
 
 Usage:
     validate-gate-checks.py <plan.md> [<plan.md> ...]
@@ -340,7 +345,13 @@ def unswept_scopes(text):
         checks = gate_checks(seg)
         if not checks:
             continue
-        if not any(classify(c)[0] == "EXECUTABLE" for c in checks):
+        # EXECUTABLE **or** JUDGMENT. The class-predicate rule sanctions exactly two
+        # shapes for a set-valued check — the sweep, or the `(judgment)` marker for a
+        # claim a reader must genuinely verify. Accepting only the first made this
+        # advisory contradict the rule it exists to support, flagging a stage that
+        # covered its Scope: the sanctioned second way. An advisory that is wrong on
+        # its own stated criteria teaches authors to route around it.
+        if not any(classify(c)[0] in ("EXECUTABLE", "JUDGMENT") for c in checks):
             out.append(m.group(1).rstrip(":"))
     return out
 

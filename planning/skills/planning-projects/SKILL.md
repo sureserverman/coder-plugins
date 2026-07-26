@@ -358,6 +358,11 @@ So: run the sweep, and prefer a `Scope:` that names the **command** (`Scope: eve
 matching grep -rl 'X' src/ — 7 files at authoring time`) over one that names a
 hand-copied list. A count is useful precisely because it is falsifiable later.
 
+**There is an automated backstop.** `scripts/validate-gate-checks.py` reports a stage that
+declares a `Scope:` whose gate contains neither an executable sweep nor a `(judgment)`
+marker — the set named but not swept. It is advisory (it never changes an exit code), so
+treat it as a reminder, not a gate.
+
 **Masters carry no `Scope:`.** A master plan has no tasks (`references/master-plan-format.md`),
 so the field never appears there and its parser-safety invariant is untouched.
 

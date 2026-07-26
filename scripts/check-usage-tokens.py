@@ -8,7 +8,9 @@ a fabricated `/loadout tech` and a stale `/rust-review`. This guard resolves eve
 <profile>` and `/loadout add <profile>` arguments.
 
 Resolution is against capability-index.json, which carries a `plugin` field per
-component, NOT against a tree walk. That is the difference between the two questions
+component, rather than a tree walk. (Two things still touch the filesystem, both
+deliberately: the index-staleness check below, and `/loadout set|add` profiles, which
+are not components and so are not in the index.) That is the difference between the two questions
 this guard answers:
 
     existence    — does any plugin ship a component by this name?
@@ -41,6 +43,14 @@ what keeps the false-positive rate at zero.
 
 Prints the number of tokens checked: an empty sweep must not read as a pass. Every
 failure to resolve the index exits non-zero — unresolvable means UNKNOWN, never OK.
+
+Staleness detection here is PLUGIN-level only: it catches a plugin directory missing
+from the index entirely, not a component that moved between two plugins the index
+already knows. That second case is caught by the separate freshness gate in
+.github/workflows/validate-frontmatter-budget.yml (`build-capability-index.py --write`
+plus `git diff --exit-code`), whose path filters cover SKILL.md / agents / commands /
+plugin.json. This guard depends on that job; alone it cannot tell that the index's
+truth is stale.
 
 Usage: python3 scripts/check-usage-tokens.py   (exit 0 = every token resolves)
 """
@@ -176,16 +186,26 @@ def attribution_claims(text, plugins):
         be shipped by it;
       * prose of the form `ui-android` (an `android-dev` agent).
 
-    The table rule is deliberately conservative: a row qualifies only when its final
-    cell is exactly one backticked token that is a KNOWN plugin. A three-column table
-    about something else therefore contributes nothing, rather than generating noise
-    that would push someone to weaken the check.
+    BOTH rules require the claimed plugin to be a KNOWN plugin before yielding. That
+    guard is not optional politeness: without it the prose form captures whatever word
+    precedes the kind-noun, so ordinary English — "`thing-expert` (an internal agent)" —
+    yields a claim against a plugin named "internal" and fails the build on correct docs.
+
+    **Known limits, stated rather than implied.** The table rule fires only on a
+    three-cell row whose FINAL cell names the plugin, which is the shape
+    `docs/USAGE.md`'s routing table actually uses. A table that puts the plugin in any
+    other column, or uses a different width, yields no claims at all — a silent miss,
+    not a caught error. This is a heuristic keyed to one document's convention, not a
+    general attribution parser.
     """
     for lineno, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
-        if stripped.startswith("|") and stripped.count("|") >= 3:
+        if stripped.startswith("|"):
             cells = [c.strip() for c in stripped.strip("|").split("|")]
-            if len(cells) >= 2:
+            # Exactly three: the routing table's real shape. `count("|") >= 3` also
+            # matched a plain two-column row, so the "a three-column table about
+            # something else contributes nothing" claim was false as written.
+            if len(cells) == 3:
                 last = cells[-1]
                 m = re.fullmatch(r"`([a-z][a-z0-9-]*)`", last)
                 if m and m.group(1) in plugins:
@@ -195,7 +215,11 @@ def attribution_claims(text, plugins):
                             if COMPONENT_SHAPED.match(tok):
                                 yield tok, claimed, f"routing table, line {lineno}"
         for comp, claimed in PROSE_ATTRIB.findall(line):
-            yield comp, claimed, f"prose, line {lineno}"
+            # Mirror the table branch: only a KNOWN plugin makes this an attribution
+            # claim. Otherwise "(an internal agent)" reads as a claim about a plugin
+            # called "internal" and fails a doc that is perfectly correct.
+            if claimed in plugins:
+                yield comp, claimed, f"prose, line {lineno}"
 
 
 def main():

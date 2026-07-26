@@ -63,9 +63,10 @@ The plan is green; shipping it is `git-github`'s half of the loop. `code-review`
 branch diff as one piece — the per-task reviews only ever saw a task at a time — and
 `gate-audit` sweeps it for faked verification: stubbed gates, tests that never ran,
 hidden exclusions. `create-commit` and `create-pr`
-each dispatch a Haiku subagent to draft and then, on your confirmation, create the thing;
-neither fires on its own. When the branch lands, `release-tag` cuts the tag and drafts notes
-from the changelog, asking before it tags and again before it pushes.
+each dispatch a Haiku subagent to draft and create the thing; both require that you asked
+for it explicitly, and neither ever fires on its own. When the branch lands, `release-tag`
+cuts the tag and drafts notes from the changelog — it is the one of the three that gates on
+an explicit "yes", once before tagging and again before pushing.
 
 **Cross-cutting the whole flow:** `honest-gates` defines what a gate may claim, and
 `no-fafo-debugging` takes over the moment something breaks — evidence before theories.

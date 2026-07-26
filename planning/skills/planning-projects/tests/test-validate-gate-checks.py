@@ -262,6 +262,12 @@ rc2, out2 = run(scoped_plan("every commands/*.md",
 check("was named, not swept" not in out2,
       "a stage declaring Scope: WITH an executable sweep is not reported")
 
+# The sanctioned SECOND shape: a (judgment)-marked check covers a declared Scope: too.
+rc_j, out_j = run(scoped_plan("every commands/*.md",
+                              "**(judgment)** every command doc reads coherently"))
+check("was named, not swept" not in out_j,
+      "a Scope: covered by a (judgment) check is NOT flagged — both sanctioned shapes count")
+
 # The asymmetry that must hold: a plan predating the field reports exactly as before.
 legacy = plan("the README no longer claims X")
 rc3, out3 = run(legacy)

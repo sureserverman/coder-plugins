@@ -137,6 +137,41 @@ def affirms(hay, pattern, flags=re.I | re.S):
     return False
 
 
+def affirms_predicate(hay, anchor_pat, target_pat, window=200):
+    """True when `target` follows `anchor` with no negation BETWEEN the two.
+
+    For requirements whose subject is itself an absence — "when no `Scope:` exists,
+    enumerate one" — `affirms()` rejects the subject's own "no", while a plain search
+    leaves the predicate wide open. A Tier-2 review demonstrated the cost concretely:
+    "When no `Scope:` field exists, the task must NOT attempt to enumerate one"
+    satisfied the plain form, i.e. prose stating the exact opposite of the requirement
+    passed the check meant to pin it.
+    """
+    for m in re.finditer(anchor_pat, hay, re.I | re.S):
+        span = hay[m.end(): m.end() + window]
+        tgt = re.search(target_pat, span, re.I | re.S)
+        if not tgt:
+            continue
+        if not NEGATION_RE.search(span[:tgt.start()] + tgt.group(0)):
+            return True
+    return False
+
+
+def affirmed_index(hay, pattern):
+    """Index of the first match of `pattern` that is NOT negated, else -1.
+
+    Only the preceding clause is scanned, never the match itself: the token this is
+    used for — `no-fafo-debugging` — literally begins with "no", so including the
+    match would make NEGATION_RE reject every genuine reference.
+    """
+    for m in re.finditer(pattern, hay, re.I | re.S):
+        pre = hay[max(0, m.start() - NEGATION_LOOKBEHIND):m.start()]
+        pre = re.split(r"[.;:]\s|\s[-–—]\s", pre)[-1]
+        if not NEGATION_RE.search(pre):
+            return m.start()
+    return -1
+
+
 def section(text, start_pat, end_pat):
     """Slice the text between two anchors; returns '' when the start is missing."""
     m = re.search(start_pat, text, re.I)
@@ -259,12 +294,8 @@ def main():
     check("the set is derived from the task's Scope: field",
           affirms(gate_fail, r"`?Scope:`?[^.]{0,80}field|field'?s? `?Scope:`?"),
           "step 2 does not name the task's Scope: field as the derivation source")
-    # Plain re.search, NOT affirms(): this phrase's subject is an absence ("when no
-    # `Scope:` exists"), so the negation guard would reject the very wording that
-    # satisfies the requirement.
     check("a missing Scope: has a stated fallback",
-          re.search(r"(no `?Scope:`?|when no scope)[^.]{0,120}enumerate",
-                    gate_fail, re.I | re.S) is not None,
+          affirms_predicate(gate_fail, r"(no `?Scope:`?|when no scope)", r"enumerate"),
           "there is no procedure for deriving the set when the task declares no Scope:")
     check("the derived sweep command is recorded in the gate report",
           affirms(gate_fail, r"write the command down|command down in the gate report"),
@@ -278,12 +309,13 @@ def main():
     # nothing, so position is the assertion: it must sit inside the gate-failure
     # block, and before the set is named.
     check("no-fafo-debugging is referenced in the gate-failure procedure",
-          "no-fafo" in gate_fail,
-          "the gate-failure procedure never routes to no-fafo-debugging")
+          affirmed_index(gate_fail, r"no-fafo") != -1,
+          "the gate-failure procedure never routes to no-fafo-debugging "
+          "(or names it only to opt out)")
     # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
     # ("Diagnose evidence-first, then name the set…") already contains "name the set"
     # and states the order itself, so anchoring there compares against the wrong point.
-    fafo_at = gate_fail.find("no-fafo")
+    fafo_at = affirmed_index(gate_fail, r"no-fafo")
     derive_at = gate_fail.lower().find("derive it")
     check("step 2's heading orders diagnosis before naming",
           affirms(gate_fail, r"diagnose evidence-first, then name the set"),
@@ -295,6 +327,13 @@ def main():
     check("the ordering rationale is stated, not just the order",
           affirms(gate_fail, r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
           "nothing explains why diagnosis must precede generalization")
+
+    # 6c — BL-027's SECOND site. An independent evaluator deleted the Red-Green
+    # diagnose-rule reference and this suite stayed green, so the site was unpinned.
+    rg = section(text, r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget")
+    check("no-fafo is routed at the Red-Green diagnose step too",
+          affirmed_index(rg, r"no-fafo") != -1,
+          "the Red-Green loop's diagnose rule does not route to no-fafo-debugging")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
