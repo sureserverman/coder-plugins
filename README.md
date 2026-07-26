@@ -41,8 +41,10 @@ specifies it and `scripts/check-doc-coverage.py` enforces the mechanical half in
 plugin cannot gain a component while its README quietly stops describing what ships.
 
 **New here, or want the plugins to compose?** [`docs/USAGE.md`](./docs/USAGE.md) walks the
-flows that span plugins — idea → shipped feature, deciding what to work on, the decisions
-register, shipping, the business pipeline, and how to avoid enabling everything at once.
+flows that span plugins — idea → shipped feature; building an Android feature, a browser
+extension, or a multilingual project; fanning work out to stack-matched experts; deciding
+what to work on; the decisions register; shipping; the business pipeline; and how to avoid
+enabling everything at once.
 
 ## Usage
 

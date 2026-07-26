@@ -51,7 +51,143 @@ across every mirror, reconciles the backlog, and records any decision the work c
 
 ---
 
-## 2. Knowing what to work on
+## 2. Build an Android feature
+
+Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev`,
+`testing` and the UI agents attach at the points where the platform actually matters.
+
+```text
+/loadout set android
+
+"add a settings screen with a dark-mode toggle"
+```
+
+`android-gradle-build` handles module and dependency wiring. The screen itself routes to
+**`ui-android`** (an `android-dev` agent — the `ui-design` plugin covers other platforms,
+not Android), with `android-ui-layout-patterns` supplying the Compose spacing and Material 3
+decision rules. For a full redesign rather than one screen, `android-ui-design-figma` runs
+the longer app-analysis → spec → apply workflow.
+
+The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
+stage gate automatically** — you don't ask for it. It builds the debug APK and, when a
+device is attached, installs, smoke-launches, and runs `connectedDebugAndroidTest`.
+
+```text
+"verify this stage on device"
+```
+
+> **With no device attached it degrades to a build-only gate and reports the skip.** It does
+> not claim a pass it didn't earn — which is `honest-gates` applied to hardware. Check
+> `adb devices` before you trust a green Android gate.
+
+Test work hands off twice: `kotlin-compose-testing-patterns` for the patterns (Compose UI
+tests, Espresso, MockWebServer), and the **`testing-expert`** agent when a test is flaky,
+the failure is unexplained, or coverage needs auditing rather than writing.
+
+Screenshots for the store listing run the emulator stack — three emulators plus an
+in-container MCP server, brought up and torn down per task:
+
+```text
+/android-dev:android-screenshots
+```
+
+> Set `APK_DIR` and `SCREENSHOT_DIR` to absolute paths first. The stack's defaults are
+> placeholders relative to the bundled plugin directory, so `up.sh` exits 4 with a guiding
+> message rather than mounting an empty directory (see the `android-dev` README).
+
+---
+
+## 3. Ship a browser extension
+
+Two plugins and a register, because an extension is judged by a reviewer who is not you.
+
+```text
+/loadout set web-ext
+
+"build a Firefox extension that rewrites tracking URLs"
+```
+
+The `browser-extensions` skill covers manifest v3, the Firefox/Chrome split, and
+`browser_specific_settings`. Popup and options pages are ordinary web UI, so they route to
+**`ui-web`** (`ui-design`) for layout and the accessibility baseline — keyboard reachability
+and contrast are what AMO reviewers actually cite.
+
+Then the preflight, before you upload rather than after rejection:
+
+```text
+/browser-extensions:amo-compliance-check
+```
+
+```text
+/planning:project-maturity
+```
+
+`project-maturity` gives the ship verdict across six axes. For an extension the binding ones
+are Documentation, Security and i18n — which is the next flow.
+
+---
+
+## 4. Take a project multilingual
+
+```text
+/i18n:i18n-audit
+```
+
+Detects the framework in use, finds hardcoded strings, and diffs catalogs across locales for
+missing or stale keys. It reports; it doesn't rewrite.
+
+```text
+/i18n:i18n-translate
+```
+
+Fills the gaps, dispatching the **`translator`** agent per batch — placeholders, ICU
+MessageFormat, CLDR plurals and HTML tags preserved. `i18n-formats` is the reference for
+whichever catalog format you're in.
+
+The seam back to `planning`: `project-maturity` carries an **i18n axis**, so translation
+coverage becomes part of the ship-readiness verdict instead of a thing someone remembers to
+check. Extension locales feed flow 3's AMO preflight the same way.
+
+---
+
+## 5. Fanning out to stack-matched experts
+
+This is the mechanism the other flows lean on. When `executing-plans` reaches independent
+tasks, `dispatching-parallel-agents` runs one agent per task — and picks each agent from
+[`stack-routing.md`](../planning/skills/dispatching-parallel-agents/references/stack-routing.md)
+rather than defaulting everything to a generalist:
+
+| Task looks like | Routes to | Shipped by |
+|---|---|---|
+| Rust | `rust-expert` | `rust-dev` |
+| Compose / Android screens | `ui-android` | `android-dev` |
+| Web UI, popup/options pages | `ui-web` | `ui-design` |
+| GNOME, macOS, Windows, Garmin UI | `ui-gnome`, `ui-macos`, `ui-windows`, `ui-garmin` | `ui-design` |
+| Game mechanics, feel, camera | `game-design-expert` | `game-dev` |
+| Test triage, flakiness, coverage | `testing-expert` | `testing` |
+| Catalog translation batches | `translator` | `i18n` |
+
+**`stingy-agents` is the offload target any of them can reach**, and it exists for cost
+rather than capability: `readonly-scanner` for bulk grep/enumeration when the caller is on a
+larger model, `code-generator` for scaffolding from a concrete spec, `skill-rewriter` for
+mechanical markdown edits. Hand I/O-bound work down instead of paying a frontier model to
+read files.
+
+Game work has its own front door, since mechanics are a design problem before a coding one:
+
+```text
+/game-dev:game-mechanic     # guided design session → implementable brief
+/game-dev:game-review       # scoped diff review: feel, camera, UX, accessibility
+```
+
+> Routing does **not** require the target plugin to be enabled. Plan execution resolves the
+> component from `capability-index.json` on disk — the same mechanism as flow 10 — so an
+> Android task gets `ui-android` even when only `planning` is on. Components needing hooks or
+> MCP are flagged `requires_enablement` and stop for explicit enablement.
+
+---
+
+## 6. Knowing what to work on
 
 `planning` also runs the layer above individual projects, across everything in
 `~/.claude/projects-registry.yaml`.
@@ -85,7 +221,7 @@ is the way it is).
 
 ---
 
-## 3. Why the architecture is the way it is
+## 7. Why the architecture is the way it is
 
 The `decisions` register is the one piece that spans *time* rather than plugins — it
 answers questions long after the plan that decided them was archived.
@@ -113,7 +249,7 @@ stage gate that **fails** on an uncited contradiction.
 
 ---
 
-## 4. Shipping it
+## 8. Shipping it
 
 ```text
 /git-github:code-review          # authoritative local review of your diff
@@ -131,9 +267,15 @@ Then registration and announcement:
 /promote-release                     # drafts posts per eligible channel — never posts
 ```
 
+`/promote-release` is `release-promo`'s front door: it decides which channels a release is
+even eligible for, then dispatches the `post-drafter` agent per channel against that
+channel's house style — `hackernews-show-hn`, `lobsters-post`, `reddit-promo`,
+`fediverse-post`, `twim-submission`. It **drafts and never posts**, which is the same
+report-only posture `compass` takes toward work.
+
 ---
 
-## 5. Running a business case on a project
+## 9. Running a business case on a project
 
 `business` is the sibling pipeline to `planning`, storing its artifacts beside
 `MATURITY.md` so `compass` and `portfolio` can read business state.
@@ -153,7 +295,7 @@ single business case via a manifest under `Portfolio/business-groups/<slug>/`.
 
 ---
 
-## 6. You don't have to enable everything
+## 10. You don't have to enable everything
 
 Enabled plugins cost context: every skill/agent/command description is injected at session
 start whether or not you use it. Two mechanisms keep that bounded.
