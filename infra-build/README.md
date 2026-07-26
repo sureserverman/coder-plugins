@@ -33,6 +33,21 @@ Each pipeline expects a specific layout in the source repo **and** an entry in t
 
 All seven skills fire on the phrases above and are invocable as `/infra-build:<skill>`.
 
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-deb.sh <project-root> [--json]` — Debian layout and control-file
+  invariants for the `utils` pipeline.
+- `scripts/validate-readiness.sh <project-root> [--json]` — the deterministic half of
+  `build-readiness-check`: which pipelines the project is and isn't wired for.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
 ## What gets written, and in which repo
 
 **This is the plugin's defining property: most of its skills edit a _different repo_ than the one you're working in.** A registration writes into the pipeline repo under `~/dev/infra/`, not into your project — so a "successful" registration produces no diff in your own `git status`, and looking there is the most common way to conclude nothing happened.

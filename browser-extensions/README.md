@@ -44,6 +44,20 @@ python3 skills/amo-compliance-check/scripts/amo-check.py path/to/extension/
 
 **What it does not — read this before trusting a green run.** It is a *static preflight against the rules that can be checked statically*, not a simulation of AMO review. It cannot detect obfuscation that looks like ordinary minification, judge whether your permission justifications are *persuasive*, review bundled third-party code you must also upload sources for, or predict a human reviewer's call on borderline data-collection behavior. **A clean run means "no mechanical violations found", not "AMO will accept this."** A preflight trusted beyond its coverage is worse than none, because it converts a maybe into a false confidence.
 
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-amo.sh <extension-dir> [--json]` — the AMO hard-rule lane. A thin wrapper
+  over `skills/amo-compliance-check/scripts/amo-check.py`; it re-implements nothing, so the
+  linter's coverage limits (documented above) apply to the lane too.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
 ## Artifacts
 
 Nothing persisted. The linter prints findings; the authoring skill edits your extension's own source and manifest, showing the diff first. No store submission is ever performed for you.

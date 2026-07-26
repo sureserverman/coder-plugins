@@ -65,6 +65,14 @@ def plugins():
 EXTRA_PATTERNS = (
     ("hook", "hooks/*.json"),
     ("mcp", ".mcp.json"),
+    # A plugin-root `scripts/validate.sh` is the determinism-lane orchestrator
+    # (vendored from the plugin-dev kit). It is user-runnable — `bash
+    # scripts/validate.sh <root> [--json]` — so it is a shipped component, not an
+    # implementation detail. Four plugins shipped one their README never
+    # mentioned, which is exactly the silent omission this guard exists to catch.
+    # NOTE: matched by the literal name `validate.sh`, so a README satisfies this
+    # by naming the lane's entrypoint.
+    ("lane", "scripts/validate.sh"),
 )
 
 

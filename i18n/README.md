@@ -60,6 +60,22 @@ The skills are model-triggered and also invocable directly:
 
 Nothing autoposts. Nothing rewrites source code without showing the diff first. Translations are written to catalog files, not committed.
 
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-catalog-diff.sh <project-root> [--json] [--framework <name>] [--source-locale <code>]`
+  — missing/stale keys per locale, deterministic set difference.
+- `scripts/validate-placeholders.sh <project-root> [--json] [--framework <name>] [--source-locale <code>]`
+  — placeholder and CLDR-plural preservation. This is the check that makes a translation
+  that silently dropped a `{count}` fail rather than ship.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
 ## Artifacts
 
 Everything lands in **your project's existing catalog paths** — this plugin introduces no files of its own and writes nothing to the vault:

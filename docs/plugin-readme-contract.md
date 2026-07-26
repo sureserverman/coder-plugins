@@ -48,8 +48,13 @@ in a footnote.
 
 ### 3. Every component, under its own heading
 
-**Every** shipped skill, command, and agent. The coverage guard checks that each
-component's name appears; the contract asks for more than an appearance:
+**Every** shipped skill, command, and agent — and every non-frontmatter component
+too: a `hooks/` registration, a `.mcp.json`, and a plugin-root `scripts/validate.sh`
+determinism lane. Those three are the easiest to forget precisely because they carry
+no frontmatter and never show up in a component listing; four plugins shipped an
+undocumented lane, and the one plugin that ships a hook runs it on **every session
+start** without being asked. The coverage guard checks that each component's name
+appears; the contract asks for more than an appearance:
 
 | Must state | Why |
 |---|---|
@@ -78,8 +83,10 @@ marketplace compose; a README that presents its plugin as an island misrepresent
 `scripts/check-doc-coverage.py` verifies:
 
 - every plugin in `marketplace.json` has a `README.md`;
-- every component on disk (per `_frontmatter_common.PATTERNS`, excluding
-  `/tests/` and `/fixtures/`) has its name present in that README;
+- every component on disk has its name present in that README —
+  skills/agents/commands per `_frontmatter_common.PATTERNS`, plus hooks,
+  `.mcp.json`, and the `scripts/validate.sh` lane, excluding `/tests/` and
+  `/fixtures/`;
 - the README is not a stub, relative to its component count.
 
 It **cannot** tell a real usage section from a name in a bullet list. Coverage is

@@ -67,6 +67,10 @@ def build(tmp, plugins_spec):
             p = pdir / rel
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("---\nname: fixture-noise\n---\n")
+        for rel, body in spec.get("files", {}).items():
+            fp = pdir / rel
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            fp.write_text(body)
         if spec.get("readme") is not None:
             pdir.mkdir(parents=True, exist_ok=True)
             (pdir / "README.md").write_text(spec["readme"])
@@ -114,6 +118,42 @@ with tempfile.TemporaryDirectory() as tmp:
     chk(cdc.main(["--summary"]) == 0, "--summary should exit 0 even with failures")
     chk(cdc.main(["--plugin", "nope"]) == 2, "unknown --plugin should exit 2")
     chk(cdc.main(["--plugin", "documented"]) == 0, "a clean single plugin should exit 0")
+
+# --- non-frontmatter component types (hooks, MCP, determinism lane) ---------
+# These carry no frontmatter, so the shared PATTERNS correctly omit them — and a
+# guard that inherited only PATTERNS would structurally never see them. Four
+# plugins shipped an undocumented determinism lane before this was added.
+with tempfile.TemporaryDirectory() as tmp:
+    build(tmp, {
+        "extras": {
+            "skills": ["s1"],
+            "files": {"hooks/hooks.json": "{}",
+                      ".mcp.json": "{}",
+                      "scripts/validate.sh": "#!/bin/bash\n"},
+            "readme": f"# extras\n\ns1 only.\n{PROSE}"},
+    })
+    kinds = {k for k, _ in report_for("extras", cdc.audit())["components"]}
+    chk(kinds == {"skill", "hook", "mcp", "lane"},
+        f"non-frontmatter component types not detected: {kinds}")
+    missing = {c for _, c in report_for("extras", cdc.audit())["missing"]}
+    chk(missing == {"hooks.json", ".mcp.json", "validate.sh"},
+        f"undocumented hook/mcp/lane not all reported: {missing}")
+
+with tempfile.TemporaryDirectory() as tmp:
+    build(tmp, {
+        "extras": {
+            "skills": ["s1"],
+            "files": {"hooks/hooks.json": "{}", "scripts/validate.sh": "#!/bin/bash\n"},
+            "readme": f"# extras\n\ns1, hooks.json and validate.sh all documented.\n{PROSE}"},
+    })
+    chk(report_for("extras", cdc.audit())["missing"] == [],
+        "naming the hook and lane in the README should satisfy the guard")
+
+# A plugin with NO lane must not be asked to document one.
+with tempfile.TemporaryDirectory() as tmp:
+    build(tmp, {"plain": {"skills": ["s1"], "readme": f"# plain\n\ns1.\n{PROSE}"}})
+    kinds = {k for k, _ in report_for("plain", cdc.audit())["components"]}
+    chk(kinds == {"skill"}, f"phantom component types on a plain plugin: {kinds}")
 
 # --- word-boundary matching -------------------------------------------------
 chk(not cdc.mentions("see global-backlog for details", "backlog"),

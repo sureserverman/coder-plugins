@@ -83,6 +83,20 @@ as `git-github:code-reviewer` with no "if installed" fallback.
 
 `gh` (GitHub CLI) is required for `create-pr`, `repo-health`, and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
 
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-workflows.sh <repo-root> [--json]` — the GitHub Actions lane. A thin
+  wrapper over `skills/github-workflow-audit/scripts/audit-workflows.py`; it re-implements no
+  check, so the two can never drift apart.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
 ## Worked example
 
 ```text
