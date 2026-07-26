@@ -205,9 +205,12 @@ writing any task:
   invents structure not present in the doc is either missing a citation or
   contradicting an approved decision — resolve which before presenting the plan.
 - **Emit the conformance gate:** the plan's final stage gate includes the check
-  `- [ ] Built structure conforms to the architecture doc (ARCH-NN tree matches,
-  ARCH-NN boundaries respected — list the IDs actually in scope)` so
-  `executing-plans` verifies conformance at close-out without any special handling.
+  `- [ ] **(judgment)** Built structure conforms to the architecture doc (ARCH-NN tree
+  matches, ARCH-NN boundaries respected — list the IDs actually in scope)` so
+  `executing-plans` verifies conformance at close-out without any special handling. The
+  marker is required for the same reason as the decisions-conformance gate below: this
+  is a conformance judgment over a built tree, no sweep can prove it, and a template
+  emitting it unmarked would ship the one check shape the class-predicate rule forbids.
 - **Decomposed projects (Phase 2.5):** each *sub-plan* that creates structure carries
   its own ARCH-ID citations and its own conformance check in its own final stage
   gate; the master's register `**Gate:**` blocks are untouched, and the master's
@@ -631,12 +634,23 @@ post-rule plan that skipped the check from a legacy one — it reports either id
 authored outside this skill, or hand-edited after authoring, reaches execution unenforced. If
 that becomes a real leak, the fix is a marker the authoring check writes and the executor looks
 for; today it is discipline with a mechanical *reporter*, not a mechanical *gate*. Calibrated
-against 357 real gate checks; its known limits, including the one escape hatch left open, are
-stated in the script's own docstring.
+against 374 real gate checks across 41 plans; its known limits, including the one escape hatch
+left open, are stated in the script's own docstring.
 
 ### When a stage gate fails
 
-If the gate fails, the problem is usually in how tasks interact, not in any single task. Identify which task interaction caused the failure, add a new test for that interaction to the relevant task, and run that task through its Red-Green loop again.
+If the gate fails, the problem is usually in how tasks interact, not in any single task. But
+it is also rarely a *single instance*: treat the failure as a defect class sampled once, name
+the set the finding quantifies over, and make the repair test the **sweep over that set** —
+otherwise the siblings survive and each costs another round.
+
+`executing-plans` owns the operative procedure and is the single source of truth for it —
+severity classification (Critical / Important / Suggestion), a bounded remediation budget
+defaulting to 2 rounds, an exit criterion that passes when no Critical remains and every
+Important is fixed or recorded to the `backlog`, and escalation with a residual list on
+exhaustion. Do not restate those rules here; a second copy is how the two drift apart. What
+matters at *authoring* time is that the plan's gate checks are shaped so a class can fail
+them at all — which is the class-predicate rule above.
 
 ---
 

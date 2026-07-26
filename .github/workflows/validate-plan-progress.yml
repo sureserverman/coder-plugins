@@ -1,6 +1,11 @@
 name: validate-plan-progress
 
-# Guards the executing-plans statusline renderer. plan-progress.py turns the
+# Guards every fixture suite under executing-plans/tests/ — despite the name, this
+# workflow is not plan-progress-only. It also runs test-gate-remediation-contract.py,
+# the structure suite pinning the gate-remediation contract (round budget, severity
+# vocabulary, exit criterion) and the honest-gates behavioral-claim wiring.
+#
+# plan-progress.py turns the
 # .claude/plan-progress.json state file (maintained by the executing-plans
 # skill at each execution transition) plus the plan's authoritative Status
 # fields (parsed via the shared portfolio-unify plan-parser regexes) into a
@@ -31,5 +36,24 @@ jobs:
           python-version: '3.x'
       - name: Install dependencies
         run: pip install pyyaml
-      - name: Run plan-progress fixture tests
-        run: python3 planning/skills/executing-plans/tests/test-plan-progress.py
+      # Every suite in the directory, not just plan-progress.py by name. The path
+      # filter above already watches `tests/**`, so a suite added there was being
+      # *triggered* on but never *run* — which is how test-gate-remediation-contract.py
+      # (the sole mechanical guard over the gate-remediation contract and the
+      # behavioral-claim wiring) shipped with zero CI coverage. Globbing means the next
+      # suite added here is covered without anyone remembering this file.
+      - name: Run every executing-plans fixture suite
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          suites=(planning/skills/executing-plans/tests/test-*.py)
+          if [ ${#suites[@]} -eq 0 ]; then
+            echo "No suites found — the glob is wrong, not the tree." >&2
+            exit 1
+          fi
+          echo "Running ${#suites[@]} suite(s):"
+          printf '  %s\n' "${suites[@]}"
+          for t in "${suites[@]}"; do
+            echo "== $t"
+            python3 "$t"
+          done

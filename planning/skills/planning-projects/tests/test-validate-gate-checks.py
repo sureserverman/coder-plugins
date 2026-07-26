@@ -7,8 +7,11 @@ opt-out, the empty-sweep refusal, a gate-less plan refusing rather than passing,
 and crash-resistance across two real corpora (the 18 plan-parser fixtures and
 every real plan in the vault, when present).
 
-It also pins the *measured* false-positive shapes. The classifier was calibrated
-against 357 real gate checks; the entire false-positive population was (a) a slash
+It also pins the *measured* false-positive shapes. These were measured when the
+corpus stood at 357 real gate checks — it is 374 now, since recognising master-plan
+`**Gate:**` blocks later surfaced 17 more; the shapes below are unchanged by that
+and the live pin below asserts the current figures. The entire false-positive
+population was (a) a slash
 inside ordinary prose ("pass/fail", "4/4", "skill/agent", "scan/rollup") matching a
 path pattern, and (b) a bare script name (`validate-stack-routing.py`) not being
 recognised as invoking a program. Both are regression-guarded below, because both

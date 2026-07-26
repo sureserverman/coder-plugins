@@ -108,7 +108,8 @@ SET_WORDS = re.compile(
 
 # A concrete artifact: a path or filename carrying a known extension, or a path
 # ending in a directory separator. Deliberately narrow, and it must NOT match a bare
-# slash in prose — measured against 357 real gate checks, "pass/fail", "4/4",
+# slash in prose — measured when the corpus stood at 357 checks (it is 374 now; master-plan
+# `**Gate:**` recognition later surfaced 17 more), "pass/fail", "4/4",
 # "skill/agent" and "scan/rollup" were the entire false-positive population when the
 # slash alone was enough.
 EXT = r"(?:md|py|sh|ya?ml|json|toml|kts?|gradle|txt|mjs|js|ts)"

@@ -24,7 +24,14 @@ What it pins:
      The *content* checks — "Important findings fixed-or-recorded" and the per-site
      "Importants bound to the exit criterion at: …" loop — are the ones that reject a
      negated restatement, since the defect's natural reintroduction is prose that names
-     the criterion only to opt out of it.)
+     the criterion only to opt out of it. **Measured limit**, stated because a guard
+     overstating itself is the failure this file exists to catch: a close-out evaluator
+     showed the first version rejected a negation only *between* the two anchors, so
+     "explicitly **not** bound by the **exit criterion** … recorded to the `backlog`"
+     passed clean. It now also scans NEGATION_LOOKBEHIND characters before the match,
+     which catches that and two other opt-out phrasings — but the guard remains
+     strongest against *removal*, and an inversion worded far from the anchor could
+     still slip past.)
   4. It describes budget-exhaustion escalation carrying a residual list.
   5. It requires the class sweep to be re-run alongside the narrow re-verification.
   6. Every other site in the file that restates what happens to an Important finding
@@ -84,10 +91,19 @@ def check(name, ok, detail=""):
 # Word-boundary anchored: plain substring matching read "cannot" as "not " and
 # "whenever" as "never " (a Tier-1 finding), which would have rejected true prose.
 NEGATION_RE = re.compile(
-    r"\b(?:not|never|without|no longer|isn't|aren't|doesn't|don't|"
+    r"\b(?:not|never|no|without|isn't|aren't|doesn't|don't|exempt|"
     r"rather than|instead of|unless|except|excluding|optional)\b",
     re.I,
 )
+
+# How far *before* a match to look for a negation. A Tier-2 review measured the guard
+# and found it only rejected negations falling lexically BETWEEN the two anchors, so
+# "explicitly **not** bound by the **exit criterion** … recorded to the `backlog`"
+# passed clean — an inversion, which is the defect's most natural reintroduction.
+# Deliberately tight: at 80+ chars it also swallows the legitimate contrastive
+# "surfaced … *rather than* auto-fixed — but they are still bound by the …" that the
+# real Light-plan text uses, and rejects true prose.
+NEGATION_LOOKBEHIND = 30
 
 
 def flat(s):
@@ -110,7 +126,13 @@ def affirms(hay, pattern, flags=re.I | re.S):
     is enough — the same block may legitimately also contain negated prose.
     """
     for m in re.finditer(pattern, hay, flags):
-        if not NEGATION_RE.search(m.group(0)):
+        pre = hay[max(0, m.start() - NEGATION_LOOKBEHIND):m.start()]
+        # Never read across a clause boundary. A negation belonging to the PREVIOUS
+        # sentence does not negate this claim — without this, "…is *not* a merge
+        # blocker: record each Material finding to the `backlog`" was rejected on the
+        # strength of a "not" that was part of the sentence before it.
+        pre = re.split(r"[.;:]\s|\s[-–—]\s", pre)[-1]
+        if not NEGATION_RE.search(pre + m.group(0)):
             return True
     return False
 
