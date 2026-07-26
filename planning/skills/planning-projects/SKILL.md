@@ -305,6 +305,7 @@ Stage N: [Name]
       Depends on: [prior task(s) or "none"]
       Blocks:     [task(s) that wait on this one, or "none"]
       Parallel:   YES | NO  (can a sub-agent run this concurrently?)
+      Scope:      [the SET this task changes — omit when it changes exactly one thing]
       Test:       [concrete pass/fail criterion]
 
     Task N.2: [description]
@@ -325,6 +326,40 @@ Stage N: [Name]
 Every task carries a **Status** checkbox as its first field: `- **Status:** [ ]` when planned, flipped to `- **Status:** [x]` by `executing-plans` the moment the task's test goes green (and committed in the same commit). This is the **single source of truth for task completion** — it removes the ambiguity that arises when done-ness is inferred only from stage gates or git archaeology. A downstream tool (e.g. `portfolio unify`) can read `Status: [x]` vs `[ ]` to know exactly what was executed, with no guessing.
 
 When the whole plan is finished, `executing-plans` appends a close-out line at the end of the plan: `**Completed:** YYYY-MM-DD — commits: <list>`. A plan with that line and all `Status: [x]` is unambiguously done; absent the line, any `Status: [ ]` task is genuinely unexecuted.
+
+### Scope marking (the set a task changes)
+
+A task that changes a **class** of artifact declares the set it must sweep, on a `Scope:`
+field:
+
+```
+Scope: every commands/*.md, each skills/*/SKILL.md, both scripts' --help
+```
+
+This is the authoring-time half of the class-predicate rule. The gate check proves the set
+was swept; `Scope:` is where the set gets **named**, before anyone starts editing — so the
+surfaces are enumerated once rather than discovered one gate round at a time.
+
+**Conditional, not universal.** Declare it only when the task changes more than one
+artifact. A task editing exactly one file has no set, and writing `Scope: this file`
+everywhere is noise that trains readers to skip the field. No `Scope:` on a
+single-artifact task is correct, not missing.
+
+**Derive the set with a command; do not type it from memory.** This is the failure mode
+worth naming, because it is not carelessness and it survives careful authors:
+
+> A plan authored in this repo enumerated "every doc naming the host-side mount vars" as
+> three files, from a `grep` whose output had been truncated by `head -40`. A fourth doc
+> existed. The task shipped covering three; the stage gate's set-valued check found the
+> fourth. A `Scope:` line is only as trustworthy as the sweep behind it — paste the
+> command you ran, not the answer you remember.
+
+So: run the sweep, and prefer a `Scope:` that names the **command** (`Scope: every file
+matching grep -rl 'X' src/ — 7 files at authoring time`) over one that names a
+hand-copied list. A count is useful precisely because it is falsifiable later.
+
+**Masters carry no `Scope:`.** A master plan has no tasks (`references/master-plan-format.md`),
+so the field never appears there and its parser-safety invariant is untouched.
 
 ### Dependency marking
 
@@ -486,6 +521,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - **Depends on:** none
 - **Blocks:** Task 1.2
 - **Parallel:** YES
+- **Scope:** [the set this task sweeps — omit for a single-artifact task]
 - **Test:** `[exact command or criterion]`
 - **Red-Green max cycles:** 3
 
@@ -744,6 +780,7 @@ Before showing the plan to the user, verify:
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)
+- [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files

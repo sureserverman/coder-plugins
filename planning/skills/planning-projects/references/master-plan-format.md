@@ -46,6 +46,9 @@ when its name ends in `-master-plan.md` **or** its first heading is `# Master Pl
 
 The master plan holds the shared research, the sub-plan register (the cross-plan
 dependency graph), and the integration gates. It contains **no tasks and no Preflight** —
+and therefore no `Scope:` fields, which live on task lines only (see the Scope-marking rule
+in `../SKILL.md`); the no-raw-checkbox parser-safety invariant below is unaffected by that
+convention —
 sub-plans own those.
 
 ```markdown
