@@ -79,7 +79,9 @@ Date: YYYY-MM-DD
 Format: Light — [the trigger that selected this format, e.g. "single stage, 4 tasks, one session"]
 
 **Context:** [1–3 sentences: what this changes and the one or two facts that ground it —
-the proportionate replacement for a Research Summary. Link a source if one matters.]
+the proportionate replacement for a Research Summary. Link a source if one matters.
+Include any decision in force that bears on the change, inline:
+"DEC-003 binds this — <constraint in half a line>."]
 
 ## Stage 1: [Name]
 
@@ -107,6 +109,19 @@ the proportionate replacement for a Research Summary. Link a source if one matte
 | `Depends on` | Optional. Present only when a task genuinely needs a prior task's output; omit for independent tasks (they simply run in listed order). No `Blocks` counterpart at Light. |
 | `Test` | Mandatory. A concrete runnable check — the same bar as a Standard task. "It should work" is not a test. |
 | `Red-Green max cycles` | Optional; defaults to 3 when omitted. |
+
+### Decisions at Light
+
+A Light plan carries decisions as **one line inside `Context:`**, never as a
+`## Decisions in force` section. The section is Standard-and-up machinery; a Light plan
+that grows one has been stretched past its bounds (apply the upgrade rule instead).
+
+What does **not** scale down: the scan still runs, exactly like the backlog scan. A small
+plan can violate a binding constraint just as thoroughly as a large one, and the cost of
+finding out at review time is the same. If a Light task deliberately overrides a decision,
+it carries the same `Supersedes DEC-NNN — <why>` citation a Standard task would, and the
+single Stage 1 Gate carries the conformance check. If nothing binds it, say so in one
+clause rather than leaving the reader unable to tell a clean scan from a skipped one.
 
 The close-out line is identical to a Standard plan's:
 

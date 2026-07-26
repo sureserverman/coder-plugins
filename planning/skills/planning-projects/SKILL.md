@@ -145,10 +145,24 @@ Check the project's existing plans for prior design decisions: `<portfolio_home>
 
 ### Decisions scan
 
-Read `<portfolio_home>/decisions.md` (per-project `DEC-NNN` entries) and the `Portfolio/decisions/<domain>.md` registers for every stack the plan touches — `../portfolio/references/decisions-format.md`. Unlike a plan, these carry the *reason* a constraint exists, including security recommendations recorded from sec-audit runs whose reports are local-only and unreadable from here.
+Call the `decisions` skill's `relevant` operation — it infers the domain registers from the project's stack (`../decisions/references/domain-slugs.md`) and digests both halves in one step, rather than making you hand-read files. Unlike a plan, these entries carry the *reason* a constraint exists, including security recommendations recorded from sec-audit runs whose reports are local-only and unreadable from here.
 
-- A task that would contradict an accepted decision is a planning bug. Either the plan supersedes the decision deliberately — say so on the task, and have the executor record the supersede at close-out — or the task is re-scoped.
+- A task that would contradict an accepted decision is a planning bug. Either the plan supersedes the decision deliberately — say so on the task with a `Supersedes` citation, and the executor records the supersede at close-out — or the task is re-scoped.
 - A plan that *creates* a binding constraint should add a task to record it (`decisions add`), so the next plan inherits the reason rather than rediscovering it.
+- **Superseded entries in the digest are still informative.** They record an approach already tried and abandoned; re-proposing it is the failure they exist to prevent.
+
+**On a project with no registry entry** (a brand-new project), `portfolio_home` doesn't resolve and there is no `decisions.md` — that is expected, not a reason to skip the scan. The per-domain registers are keyed by domain, not project, so they bind a greenfield project just the same and are the half that matters most to it. Record the state in the plan (`project register: absent — new project`) and carry the global half forward. Registration then happens on the normal path, when you write the plan (§ Output location step 3).
+
+**Write the findings into the plan.** The scan's output goes in a `## Decisions in force` section directly below the Research Summary — the plan file is the cross-session handoff artifact, and a constraint discovered at planning time that isn't recorded there is a constraint the executor will never see. Use non-checkbox bullets (a raw `- [ ]` outside Preflight/Gate blocks becomes a false backlog candidate in `portfolio unify`). Record what was consulted, so a reader can tell **"nothing binds this scope"** from **"nobody looked"** — the same distinction the architecture-doc rule makes. When nothing applies, say so explicitly:
+
+```markdown
+## Decisions in force
+
+- none — registers consulted: `Portfolio/decisions/rust.md`, `Portfolio/decisions/ubuntu.md`; no entry binds this scope
+
+**Registers consulted:** rust, ubuntu (project register: absent — new project)
+**Domains inferred:** rust, ubuntu, tor (no register exists for `tor` yet)
+```
 
 ### Backlog scan
 
@@ -206,6 +220,28 @@ writing any task:
 No architecture doc for a plan with obvious structural surface? State it explicitly in
 the Research Summary ("no architecture doc — structure decided inline") rather than
 leaving the reader to wonder whether one was consulted.
+
+### Citing decisions on tasks
+
+Decisions use the **same citation mechanism as `ARCH-NN`** — deliberately, so
+`executing-plans` needs no special handling for either:
+
+- **A task constrained by a decision cites it:** `Honors DEC-003` on the task line. This
+  is what carries the constraint from the register to the person (or agent) implementing
+  the task, who may never read the register itself.
+- **A task that deliberately overrides one cites it with a reason:**
+  `Supersedes GDEC-AND-002 — Orbot dropped per-app mode in 17.4`. The citation is what
+  makes the override *auditable* rather than silent, and it is the executor's instruction
+  to record the supersede at close-out.
+- **Emit the conformance gate:** the plan's final stage gate carries
+  `- [ ] No change contradicts a decision in force (DEC-NNN / GDEC-… — list the IDs
+  actually in scope); any Supersedes citation has been recorded via decisions supersede`.
+- **Per DEC-001**, a citation restates the constraint in the entry's own words. A decision
+  sourced from a sec-audit never brings the report body into the plan.
+
+An uncited change that contradicts an accepted decision is a **gate failure** in
+`executing-plans`, not an advisory — silently violating a recorded decision is the exact
+failure the register exists to prevent.
 
 ### Project context
 
@@ -407,6 +443,17 @@ Date: [YYYY-MM-DD]
 ### Project context
 - [Existing patterns, dependencies, test framework]
 
+## Decisions in force
+
+[One NON-CHECKBOX bullet per binding entry — a raw `- [ ]` here would be read as
+deferred work by the portfolio parser and become a false backlog candidate.]
+
+- DEC-001 — [title] (accepted; [domains]) — [the constraint in one line]
+- GDEC-SEC-001 — [title] (accepted; security) — [the constraint in one line]
+
+**Registers consulted:** [`<portfolio_home>/decisions.md`; `Portfolio/decisions/<slug>.md` …]
+**Domains inferred:** [slugs, and any that had no register yet]
+
 ## Preflight
 
 - [ ] [Check 1]: [how to verify]
@@ -463,6 +510,8 @@ Date: [YYYY-MM-DD]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]
+- [ ] [No change contradicts a decision in force (list the DEC/GDEC IDs in scope);
+      any Supersedes citation has been recorded via `decisions supersede`]
 ```
 
 ---
@@ -592,6 +641,7 @@ Each sub-agent needs enough context to work independently:
 - File paths and patterns from the project context
 - The Red-Green loop rules (attempt, test, diagnose, fix, retest, max 3 cycles)
 - The stack skill to invoke first, if the routing table names one for this task's stack — so the agent authors to that stack's conventions instead of generic defaults
+- The **decisions in force that bear on this task** (from the plan's `## Decisions in force`) — only the relevant entries, same discipline as the research extract. A sub-agent never reads the register, so a constraint absent from its prompt is one it cannot honor
 - What to do on failure: report back with the error and diagnosis, don't keep looping silently
 
 ### Guardrails
@@ -627,6 +677,7 @@ Before showing the plan to the user, verify:
 - [ ] Open backlog items in scope were reviewed; folded-in items carry a `Closes BL-NNN` reference on the task that closes them
 - [ ] Workflow specs in scope were read; any altered or removed behavior is declared on the corresponding task (`Changes WF-NNN` / `Removes WF-NNN`); new flows have a capture/extend task
 - [ ] If an architecture doc exists for this topic: every structure-creating task cites its ARCH-ID, the final stage gate carries the architecture-conformance check, and no task contradicts an approved ARCH section
+- [ ] The decisions scan ran and its result is written into `## Decisions in force` (including the explicit `none — registers consulted: …` form, and `project register: absent` on a new project); tasks constrained by an entry cite it (`Honors DEC-NNN`), any deliberate override cites it (`Supersedes …— <why>`), and the final stage gate carries the decisions-conformance check
 
 **Additionally, for a decomposed project (master plan + sub-plans):**
 

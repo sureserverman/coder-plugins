@@ -21,7 +21,13 @@ Install the plugin:
 - Podman (for emulator containers and mock servers)
 - Gradle wrapper in the project (`./gradlew`)
 
-The emulator infrastructure (compose stack, Containerfiles, MCP server, mock backend) is bundled in `infrastructure/` — no external repo needed.
+The emulator infrastructure (compose stack, Containerfiles, MCP server, mock backend) is bundled in `infrastructure/` — no external repo needs to be *cloned*.
+
+> **Caveat — the compose file is not yet project-agnostic.** `infrastructure/compose.yaml` currently
+> **hardcodes** a sibling-repo path for both the APK mount and the screenshot output
+> (`../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`), and no
+> `APK_DIR` / `SCREENSHOT_DIR` override exists. To run the stack against a different project you must
+> edit those two lines in `compose.yaml`. Parameterising them is open work.
 
 ## Skills
 
@@ -99,6 +105,20 @@ Captures Play Store screenshots across all emulator form factors (phone 6", tabl
 
 The F-Droid and Google Play prep flows are now skills (invoke `/android-dev:android-fdroid-publish` or `/android-dev:android-play-publish`, or let them model-trigger). Each carries a **Quick audit (punchlist)** section — the former `check`-mode checklist — plus the full signing → metadata/AAB → recipe/listing walkthrough.
 
+## Agents
+
+### `ui-android`
+
+The Android surface of the per-platform UI expert family (its five siblings — `ui-web`, `ui-gnome`, `ui-macos`, `ui-windows`, `ui-garmin` — live in the `ui-design` plugin). It lives here rather than there because Android UI work is inseparable from the Gradle and Compose tooling this plugin owns.
+
+**What it does.** Designs, reviews, and facelifts Android UI against Material 3 and Jetpack Compose — dynamic color, adaptive layouts and `WindowSizeClass`, predictive back, edge-to-edge, and TalkBack accessibility.
+
+**How it fires.** Automatic delegation on "design Android UI", "Material 3 facelift", "Compose screen", "TalkBack audit"; direct request; or from plan execution, where `planning`'s `stack-routing.md` maps *Android UI — Compose / Material 3* to this agent with `android-ui-layout-patterns` and `android-ui-design-figma` loaded first.
+
+**Six protocols**, announced before it acts and composable — the same shape as its `ui-design` siblings: Surface detection → Design review → Facelift → Greenfield → Accessibility audit → Coach. Protocol 1 runs first on unfamiliar code, because a review that assumes the wrong Compose version or theming setup produces confident, wrong advice.
+
+**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `Edit`, `Write`, `Bash`, `WebFetch`, `TaskCreate`, `TaskUpdate` — it edits source, so scope your request.
+
 ## Infrastructure
 
 The `infrastructure/` directory contains the full emulator stack:
@@ -126,6 +146,45 @@ EOF
 `run.sh` generates `infrastructure/.env` with a random `MCP_AUTH_TOKEN` on first run, builds + starts the compose stack, dispatches each line through `mcp-call.sh` (curl + bearer), and runs `down.sh` in an EXIT trap so the host returns to its idle state.
 
 For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.sh`) and wrap it in your own `trap`. See the orchestrator skill for the full flow.
+
+## Where artifacts land
+
+| Artifact | Path | Written by |
+|---|---|---|
+| Debug/release APKs | your project's `app/build/outputs/apk/…` | `android-gradle-build`, `android-stage-verify` |
+| Play Store screenshots | `play-screenshots/` on the host (see the caveat below) | `/android-screenshots` |
+| Emulator stack env (random `MCP_AUTH_TOKEN`) | `infrastructure/.env` — generated on first run, **not** committed | `android-mcp-orchestrator` `run.sh` |
+| Signing config | per the `android-release-signing` skill; **keystores and passwords never enter the repo** | you, guided by the skill |
+| Mock server sources | generated into your project per the skill's declared output path | `mock-server-from-app-sources` |
+
+## Worked example
+
+```text
+/plugin install android-dev@coder-plugins
+
+"add a settings screen with a dark-mode toggle"
+```
+
+`android-gradle-build` fires for the module/dependency wiring; `ui-android` handles the Compose screen against Material 3, then `android-ui-layout-patterns` informs the adaptive layout.
+
+```text
+"verify this stage on device"
+```
+
+`android-stage-verify` builds the debug APK, checks `adb devices`, installs and smoke-launches, then runs `connectedDebugAndroidTest`. **With no device attached it degrades to build-only and reports the skip** — it does not claim a pass it didn't earn. This is the single most common surprise mid-execution, so check `adb devices` before you rely on a green stage gate.
+
+```text
+"capture Play Store screenshots"
+```
+
+`/android-screenshots` brings the ephemeral emulator stack up across form factors, captures, and tears it down on exit.
+
+## Related plugins
+
+- **`planning`** — `executing-plans` invokes `android-stage-verify` automatically at every Android stage gate, scoped by gate tier (touched-module instrumented tests at intermediate gates, the full device suite once at close-out). `dispatching-parallel-agents` routes Android work here via `stack-routing.md`.
+- **`ui-design`** — the five non-Android surfaces of the same UI-expert family.
+- **`testing`** — `testing-expert` handles Compose/Espresso test authoring and triage, loading `kotlin-compose-testing-patterns` first.
+- **`infra-build`** / **`release-promo`** — packaging registration and release announcements once you're shipping.
 
 ## License
 

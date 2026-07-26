@@ -28,15 +28,55 @@ Preflight audit for addons.mozilla.org submission. Checks `manifest.json` agains
 
 **Triggers:** "AMO rejected my addon", "prep this addon for mozilla", "check firefox extension for AMO", "is this extension signable", "will AMO accept this manifest", "amo compliance".
 
+Both skills fire on the phrases above and are invocable as `/browser-extensions:<skill>`.
+
 ## Linter
 
-The `amo-compliance-check` skill includes a Python linter:
+The `amo-compliance-check` skill includes a Python linter you can run yourself, in CI or before zipping:
 
 ```bash
-python skills/amo-compliance-check/scripts/amo-check.py path/to/extension/
+python3 skills/amo-compliance-check/scripts/amo-check.py path/to/extension/
 ```
 
-It exits non-zero on hard violations and prints a remediation checklist.
+**Exit codes:** `0` — no hard violations; `1` — at least one FAIL finding; `2` — the extension directory or `manifest.json` couldn't be read or parsed. Findings print as a remediation checklist.
+
+**What it checks:** required and conditional manifest fields, icons, referenced files actually existing, permissions (including justification-worthy ones), remote-hosted code, MV3-specific rules, plus quality and privacy heuristics.
+
+**What it does not — read this before trusting a green run.** It is a *static preflight against the rules that can be checked statically*, not a simulation of AMO review. It cannot detect obfuscation that looks like ordinary minification, judge whether your permission justifications are *persuasive*, review bundled third-party code you must also upload sources for, or predict a human reviewer's call on borderline data-collection behavior. **A clean run means "no mechanical violations found", not "AMO will accept this."** A preflight trusted beyond its coverage is worse than none, because it converts a maybe into a false confidence.
+
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-amo.sh <extension-dir> [--json]` — the AMO hard-rule lane. A thin wrapper
+  over `skills/amo-compliance-check/scripts/amo-check.py`; it re-implements nothing, so the
+  linter's coverage limits (documented above) apply to the lane too.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
+## Artifacts
+
+Nothing persisted. The linter prints findings; the authoring skill edits your extension's own source and manifest, showing the diff first. No store submission is ever performed for you.
+
+## Worked example
+
+```text
+/plugin install browser-extensions@coder-plugins
+
+"prep this addon for mozilla"
+```
+
+`amo-compliance-check` runs the linter, reports (say) a missing `browser_specific_settings.gecko.id` and a `<all_urls>` host permission with no stated justification, and explains what AMO wants for each. You fix them; a re-run exits 0 — which means the mechanical checks pass, and the judgment-dependent parts are still yours to defend in the submission notes.
+
+## Related plugins
+
+- **`ui-design`** — extension popup and options UI is web UI; pair with `ui-web` for a WCAG pass.
+- **`planning`** — `project-maturity` records the durable Packaging and Security readiness verdicts for an extension you intend to publish.
+- **`release-promo`** — drafts the announcement once the extension is listed.
 
 ## License
 

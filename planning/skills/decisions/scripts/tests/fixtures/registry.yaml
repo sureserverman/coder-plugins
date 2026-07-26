@@ -1,0 +1,9 @@
+# Fixture registry — makes the "registered but has recorded no decisions yet"
+# branch testable without reading the real ~/.claude/projects-registry.yaml.
+version: 1
+projects:
+  - path: /nonexistent/ai-tools/registered-but-empty
+    name: registered-but-empty
+    area: ai-tools
+    enabled: true
+    added: 2026-07-26

@@ -81,6 +81,14 @@ You are a sub-agent executing Task <N.M> from plan <plan-path>.
 <Extract from Research Summary the 2-4 bullets that bear on this task.
 Do NOT paste the entire research summary.>
 
+## Decisions in force
+<From the plan's `## Decisions in force`, ONLY the entries bearing on this task —
+same discipline as Context above, not the whole section. One line each:
+"DEC-003 (accepted) — <the constraint, in the entry's own words>".
+If the task line carries `Honors DEC-NNN`, that entry MUST appear here.
+If it carries `Supersedes DEC-NNN`, say so and state what replaces it.
+Omit the heading entirely when no decision bears on this task.>
+
 ## Stack skill — invoke first (omit if the routing table names none)
 <Stack skill name from references/stack-routing.md, e.g. rust-coding — load it before editing.
 If that skill's plugin isn't enabled, instead: "Read <repo-relative path from capability-index.json>
@@ -108,6 +116,13 @@ A structured report:
 ```
 
 **Prompt discipline:** focused scope (one task), self-contained (all needed context inlined), explicit constraints (no refactoring creep), specific return format (so the caller can integrate).
+
+**Why decisions must be in the prompt.** A dispatched agent is otherwise structurally
+blind to them: it sees a task, a file list, and a slice of research — never the register,
+never the plan's decisions section, never the surrounding session. A constraint that is
+not in the prompt is a constraint the agent cannot honor, and the violation surfaces (if
+at all) at the stage gate, after the work is built. Per **DEC-001**, carry the entry's own
+words — a security-sourced decision never brings its report body into an agent prompt.
 
 ## Phase 4 — Dispatch
 

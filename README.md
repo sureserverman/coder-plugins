@@ -26,7 +26,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` knowledge-router skill (fires on `*.rs`/`Cargo.toml` edits) + `rust-expert` subagent (author/review/idiomize/audit/migrate modes), over one shared `references/` set. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
 | [`game-dev`](./game-dev) | Source-cited game design/dev: a `game-dev` knowledge-router skill + `game-design-expert` subagent (mechanics, feel/juice, camera, UX/FTUE, accessibility, architecture across Godot/Unity/Unreal) over one shared `references/` set, plus `/game-review`, `/game-mechanic`. |
-| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`scripts/amo-check.py` linter). |
+| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
 | [`ui-design`](./ui-design) | Per-platform UI design, review, and facelift subagents — one expert per surface. |
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
@@ -34,7 +34,15 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`stingy-agents`](./stingy-agents) | Three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work cheaply. |
 | [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
 
-Each plugin's directory has its own README with full component detail.
+Each plugin's directory has its own README documenting **every component it ships** — how it
+fires, what arguments it takes, what it writes and where, and what it needs to exist first.
+That is a contract, not a convention: [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)
+specifies it and `scripts/check-doc-coverage.py` enforces the mechanical half in CI, so a
+plugin cannot gain a component while its README quietly stops describing what ships.
+
+**New here, or want the plugins to compose?** [`docs/USAGE.md`](./docs/USAGE.md) walks the
+flows that span plugins — idea → shipped feature, deciding what to work on, the decisions
+register, shipping, the business pipeline, and how to avoid enabling everything at once.
 
 ## Usage
 
@@ -56,7 +64,7 @@ its namespaced name:
 them:
 
 ```text
-/rust-review HEAD~1        # review a scoped diff for Rust idioms
+"have rust-expert review HEAD~1"   # review/idiomize/project-audit are agent modes
 /game-mechanic grapple     # guided design session for a new mechanic
 /promote-release           # survey the repo, draft posts per channel
 /android-screenshots       # Play Store captures across emulator form factors
@@ -103,8 +111,9 @@ Manually:
 
 2. Components (`skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`) live at the **plugin root**, never inside `.claude-plugin/`.
 3. Register the plugin in `.claude-plugin/marketplace.json` under `plugins` — match the existing entries' shape (`name`, `source`, `description`, `version`, `category`, `tags`, `strict`).
-4. Validate with the `plugin-validator` agent from `plugin-dev`.
-5. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
+4. **Write `README.md` to [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)** — every component documented with how it fires, its arguments, what it writes, and its prerequisites. `python3 scripts/check-doc-coverage.py` must exit 0; CI runs it on every push. Arriving documented is cheap, retrofitting is not.
+5. Validate with the `plugin-validator` agent from `plugin-dev`.
+6. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
 
 ### Description budget
 

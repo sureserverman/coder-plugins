@@ -196,6 +196,16 @@ but never over *finishing the work*.
 3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies? (The parallel-conflict and stage-oversize checks are moot for a light plan — one stage, inline execution.)
 4. **If concerns exist, surface them to the user before starting.** A plan with an unrunnable test or a dependency cycle will waste an entire Red-Green budget before the problem is found
 
+5. **Read the plan's `## Decisions in force`.** These are the constraints the plan was
+   written under — the architectural decisions the register holds, carried into the plan
+   file precisely so a session that never reads the register still implements under them.
+   Note which tasks carry `Honors DEC-NNN` (a constraint to respect) and which carry
+   `Supersedes …` (a deliberate override you will record at close-out).
+
+   **A plan with no such section is not a plan with no decisions.** Every plan written
+   before this convention lacks one. Treat its absence as *"not recorded"*, never as
+   *"none apply"* — run the scan yourself at Preflight (below) and proceed on that result.
+
 Create a TodoWrite list mirroring the plan: one task per stage, sub-items per task. Mark the current stage as `in_progress` only when Preflight passes.
 
 ## Phase 2 — Preflight
@@ -208,6 +218,30 @@ Run every check in the Preflight section and report pass/fail:
 - Access / permissions verified
 - Baseline test suite passes
 - **Version control is live** — see below
+- **Decisions in force are current** — see below
+
+### Decisions re-check (the plan's snapshot can be stale)
+
+The decisions register **accretes between planning and execution**. A plan written last
+month can be executed against a register that has since gained a constraint, or superseded
+one the plan still honors — the same staleness problem the plan's own age signals, applied
+to a second artifact.
+
+So Preflight does not trust the recorded section: re-run the scan and diff it.
+
+1. Call the `decisions` skill's `relevant` operation for this project and its stacks
+   (`../decisions/references/domain-slugs.md`).
+2. Diff the result against the plan's `## Decisions in force`:
+   - **New entry in scope** → surface it before Stage 1. It may invalidate a task.
+   - **An entry the plan honors is now superseded** → surface it. The plan may be
+     implementing a constraint that no longer holds.
+   - **Unchanged** → say so in one line and proceed.
+3. **A plan with no section** (written before the convention): report the scan result as
+   the working set and proceed. Absence is not exemption.
+
+Surfacing here is cheap; discovering it at the gate costs a stage. This is a report, not a
+stop condition — unless the diff invalidates a task outright, in which case it is a
+plan defect and returns to `planning-projects` (§ When to revisit earlier steps).
 
 ### Git bootstrap (hard prerequisite for commit-per-task)
 
@@ -256,7 +290,10 @@ need its working trace), **output-heavy** (builds, broad greps, long test logs, 
 reads the orchestrator would otherwise absorb), and **not latency-critical**, hand it
 to a single stack-matched subagent instead of running it inline. This keeps the
 orchestrator's window on plan state and gates rather than filling it with churn it will
-never reference again. It is a context-hygiene move, **not** a token saving — the
+never reference again. **Brief it with the decisions in force that bear on the task**,
+exactly as the parallel path does (`../dispatching-parallel-agents/SKILL.md` § Prompt
+template) — both dispatch paths, one convention. A delegated task is no less bound by the
+register than an inline one; it is just less able to discover that on its own. It is a context-hygiene move, **not** a token saving — the
 subagent's intermediate tokens still burn. Keep a task inline when it is coupled to
 accumulated session context, needs iterative back-and-forth, or is a quick targeted
 edit. Pick the subagent type (and the stack skill it should load first) from the
@@ -365,6 +402,29 @@ issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
 abstraction that should have been shared) surface here. Skip only on the same
 opt-out as Tier 1.
 
+**Decisions-conformance check (gate criterion, not advisory).** Check the stage's
+cumulative diff against the decisions in force.
+A change that contradicts a decision in force, without a `Supersedes` citation on its
+task, is a **gate failure** — handle it via the "If the gate fails" steps below.
+Two legal resolutions, and only two:
+
+- **Re-scope the change** so it stops contradicting the decision, or
+- **Record a deliberate supersede** (`decisions supersede`) and add the `Supersedes
+  DEC-NNN — <why>` citation to the task, making the override auditable.
+
+"The decision seems outdated" is not a third option — that judgment is exactly what
+`supersede` exists to record, and skipping it is how a register decays into fiction.
+
+**Disclose the check's limits (honest-gates).** Unlike a test command, this is a judgment
+call over a diff: it can miss a subtle contradiction, and a green result is not proof of
+conformance. So the gate report states **what was actually examined** — which IDs were
+checked against which parts of the diff — rather than asserting blanket conformance. A
+check that overstates its coverage is worse than one that admits its scope, because the
+next reader trusts it.
+
+Skip only when the stage's diff is genuinely non-code (docs-only, version-bump-only) and
+no decision in force bears on documentation.
+
 **If the gate fails:**
 
 1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
@@ -389,7 +449,15 @@ the handoff artifact.
   ```
   **Stage N handoff:** <deviations from plan, surprises found, decisions made,
   anything a fresh context needs that the Status flips don't capture>
+  **Decisions in force:** <the DEC/GDEC IDs still binding, plus any Supersedes
+  citation raised in this stage and not yet recorded>
   ```
+
+  The decisions line is not redundant with the plan's `## Decisions in force`
+  section: a fresh session reads the handoff notes to learn *the current state*,
+  and a constraint that surfaced mid-stage (a supersede raised at Stage 2, a new
+  entry the Preflight re-check caught) exists nowhere else. A constraint absent
+  from the handoff is one the next session will not know about.
 
   Committed with the `"Stage N green"` commit. Keep it to a few lines — it is
   a briefing, not a log.
@@ -498,15 +566,32 @@ When every stage is green:
      breaking), state your call and let the user override — don't silently skip.
 5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-7. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
-8. Report to the user with:
+7. **Reconcile the decisions register.** Two directions, both easy to forget and both
+   corrosive when skipped:
+   - **Supersedes citations → record them.** Scan the plan for `Supersedes DEC-NNN` /
+     `Supersedes GDEC-…` on any task. For each, call the `decisions` skill (`supersede`)
+     with the replacement entry. Until this runs, the register still asserts a constraint
+     the code no longer honors — and the *next* plan will be written against it.
+     `planning-projects` promises this step on the planner's behalf ("the executor records
+     the supersede at close-out"); this is where that promise is kept.
+   - **New constraints created → record them.** Execution discovers things planning
+     couldn't: an approach that turned out to be blocked, a platform limit hit at Stage 3,
+     a cost knowingly accepted to get a stage green. Each is a decision whether or not
+     anyone called it one. Call `decisions add` with the reason — the constraint, the
+     evidence, the alternative rejected, the cost accepted. If you cannot name a rejected
+     alternative or a cost, it probably wasn't a decision; don't pad the register.
+   - Reference the recorded IDs in the close-out report and commit message.
+
+8. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
+9. Report to the user with:
    - Stages completed
    - Total commits
    - Version bumps applied (component → old → new)
    - Plan location for future reference
    - Backlog items closed (by ID) and any new ones opened during execution
+   - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
-9. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
+10. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge without explicit confirmation.
 
 ---
 
@@ -549,6 +634,7 @@ When every stage is green:
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
 - **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts; its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
+- **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only when the user opts out or every check is a command.
 - **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, advisories are surfaced for triage). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.

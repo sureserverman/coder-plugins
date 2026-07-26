@@ -46,7 +46,7 @@ idioms — one level deep at `references/`) and hands deep or output-heavy work 
 
 | Agent | Model | Tools | Purpose |
 |---|---|---|---|
-| `rust-expert` | sonnet | Read, Grep, Glob, Edit, Write, Bash, WebFetch | Authors, reviews, refactors, audits, and migrates Rust. Six protocols (Stack Detection → Author / Refactor / Review / Migrate / Audit) plus three direct **modes**: `review`, `idiomize`, `project-audit`. Reads the shared `references/`; cites sources. |
+| `rust-expert` | sonnet | Read, Grep, Glob, Edit, Write, WebFetch, **scoped** Bash (`cargo`/`rustc`/`rustup`/`rustfmt`/`bash` + read-only `git status`/`diff`/`log`/`show`/`blame` only) | Authors, reviews, refactors, audits, and migrates Rust. Six protocols (Stack Detection → Author / Refactor / Review / Migrate / Audit) plus three direct **modes**: `review`, `idiomize`, `project-audit`. Reads the shared `references/`; cites sources. |
 
 ### Migration note
 
@@ -56,6 +56,40 @@ directly, instead of separate entry points. The 5-pass audit runner moved to `sc
 When `rust-dev` isn't enabled in a session, `rust-expert` is still reachable from disk via
 `capability-index.json` (see the marketplace's capability-router) — its `.md` body is injected
 into a generic subagent with its `model` pin, so the expertise doesn't require enabling the plugin.
+
+## Artifacts
+
+Nothing persisted outside your own source tree. `rust-expert` edits Rust files and may run
+`cargo`; the audit runner (`scripts/analyze.sh`, 5 passes) prints its report rather than writing
+one. Prerequisite: a working Rust toolchain — `cargo`, and `clippy` / `cargo-audit` for the
+review and audit modes (their absence is reported, not silently skipped).
+
+## Worked example
+
+```text
+/plugin install rust-dev@coder-plugins
+
+"add a retry wrapper around the HTTP client"
+```
+
+Editing `.rs` fires `rust-coding`, the knowledge router, which loads only the `references/`
+sections that bear on the task. For deeper work you can name the agent and its mode directly:
+
+```text
+"have rust-expert run a project-audit on this crate"
+"have rust-expert idiomize src/parser.rs"
+```
+
+`review`, `idiomize`, and `project-audit` are **modes of the agent**, not separate commands —
+the former `/rust-review` and `/rust-idiomize` commands were folded in (see the migration note).
+
+## Related plugins
+
+- **`planning`** — `dispatching-parallel-agents` routes Rust tasks here via `stack-routing.md`,
+  loading `rust-coding` first; `decisions` is where a Rust-wide constraint gets promoted to the
+  `rust` domain register so every Rust project inherits it.
+- **`testing`** — `testing-expert` for test strategy; `rust-expert` for the Rust itself.
+- **`infra-build`** — `build-for-mac` packages Rust source repos into macOS `.pkg`.
 
 ## License
 

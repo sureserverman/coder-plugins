@@ -31,6 +31,64 @@ Each pipeline expects a specific layout in the source repo **and** an entry in t
 /plugin install infra-build@coder-plugins
 ```
 
+All seven skills fire on the phrases above and are invocable as `/infra-build:<skill>`.
+
+## Determinism boundary
+
+Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the
+plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume
+its JSON rather than re-deriving rules in prose. Scripts flag; the model decides.
+
+- `scripts/validate-deb.sh <project-root> [--json]` — Debian layout and control-file
+  invariants for the `utils` pipeline.
+- `scripts/validate-readiness.sh <project-root> [--json]` — the deterministic half of
+  `build-readiness-check`: which pipelines the project is and isn't wired for.
+
+Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
+`validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
+documented in [`scripts/README.md`](scripts/README.md).
+
+## What gets written, and in which repo
+
+**This is the plugin's defining property: most of its skills edit a _different repo_ than the one you're working in.** A registration writes into the pipeline repo under `~/dev/infra/`, not into your project — so a "successful" registration produces no diff in your own `git status`, and looking there is the most common way to conclude nothing happened.
+
+| Skill | Writes in **your** project | Writes in **`~/dev/infra/`** |
+|---|---|---|
+| `build-readiness-check` | nothing (read-only audit) | nothing |
+| `deb-package` / `mac-package` | scaffolds `deb/` or `mac/` layout | — |
+| `bash-script-audit` | nothing (report only) | — |
+| `utils-register` | scaffolds `deb/` via `pkgskel` | `utils/pkg.list` |
+| `build-for-mac-register` | — | `build-for-mac/programs.txt` **and** `.github/workflows/build_and_package.yml` |
+| `publish-images-register` | optionally `Dockerfile`, `doc/DOCKERHUB.md`, release-workflow `repository_dispatch` wiring | `publish-images/images.yml` **and** `build-and-publish.yml` |
+
+### Prerequisites
+
+- The pipeline repos must exist locally at `~/dev/infra/{utils,build-for-mac,publish-images}` — these skills patch checked-out files, they do not call an API.
+- Your project needs a git remote for the dispatch-driven pipelines (build-for-mac, publish-images) to be able to fetch it.
+- Registration ends at "the file is on disk and the YAML still parses". **Nothing is committed, pushed, or triggered** — review the pipeline repo's diff and commit it yourself.
+
+## Worked example
+
+```text
+/plugin install infra-build@coder-plugins
+
+"is this project ready to publish"
+```
+
+`build-readiness-check` reports, per pipeline, exactly which files or registration entries are missing — e.g. ready for `.deb`, missing `mac/Makefile` for build-for-mac, not registered anywhere.
+
+```text
+"register this project for utils"
+```
+
+`utils-register` scaffolds `deb/` in your repo and adds the entry to `~/dev/infra/utils/pkg.list`. Then commit **both** repos — yours for the scaffold, the pipeline repo for the registration.
+
+## Related plugins
+
+- **`planning`** — `project-maturity`'s Packaging axis is where a project's packaging readiness is recorded durably; `build-readiness-check` is the detailed audit behind that verdict.
+- **`release-promo`** — drafts the announcement once a build actually ships.
+- **`git-github`** — `github-workflow-audit` checks the workflow YAML these skills patch.
+
 ## Design rules
 
 - **Read before write.** `build-readiness-check` is the only entrypoint that runs unprompted as an audit. The register skills always show the diff before editing.

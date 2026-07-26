@@ -28,8 +28,9 @@ guide maps the tiers cleanly:
 
 Most skills have phases that are cheaper than their caller needs to be. These
 three agents are the delegation targets for the common cases. Sibling plugins
-in this marketplace (`plugin-dev`, `git-github`) reference them by name from
-audit and review skills.
+reference them by name from audit and review skills: `git-github`, `android-dev`
+and `infra-build` in this marketplace, plus `plugin-dev` — which now lives in the
+separate `agent-tooling` marketplace.
 
 ## Install
 

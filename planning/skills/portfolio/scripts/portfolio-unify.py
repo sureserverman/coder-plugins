@@ -116,6 +116,13 @@ def vault_dir():
 
 
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)
+# `## Decisions in force` records the architectural constraints binding a plan
+# (planning-projects § Decisions scan). Its bullets are declarations, not work.
+# The format mandates non-checkbox bullets, but a convention the parser does not
+# enforce is one an author eventually breaks: a stray `- [ ]` there became a
+# false backlog candidate on the legacy heuristic path, silently, on every plan
+# that recorded a decision. Excluded here so the invariant is real.
+DECISIONS_RE = re.compile(r"^##+\s+Decisions in force", re.I)
 STAGEHDR_RE = re.compile(r"^##\s+Stage\s+(\d+)", re.I)
 GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
 # ---------------------------------------------------------------------------
@@ -268,8 +275,8 @@ def parse_plan_status(text, plan_rel):
 def parse_plan(text, plan_rel, done_stages):
     """Return candidates from one plan. Plans carrying any `- **Status:**` field
     take the authoritative path (parse_plan_status); legacy plans fall back to
-    the heuristic below: every unchecked `- [ ]` (excluding the Preflight
-    section) whose enclosing Stage is NOT git-confirmed-done, plus all
+    the heuristic below: every unchecked `- [ ]` (excluding the Preflight and
+    `Decisions in force` sections) whose enclosing Stage is NOT git-confirmed-done, plus all
     `## Deferred` bullets. `done_stages` is the set of stage numbers a commit
     (dated >= the plan's date) referenced as executed."""
     # Detection requires the checkbox, matching STATUS_RE: a checkbox-less
@@ -285,6 +292,7 @@ def parse_plan(text, plan_rel, done_stages):
     lines = text.splitlines()
     cur_stage = None
     in_preflight = False
+    in_decisions = False
     in_deferred = False
     in_gate = False
     defer_n = 0
@@ -293,6 +301,7 @@ def parse_plan(text, plan_rel, done_stages):
         line = lines[i]
         if SECTION.match(line):
             in_preflight = bool(PREFLIGHT_RE.match(line))
+            in_decisions = bool(DECISIONS_RE.match(line))
             in_deferred = bool(DEFERRED_RE.match(line))
             # A header naming a "Gate" opens an acceptance-criteria block; any
             # other header (a Task, a new Stage, Deferred, …) closes it.
@@ -314,7 +323,7 @@ def parse_plan(text, plan_rel, done_stages):
             i += 1
             continue
         um = UNCHECKED.match(line)
-        if um and not in_preflight and not in_gate:
+        if um and not in_preflight and not in_decisions and not in_gate:
             # exclude if this stage was git-confirmed executed
             if cur_stage is None or cur_stage not in done_stages:
                 loc = f"Stage {cur_stage}" if cur_stage else "checklist"

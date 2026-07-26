@@ -1,6 +1,6 @@
 # planning
 
-A fifteen-skill pipeline (v0.27.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.29.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -98,7 +98,7 @@ A scoped gate report always discloses what actually ran. Policy lives in `skills
 
 **Two-tier code review.** Execution wires in `git-github`'s read-only `code-reviewer` agent on a distinct axis from the goal-evaluator (*code quality* vs *goal attainment*): **Tier 1** on each green task's diff, where a Critical finding blocks the task and is fixed within the same Red-Green cycle budget; **Tier 2** on the full stage diff at the gate, where a Critical is a gate failure and advisories are surfaced for triage. Trivial/non-code diffs are auto-skipped.
 
-**Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
+**Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `skills/executing-plans/scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
@@ -136,10 +136,10 @@ The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculat
 
 ### `backlog` (v0.4.0+; v0.5.0 adds `unify` + `complete`)
 
-Owns the per-project deferred-work register at `docs/backlog.md`. Append on defer, remove on implement, list on plan research. v0.5.0 adds:
+Owns the per-project deferred-work register at `<portfolio_home>/backlog.md` (vault-canonical — there is no repo mode; a missing `vault_dir` fails loudly). Append on defer, remove on implement, list on plan research. v0.5.0 adds:
 
 - `unify <project-path>` — derive backlog candidates from this project's plans via the parser rules in `portfolio/references/plan-parser.md`. Dedups by exact `Source` string equality. Dry-run by default.
-- `complete <BL-NNN> --summary "<text>"` — archive a backlog item as a short `docs/plans/YYYY-MM-DD-<slug>-done.md` plan-summary and remove the entry. Commit convention `Closes BL-NNN` remains the audit trail.
+- `complete <BL-NNN> --summary "<text>"` — archive a backlog item as a short `<portfolio_home>/plans/YYYY-MM-DD-<slug>-done.md` plan-summary and remove the entry. Commit convention `Closes BL-NNN` remains the audit trail.
 
 **Triggers:** "add to backlog", "defer this", "what's in the backlog", "BL-007 is done", "unify plans and backlog for this project".
 
@@ -152,11 +152,39 @@ Owns the architectural-decision register in two linked halves: per-project
 the evidence, the rejected alternative, the accepted cost.
 
 - `add` / `list` / `read` — record and consult decisions for one project.
+- `relevant` *(since v0.29.0)* — **the question planning and execution actually ask:**
+  which recorded decisions constrain the work in front of me? Infers the domain
+  registers from the project's stack (`decisions/references/domain-slugs.md`, paired
+  with the stack-routing table) and returns a digest of both halves, rather than raw
+  files. Superseded entries come back **marked, not filtered** — "we believed X and
+  stopped" is what stops the rejected approach being re-proposed; malformed blocks come
+  back **flagged, not dropped**.
 - `promote <DEC-NNN> --domain <slug>` — lift a project decision into its domain
   register, writing **both** link directions in one step. That symmetry is what
   makes the two halves one register instead of two.
 - `supersede` — replace a decision that no longer holds. The old entry stays, marked
   `superseded by DEC-NNN`; its reason is the record of what was believed and why.
+
+Underneath `relevant` is a deterministic script you can also run directly:
+
+```bash
+python3 <plugin>/skills/decisions/scripts/decisions-relevant.py --list-domains
+python3 <plugin>/skills/decisions/scripts/decisions-relevant.py \
+    --domains android,tor --project myapp --area android --format json
+```
+
+It imports the same fixture-locked parser `portfolio rebuild` uses, so the digest can't
+disagree with the roll-up. Missing `vault_dir` fails loudly rather than falling back
+inside the repo.
+
+**Brand-new projects are a first-class case.** The two halves resolve independently:
+`decisions.md` needs a registry entry, but `Portfolio/decisions/<domain>.md` is keyed by
+domain and resolves from `vault_dir` alone. So a project with no registry entry gets
+`project_register: absent` **and still receives the global half** — which is the half
+that matters most to a greenfield codebase, since it inherits every constraint its
+platform has already accumulated. An absent project half never means "no decisions
+apply"; treating it that way would leave the newest codebase, the one still cheap to
+change, consulting the fewest constraints.
 
 `portfolio rebuild` reads both halves, renders `Portfolio/global-decisions.md`
 (by-domain index, per-project counts, malformed entries, link asymmetries,
@@ -174,15 +202,35 @@ Format: `portfolio/references/decisions-format.md`.
 
 **Triggers:** "record this decision", "why did we choose X", "log this sec-audit recommendation", "promote this to the android decisions", "what binds all Rust projects".
 
+#### How a decision reaches the code (since v0.29.0)
+
+A register nothing consults at implementation time is a filing cabinet. Decisions
+therefore travel the whole pipeline, using the **same mechanism as `ARCH-NN`** citations
+so nothing downstream needed new machinery:
+
+| Stage | What happens |
+|---|---|
+| **Planning** | `planning-projects` runs `relevant` at research time and writes the result into the plan as a `## Decisions in force` section — non-checkbox bullets, so the portfolio parser never mistakes them for deferred work. Records *what was consulted*, so a reader can tell "nothing binds this" from "nobody looked". |
+| **Task authoring** | A constrained task cites `Honors DEC-003`. A task that deliberately overrides one cites `Supersedes GDEC-AND-002 — <why>`, which is what makes the override auditable instead of silent. |
+| **Preflight** | `executing-plans` **re-runs the scan and diffs it** against the plan's section. The register accretes between planning and execution, so a plan can honor a constraint that has since been superseded. A plan with no section is handled as *"not recorded"*, never *"none apply"*. |
+| **Dispatch** | Every sub-agent's prompt carries the entries bearing on its task. A dispatched agent sees a task, a file list, and a slice of research — never the register — so a constraint absent from its prompt is one it cannot honor. |
+| **Stage gate** | A change contradicting a decision in force **without** a `Supersedes` citation is a **gate failure**, not an advisory. Two legal resolutions: re-scope, or record the supersede and cite it. The check discloses what it examined, because unlike a test command it is a judgment call over a diff. |
+| **Close-out** | Declared supersedes get recorded via `supersede`; constraints *execution itself* discovered (a blocked approach, a platform limit, a cost accepted to get a stage green) get recorded via `add`. |
+
+The Light and Master rungs carry this proportionately: a Light plan states its decisions in
+one `Context:` line rather than growing a section, and a Master plan holds the section once
+at master level with sub-plans citing IDs rather than restating them — a duplicated
+constraint drifts, and the copy nobody updated is the one someone implements from.
+
 ### `workflow-spec` (v0.4.0+)
 
-Owns behavior contracts at `docs/workflows/`. Provides `capture`, `extend`, `audit` subcommands so behavior changes can be detected against a versioned spec.
+Owns behavior contracts at `docs/workflows/`. Provides `capture` (draft a spec for a scope), `audit` (regression checklist against a diff), `refresh` (re-verify and re-stamp), and `list` subcommands, so behavior changes can be detected against a versioned spec. There is no `extend` subcommand — extending a spec happens through `capture`.
 
 **Triggers:** "capture this workflow", "audit workflows against the diff", "this PR changes documented behavior".
 
 ### `project-maturity` (since v0.5.0)
 
-Scaffolds and audits a per-project `docs/MATURITY.md` checklist across six publishing-readiness axes: Documentation, Security, Packaging, UI/UX, i18n, Testing & CI. Three subcommands:
+Scaffolds and audits a per-project `<portfolio_home>/MATURITY.md` checklist across six publishing-readiness axes: Documentation, Security, Packaging, UI/UX, i18n, Testing & CI. Three subcommands:
 
 - `init <project-path>` — scaffold MATURITY.md from a template.
 - `audit <project-path> [--write]` — run deterministic auto-detectors (file globs, sec-audit-report findings parse, packaging-recipe presence, locale dirs, CI workflow detection). Dry-run by default. Never overwrites manual `[x] claim:` lines.
@@ -211,11 +259,69 @@ Cross-project orchestrator. Single user-facing entry point that ties registry + 
 - `scan` — load `~/.claude/projects-registry.yaml`, walk `~/dev/` for project markers, surface drift; first-run flow auto-seeds the registry.
 - `unify` — dispatches a sub-agent per registered project (8 in flight) that invokes `backlog unify`. Aggregates candidate reports; user accepts per-project.
 - `maturity` — dispatches a sub-agent per project that invokes `project-maturity audit`; surfaces stale claims.
-- `rebuild` — regenerates `~/.claude/global-backlog.md` and `~/.claude/global-maturity.md`. Preserves a `<! BEGIN PRESERVE !>` ... `<! END PRESERVE !>` block in `global-backlog.md` for hand-curated cross-project items.
+- `migrate` — moves a project's plans/backlog/maturity from in-repo `docs/` into its vault `portfolio_home`, making the vault canonical. Dry-run first.
+- `integrate` — reads each project's `integration.md` and merges the declared edges into `Portfolio/integration-graph.md` + `integration-backlog.md`. Symmetry gaps are **reported, never auto-repaired**.
+- `rebuild` — regenerates the global roll-ups in the vault: `global-backlog.md`, `global-maturity.md`, `global-decisions.md`, `global-business.md`, `global-security.md`, plus each repo's `PORTFOLIO-STATUS` sidecar block. Preserves a `<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->` ... `<!-- END PRESERVE -->` block (the exact sentinels the parser matches — a hand-authored approximation is silently discarded on the next `rebuild --write`) in `global-backlog.md` for hand-curated cross-project items. Writes only with `--write`; **a second consecutive run must produce zero writes**, and that idempotency is a gate every plan touching this lane has to preserve.
 
 Default flow composes the four in order: `scan → unify (dry-run) → maturity (opt-in during staged rollout) → rebuild`. Idempotent: re-running with no upstream changes produces zero writes.
 
 **Triggers:** "portfolio scan", "global backlog", "what's parked across projects", "ship readiness across projects", "scan all my projects".
+
+## Agents
+
+Two subagents ship with the plugin. Both are dispatched by their owning skill — you don't normally invoke them directly, though you can.
+
+### `architecture-researcher`
+
+Researches **one** candidate architecture (a pattern plus a concrete module layout) and returns cited findings: evidence, a directory tree, boundary definitions, and risks. `architecting-projects` fans out one per candidate, in parallel, then discards any uncited claim before building the comparison matrix.
+
+**Model:** `sonnet`. **Tools:** read-only plus `WebFetch`/`WebSearch` — it researches, it does not write code.
+
+### `design-handoff-reproducer`
+
+Reproduces **one** slice of a Claude Design handoff pack (a component or screen, plus its tokens and assets) precisely in the target stack, self-checking against the fidelity rubric. Dispatched per slice by `applying-design-handoff`. It reproduces; it does not design — and it **FLAGs** a behavior change back to the caller rather than applying one.
+
+**Model:** `sonnet`. **Tools:** `Read`, `Write`, `Edit`, `Glob`, `Grep`, `Bash`.
+
+## Where artifacts live
+
+Everything this plugin persists is **vault-canonical**, not in your repo. `portfolio_home` resolves as `<vault_dir>/Portfolio/<area>/<name>/`, where `vault_dir` comes from `~/.claude/portfolio-config.yaml` and `area`/`name` from `~/.claude/projects-registry.yaml`.
+
+| Artifact | Path | Written by |
+|---|---|---|
+| Plans (all rungs) | `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` | `planning-projects` |
+| Architecture docs | `<portfolio_home>/plans/YYYY-MM-DD-<topic>-architecture.md` | `architecting-projects` |
+| Backlog | `<portfolio_home>/backlog.md` | `backlog` |
+| Decisions (project) | `<portfolio_home>/decisions.md` | `decisions` |
+| Decisions (domain) | `<vault_dir>/Portfolio/decisions/<domain>.md` | `decisions promote` |
+| Maturity | `<portfolio_home>/MATURITY.md` | `project-maturity` |
+| Global roll-ups | `<vault_dir>/Portfolio/global-*.md` | `portfolio rebuild` |
+| Behavior contracts | `<repo>/docs/workflows/` | `workflow-spec` |
+| Live execution state | `<repo>/.claude/plan-progress.json` | `executing-plans` (ephemeral, gitignored, deleted at close-out) |
+
+**Prerequisite:** `vault_dir` must be set. If it is unset, the portfolio scripts **fail loudly rather than falling back to a path inside your repo** — that fallback is exactly what the vault-canonical storage law exists to prevent. Only `planning-projects` has a documented in-repo fallback (`docs/plans/`), and it warns when it uses one.
+
+## Worked example
+
+```text
+/plugin install planning@coder-plugins
+
+"I want to add offline sync"
+```
+
+`brainstorming` fires and works through purpose, constraints, and alternatives one question at a time. Because the design has a structural surface, it hands off to `architecting-projects`, which fans out `architecture-researcher` agents over 2–4 candidates and presents a comparison matrix for your explicit approval, then writes the `ARCH-NN` doc.
+
+```text
+"plan it"
+```
+
+`planning-projects` triages a format first, runs its research phase (online sources, backlog scan, workflow specs, the architecture doc, and the **decisions scan**), and writes a staged plan whose structure-creating tasks cite `ARCH-NN` and whose constrained tasks cite `Honors DEC-NNN`.
+
+```text
+"execute the plan"
+```
+
+`executing-plans` re-checks the decisions for staleness at Preflight, drives Red-Green loops with a commit per green task, fans independent tasks out through `dispatching-parallel-agents`, runs tiered gates with two-tier review, and at close-out bumps versions across every mirror, reconciles the backlog, and records any supersede the plan declared.
 
 ## Why a separate plugin
 

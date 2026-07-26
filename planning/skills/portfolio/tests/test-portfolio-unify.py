@@ -60,6 +60,71 @@ def candidates(fname):
     return parse_plan(text, f"plans/{fname}", set())
 
 
+# --- `## Decisions in force` sections must never manufacture candidates ---------
+# The section is documentation-shaped, so the hazard is silent: a raw `- [ ]`
+# there would become a false backlog candidate on EVERY plan that records a
+# decision, corrupting the roll-up across ~30 projects. These three lock the
+# non-checkbox rule at each format rung.
+dec_std = candidates("2026-07-25-decisions-standard-plan.md")
+check(
+    "Standard: decisions section yields no candidates",
+    not any("DECISIONS-SECTION-MARKER" in c["title"] for c in dec_std),
+    f"got: {[c['title'] for c in dec_std]}",
+)
+check(
+    "Standard: exactly the one real unchecked task survives",
+    [c["title"] for c in dec_std] == ["REAL-CANDIDATE-MARKER the one deferred task"],
+    f"got: {[c['title'] for c in dec_std]}",
+)
+check(
+    "Standard: decisions-conformance gate bullet never surfaces",
+    not any("contradicts a decision in force" in c["title"] for c in dec_std),
+    f"got: {[c['title'] for c in dec_std]}",
+)
+
+dec_light = candidates("2026-07-25-decisions-light-plan.md")
+check(
+    "Light: Context-line decision yields no candidate",
+    not any("LIGHTCTX-MARKER" in c["title"] for c in dec_light),
+    f"got: {[c['title'] for c in dec_light]}",
+)
+check(
+    "Light: only the unchecked task survives",
+    [c["title"] for c in dec_light] == ["LIGHT-CANDIDATE-MARKER first task"],
+    f"got: {[c['title'] for c in dec_light]}",
+)
+
+# Falsifiability: the three fixtures above obey the non-checkbox convention, so
+# they would pass even with no exclusion at all — they prove the format is safe,
+# NOT that the parser enforces it. This one breaks the convention deliberately on
+# the legacy heuristic path (no `- **Status:**` fields anywhere), which is where a
+# stray checkbox in the decisions section really did surface as a false candidate.
+dec_legacy = candidates("2026-05-02-decisions-legacy-plan.md")
+_legacy_titles = [c["title"] for c in dec_legacy]
+check(
+    "legacy path: a checkbox smuggled into `Decisions in force` is EXCLUDED",
+    not any("LEGACYDEC-CHECKBOX-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+check(
+    "legacy path: the prose decision bullet never surfaces either",
+    not any("LEGACYDEC-PROSE-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+check(
+    "legacy path: a genuine unchecked item OUTSIDE the section still surfaces "
+    "(the exclusion is scoped, not a blanket mute)",
+    any("LEGACY-REAL-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+
+dec_master = candidates("2026-07-25-decisions-master-plan.md")
+check(
+    "Master with a decisions section still yields zero candidates",
+    dec_master == [],
+    f"got: {dec_master}",
+)
+
 # (a) + (e) — master plan: zero candidates, gate bullets excluded
 master = candidates("2026-07-04-bigproj-master-plan.md")
 check("master yields zero candidates", master == [], f"got: {master}")

@@ -50,8 +50,12 @@ def load_manifest(ext_dir):
         return raw, json.loads(raw)
     except json.JSONDecodeError as e:
         add("1", "FAIL", f"manifest.json is not valid JSON: {e}")
-        sys.exit_code = 1
-        return raw, {}
+        # `sys.exit_code = 1` was here: it sets an attribute on the sys module that
+        # nothing reads, so an unparseable manifest fell through to the FAIL-driven
+        # sys.exit(1) at the end and reported as an ordinary rule violation. Exit 2
+        # means "could not read/parse the input" and must be distinguishable from
+        # "read it fine, and it violates the rules".
+        sys.exit(2)
 
 def check_required(m):
     mv = m.get("manifest_version")

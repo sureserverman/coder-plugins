@@ -35,7 +35,43 @@ Resolve `portfolio_home` per `../portfolio/references/registry-format.md`: read
 refuse and fail loudly — never fall back to a path inside the repo.** That
 fallback is what the vault-canonical storage law exists to prevent.
 
-**Announce at start:** "Using the decisions skill — <add|list|read|promote|supersede> on <path>."
+### A project not yet in the registry
+
+A brand-new project has no registry entry, so `portfolio_home` does not resolve
+and there is no `decisions.md` to read. This is a **first-class supported state,
+not an edge case** — and it is the state in which the register matters most.
+
+The two halves fail independently:
+
+- **The per-domain half is global.** `<vault>/Portfolio/decisions/<domain>.md`
+  is keyed by domain, not by project, so it is reachable with no registry entry
+  at all. A greenfield Android app inherits every `GDEC-AND-*` constraint the
+  portfolio has accumulated before it has written a line of code.
+- **Only the per-project half is missing**, and a project that has made no
+  decisions has nothing to miss.
+
+So in this state the **global half is authoritative and sufficient**. Report
+`project_register: absent` with the reason, return the domain digest, and carry
+on.
+
+**How the state ends.** `planning-projects` auto-registers the project as part of
+writing its first plan (its § Output location step 3 appends
+`path`/`name`/`area`/`enabled`/`added`). Once that entry exists, `portfolio_home`
+resolves and the first `decisions add` creates the per-project register. Nothing
+here needs to force registration; it happens on the normal path.
+
+**No registry field is added for any of this** — per **DEC-002**, eight parsers
+read `projects-registry.yaml` with a fixed field set, so a new key there is a
+change all eight must tolerate. The greenfield path needs no new state: it is an
+absence, and an absence is already representable.
+
+**The failure this closes.** The tempting shortcut is to skip the decisions scan
+when `portfolio_home` doesn't resolve. That inverts the register's purpose — the
+project with the least local context ends up consulting the fewest constraints,
+and every platform lesson the portfolio has already paid for is invisible to the
+one codebase still cheap enough to change.
+
+**Announce at start:** "Using the decisions skill — <add|list|read|relevant|promote|supersede> on <path>."
 
 ---
 
@@ -77,6 +113,43 @@ first.
 For ingestion by other skills (`planning-projects` and `brainstorming` research
 phases, `architecting-projects` prior-art scan). Returns the file as text; the
 caller parses. With `--domain <slug>`, returns that domain register instead.
+
+### `relevant` — digest what binds this project
+
+The question a planner and an executor actually ask: *which recorded decisions
+constrain the work in front of me?* Unlike `read`, this resolves the domain
+registers for you and returns a compact digest of both halves rather than raw
+files.
+
+Inputs: optional `--domains <slug,...>`, `--project <name> --area <area>`,
+`--format text|json`.
+
+1. **Infer the domains** from the project's stack via `references/domain-slugs.md`
+   — that table is paired with `dispatching-parallel-agents`'s stack-routing
+   table, so the same signal that picks a subagent picks a register. When the
+   stack is ambiguous, pass every plausible slug: an extra register costs one
+   read, a missed one costs a violated constraint nobody catches until review.
+   Run `scripts/decisions-relevant.py --list-domains` to see which registers
+   exist right now.
+2. **Run** `scripts/decisions-relevant.py --domains <slugs> --project <name>
+   --area <area>`. It imports the same fixture-locked parser `portfolio rebuild`
+   uses, so the digest can't disagree with the roll-up.
+3. **Read the digest as-is.** Superseded entries come back **marked, not
+   filtered** — "we believed X and stopped" is what prevents the rejected
+   approach being re-proposed. Malformed blocks come back **flagged, not
+   dropped**; a decision that fails to parse is precisely the one to look at.
+
+**The three degrade states** — all normal, none an error:
+
+| State | Meaning |
+|---|---|
+| `project_register: present` | Both halves returned. |
+| `project_register: absent` (registered) | The project is in the registry but has recorded no decisions yet. The global half still binds it. |
+| `project_register: absent` (unregistered) | A brand-new project with no portfolio home. **The global half is authoritative and sufficient** — see below. |
+
+Never treat an absent project half as "no decisions apply". That inversion would
+make a greenfield project — the one with the least local context — the one that
+consults the fewest constraints.
 
 ### `promote` — lift a project decision into its domain register
 

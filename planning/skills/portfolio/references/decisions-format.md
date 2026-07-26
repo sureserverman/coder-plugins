@@ -83,6 +83,33 @@ therefore:
 The register must stay useful to a reader who cannot open the report — that is
 what `Reason` is for — without becoming a second copy of it.
 
+## Projects with no per-project register
+
+The two halves are independently resolvable, and that asymmetry is load-bearing.
+`decisions.md` needs a `portfolio_home`, which needs a registry entry;
+`Portfolio/decisions/<domain>.md` is keyed by **domain**, so it resolves from
+`vault_dir` alone.
+
+A project therefore has a well-defined answer at every stage of its life:
+
+| Project state | Per-project half | Per-domain half |
+|---|---|---|
+| Unregistered (brand new) | absent — no `portfolio_home` | **fully readable and binding** |
+| Registered, no decisions yet | absent — no `decisions.md` | fully readable and binding |
+| Registered with decisions | readable | readable |
+
+**An absent per-project half is never "no decisions apply."** It means this
+project has recorded none of its own; whatever its domains bind, still binds. A
+consumer that skips the scan because `portfolio_home` didn't resolve inverts the
+register's purpose — the newest codebase, the one still cheap to change,
+consults the fewest accumulated constraints.
+
+Registration happens on the normal path (`planning-projects` § Output location
+step 3 appends the registry entry when it writes a project's first plan), so this
+state resolves itself without a separate step and **without any new registry
+field** — see DEC-002 on why `projects-registry.yaml`'s field set is not a cheap
+extension point.
+
 ## Per-domain format
 
 `Portfolio/decisions/<domain>.md` holds `## GDEC-<DOM>-NNN` blocks, where `<DOM>`
