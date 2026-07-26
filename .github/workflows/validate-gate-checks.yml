@@ -11,8 +11,12 @@ name: validate-gate-checks
 # guard-never-runs-on-the-change-that-broke-it trap already fixed twice here
 # (1271e4c, b250d15).
 #
-# The suite pins the script's own calibration numbers against a live run, so a
-# precision regression fails CI rather than quietly rewriting the docstring's claims.
+# SCOPE, stated honestly: what runs here is the classifier's branch logic plus a
+# crash-resistance sweep over the in-repo plan fixtures. The suite's calibration pin —
+# which asserts the script's documented per-class counts against a live run — needs the
+# vault plan corpus, which does not exist on a runner, so those assertions SKIP in CI and
+# only bite locally. This job therefore does not catch a precision regression. Vendoring
+# a real-plan corpus into the repo is what would close that gap.
 
 on:
   push:

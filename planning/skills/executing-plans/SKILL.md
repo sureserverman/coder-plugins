@@ -50,6 +50,12 @@ and acyclic; every entry ends with a `**Gate:**` block; every sub-plan carries t
 `Master:` backlink and is itself a valid planning-projects plan (critique each one on
 load, as usual). Surface concerns before starting.
 
+**Step 4a applies here too** — run `validate-gate-checks.py` on the master itself, not only
+on each sub-plan as it loads. A master's cross-plan checks live under `**Gate:**` markers
+rather than `### Stage N Gate` headings, and those are precisely the checks that prove
+integration *between* sub-plans, so an instance-shaped one there survives every sub-plan
+gate and surfaces only at the master close-out — the most expensive place to find it.
+
 **Execution model:**
 
 1. **Order by the register graph.** A sub-plan is dispatchable when every entry in its

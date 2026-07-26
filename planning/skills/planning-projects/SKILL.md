@@ -586,6 +586,7 @@ prose about one member of it:
 
 - **BAD** — `- [ ] the README no longer claims the stack is not project-agnostic`
 - **ALSO BAD** — `` - [ ] `grep -q 'not yet project-agnostic' <plugin>/README.md` exits 1 ``
+- **ALSO BAD** — `` - [ ] `grep -c 'x' <plugin>/README.md` = 1 and no stale claims remain`` — bolting plural-sounding prose onto a narrow command does not widen its scope; the sweep still never runs
 - **GOOD** — `` - [ ] `! grep -rl 'not yet project-agnostic' <plugin>/` `` — no file in the plugin still carries the claim
 
 The first form is not merely vaguer. **An instance-shaped check cannot fail on the siblings
@@ -617,7 +618,14 @@ python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.
 
 **A newly authored plan must come back clean** — zero INSTANCE-SHAPED. Existing plans predate
 the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
-deliberate, because a check executors learn to route around protects nothing. Calibrated
+deliberate, because a check executors learn to route around protects nothing.
+
+Be honest about where the "mandatory" half lives: it is **this checklist**, and nothing else.
+No plan-file marker records that a plan was validated, so `executing-plans` cannot tell a
+post-rule plan that skipped the check from a legacy one — it reports either identically. A plan
+authored outside this skill, or hand-edited after authoring, reaches execution unenforced. If
+that becomes a real leak, the fix is a marker the authoring check writes and the executor looks
+for; today it is discipline with a mechanical *reporter*, not a mechanical *gate*. Calibrated
 against 357 real gate checks; its known limits, including the one escape hatch left open, are
 stated in the script's own docstring.
 

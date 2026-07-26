@@ -27,23 +27,34 @@ Always prints a per-class count and the total examined: an empty sweep must not
 read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
-tests/test-validate-gate-checks.py against a live run, so these numbers cannot drift
-silently — they did drift once, which is why the test now pins them:
+tests/test-validate-gate-checks.py against a live run — but ONLY where the vault plan
+corpus exists, i.e. locally. On CI the corpus is absent and those assertions skip, so
+the pin catches drift on a developer machine and NOT in CI. Vendoring a real-plan
+corpus into the repo would close that; until then this caveat is the honest statement:
 
-  - Calibrated against 357 gate checks in 41 real plans: 134 EXECUTABLE, 4 JUDGMENT,
-    22 INSTANCE-SHAPED, 197 PROSE. The 22 are legacy non-compliance — 19 name a single
-    artifact, 3 are command-plus-unrelated-claim — which is why `executing-plans` treats
-    this as advisory on existing plans and mandatory only for newly authored ones.
+  - Calibrated against 374 gate checks in 41 real plans: 145 EXECUTABLE,
+    4 JUDGMENT, 23 INSTANCE-SHAPED, 202 PROSE. Those 23 are legacy non-compliance, which is why
+    `executing-plans` treats this as advisory on existing plans and mandatory only for
+    newly authored ones.
   - A check carrying BOTH a narrow command and explicitly plural language ("`grep -c x
-    one.md` = 1 and no stray refs remain") classifies EXECUTABLE. That branch carries 7
+    one.md` = 1 and no stray refs remain") classifies EXECUTABLE. That branch carries 15
     real corpus checks, so it is deliberate — but it IS a way for a narrow command to
     pass, and a human reviewer is the only backstop.
-  - PROSE is reported, never failed. 34 real checks are set-quantified claims that
+  - PROSE is reported, never failed. 35 real checks are set-quantified claims that
     simply aren't executable yet; failing them would retro-fail every pre-rule plan.
   - Classification is syntactic. It cannot know that a directory argument happens to
     hold one file, nor read a script to see what it really asserts.
+  - Most of the 23 are not the oscillation-causing shape. Hand-read, roughly a quarter
+    are set-valued claims narrowed to one member (the harmful form); about a third are
+    live/manual judgment checks that predate the `(judgment)` marker and want the marker
+    rather than a sweep; the rest are single-file facts where one file really is the
+    whole set. All are non-compliant with the rule as written, but the class name
+    oversells how many are dangerous.
   - A nested `- [ ]` sub-item under a gate bullet counts as its own top-level check.
     No real plan does this today; a sub-checklist would be double-counted.
+  - An extension-less path (`plugins/foo`) is read as a directory, because syntax cannot
+    distinguish it from an extension-less file. A check inspecting one such file reads
+    EXECUTABLE.
   - `INLINE_SCRIPT`'s quote matching is not escape-aware, so an interpreter payload
     containing an escaped copy of its own delimiter truncates early.
 
@@ -56,22 +67,24 @@ import pathlib
 import re
 import sys
 
-# A backticked span is a command when it carries a runner, a script path with
-# args, or shell plumbing. A backticked *name* (`planning-projects`) is not.
-#
-# INVOKERS run a program. Their scope is the program's business, not ours: a
-# suite named by one path may cover a thousand files, so "runs one .py" is never
-# instance-shaped. INSPECTORS read the filesystem directly, so their scope IS the
-# check's scope — and an inspector pointed at a single literal path is exactly the
-# instance-shaped form this script exists to catch.
+# INVOKERS run a program whose scope is genuinely opaque: `pytest tests/one_test.py`
+# may assert over a thousand files, so second-guessing it is not this script's job.
 INVOKERS = (
     "python3", "python", "bash", "sh ", "pytest", "make ", "npm ", "cargo ",
-    "podman", "docker", "git ", "curl", "adb ", "gradlew", "jq ", "sed ",
+    "podman", "docker", "gradlew", "node ",
 )
-INSPECTORS = ("grep", "rg ", "ls ", "find ", "test ", "diff ")
+# INSPECTORS read exactly the paths they are given, so their scope IS the check's
+# scope. `git`, `sed`, `jq`, `awk`, `cat`, `head`, `tail`, `adb` and `curl` belong here,
+# not above: `git grep -q x -- one.md` and `sed -n 1,5p one.md` inspect one file, and
+# treating them as opaque runners let them launder the exact shape SKILL.md calls
+# "ALSO BAD".
+INSPECTORS = (
+    "grep", "rg ", "ls ", "find ", "diff ", "git ", "sed ", "jq ",
+    "cat ", "head ", "tail ", "adb ", "curl", "wc ",
+)
 # `for` and `awk` are ordinary English substrings ("wait for confirmation",
 # "awkward phrasing"), so they only count as commands at the start of the span.
-LEADING_ONLY = re.compile(r"^\s*(for|awk|while|if)\b")
+LEADING_ONLY = re.compile(r"^\s*(for|awk|while|if|test)\b")
 RUNNERS = INVOKERS + INSPECTORS
 
 # An inline-script flag turns an invoker into an inspector wearing its coat:
@@ -112,6 +125,13 @@ DEFINITE_ARTIFACT = re.compile(
 # "### Task 1.1: Gate `podman compose build` on image presence", which would vacuum
 # unrelated task checklist items in as gate checks.
 GATE_HEADING = re.compile(r"^#{2,4}\s+(?:Stage\s+\d+\s+)?Gates?\b[^\n]*$", re.M)
+# Master plans carry their cross-plan checks under a `**Gate:**` bold marker rather than a
+# heading — a deliberate second form, documented in master-plan-format.md, because a master
+# is parser-safe by construction. Recognising only the heading made every master plan's
+# gate checks structurally invisible (0 extracted from a fixture holding 3 real ones).
+GATE_MARKER = re.compile(r"^\s*\*\*Gates?:?\*\*\s*$", re.M)
+ANY_GATE_START = re.compile(
+    r"^(?:#{2,4}\s+(?:Stage\s+\d+\s+)?Gates?\b[^\n]*|\s*\*\*Gates?:?\*\*\s*)$", re.M)
 BULLET = re.compile(r"^(\s*)- \[[ xX]\] (.*)$")
 NEXT_HEADING = re.compile(r"^#{2,4} ", re.M)
 
@@ -160,13 +180,17 @@ def command_sweeps_a_set(span):
                 return True
             if any(t in head for t in ("-r", "--recursive", "*", "?", "$(")):
                 return True
-            if re.search(r"\s[\w./\-]+/(\s|$)", head):
+            if re.search(r"\s[\w.\-]+/[\w\-]*(\s|$)", head):
                 return True
             if len(set(re.findall(rf"[\w./\-]+\.{EXT}\b", head))) > 1:
                 return True
         if LEADING_ONLY.match(text.strip()):
             return True
-        if re.search(r"\s[\w./\-]+/(\s|$)", text):        # a directory argument
+        # A directory argument, with or without a trailing slash. `plugins/foo` is
+        # ambiguous between a dir and an extension-less file and syntax cannot tell;
+        # treating it as a dir keeps `ls plugins/foo | wc -l` correctly EXECUTABLE, at
+        # the cost of the ambiguous-file case (disclosed in the limits above).
+        if re.search(r"\s[\w.\-]+/[\w\-]*(\s|$)", text):
             return True
         return len(set(re.findall(rf"[\w./\-]+\.{EXT}\b", text))) > 1
 
@@ -263,11 +287,12 @@ def gate_checks(text):
     not an edge case.
     """
     out = []
-    for m in GATE_HEADING.finditer(text):
+    for m in ANY_GATE_START.finditer(text):
         seg = text[m.end():]
-        nxt = NEXT_HEADING.search(seg)
-        if nxt:
-            seg = seg[:nxt.start()]
+        # A block ends at the next heading or the next gate marker, whichever comes first.
+        ends = [x.start() for x in (NEXT_HEADING.search(seg), GATE_MARKER.search(seg)) if x]
+        if ends:
+            seg = seg[:min(ends)]
         current = None
         for line in seg.splitlines():
             b = BULLET.match(line)
@@ -296,6 +321,7 @@ def main(argv=None):
     totals = {"EXECUTABLE": 0, "JUDGMENT": 0, "INSTANCE-SHAPED": 0, "PROSE": 0}
     failures = []
     examined_files = 0
+    empty_files = []
 
     for path in args.plans:
         if not path.is_file():
@@ -303,6 +329,8 @@ def main(argv=None):
             return 2
         checks = gate_checks(path.read_text(encoding="utf-8"))
         examined_files += 1
+        if not checks:
+            empty_files.append(path.name)
         per = {k: 0 for k in totals}
         for c in checks:
             kind, why = classify(c)
@@ -324,6 +352,13 @@ def main(argv=None):
         print(f"\nFAIL: {len(failures)} instance-shaped check(s):", file=sys.stderr)
         for path, c, why in failures:
             print(f"  {path.name}: {c[:96]}\n      → {why}", file=sys.stderr)
+
+    # Name the files that yielded nothing. A batch total hides a file the extractor
+    # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
+    # while the aggregate looked healthy.
+    if empty_files:
+        print(f"\nnote: {len(empty_files)} file(s) yielded 0 gate checks — "
+              f"verify they genuinely have no gate: {', '.join(empty_files)}")
 
     print(f"\n{total} gate check(s) across {examined_files} file(s): "
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))

@@ -200,6 +200,18 @@ if real:
 else:
     print("       skip: vault plan corpus not present on this machine")
 
+print("group 6b — a path-inspecting tool must not launder single-path scope")
+# `git`, `sed`, `jq`, `cat`, `head`, `tail` read exactly the paths given, so they are
+# INSPECTORS, not opaque program runners. Classing them as runners let them pass the
+# very shape the rule calls "ALSO BAD".
+for text, exp, why in [
+    ("`git grep -q 'x' -- android-dev/README.md` exits 1", "INSTANCE-SHAPED", "git grep on one file"),
+    ("`sed -n '1,5p' android-dev/README.md` no longer shows the claim", "INSTANCE-SHAPED", "sed on one file"),
+    ("`git grep -rl 'x' -- planning/`", "EXECUTABLE", "git grep over a directory still sweeps"),
+    ("`pytest tests/test_one.py` passes", "EXECUTABLE", "a test runner's scope stays opaque"),
+]:
+    check(kind(text) == exp, f"{why} → {exp}")
+
 print("group 7 — pipe plurality requires a plural SOURCE")
 check(kind('`cat CHANGELOG.md | bash -c "grep -q x CHANGELOG.md"`') == "INSTANCE-SHAPED",
       "a single-file pipe source does not launder a single-path inspector")
