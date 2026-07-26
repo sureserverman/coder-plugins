@@ -529,7 +529,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - [ ] [Check 1]: [how to verify]
 - [ ] [Check 2]: [how to verify]
 - [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session
-- [ ] Dispatch roster: every `Parallel: YES` task below, with the subagent type it routes to (planning plugin's `dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none
+- [ ] Dispatch roster — `<n> of <total> tasks`: every `Parallel: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
 
 **Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
 - stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]

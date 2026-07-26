@@ -52,8 +52,7 @@ From the current stage, identify tasks where:
 Call this set **S**. A lone ready task is **still dispatched**: |S| = 1 runs as a single
 dispatch rather than a fan-out, and is never a reason to hand the task back to the caller.
 Having nothing to run alongside it is a fact about *concurrency*, while `Parallel: YES` is
-a *delegation* directive — two different properties (`../planning-projects/SKILL.md` § the
-`Parallel` field). Only |S| = 0 returns control to the caller with nothing to do.
+a *delegation* directive — two different properties (`../planning-projects/SKILL.md` § Stage structure). Only |S| = 0 returns control to the caller with nothing to do.
 
 ## Phase 2 — Guard against file conflicts
 
@@ -110,7 +109,12 @@ and follow it" — the same skill body, loaded from disk (see stack-routing.md �
 - Do NOT modify files outside the Files list above
 - Do NOT refactor unrelated code
 - Do NOT introduce new dependencies not already in the project
-- Commit with message: "Stage <N> Task <N.M>: <description>"
+- Commit with message: "Stage <N> Task <N.M>: <description>", ending with the
+  executor trailer on its own single physical line:
+  `Executor: dispatched — <your subagent_type>`
+  (`../executing-plans/SKILL.md` Step 3.3 rule 7 — the trailer is the only
+  artifact that distinguishes a dispatched task from an inlined one, so a
+  dispatched run that omits it reads downstream as `unknown`, not as dispatched)
 
 ## Return
 A structured report:
@@ -170,7 +174,8 @@ For each GREEN task:
 
 1. Mark the task completed in the plan's status notes and in TodoWrite
 2. Run the task's test **in the main session** (not just via the sub-agent's report) — agents occasionally claim green on a test that was skipped or misreported
-3. Check the task's `Blocks` list: for each blocked task, check whether its `Depends on` is now fully green. If yes, that task becomes dispatchable in the next round.
+3. **Verify the executor trailer the agent was asked to write**: `git log -1 --format='%(trailers:key=Executor,valueonly)' <sha>` must be non-empty and read `dispatched`. If it is blank or wrong, amend it now. This is the same trust-but-verify this phase already applies to the test, aimed at the one artifact a sub-agent cannot check for itself — it never sees the main session's conventions, and a blank trailer otherwise surfaces only at the stage gate as an `unknown`, long after the cheap moment to fix it (`../executing-plans/SKILL.md` Step 3.3 rule 7, Step 3.5)
+4. Check the task's `Blocks` list: for each blocked task, check whether its `Depends on` is now fully green. If yes, that task becomes dispatchable in the next round.
 
 For each ESCALATE task:
 

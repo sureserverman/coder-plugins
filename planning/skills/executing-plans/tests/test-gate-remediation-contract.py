@@ -76,10 +76,15 @@ What it pins:
      per inlined YES task, read off the trailers and reconciled against the roster — with
      an unparseable trailer counted as `unknown` rather than silently folded into either
      count, and a stated reason framed as disclosure rather than authorisation.
+ 15. (Stage 2, Task 2.4) An unperformable mandated dispatch or review is a Stop
+     condition, inline substitution is refused as a resolution, and the decision is
+     routed to the user with the three legitimate options named.
 
- Items 11-14 were added by the dispatch-fidelity plan, which also found this list had
- stopped being maintained: groups 11 through 13 shipped without entries, and three
- separate reviews flagged it before it was fixed.
+ Items 11-15 were added by the dispatch-fidelity plan, which also found this list had
+ stopped being maintained: groups 11 through 13 shipped without entries, three separate
+ reviews flagged it, and the first fix still omitted group 15 — a fourth instance, caught
+ by the gate review. Coverage of this list is now asserted mechanically by
+ test-contract-negation-mutations.py rather than remembered.
 """
 import os
 import re
@@ -126,6 +131,11 @@ NEGATION_RE = re.compile(
     r"\b(?:not|never|no|without|isn't|aren't|doesn't|don't|exempt|"
     r"rather than|instead of|unless|except|excluding|optional|optionally|"
     r"waived?|waives|unnecessary|dropped|skipped|advisory|discretionary|"
+    # `recommended` only. `may` was tried and reverted with evidence: it is the CORRECT
+    # word at the sub-plan-level `Parallel` site, which is legitimately permissive
+    # (group 11b), so banning it turned a true statement red. A negation list is
+    # corpus-specific, not universal — recorded rather than asserted.
+    r"recommended|"
     r"need not|nor)\b",
     re.I,
 )
@@ -772,14 +782,27 @@ def main():
     # executor is the party the count is about, and Task 2.2 exists precisely so this is
     # readable rather than remembered.
     check("the counts are read off the executor trailers, not from memory",
-          # Window widened from 120 to 260: defining `<base>` inline (a Tier-1 finding —
-          # the placeholder was undefined and drifted from rule 7's) pushed the two
-          # anchors apart, and a window sized to yesterday's prose is a guard that breaks
-          # on the next legitimate clarification.
-          affirms(gate_step, r"trailers:key=Executor[\s\S]{0,260}reconcile against the "
-                             r"roster"),
-          "nothing ties the gate count to the trailers or to Preflight's roster, so the "
-          "report can restate the plan's intent instead of the run's history")
+          # Anchored on the SOURCING VERB, not on the git command. Both a gate reviewer
+          # and the goal evaluator independently inverted this claim to "Recall them from
+          # memory rather than reading the executor trailers" and the check stayed green:
+          # the command string and the reconciliation phrase both survive that inversion,
+          # so the clause the check is NAMED for was never examined. affirms_predicate
+          # rather than affirms_claim because the true prose says "…rather than from
+          # memory", and `rather than` is itself a negation token — the documented case
+          # where clause screening would reject the wording that satisfies the rule.
+          # Bare verb anchor: `[^.]{0,40}` after it was greedy and consumed the target
+          # itself, so the predicate search began past what it was looking for.
+          affirms_predicate(gate_step, r"\b(?:Read|Take|Derive)\b", r"executor trailers"),
+          "nothing ties the gate count to the trailers, so the report can restate the "
+          "plan's intent instead of the run's history")
+    # Split out of the check above rather than bundled with it. One check asserting two
+    # claims is satisfiable by either, which is how the sourcing half went unguarded while
+    # the reconciliation half carried it — the same "either site satisfies it" weakness
+    # the failed-dispatch check discloses. Two claims, two checks, two mutations.
+    check("the counts are reconciled against Preflight's roster",
+          affirms_claim(gate_step, r"reconcile against the roster"),
+          "the gate count is never compared with what Preflight declared, so the roster "
+          "and the ledger are two records nobody puts side by side")
     # affirms_predicate on the AFFIRMATIVE half. The requirement's natural wording ends
     # "…rather than saying nothing", and both "rather than" and "nothing" are negation
     # tokens — screening that phrase rejects the sentence that satisfies the rule. The

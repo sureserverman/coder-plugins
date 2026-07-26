@@ -422,6 +422,7 @@ Every task follows this loop. No task is "done" until its test is green.
    Executor: dispatched — <subagent_type>
    Executor: dispatched — <subagent_type>, <subagent_type>    (one task, several agents)
    Executor: inline (dispatch failed)                          (the body says why)
+   Executor: inline (user authorised)                          (dispatch was available)
    ```
 
    **Keep the trailer to one physical line.** Git stops parsing a trailer block at the first line that does not look like a trailer, so a wrapped continuation is not a trailer at all — it vanishes from every `%(trailers:…)` query without any error. This is not hypothetical: two commits on this branch wrote a wrapped `Executor:` line and `git log --format='%(trailers:key=Executor,valueonly)'` returns **empty** for both, which is how a convention silently stops being checkable. Put the reason in the commit body; keep the trailer bare.
@@ -739,7 +740,7 @@ Stop immediately and escalate to the user when:
 - A stage gate's remediation budget is exhausted — the responsible task(s), or the defect class they belong to, were re-run and Critical findings remain (escalate with the residual list)
 - The plan contains an instruction you don't understand
 - A test cannot be run (missing fixture, unreachable service, unclear invocation)
-- **A mandated verification or dispatch cannot be performed** — dispatch is unavailable or disallowed and the plan marks tasks `Parallel: YES`, or a review the gate requires cannot be run. Substituting inline execution, or proceeding unreviewed, is not a documented resolution; asking is
+- **A mandated verification or dispatch cannot be performed** — dispatch is unavailable or disallowed and Preflight's dispatch roster is non-empty (§ Dispatch roster and capability probe), or a review the gate requires cannot be run. Substituting inline execution, or proceeding unreviewed, is not a documented resolution; asking is
 - Verifying the test requires modifying shared infrastructure (production DB, live service) — see Safety rails below
 
 **Never guess through a stop condition.** Ask.
