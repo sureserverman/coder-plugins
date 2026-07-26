@@ -39,6 +39,17 @@ What it pins:
      evaluator — grade findings by severity (Blocking / Material / Minor) rather than
      bare pass/fail, the close-out stop condition is scoped to Blocking, and the
      reason a silent detector is not the bar is stated at both sites.
+  9. (Task 2.2) The renderer's fallback remediation budget equals the default the
+     skill prose documents — they are two copies of one number with nothing else
+     coupling them.
+ 10. (Task 2.3 / P7) The behavioral-claim rule exists in honest-gates with both
+     sub-rules, and is referenced at each of the three executing-plans sites that
+     must consult it (Tier-1 brief, Tier-2 brief, docs-only skip), with the
+     docs-only skip naming its executable-behavior exception. Checked as a set,
+     printing each site — the rule this stage adds is not enforceable by a script
+     (no validator can decide whether a sentence asserts behavior), so what IS
+     mechanically checkable is that it is stated and wired everywhere it is
+     consumed. That distinction is stated here rather than left to be inferred.
 """
 import re
 import sys
@@ -297,6 +308,81 @@ def main():
               f"SKILL.md documents a default of {doc_default.group(1)} rounds but the "
               f"renderer falls back to "
               f"{m_fallback.group(1) if m_fallback else '<not found>'}")
+
+    # 10 — (Task 2.3 / P7) the behavioral-claim rule and its wiring, as a SET of sites.
+    hg = SKILLS_ROOT / "honest-gates" / "SKILL.md"
+    check("honest-gates present", hg.is_file(), f"{hg} not found")
+    if hg.is_file():
+        hg_text = flat(hg.read_text(encoding="utf-8"))
+        check("honest-gates: behavioral claim is a verification claim",
+              affirms(hg_text, r"sentence asserting behavior[\s\S]{0,120}"
+                               r"claim that something was verified"),
+              "honest-gates does not extend 'a gate is a claim that something was "
+              "verified' to sentences asserting behavior")
+        check("honest-gates: the citation requirement",
+              re.search(r"cite the [`*]*file:line", hg_text, re.I) is not None,
+              "no file:line citation requirement for a behavioral assertion")
+        check("honest-gates sub-rule: a correction is a new claim",
+              re.search(r"correction is a new claim", hg_text, re.I) is not None,
+              "the 'a correction is a new claim' sub-rule is missing")
+        check("honest-gates sub-rule: unrequested specificity",
+              re.search(r"[Uu]nrequested specificity", hg_text) is not None,
+              "the 'unrequested specificity' sub-rule is missing")
+        # The rule's own honesty clause: it must say it is not a script, because
+        # implying a validator exists would be the falsehood the rule forbids.
+        check("honest-gates: discloses that no script can enforce this",
+              re.search(r"cannot be a script", hg_text, re.I) is not None,
+              "the section does not disclose that it is a discipline, not a validator")
+        # The hard cases. A citation rule that only covers positive single-locus claims
+        # leaves the most error-prone class — proving a negative — unguided.
+        #
+        # Plain search, NOT affirms(): this rule is *about* negative claims, so its prose
+        # necessarily quotes them ("not a line", "no caller reaches X"). Third time this
+        # distinction has come up — affirms() belongs only where a negated restatement
+        # would invert the rule, never where the rule's subject matter is itself negative.
+        check("honest-gates: absence claims cite the search, not a line",
+              re.search(r"absence claim[\s\S]{0,240}(scope|grep)", hg_text, re.I)
+              is not None,
+              "no guidance for an absence claim ('nothing wires this'), where there is "
+              "no single file:line and the claim is only as strong as the search scope")
+        check("honest-gates: aggregate claims routed to the sweep rule",
+              affirms(hg_text, r"(emergent|aggregate) [\s\S]{0,200}sweep"),
+              "no guidance for a claim over a set, which the class-predicate rule "
+              "already covers — leaving the two rules unconnected")
+
+    p7_sites = [
+        ("Tier-1 review brief",
+         section(text, r"\*\*Quick review gate \(Tier 1\)", r"\n   - \*\*Critical")),
+        ("Tier-2 review brief",
+         section(text, r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance")),
+        ("docs-only Tier-1 skip",
+         section(text, r"\*\*Skip for trivial/non-code diffs",
+                 r"7\. \*\*Commit after each green task")),
+    ]
+    for label, block in p7_sites:
+        check(f"P7 site present: {label}", bool(block),
+              f"could not locate the {label} block")
+        check(f"P7 rule referenced at: {label}",
+              affirms(block, r"behavioral claim|claims? about what the code does|"
+                             r"behavioral claims"),
+              f"{label} does not ask the reviewer to check behavioral claims")
+    docs_skip = p7_sites[2][1]
+    check("docs-only skip names the executable-behavior exception",
+          re.search(r"[Ee]xception[\s\S]{0,120}executable behavior", docs_skip) is not None,
+          "the docs-only skip does not carve out docs that assert executable behavior")
+    # Every token in the message is actually checked — a Tier-1 review caught the first
+    # version naming "commands" in the failure text while omitting it from the tuple.
+    claim_kinds = ("commands", "flags", "env vars", "exit codes")
+    missing_kinds = [tok for tok in claim_kinds if tok not in docs_skip]
+    check("docs-only exception lists the claim kinds it covers",
+          not missing_kinds,
+          f"the exception does not name these claim kinds, so a docs diff asserting "
+          f"them would still auto-skip Tier 1: {', '.join(missing_kinds)}")
+    check("docs-only exception turns on asserting, not merely mentioning",
+          re.search(r"asserting[\s\S]{0,40}not[\s\S]{0,20}mentioning|"
+                    r"asserting a fact about", docs_skip, re.I) is not None,
+          "the exception's trigger is not scoped to *asserting* a fact — 'naming' a "
+          "flag would make nearly every docs diff in this file non-trivial")
 
     check("sweep examined a non-empty set", scanned > 0,
           "no markdown files scanned — an empty sweep is not a pass")

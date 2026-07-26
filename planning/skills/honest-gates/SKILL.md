@@ -68,6 +68,57 @@ Preflight blockers (repo/SDK/device marked FAILED) are BLOCKED gates by
 definition. Building "around" them and declaring later gates green is the exact
 failure this skill prevents.
 
+## A behavioral claim is a gate too
+
+Everything above governs claims about *verification runs*. The same rule governs
+claims about *what the code does* — because **a sentence asserting behavior is
+itself a claim that something was verified**, and it is read by people who will
+act on it without re-checking.
+
+So when you write, into a doc, README, skill, comment, commit message or report,
+an assertion about behavior — what a flag defaults to, what a command exits with,
+what invokes what, what is auto-detected, what a script covers — **cite the
+`file:line` you checked it against.** In a commit message or an adjacent comment
+is fine; the citation does not have to survive into user-facing prose, it has to
+have existed when the sentence was written. If you did not open the file, you do
+not have the claim. "It's obviously true" and "it was true last time" are the two
+ways this goes wrong.
+
+**When there is no single line to cite**, the requirement does not lapse — it
+changes shape:
+
+- **An absence claim** ("nothing wires this", "no caller reaches X", "no validator
+  checks Y") is proved by a *search*, not a line. Cite the query and the scope it
+  ran over (`grep -rn 'foo' planning/skills/` → no matches), because the claim is
+  only as strong as the scope, and a scope narrower than the reader assumes is how
+  an absence claim turns out false. An empty result over the wrong tree is not
+  evidence.
+- **An emergent or aggregate claim** ("the suite is hermetic", "every plugin
+  ships a README") is a claim about a set — write it as the sweep that proves it,
+  per the class-predicate rule (`planning-projects`), and cite the sweep. If you
+  cannot express it as a sweep, weaken the sentence until it matches what you
+  actually checked.
+
+Two rules with teeth, both drawn from observed failures rather than principle:
+
+- **A correction is a new claim.** Discovering that a sentence was wrong tells you
+  the old text was wrong; it does not tell you the replacement is right. Verify the
+  replacement against the source, exactly as if no sentence had been there. This has
+  happened here: commit `178f988` ("correct two factual overreaches in the new
+  prose") introduced three *new* false claims, caught three commits later by
+  `edaeba2`, whose own message names the cause — corrections written from a
+  reviewer's negative finding without verifying the positive claim replacing it.
+- **Unrequested specificity is where errors hide.** A model pin nobody asked for, a
+  count ("all 14 plugins"), an "every"/"never", a version number, a precise path —
+  these read as authority and are rarely checked. Verify it or omit it. Vaguer and
+  true beats specific and wrong; if the specific number matters, go get it.
+
+**This one cannot be a script.** No validator can decide whether an English
+sentence asserts behavior, so there is no `check-behavioral-claims.py` and this
+section is deliberately a write-time discipline plus a thing reviewers look for
+(`executing-plans`, both review tiers). Saying so is itself the rule: claiming a
+guard exists here would be the very falsehood the section forbids.
+
 ## Reporting
 
 When you report status, every gate is one of: **GREEN** (real command + passed,

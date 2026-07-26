@@ -360,10 +360,12 @@ Every task follows this loop. No task is "done" until its test is green.
 3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work.
-6. **Quick review gate (Tier 1).** Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. Handle the verdict by severity:
+6. **Quick review gate (Tier 1).** Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. **Brief it to check behavioral claims too** — every sentence in the diff asserting what the code does (a default, an exit code, what invokes what, a count, an "every") is verified against the source or flagged, per `honest-gates` § *A behavioral claim is a gate too*. Handle the verdict by severity:
    - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
    - **Important / Suggestion → advisory.** Do not act on them now. Append them to the plan file as a note under the task (`**Review notes (Task N.M):** …`) so the stage gate's deep review (Step 3.5) can triage the batch. They never block the task.
    - **Skip for trivial/non-code diffs.** Docs-only, config-only, pure version-bump, or comment-only diffs don't need Tier 1 — note the skip and proceed. Honor a `Review: skip` task annotation and the global opt-out (see References) the same way.
+
+     **Exception — docs that assert executable behavior are not a trivial diff.** A docs change **asserting a fact about** commands, flags, env vars, exit codes, default values, file paths or invocation examples makes exactly the claims `honest-gates` § *A behavioral claim is a gate too* governs, and prose is where they go unchecked longest — there is no compiler and no test. Such a diff does **not** auto-skip Tier 1; review it for whether each claim matches the source. The test is *asserting*, not *mentioning*: merely naming a flag in a heading, a link or an unchanged code sample claims nothing and still skips, as does a typo fix or a reworded sentence asserting nothing executable. When the diff does make such an assertion, the reviewer reads the cited source file to check it — the Tier-1 dispatch is scoped to the task *diff*, which bounds what it reviews, not what it may read.
 
    This is a context-hygiene **and** quality move: the review burns its own tokens but keeps bad code from compounding across tasks. It does **not** pause to ask the user — it pauses only to fix autonomously within budget, preserving run-to-completion.
 7. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`). The commit includes the work, any Tier-1 fixes, and the flipped `Status: [x]`. This is non-negotiable and assumes the Preflight git bootstrap ran — the per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed stage gate then adds its own `"Stage N green"` commit (Step 3.5): you keep **both** granularities, the per-task commits *and* the per-stage marker — never collapse to only one.
@@ -450,8 +452,12 @@ per the **exit criterion** below, which applies to *every* gate pass and not onl
 to one reached through the failure branch. Suggestions are recorded. This is the only
 point where findings are reviewed against the *coherent stage*, so cross-task
 issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
-abstraction that should have been shared) surface here. Skip only on the same
-opt-out as Tier 1.
+abstraction that should have been shared) surface here. **Brief it to audit the
+stage's behavioral claims** as a set — every assertion the stage's diff makes about
+what the code does, checked against the source, per `honest-gates` § *A behavioral
+claim is a gate too*. The stage view is where a claim that was true when written
+and false after a later task shows up; the per-task pass cannot see that. Skip only
+on the same opt-out as Tier 1.
 
 **Decisions-conformance check (gate criterion, not advisory).** Check the stage's
 cumulative diff against the decisions in force.
