@@ -47,6 +47,34 @@ NON_COMPONENTS = {
 }
 
 
+# Punctuation that may precede the "/" of a real component token, IN ADDITION to any
+# whitespace. Deliberately an ALLOW-list of characters that cannot be part of a path,
+# not a deny-list and not "any punctuation": widening it that way readmits
+# `<repo>/docs/`, `~/dev/`, `./foo.md` and `<plugin>/skills/`, which are exactly the
+# false positives this boundary exists to reject. Adding a character here means
+# asserting it never appears mid-path.
+#
+# Whitespace is tested with str.isspace() rather than listed, because listing it is
+# how the first cut of this dropped 31 of 89 tokens: it enumerated space and tab but
+# not newline, silently un-checking every token that begins a line.
+TOKEN_START_PUNCT = set("`([{\"'*|,;")
+
+
+def token_starts(text, body):
+    """Yield the group tuples of `body` matches whose "/" genuinely starts a token.
+
+    Splitting the boundary decision out of the token-body regex is the point. The
+    previous form folded both into one lookbehind that recognised only line-start,
+    whitespace and backtick, so a token written directly after other punctuation —
+    `(/planning:compass)`, `[/loadout set rust]` — was never extracted at all and a
+    fabrication in that position passed silently.
+    """
+    for m in re.finditer(body, text, re.MULTILINE):
+        i = m.start()
+        if i == 0 or text[i - 1].isspace() or text[i - 1] in TOKEN_START_PUNCT:
+            yield m.groups()
+
+
 def plugin_dirs():
     return {p.name for p in REPO.iterdir()
             if p.is_dir() and (p / ".claude-plugin" / "plugin.json").exists()}
@@ -81,15 +109,8 @@ def main():
 
     checked, unresolved = [], []
 
-    # A slash token is only a command when the "/" begins a word — at line start,
-    # after whitespace, or after a backtick — and is not itself a path segment
-    # (nothing may follow the name that continues a path). Without this, path
-    # fragments like ~/dev/, <repo>/docs/ and ./foo.md all look like commands.
-    START = r"(?:(?<=^)|(?<=\s)|(?<=`))"
-
     # /plugin:component
-    for plugin, name in re.findall(START + r"/([a-z0-9-]+):([a-z0-9-]+)\b(?!/)",
-                                   text, re.MULTILINE):
+    for plugin, name in token_starts(text, r"/([a-z0-9-]+):([a-z0-9-]+)\b(?!/)"):
         checked.append(f"/{plugin}:{name}")
         if plugin not in plugins:
             unresolved.append(f"/{plugin}:{name} — no such plugin '{plugin}'")
@@ -99,7 +120,7 @@ def main():
                 f"and no {plugin}/commands/{name}.md")
 
     # bare /command (no colon, so not the qualified form above)
-    for name in re.findall(START + r"/([a-z0-9-]+)(?![:\w/-])", text, re.MULTILINE):
+    for (name,) in token_starts(text, r"/([a-z0-9-]+)(?![:\w/-])"):
         if name in BUILTINS or name in plugins:
             continue
         checked.append(f"/{name}")

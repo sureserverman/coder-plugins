@@ -113,6 +113,52 @@ for frag in ["Set `vault_dir` in ~/.claude/config.yaml\n",
     # Pair each fragment with one real token so the sweep is non-empty.
     check(run("/run-thing\n" + frag) == 0, f"no false positive: {frag.strip()[:38]}")
 
+print("group 3b — punctuation-adjacent tokens ARE extracted (BL-023)")
+# The old lookbehind recognised a token only at line start, after whitespace, or
+# after a backtick, so a token written directly after other punctuation was never
+# extracted — and a fabrication in that position passed silently. Each positive
+# below pairs a REAL token shape with a FABRICATED one: the real form must pass and
+# the fabricated form must fail, which together prove the token is being read rather
+# than merely tolerated.
+for opener, closer, label in [("(", ")", "parentheses"),
+                              ("[", "]", "square brackets"),
+                              ("{", "}", "braces"),
+                              ('"', '"', "double quotes"),
+                              ("'", "'", "single quotes"),
+                              ("*", "*", "markdown emphasis"),
+                              ("|", "|", "table cell"),
+                              (",", "", "comma"),
+                              (";", "", "semicolon")]:
+    check(run(f"See {opener}/alpha:do-thing{closer} here.\n") == 0,
+          f"real token after {label} resolves")
+    check(run(f"See {opener}/alpha:nope{closer} here.\n") == 1,
+          f"FABRICATED token after {label} is caught")
+check(run("Try [/loadout set rust] now.\n") == 0, "bracketed loadout profile resolves")
+check(run("Try [/loadout set nosuch] now.\n") == 1, "bracketed BAD loadout profile is caught")
+
+print("group 3b2 — tokens at every whitespace boundary, not just offset 0")
+# The bug this group exists for: the first tokenizer enumerated space and tab but
+# not newline, so every token beginning a LINE stopped being checked — 31 of 89 on
+# the real file — while every fixture above still passed, because a fixture token
+# sits at offset 0 where the i==0 branch carries it. A positive-only test at offset
+# 0 cannot see this class at all.
+check(run("Intro line.\n/alpha:nope\n") == 1, "fabrication at the start of a LATER line is caught")
+check(run("Intro line.\n/alpha:do-thing\n") == 0, "real token at the start of a later line resolves")
+check(run("Intro.\r\n/alpha:nope\r\n") == 1, "fabrication after a CRLF line break is caught")
+check(run("a\t/alpha:nope\n") == 1, "fabrication after a tab is caught")
+check(run("a  /alpha:nope\n") == 1, "fabrication after a space is caught")
+
+print("group 3c — widening the boundary did not readmit path fragments")
+# These are the regression risk, not the positives above: every one of them sits
+# directly before a "/" and must still be rejected as a path, not a token.
+for frag in ["Clone into ~/dev/coder-plugins today\n",
+             "Artifacts land in <repo>/docs/workflows/ here\n",
+             "See [the contract](./plugin-readme-contract.md)\n",
+             "Run <plugin>/skills/decisions/scripts/x.py now\n",
+             "Paths like a/b/c and x-y/z should be inert\n",
+             "Version 1.2/3.4 is not a command\n"]:
+    check(run("/run-thing\n" + frag) == 0, f"still no false positive: {frag.strip()[:40]}")
+
 print("group 4 — an empty sweep is a failure, not a pass")
 try:
     rc = run("Prose with no tokens at all.\n")
