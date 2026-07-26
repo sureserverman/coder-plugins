@@ -36,11 +36,21 @@ grep -q 'ENV_FILE' "$BLOCK" || { echo "FAIL: extraction missed the .env fold-in"
 fail=0
 DOTENV=""   # optional .env content for the next run()
 LAST_DIR=""
+DEFAULT_DIR_OVERRIDE=""   # set to a path != COMPOSE_DIR to exercise the
+                          # out-of-tree (positional compose dir) message branch
 run() {  # run(env-assignments...) in a fresh compose dir; echoes "<exit>|<output>"
   local d="$TMP/case$RANDOM$RANDOM"; mkdir -p "$d"
   [ -n "$DOTENV" ] && printf '%s\n' "$DOTENV" >"$d/.env"
+  # DEFAULT_COMPOSE_DIR must be passed explicitly: the extracted block is taken
+  # from below where up.sh assigns it, and the exit-4 message branches on
+  # COMPOSE_DIR = DEFAULT_COMPOSE_DIR. Leaving it unset compared against "" and
+  # silently exercised the out-of-tree branch for every case. Default to $d so
+  # equality holds (the bundled-dir branch), unless a case overrides it.
+  local defdir="${DEFAULT_DIR_OVERRIDE:-$d}"
   local out rc=0
-  out="$(cd "$d" && env "$@" COMPOSE_DIR="$d" ENV_FILE="$d/.env" bash -c "source '$BLOCK'" 2>&1)" || rc=$?
+  # -u so the block runs under the same shell options as up.sh itself.
+  out="$(cd "$d" && env "$@" COMPOSE_DIR="$d" DEFAULT_COMPOSE_DIR="$defdir" \
+         ENV_FILE="$d/.env" bash -c "set -Eeuo pipefail; source '$BLOCK'" 2>&1)" || rc=$?
   printf '%s|%s' "$rc" "$out"
   LAST_DIR="$d"
 }
@@ -62,7 +72,17 @@ UNSET=(-u APK_DIR -u SCREENSHOT_DIR)   # truly unset, not exported-empty
 
 echo "case 1 — APK_DIR unset, placeholder default absent => loud failure"
 expect "unset APK_DIR errors" 4 "set neither in the environment nor in" "$(run "${UNSET[@]}")"
-expect "names the bundled-plugin cause" 4 "not your project" "$(run "${UNSET[@]}")"
+# Assert the bundled-dir wording specifically. "not your project" appears in BOTH
+# message branches, so asserting only that passed even when the wrong branch ran.
+expect "names the bundled-plugin cause" 4 "the bundled plugin dir" "$(run "${UNSET[@]}")"
+
+echo "case 1b — a positional (out-of-tree) compose dir gets the other wording"
+DEFAULT_DIR_OVERRIDE="$TMP/some-other-default"
+expect "out-of-tree wording" 4 "the compose dir you passed" "$(run "${UNSET[@]}")"
+DEFAULT_DIR_OVERRIDE=""
+
+echo "case 1c — exported-empty APK_DIR is diagnosed as empty, not as unset"
+expect "empty-not-unset diagnosis" 4 "APK_DIR is exported but empty" "$(run -u SCREENSHOT_DIR APK_DIR=)"
 
 echo "case 2 — APK_DIR set but nonexistent => loud failure naming the value"
 expect "bad APK_DIR errors" 4 "APK_DIR is set to '/tmp/definitely-not-here'" \
@@ -137,5 +157,5 @@ grep -qF 'screenshot_dir="${SCREENSHOT_DIR:-./play-screenshots}"' "$UP_SH" \
 
 [ "$fail" -eq 0 ] || { echo; echo "FAILED"; exit 1; }
 echo
-echo "OK — 11 cases: missing APK_DIR fails loudly (exit 4), screenshot dir created (exit 5 on failure),"
+echo "OK — 14 cases: missing APK_DIR fails loudly (exit 4), screenshot dir created (exit 5 on failure),"
 echo "     env-then-.env precedence matches compose, defaults stay in sync with compose.yaml"

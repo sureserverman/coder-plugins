@@ -177,7 +177,14 @@ screenshot_dir="${SCREENSHOT_DIR:-./play-screenshots}"
 # prevent.
 if [ ! -d "$apk_dir" ]; then
   echo "error: APK directory does not exist: $apk_dir" >&2
-  if [ -z "${APK_DIR:-}" ]; then
+  if [ -v APK_DIR ] && [ -z "$APK_DIR" ]; then
+    # Diagnose with the same `[ -v ]` semantics the resolver above uses: an
+    # exported-empty APK_DIR IS set, so saying it is unset would be false.
+    echo "       APK_DIR is exported but empty. Compose treats that as set and" >&2
+    echo "       ignores $ENV_FILE for it, falling through to the placeholder" >&2
+    echo "       default resolved against $PWD. Give it a real absolute path, or" >&2
+    echo "       unset it entirely to let $ENV_FILE apply." >&2
+  elif ! [ -v APK_DIR ]; then
     echo "       APK_DIR is set neither in the environment nor in" >&2
     echo "       $ENV_FILE, so this is the placeholder default resolved against" >&2
     if [ "$COMPOSE_DIR" = "$DEFAULT_COMPOSE_DIR" ]; then
