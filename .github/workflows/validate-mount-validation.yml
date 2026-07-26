@@ -1,0 +1,35 @@
+name: validate-mount-validation
+
+# Guards the android-dev emulator stack's mount-source validation. up.sh must
+# reject a missing APK_DIR loudly (exit 4) instead of letting podman create an
+# empty directory for the bind source — which would surface as "no APK found"
+# from inside the container minutes later. It must also resolve APK_DIR /
+# SCREENSHOT_DIR from the environment and then .env, the precedence compose
+# itself uses; an earlier revision checked only the environment and so rejected
+# the .env-only setup the READMEs recommend. Cases 5-8 of the suite pin that.
+#
+# The suite runs the validation block extracted verbatim from up.sh, so it needs
+# neither podman nor a built image — only bash.
+
+on:
+  push:
+    paths:
+      - 'android-dev/skills/android-mcp-orchestrator/scripts/up.sh'
+      - 'android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh'
+      - 'android-dev/infrastructure/compose.yaml'
+  pull_request:
+    paths:
+      - 'android-dev/skills/android-mcp-orchestrator/scripts/up.sh'
+      - 'android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh'
+      - 'android-dev/infrastructure/compose.yaml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check up.sh syntax
+        run: bash -n android-dev/skills/android-mcp-orchestrator/scripts/up.sh
+      - name: Validate mount-source validation
+        run: bash android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh

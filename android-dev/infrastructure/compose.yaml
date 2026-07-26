@@ -9,10 +9,17 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      # Mount app debug APK dir (build app first)
-      - ../../matrix-synapse-manager-android/app/build/outputs/apk/debug:/apks:ro
-      # Screenshots written here
-      - ../../matrix-synapse-manager-android/play-screenshots:/screenshots
+      # Mount app debug APK dir (build app first). Override with APK_DIR.
+      # The default is relative to the directory compose runs in — pass an
+      # absolute APK_DIR (or set it in .env) to mount a project that does not
+      # live there. The previous sibling-repo path
+      # (../../matrix-synapse-manager-android/...) is now an override, not a
+      # default: a marketplace plugin cannot ship a default pointing at one
+      # personal repo.
+      - ${APK_DIR:-./app/build/outputs/apk/debug}:/apks:ro
+      # Screenshots written here. Override with SCREENSHOT_DIR — same
+      # relative-to-compose-dir rule and same sibling-repo note as APK_DIR.
+      - ${SCREENSHOT_DIR:-./play-screenshots}:/screenshots
     environment:
       # Emulator IPs for adb -H (static IPs, adb server port 5037)
       EMULATOR_HOSTS: "10.89.0.10:5037,10.89.0.11:5037,10.89.0.12:5037"

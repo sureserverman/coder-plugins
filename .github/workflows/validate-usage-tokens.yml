@@ -1,0 +1,30 @@
+name: validate-usage-tokens
+
+# Guards docs/USAGE.md against naming a component that does not exist. It is the
+# one doc that spans plugins, so it is the easiest place for a renamed or deleted
+# skill/agent/command to go stale — and two fabrications have already shipped in
+# it (a `/loadout tech` that was never a profile, and a stale `/rust-review`).
+#
+# Deliberately NOT path-filtered. The tokens this resolves live in docs/USAGE.md,
+# but what they resolve *against* is every plugin's component tree, so renaming an
+# agent anywhere can invalidate the doc without touching it. Path filters here
+# would be the "guard that never runs on the change that broke it" trap this repo
+# has already fixed twice (see 1271e4c, b250d15).
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Fixture tests for the guard
+        run: python3 scripts/tests/test-check-usage-tokens.py
+      - name: Every component named in docs/USAGE.md resolves
+        run: python3 scripts/check-usage-tokens.py

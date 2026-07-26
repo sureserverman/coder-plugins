@@ -30,8 +30,16 @@ The "MCP server" is **not** registered with Claude Code as an MCP. It is a priva
 
 `run.sh` is the one-shot wrapper: brings the stack up, executes a sequence of JSON-RPC calls from stdin, then **always** tears the stack down via an `EXIT` trap.
 
+**Set `APK_DIR` first.** It is the host directory mounted read-only at `/apks`, and it has no working
+default — the shipped default is a placeholder relative to the plugin's own `infrastructure/` dir, so
+`up.sh` exits **4** with a guiding message if you omit it. `SCREENSHOT_DIR` (mounted at `/screenshots`)
+defaults the same way but is created for you; set it whenever you want the PNGs somewhere specific. Both
+accept absolute paths, and both can live in `infrastructure/.env` instead of the command line.
+
 ```bash
 # Any Android app (no mock-synapse):
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
 skills/android-mcp-orchestrator/scripts/run.sh <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
@@ -40,6 +48,8 @@ tools/call capture-emulator-screenshots {"loginFlow":"none","navItemCount":5,"la
 EOF
 
 # Matrix Synapse Manager (needs mock-synapse):
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
 skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
@@ -56,7 +66,8 @@ Use the paired form **only** when you need to call the MCP from multiple separat
 
 ```bash
 trap 'skills/android-mcp-orchestrator/scripts/down.sh --mock' EXIT
-skills/android-mcp-orchestrator/scripts/up.sh --mock
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+  skills/android-mcp-orchestrator/scripts/up.sh --mock
 skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
 # ... more calls ...
 ```
@@ -66,7 +77,7 @@ skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
 | Tool | Use |
 |------|-----|
 | `start-android-tablet-emulators` | Verify adb connectivity to all 3 emulators. Call this first to confirm readiness. AVDs are created automatically by the container entrypoint. |
-| `install-app-on-emulators` | Install APK; pass `apkPath` (default: `/apks/app-debug.apk`). Mount the app's APK dir in compose. |
+| `install-app-on-emulators` | Install APK; pass `apkPath` (default: `/apks/app-debug.apk`). Point `APK_DIR` at the host dir mounted as `/apks` (absolute path; see the plugin README). |
 | `launch-app` | Launch **any** app: `packageName`, optional `activity`. |
 | `capture-emulator-screenshots` | Capture N screenshots per device. For any app: set `launchPackage`, `loginFlow: "none"`, `navItemCount` (3–10). For Matrix Synapse Manager: `loginFlow: "matrix-synapse"` (requires mock-synapse). |
 | `matrix-synapse-login` | **Only for Matrix Synapse Manager:** add server + login (mock Synapse). Ignore for other apps. |

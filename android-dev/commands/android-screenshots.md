@@ -41,11 +41,20 @@ The user invoked this command with: $ARGUMENTS
 
 Always use `scripts/run.sh` from the orchestrator skill. It auto-generates the auth token on first run, builds and starts the stack, runs your JSON-RPC sequence, and tears everything down (even on error) via an EXIT trap. Do NOT call `up.sh` without arranging teardown.
 
+**Resolve the two mount paths before invoking.** `APK_DIR` is the host directory mounted at `/apks` and
+has no working default — omit it and the stack exits **4** before starting anything. `SCREENSHOT_DIR` is
+where the PNGs land on the host (mounted at `/screenshots`); it is created if missing. Use absolute paths
+for both, taken from the project under test, or set them in `infrastructure/.env`. The examples below show
+them inline; always set `SCREENSHOT_DIR` too when the mode captures screenshots, or the PNGs land inside
+the installed plugin.
+
 For modes `full` / `login`, pass `--mock` so the mock-synapse container is started.
 
 Example invocation for `full`:
 
 ```bash
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
 skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
@@ -57,6 +66,8 @@ EOF
 For `capture` (no login, current screen):
 
 ```bash
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
 skills/android-mcp-orchestrator/scripts/run.sh <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call capture-emulator-screenshots {"loginFlow":"none","navItemCount":5,"tabLabels":["Accounts","Rooms","Info","Config"]}
@@ -66,6 +77,7 @@ EOF
 For `login` only:
 
 ```bash
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
 skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
@@ -91,7 +103,7 @@ It MUST be empty. If any containers remain, run `skills/android-mcp-orchestrator
 
 Show the user:
 - How many screenshots were captured
-- The file paths under `play-screenshots/` on the host (the container's `/screenshots/` is volume-mounted there)
+- The file paths under `$SCREENSHOT_DIR` on the host (the container's `/screenshots/` is volume-mounted there) — report the resolved path you actually used, not a fixed directory name
 - Read and display one screenshot from each device as a sample
 
 ### Emulator details
