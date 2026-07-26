@@ -422,6 +422,34 @@ def main():
               "master-plan-format.md no longer scopes sub-plan Parallel to sessions — a "
               "sweep may have collapsed it into the task-level dispatch obligation")
 
+    # 11c — the CONSUMING skill's own copy of the defect. Stage 1 rewrote the field's
+    # definition in planning-projects, but `dispatching-parallel-agents` Phase 1 still
+    # said "|S| < 2 → execute sequentially" and listed "|S| = 1 — no parallelism; just
+    # execute" under *When NOT to use this skill*. So an executor that read the fixed
+    # definition, obeyed `executing-plans`' "dispatch via dispatching-parallel-agents",
+    # and opened that skill was told to inline after all — the field's authoring site and
+    # its dispatch site disagreeing is the same contradiction Stage 1 exists to remove,
+    # one file downstream. Found while dispatching Stage 2's own lone YES task, which
+    # this line would have blocked.
+    dpa = SKILLS_ROOT / "dispatching-parallel-agents" / "SKILL.md"
+    dpa_text = flat(dpa.read_text(encoding="utf-8")) if dpa.is_file() else ""
+    check("dispatching-parallel-agents/SKILL.md is readable", bool(dpa_text),
+          "cannot verify the lone-task dispatch rule without the dispatch skill")
+    # affirms_predicate for the same reason as the planning-projects sibling above: the
+    # subject is an absence ("no concurrent sibling" / "|S| = 1"), so a negation screen
+    # over the whole phrase would reject the wording that satisfies it.
+    check("a lone dispatchable task is still dispatched, not returned to the caller",
+          affirms_predicate(dpa_text, r"\|S\| = 1", r"single dispatch"),
+          "the dispatch skill does not state that |S| = 1 still dispatches")
+    check("only an EMPTY set returns control to the caller",
+          affirms(dpa_text, r"\|S\| = 0 returns control to the caller"),
+          "the dispatch skill does not scope the early return to |S| = 0")
+    banned_dpa = re.search(r"\|S\| < 2|no parallelism; just execute", dpa_text)
+    check("no threshold makes a lone YES task skip dispatch",
+          banned_dpa is None,
+          f"the |S|<2 escape is back in the dispatch skill: "
+          f"{banned_dpa.group(0) if banned_dpa else ''}")
+
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0

@@ -49,7 +49,11 @@ From the current stage, identify tasks where:
 - Every task in `Depends on` is in the completed set (check TodoWrite or plan status notes)
 - The task has not already been dispatched or completed
 
-Call this set **S**. If |S| < 2, there's no parallelism to exploit — return to the caller and execute sequentially.
+Call this set **S**. A lone ready task is **still dispatched**: |S| = 1 runs as a single
+dispatch rather than a fan-out, and is never a reason to hand the task back to the caller.
+Having nothing to run alongside it is a fact about *concurrency*, while `Parallel: YES` is
+a *delegation* directive — two different properties (`../planning-projects/SKILL.md` § the
+`Parallel` field). Only |S| = 0 returns control to the caller with nothing to do.
 
 ## Phase 2 — Guard against file conflicts
 
@@ -207,7 +211,7 @@ Return to `executing-plans` (or the calling session) with:
 
 - Tasks are related (one fix might fix others) — investigate as a group first
 - You don't have a plan — brainstorm and plan before dispatching
-- |S| = 1 — no parallelism; just execute
+- |S| = 0 — nothing is dispatchable yet (a `Depends on` is still red). **|S| = 1 is not on this list**: a lone `Parallel: YES` task is dispatched as a single dispatch, per Phase 1
 - Tasks touch shared state (same file, same DB schema, same CI job) — force sequential
 - The stage gate is ready to run — gates are a synchronization point; don't dispatch past them
 
