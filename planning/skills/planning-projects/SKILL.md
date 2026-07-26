@@ -606,9 +606,20 @@ reader — "reads coherently", "the flow works end-to-end", a conformance judgme
 the evaluator instead of trying to make prose executable. Those two shapes cover every
 legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
 
-This is enforced mechanically rather than left to discipline — see Stage 1 Tasks 1.2–1.3 of
-`plans/2026-07-26-gate-oscillation-p2-p6-p7-plan.md`, which add
-`scripts/validate-gate-checks.py` and wire it into `executing-plans`' critique phase.
+This is enforced mechanically rather than left to discipline. `scripts/validate-gate-checks.py`
+classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PROSE, and
+`executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before
+you present it:
+
+```bash
+python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>
+```
+
+**A newly authored plan must come back clean** — zero INSTANCE-SHAPED. Existing plans predate
+the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
+deliberate, because a check executors learn to route around protects nothing. Calibrated
+against 357 real gate checks; its known limits, including the one escape hatch left open, are
+stated in the script's own docstring.
 
 ### When a stage gate fails
 

@@ -196,6 +196,24 @@ but never over *finishing the work*.
 3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies? (The parallel-conflict and stage-oversize checks are moot for a light plan — one stage, inline execution.)
 4. **If concerns exist, surface them to the user before starting.** A plan with an unrunnable test or a dependency cycle will waste an entire Red-Green budget before the problem is found
 
+4a. **Classify the plan's gate checks** — run
+   `python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>`
+   and surface the result with the other critique concerns. An **INSTANCE-SHAPED** check
+   names one artifact where the goal is a property of many, so it *cannot fail on the
+   siblings that make the defect class* — they survive the gate, and each survivor costs
+   another remediation round. Catching that here is the cheapest it will ever be.
+
+   **Advisory on an existing plan, mandatory on a new one.** Every plan written before
+   this rule predates it, and retro-failing them would only teach executors to route
+   around the check — so a flagged *existing* plan is a reported concern you note and
+   execute anyway, while `planning-projects` may not present a *newly authored* plan that
+   fails it. Say which case you are in when you report the result.
+
+   The `(judgment)` marker is the sanctioned escape hatch, not a loophole: a check that
+   genuinely needs a reader carries it and routes to the evaluator at Step 3.5. A plan
+   with **no** marked checks and **no** executable sweeps is usually a plan whose gates
+   were never written to be run.
+
 5. **Read the plan's `## Decisions in force`.** These are the constraints the plan was
    written under — the architectural decisions the register holds, carried into the plan
    file precisely so a session that never reads the register still implements under them.

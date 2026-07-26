@@ -1,0 +1,35 @@
+name: validate-gate-checks
+
+# Guards the gate-check classifier that keeps set-valued gate checks from being
+# written as claims about one artifact. An instance-shaped check cannot fail on the
+# siblings that make a defect class, so they survive the gate and each one costs
+# another remediation round — the failure mode this classifier exists to prevent.
+#
+# Deliberately NOT path-filtered, for the same reason as validate-usage-tokens: the
+# classifier's verdicts depend on plan files that live in the vault (outside this repo)
+# as well as on the script, so a path filter would recreate the
+# guard-never-runs-on-the-change-that-broke-it trap already fixed twice here
+# (1271e4c, b250d15).
+#
+# The suite pins the script's own calibration numbers against a live run, so a
+# precision regression fails CI rather than quietly rewriting the docstring's claims.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Fixture suite for the classifier
+        run: python3 planning/skills/planning-projects/tests/test-validate-gate-checks.py
+      - name: Classifier runs clean over the in-repo plan fixtures
+        run: |
+          python3 planning/skills/planning-projects/scripts/validate-gate-checks.py --quiet \
+            planning/skills/portfolio/tests/fixtures/plan-parser/*.md
