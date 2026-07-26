@@ -94,6 +94,30 @@ check(
     f"got: {[c['title'] for c in dec_light]}",
 )
 
+# Falsifiability: the three fixtures above obey the non-checkbox convention, so
+# they would pass even with no exclusion at all — they prove the format is safe,
+# NOT that the parser enforces it. This one breaks the convention deliberately on
+# the legacy heuristic path (no `- **Status:**` fields anywhere), which is where a
+# stray checkbox in the decisions section really did surface as a false candidate.
+dec_legacy = candidates("2026-05-02-decisions-legacy-plan.md")
+_legacy_titles = [c["title"] for c in dec_legacy]
+check(
+    "legacy path: a checkbox smuggled into `Decisions in force` is EXCLUDED",
+    not any("LEGACYDEC-CHECKBOX-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+check(
+    "legacy path: the prose decision bullet never surfaces either",
+    not any("LEGACYDEC-PROSE-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+check(
+    "legacy path: a genuine unchecked item OUTSIDE the section still surfaces "
+    "(the exclusion is scoped, not a blanket mute)",
+    any("LEGACY-REAL-MARKER" in x for x in _legacy_titles),
+    f"got: {_legacy_titles}",
+)
+
 dec_master = candidates("2026-07-25-decisions-master-plan.md")
 check(
     "Master with a decisions section still yields zero candidates",

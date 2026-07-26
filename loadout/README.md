@@ -88,9 +88,11 @@ With no arguments it reports the current project's loadout and what is enabled. 
 baseline and layer a task overlay on top:
 
 ```text
-/loadout tech rust            # sticky — persists in .claude/loadout.json, committed
-/loadout task security-audit  # overlay — adds sec-audit for this line of work
-/loadout reset                # clear both
+/loadout set rust             # sticky baseline — persists in .claude/loadout.json, committed
+/loadout add security-audit   # task overlay (also: /loadout +security-audit)
+/loadout remove security-audit
+/loadout clear                # drop overlays, keep the baseline
+/loadout reset                # drop both — back to global enabledPlugins
 ```
 
 The baseline answers "what is this project built in"; overlays answer "what am I doing right now".

@@ -18,7 +18,7 @@ section — that inverts the guard into a way of recording what you skipped.
 Exceptions: scripts/doc-coverage-allow.txt, one `plugin/component` per line with
 a written reason after `#`, mirroring frontmatter-budget-allow.txt.
 
-Run: python3 scripts/check-doc-coverage.py [--summary] [--plugin NAME] [--max-missing N]
+Run: python3 scripts/check-doc-coverage.py [--summary] [--plugin NAME]
 """
 from __future__ import annotations
 

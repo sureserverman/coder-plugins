@@ -198,6 +198,12 @@ def render_text(result):
         _render_row(r)
     for e in result["errors"]:
         print(f"register error: {e}", file=sys.stderr)
+    # Symmetric with the domain half above. Omitting these made text mode hide a
+    # duplicate-DEC-id collision that --format json reported — and text mode is the
+    # documented normal invocation, so the degrade-never-drop contract was being
+    # honoured only for callers who happened to ask for JSON.
+    for e in result.get("project_errors", []):
+        print(f"project register error: {e}", file=sys.stderr)
 
 
 def _render_row(r):

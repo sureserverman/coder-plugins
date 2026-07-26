@@ -111,6 +111,27 @@ combined.update(dr.project_digest(FIXV, "nowhere", "ghost-project"))
 chk(len(combined["global"]) == 1,
     "global half was lost when the project half was absent — the greenfield path is broken")
 
+# --- project half: absent but REGISTERED -------------------------------------
+# Distinct from the unregistered case: the reason text differs, and that
+# distinction is the whole point of consulting the registry. Injecting a fixture
+# registry also makes this file hermetic — without it, project_digest falls
+# through to the real ~/.claude/projects-registry.yaml on whoever's machine runs
+# the suite, and the "registered" branch is never exercised at all.
+REG = HERE / "fixtures" / "registry.yaml"
+r = dr.project_digest(FIXV, "ai-tools", "registered-but-empty", registry=REG)
+chk(r["project_register"] == "absent", "registered-but-empty should still be absent")
+chk("registered but has" in r["project_reason"],
+    f"registered branch not taken; reason was: {r['project_reason']!r}")
+
+# ...and the unregistered branch must take the OTHER message against the same
+# fixture registry, so the two are proven distinguishable rather than assumed.
+r2 = dr.project_digest(FIXV, "nowhere", "ghost-project", registry=REG)
+chk("not in the projects registry" in r2["project_reason"],
+    f"unregistered branch not taken; reason was: {r2['project_reason']!r}")
+
+chk(dr.registered_names(REG) == {"registered-but-empty"},
+    f"fixture registry parsed wrong: {dr.registered_names(REG)}")
+
 # --- no project identified --------------------------------------------------
 n = dr.project_digest(FIXV, "", "")
 chk(n["project_register"] == "absent", "no-project-given did not degrade to absent")
