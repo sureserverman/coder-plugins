@@ -418,6 +418,25 @@ grades its own work too generously; external judgment catches what
 self-assessment misses. Skip the evaluator only if the user opts out or every
 check in the gate is a command.
 
+**Brief it to grade by severity, not just pass/fail.** A bare per-criterion
+pass/fail gives the loop nothing to terminate on, because a fresh judgment agent
+reading a real artifact essentially always finds *something*. So require, for each
+finding, exactly one of:
+
+| Severity | Meaning | Consequence |
+|----------|---------|-------------|
+| **Blocking** | the goal in scope is not met — the stage's at a gate, the plan's at close-out | must be fixed; the gate does not pass |
+| **Material** | real defect, goal still met | fixed, or recorded to the `backlog` with the user told |
+| **Minor** | nit, polish, taste | recorded; never blocks |
+
+This is the same three-tier shape as the reviewer's Critical / Important /
+Suggestion and resolves to the same **exit criterion** below — Blocking maps to
+Critical, Material to Important, Minor to Suggestion. Two scales, one gate: an
+evaluator FAIL that carries no Blocking finding is a **pass with recorded
+residuals**, not a failure. Tell the evaluator that a report listing only Material
+and Minor findings is a legitimate PASS verdict, or it will withhold PASS to seem
+rigorous and hand the loop back an unsatisfiable condition.
+
 **Deep code review (Tier 2).** The evaluator above verifies *goals* (black-box,
 briefed only on criteria). Add a complementary *white-box* pass: dispatch
 `git-github:code-reviewer` (read-only) over the **full stage diff** (`git diff`
@@ -573,7 +592,7 @@ Write the full file (overwrite, don't patch) at each transition:
 |------|-------|
 | Preflight starts | `phase: "preflight"` |
 | A task starts (incl. re-entering its Red-Green loop) | `phase: "task"`, `stage`, `task` ("2.3"), `task_desc` |
-| A stage gate runs | `phase: "gate"`, `stage` |
+| A stage gate runs | `phase: "gate"`, `stage`, and on a re-run `remediation_round` (+ `remediation_budget` if the plan overrode the default 2) |
 | Close-out starts | `phase: "closeout"` |
 | A Stop condition halts execution | `phase: "blocked"`, `stage`/`task` if known, `note` (one line, e.g. "cycle budget exhausted") |
 | Close-out finishes (last step) | **delete the file** |
@@ -588,6 +607,13 @@ Schema (all on one line is fine):
 
 `plan` is the plan file's path — absolute, or relative to the repo root.
 Always refresh `updated` (the renderer marks state older than 12h as stale).
+
+`remediation_round` is optional and only meaningful with `phase: "gate"` — set it
+when a gate is being re-run after a failure, so the bar reads
+`◆ S2 gate ↻2/2` and a loop that is quietly on its third round is visible rather
+than inferred. Omit it on a gate's first run. `remediation_budget` is likewise
+optional and only changes the denominator; with neither field the gate renders
+exactly as before.
 Done/total counts are **not** in the file — the renderer derives them from the
 plan's authoritative `Status:` fields, so a forgotten update can never show
 wrong progress, only a wrong current-task label. The file is ephemeral session
@@ -631,7 +657,7 @@ When every stage is green:
 
 1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
-3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail. A FAIL here is a stop condition: surface it to the user before merge. Skip only on explicit user opt-out.
+3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail **plus a severity for every finding** (Blocking / Material / Minor — same vocabulary as the gate evaluator in Step 3.5). **A Blocking finding is the stop condition** — surface it to the user before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on explicit user opt-out.
 4. **Bump versions for what changed.** A completed plan almost always shifts a
    shippable version somewhere — bump it as part of close-out, don't leave it for
    later. Walk the artifacts the plan touched and apply a SemVer bump to each

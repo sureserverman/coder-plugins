@@ -35,6 +35,10 @@ What it pins:
      as a single instance via the banned singular phrase (see BANNED_PHRASE below).
      Written as a sweep because that is the rule Stage 1 introduced — an
      instance-shaped check cannot fail on the siblings that make the class.
+  8. (Task 2.2) Both evaluator briefs — the Step 3.5 gate evaluator and the close-out
+     evaluator — grade findings by severity (Blocking / Material / Minor) rather than
+     bare pass/fail, the close-out stop condition is scoped to Blocking, and the
+     reason a silent detector is not the bar is stated at both sites.
 """
 import re
 import sys
@@ -210,7 +214,7 @@ def main():
           re.search(r"sweep", gate_fail, re.I) is not None,
           "the class sweep is not required at re-verification")
 
-    # 6 — sweep: no instance-shaped framing survives anywhere under planning/skills/
+    # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0
     # Every file, not just *.md — the Stage 2 gate runs `grep -r` over the whole
@@ -225,6 +229,75 @@ def main():
             if BANNED_PHRASE in line:
                 rel = path.relative_to(SKILLS_ROOT.parent.parent)
                 offenders.append(f"{rel}:{i}")
+    # 8 — (Task 2.2) the evaluator briefs. Two sites, checked as a set for the same
+    # reason as #6: the gate evaluator and the close-out evaluator are siblings, and
+    # giving only one of them a severity vocabulary leaves the other unsatisfiable.
+    evaluator_sites = [
+        ("gate evaluator (Step 3.5)",
+         section(text, r"\*\*Independent evaluator for non-command checks",
+                 r"\*\*Deep code review")),
+        ("close-out evaluator",
+         section(text, r"\*\*Independent evaluator pass \(default\)", r"\n4\. \*\*Bump")),
+    ]
+    for label, block in evaluator_sites:
+        check(f"site present: {label}", bool(block), f"could not locate the {label} block")
+        for level in ("Blocking", "Material", "Minor"):
+            check(f"severity '{level}' in brief: {label}", level in block,
+                  f"{label} does not brief the evaluator to return '{level}'")
+        check(f"silent-detector rationale at: {label}",
+              re.search(r"not a reachable state|essentially (always|never)|"
+                        r"almost never", block, re.I) is not None,
+              f"{label} does not say why 'no adverse findings' cannot be the bar")
+
+    close_out = evaluator_sites[1][1]
+    # One alternative only. A Tier-1 review flagged the second (`stop condition …
+    # Blocking` within 80 chars) as dead weight that would also match "…is the stop
+    # condition. Blocking findings especially matter" — prose that does NOT narrow the
+    # condition. The precise form is the one that fires against the real text.
+    check("close-out stop condition scoped to Blocking",
+          affirms(close_out, r"Blocking finding is the stop condition"),
+          "the close-out stop condition is not narrowed to Blocking findings — any FAIL "
+          "still blocks merge, which is the unsatisfiable exit this task removes")
+    # Plain search, NOT affirms(): this claim is affirmative in meaning but negative in
+    # wording ("is *not* a merge blocker"), so the negation guard rejects it correctly
+    # and uselessly. affirms() belongs only where a negated restatement would invert the
+    # rule — using it reflexively is how a guard becomes a maintenance tax.
+    #
+    # The emphasis markers must be tolerated: the source reads `is *not* a merge
+    # blocker`, so a literal `not a merge blocker` never matches. A Tier-1 review caught
+    # this passing only via a loose `|residual` fallback that ordinary boilerplate
+    # satisfies — i.e. the assertion was green while pinning nothing.
+    check("close-out Material FAIL does not block merge",
+          re.search(r"Material[\s\S]{0,120}is \*?not\*? a merge blocker",
+                    close_out, re.I) is not None,
+          "a Material-only FAIL is not distinguished from a Blocking one")
+    check("close-out Material findings are recorded, not just mentioned",
+          affirms(close_out, r"record each Material finding[\s\S]{0,40}backlog"),
+          "Material findings are reported without an imperative to record them")
+
+    # 9 — drift guard. The renderer hardcodes the default budget as its denominator when
+    # `remediation_budget` is absent, which duplicates the number stated in the skill
+    # prose. Nothing coupled them, so a prose edit to "default 3 rounds" would have left
+    # the statusline silently rendering /2. Assert the two agree.
+    doc_default = re.search(r"[Rr]emediation budget\s*—\s*default\s+(\d+)\s+rounds?",
+                            flat(text))
+    check("skill text states a default remediation budget", doc_default is not None,
+          "could not find 'Remediation budget — default N rounds' in SKILL.md")
+    renderer = SKILL.parent / "scripts" / "plan-progress.py"
+    check("renderer present", renderer.is_file(), f"{renderer} not found")
+    if doc_default and renderer.is_file():
+        code = renderer.read_text(encoding="utf-8")
+        # Anchored on the assignment line, not a character window: the first attempt used
+        # `remediation_budget[\s\S]{0,300}?else (\d+)` and the explanatory comment added
+        # between the two pushed the distance to 327, silently reporting "<not found>".
+        m_fallback = re.search(r"^\s*total\s*=\s*budget\b.*?else\s+(\d+)",
+                               code, re.M)
+        check("renderer default budget matches the documented default",
+              m_fallback is not None and m_fallback.group(1) == doc_default.group(1),
+              f"SKILL.md documents a default of {doc_default.group(1)} rounds but the "
+              f"renderer falls back to "
+              f"{m_fallback.group(1) if m_fallback else '<not found>'}")
+
     check("sweep examined a non-empty set", scanned > 0,
           "no markdown files scanned — an empty sweep is not a pass")
     check(f"no {BANNED_PHRASE!r} under planning/skills/", not offenders,
