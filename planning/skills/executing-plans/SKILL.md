@@ -72,7 +72,9 @@ gate and surfaces only at the master close-out — the most expensive place to f
 3. **On a sub-plan's close-out** (its `**Completed:**` line just landed): flip the
    master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
    checks (they prove integration with previously completed sub-plans — a failure here
-   is handled like any stage-gate failure, traced to the culprit sub-plan/task), append
+   is handled like any stage-gate failure — same severity classification, remediation
+   budget and exit criterion — traced to the responsible sub-plan/task or to the defect
+   class it belongs to), append
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
@@ -113,8 +115,11 @@ running at full weight:
    `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
    across all the light plan's commits). Handle its verdict exactly like the Tier-2 stage
    review: a **Critical** blocks close-out just as a Tier-2 Critical fails a gate (fix
-   within the same discipline, re-run test + review), and Important/Suggestion findings
-   are surfaced for the user's triage, not auto-fixed. Skip only on the usual opt-out /
+   within the same discipline, re-run test + review), and Important findings are surfaced
+   for the user's triage rather than auto-fixed — but they are still bound by the **exit
+   criterion** (Step 3.5), so each one leaves the gate either fixed or recorded to the
+   `backlog` with the user told. A light plan is a small plan, not one where findings
+   evaporate. Skip only on the usual opt-out /
    trivial-diff rules — so an entirely docs-only light plan skips it too (zero reviews is
    correct there, exactly as a docs-only task auto-skips Tier-1 in a Standard plan); the
    one review is guaranteed only when the plan's diff carries reviewable code. **This
@@ -419,8 +424,11 @@ briefed only on criteria). Add a complementary *white-box* pass: dispatch
 across the stage's commits) **plus the collected Tier-1 advisory notes**
 (`**Review notes (Task N.M):**` lines accumulated during the stage). This is a
 gate criterion, not advisory — a **Critical** finding here is a **gate failure**
-(handle it via the "If the gate fails" steps below). Important/Suggestion findings
-are surfaced for the user's triage at the gate, not auto-fixed. This is the only
+(handle it via the "If the gate fails" steps below). Important findings are not
+auto-fixed, but they are **not free either**: they are surfaced for the user's
+triage and each one leaves the gate either fixed or recorded to the `backlog`,
+per the **exit criterion** below, which applies to *every* gate pass and not only
+to one reached through the failure branch. Suggestions are recorded. This is the only
 point where findings are reviewed against the *coherent stage*, so cross-task
 issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
 abstraction that should have been shared) surface here. Skip only on the same
@@ -449,14 +457,69 @@ next reader trusts it.
 Skip only when the stage's diff is genuinely non-code (docs-only, version-bump-only) and
 no decision in force bears on documentation.
 
+**Exit criterion — what "the gate passed" means.** This governs **every** gate pass,
+not only one reached by repairing a failure, and it is the single definition the
+checks above and the procedure below both resolve to:
+
+> A gate passes when **no Critical finding remains**, and **every Important finding
+> is either fixed or recorded to the `backlog` with the user told**. Suggestions are
+> recorded, never blocking.
+
+The criterion is deliberately *not* "the detector returned silent". A fresh judgment
+agent essentially never reports zero adverse findings, so "no findings" is not a
+reachable state, and a gate whose exit condition cannot be satisfied is not a gate —
+it is a loop. Recording is not dropping: an Important that is not fixed leaves the
+gate as a backlog ID, never as silence. An Important-only result is therefore a
+**pass with an obligation**, not a clean pass — if nothing was recorded and the user
+was not told, the gate has not passed yet.
+
 **If the gate fails:**
 
-1. Identify which task interaction caused it (gate failures are usually integration problems, not single-task problems)
-2. Add a new test covering that interaction to the relevant task
-3. Run that task through its Red-Green loop again
-4. Re-run the failed check(s) and any check whose inputs the fix touched — not every gate check from scratch
+Treat the failure as a **defect class sampled once**, not a point defect. Detection
+at a gate is goal-scoped (the evaluator re-reads the whole artifact every round)
+while repair defaults to instance-scoped — so a class with N instances costs ≈N
+rounds, each one looking like fresh news. Triage before repairing, and bound the
+loop.
 
-**If the gate passes:** mark the stage complete, append the stage's handoff note to the plan (see Context resets below), commit with `"Stage N green"`, and start Step 3.1 for the next stage.
+1. **Classify every finding by severity** — the same **Critical / Important /
+   Suggestion** taxonomy the review tiers already use (Step 3.3 rule 6), so a gate
+   finding and a review finding are graded on one scale rather than two.
+2. **Identify what caused it, and name the set it belongs to.** A gate failure is
+   usually an integration problem rather than one task's bug. Beyond the task
+   interaction, name the set the finding quantifies over — the other files,
+   callers, examples or docs that could carry the same defect. Repairing the
+   instance and leaving its siblings is what converts one class into N rounds.
+3. **Add a test covering that interaction** to the relevant task. Where the finding
+   is set-valued, that test is the **sweep over the set** (the class-predicate rule
+   in `../planning-projects/SKILL.md`), not a check on the single file that failed —
+   an instance-shaped check cannot fail on the siblings that make the class.
+4. **Run that task through its Red-Green loop again.**
+5. **Re-verify narrowly, plus the sweep.** Re-run the failed check(s), any check
+   whose inputs the fix touched, and the step-3 class sweep — not every gate check
+   from scratch.
+
+**Remediation budget — default 2 rounds per gate.** One round is classify →
+repair → re-verify. It is a default, and a plan may override it by stating a
+different number of remediation rounds on the stage; **count the rounds and report
+the count** in the gate report ("gate green — remediation round 2 of 2"). An
+uncounted loop is how a gate reaches its fourth round with nobody noticing the
+third.
+
+**Stop repairing when the exit criterion above is met** — no Critical remaining,
+every Important fixed or recorded. Do not spend a round chasing Suggestions, and do
+not spend one trying to make a judgment agent go quiet.
+
+**On budget exhaustion, escalate with the residual list.** Report the findings
+that remain, their severities, and how the rounds were spent. This is a documented
+**Stop condition** (below) — not a failure to hide, and not a licence to keep
+looping. The user decides between another round, returning to
+`planning-projects`, and shipping with the residual recorded.
+
+**If the gate passes** (per the exit criterion above — including its obligation to have
+recorded every unfixed Important and told the user): mark the stage complete, append the
+stage's handoff note to the plan (see Context resets below), commit with `"Stage N green"`,
+and start Step 3.1 for the next stage. The gate report states the remediation rounds spent
+and any residual findings recorded, so "green" never reads as "nothing was found".
 
 ---
 
@@ -548,7 +611,7 @@ Stop immediately and escalate to the user when:
 
 - Preflight fails
 - A task exhausts its Red-Green cycle budget
-- A stage gate fails and re-running the culprit task doesn't fix it after one additional cycle
+- A stage gate's remediation budget is exhausted — the responsible task(s), or the defect class they belong to, were re-run and Critical findings remain (escalate with the residual list)
 - The plan contains an instruction you don't understand
 - A test cannot be run (missing fixture, unreachable service, unclear invocation)
 - Verifying the test requires modifying shared infrastructure (production DB, live service) — see Safety rails below
@@ -633,6 +696,8 @@ When every stage is green:
 - Run to completion: stage gates are checkpoints, not approval gates — don't stop between green stages to ask permission
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
+- Respect the gate's **remediation budget** too — 2 rounds by default, counted and reported; a gate passes when no Critical remains and every Important is fixed or recorded, never when the detector finally goes quiet
+- Repair the defect **class**, not the instance the gate happened to sample — name the set, sweep it
 - Stage gates check integration, not just aggregate task success; invoke the platform stage-verify skill there when one matches the project
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not
 - Commit each green task; never squash silently during execution
@@ -661,7 +726,7 @@ When every stage is green:
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only when the user opts out or every check is a command.
-- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, advisories are surfaced for triage). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
+- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
   reshapes functionality to fit (behavior changes gated through `workflow-spec` with
