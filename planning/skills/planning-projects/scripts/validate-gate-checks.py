@@ -32,8 +32,8 @@ corpus exists, i.e. locally. On CI the corpus is absent and those assertions ski
 the pin catches drift on a developer machine and NOT in CI. Vendoring a real-plan
 corpus into the repo would close that; until then this caveat is the honest statement:
 
-  - Calibrated against 399 gate checks in 42 real plans: 158 EXECUTABLE,
-    11 JUDGMENT, 23 INSTANCE-SHAPED, 207 PROSE. Those 23 are legacy non-compliance, which is why
+  - Calibrated against 415 gate checks in 43 real plans: 166 EXECUTABLE,
+    15 JUDGMENT, 23 INSTANCE-SHAPED, 211 PROSE. Those 23 are legacy non-compliance, which is why
     `executing-plans` treats this as advisory on existing plans and mandatory only for
     newly authored ones.
   - A check carrying BOTH a narrow command and explicitly plural language ("`grep -c x

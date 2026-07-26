@@ -304,7 +304,8 @@ Stage N: [Name]
     Task N.1: [description]
       Depends on: [prior task(s) or "none"]
       Blocks:     [task(s) that wait on this one, or "none"]
-      Parallel:   YES | NO  (can a sub-agent run this concurrently?)
+      Parallel:   YES | NO  (an instruction to the executor — YES obligates dispatch to a
+                  subagent; it is not a note about whether a sibling task runs alongside it)
       Scope:      [the SET this task changes — omit when it changes exactly one thing]
       Test:       [concrete pass/fail criterion]
 
@@ -375,15 +376,23 @@ Every task and stage carries two dependency fields — this makes the graph navi
 
 These fields are symmetric: if Task 2.1 depends on Task 1.3, then Task 1.3 must list Task 2.1 in its Blocks field. This redundancy is intentional — when a task finishes, you can immediately see what it unblocks without scanning the entire plan.
 
-Mark each task's **Parallel** field:
-- **YES** if the task has no unfinished dependencies (all its `Depends on` items are green or "none") — it can be dispatched to a sub-agent immediately
-- **NO** if it's blocked — list which dependency is blocking it
+Mark each task's **Parallel** field. It is a directive to the executor, not a description
+of the task: `executing-plans` dispatches every `Parallel: YES` task to a subagent (its
+Step 3.2), it does not merely note that a subagent *could* handle it.
+- **YES** if the task has no unfinished dependencies (all its `Depends on` items are green
+  or "none") — it is dispatched, whether or not another ready task exists to run alongside
+  it. A lone ready task with no concurrent sibling is still dispatched, not inlined for
+  lack of one.
+- **NO** if it's blocked — list which dependency is blocking it. (Once unblocked, `NO`
+  defaults to the main session, but `executing-plans` may still delegate it to a subagent
+  on its own context-hygiene criteria — that decision doesn't depend on having a
+  concurrent sibling either.)
 
 ### Ordering rules
 
 1. **Stages are sequential.** Stage 2 does not start until Stage 1's gate passes
 2. **Tasks within a stage follow their dependency graph.** If Task B needs output from Task A, Task A comes first — this isn't optional, it's structural
-3. **Independent tasks can run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other, they can be worked simultaneously
+3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Parallel: YES` carries
 4. A task cannot enter its Red-Green loop until every task it depends on is green
 
 ### Risk flags
