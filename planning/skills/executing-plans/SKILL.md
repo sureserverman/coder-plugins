@@ -357,7 +357,7 @@ Every task follows this loop. No task is "done" until its test is green.
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
-2. **Diagnose before fixing.** Read the actual error. Form a hypothesis. Confirm against the code. Then write the fix.
+2. **Diagnose before fixing.** Read the actual error. Form a hypothesis. Confirm against the code. Then write the fix. On the second RED cycle for the same task, stop improvising and invoke `no-fafo-debugging` — one failed targeted fix is bad luck, two is a sign the hypothesis is wrong rather than the patch, and that is the point at which evidence-first diagnosis is cheaper than a third guess.
 3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work.
@@ -510,15 +510,43 @@ loop.
 1. **Classify every finding by severity** — the same **Critical / Important /
    Suggestion** taxonomy the review tiers already use (Step 3.3 rule 6), so a gate
    finding and a review finding are graded on one scale rather than two.
-2. **Identify what caused it, and name the set it belongs to.** A gate failure is
-   usually an integration problem rather than one task's bug. Beyond the task
-   interaction, name the set the finding quantifies over — the other files,
-   callers, examples or docs that could carry the same defect. Repairing the
-   instance and leaving its siblings is what converts one class into N rounds.
+2. **Diagnose evidence-first, then name the set it belongs to.** Invoke
+   `no-fafo-debugging` here — this is the most fix-prone moment in the whole
+   workflow (a failed gate, under a bounded round budget), which is exactly where
+   "Fix And Forget" produces a plausible-looking repair for a misdiagnosed cause.
+   The order matters and is not decorative: a set derived from a wrong root cause is
+   a *wrong set*, so the class sweep in step 3 would then sweep confidently over the
+   wrong population and report green. Evidence first, then generalize.
+
+   Then name the set the finding quantifies over — the other files, callers,
+   examples or docs that could carry the same defect. **Derive it, in this order:**
+
+   a. **The failing task's `Scope:` field**, if it declares one — that is what the
+      field is for (`../planning-projects/SKILL.md` § Scope marking). It is a
+      starting point, not an authority: a `Scope:` is only as good as the sweep
+      behind it, and a truncated authoring command is a documented way for one to
+      arrive short.
+   b. **When no `Scope:` exists, or the finding escapes it, enumerate one now** —
+      run the sweep the check should have been: grep the defect's distinguishing
+      string across the repo, list every sibling of the failing artifact's kind
+      (`ls <plugin>/commands/*.md`), or list every caller of the changed symbol.
+      **Write the command down in the gate report**, so the next round argues with
+      a command rather than a recollection.
+   c. **Reconcile the two.** If (b) found members (a) did not, the task's `Scope:`
+      was wrong — fix the plan's `Scope:` line as part of the repair, or the same
+      gap recurs on the next task that trusts it.
+
+   A gate failure is usually an integration problem rather than one task's bug.
+   Repairing the instance and leaving its siblings is what converts one class into
+   N rounds.
 3. **Add a test covering that interaction** to the relevant task. Where the finding
-   is set-valued, that test is the **sweep over the set** (the class-predicate rule
-   in `../planning-projects/SKILL.md`), not a check on the single file that failed —
-   an instance-shaped check cannot fail on the siblings that make the class.
+   is set-valued, that test is the **sweep over the set derived in step 2** (the
+   class-predicate rule in `../planning-projects/SKILL.md`), not a check on the
+   single file that failed — an instance-shaped check cannot fail on the siblings
+   that make the class. Fix **every member the sweep returns in this round**, not
+   just the one the gate happened to report: a class repaired one instance per round
+   is the oscillation the budget exists to bound, and bounding it is not the same as
+   converging.
 4. **Run that task through its Red-Green loop again.**
 5. **Re-verify narrowly, plus the sweep.** Re-run the failed check(s), any check
    whose inputs the fix touched, and the step-3 class sweep — not every gate check

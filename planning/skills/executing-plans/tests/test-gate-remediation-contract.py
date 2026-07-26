@@ -253,6 +253,49 @@ def main():
           re.search(r"sweep", gate_fail, re.I) is not None,
           "the class sweep is not required at re-verification")
 
+    # 5b — the set has a DERIVATION SOURCE, not just an instruction to name it (P1).
+    # "name the set" was already present and was not enough: naming is not deriving,
+    # and a set produced from recollection is how a class arrives one member short.
+    check("the set is derived from the task's Scope: field",
+          affirms(gate_fail, r"`?Scope:`?[^.]{0,80}field|field'?s? `?Scope:`?"),
+          "step 2 does not name the task's Scope: field as the derivation source")
+    # Plain re.search, NOT affirms(): this phrase's subject is an absence ("when no
+    # `Scope:` exists"), so the negation guard would reject the very wording that
+    # satisfies the requirement.
+    check("a missing Scope: has a stated fallback",
+          re.search(r"(no `?Scope:`?|when no scope)[^.]{0,120}enumerate",
+                    gate_fail, re.I | re.S) is not None,
+          "there is no procedure for deriving the set when the task declares no Scope:")
+    check("the derived sweep command is recorded in the gate report",
+          affirms(gate_fail, r"write the command down|command down in the gate report"),
+          "the derivation is not required to be written down, so the next round re-guesses")
+    check("every member found is fixed in the SAME round",
+          affirms(gate_fail, r"every member[^.]{0,80}this round|fix every member"),
+          "repair may still proceed one instance per round, which is oscillation")
+
+    # 6b — no-fafo-debugging is routed AT the diagnosis step, not merely mentioned (P4).
+    # A bare reference anywhere in the file would satisfy a naive grep and change
+    # nothing, so position is the assertion: it must sit inside the gate-failure
+    # block, and before the set is named.
+    check("no-fafo-debugging is referenced in the gate-failure procedure",
+          "no-fafo" in gate_fail,
+          "the gate-failure procedure never routes to no-fafo-debugging")
+    # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
+    # ("Diagnose evidence-first, then name the set…") already contains "name the set"
+    # and states the order itself, so anchoring there compares against the wrong point.
+    fafo_at = gate_fail.find("no-fafo")
+    derive_at = gate_fail.lower().find("derive it")
+    check("step 2's heading orders diagnosis before naming",
+          affirms(gate_fail, r"diagnose evidence-first, then name the set"),
+          "step 2 does not state diagnosis-before-generalization in its own heading")
+    check("no-fafo is routed BEFORE the set is derived",
+          fafo_at != -1 and derive_at != -1 and fafo_at < derive_at,
+          "diagnosis is not ordered before generalization, so a wrong root cause "
+          "yields a confidently-swept wrong set")
+    check("the ordering rationale is stated, not just the order",
+          affirms(gate_fail, r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
+          "nothing explains why diagnosis must precede generalization")
+
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0
