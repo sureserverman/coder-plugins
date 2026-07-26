@@ -161,8 +161,8 @@ start whether or not you use it. Two mechanisms keep that bounded.
 **`loadout`** — a per-project sticky baseline plus task overlays:
 
 ```text
-/loadout tech rust
-/loadout task security-audit
+/loadout set rust
+/loadout add security-audit
 ```
 
 Applies to your **next** session; Claude Code reads `enabledPlugins` once at startup.

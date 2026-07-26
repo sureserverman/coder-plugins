@@ -83,6 +83,51 @@ as `git-github:code-reviewer` with no "if installed" fallback.
 
 `gh` (GitHub CLI) is required for `create-pr`, `repo-health`, and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
 
+## Worked example
+
+```text
+/plugin install git-github@coder-plugins
+
+/git-github:code-review
+```
+
+Scopes your working diff and dispatches the read-only `code-reviewer` agent, which returns a
+Critical / Important / Suggestion triage with `file:line` citations and a Final Verdict. It reports
+— it never edits, commits, or merges; acting on the findings is yours.
+
+```text
+/git-github:gate-audit
+```
+
+The complementary question: not "is this code good" but "did the verification actually happen".
+Checks for stubbed gates, tests that never ran, and undisclosed exclusions.
+
+```text
+"commit this"
+```
+
+`create-commit` drafts a message in the repo's existing style via a Haiku subagent and shows it
+before committing. It will not amend and will not `git add -A`.
+
+```text
+"open a PR"
+/git-github:release-tag v1.4.0
+```
+
+`create-pr` reads recent merged PRs for tone, defaults to **draft**, and confirms first.
+`release-tag` drafts an annotated-tag message from the top CHANGELOG entry, confirms before
+tagging, and confirms **again** before pushing.
+
+## Related plugins
+
+- **`planning`** — `executing-plans` consumes `code-reviewer` for its two-tier review (per-task,
+  where a Critical blocks within the Red-Green budget; per-stage at the gate, where a Critical
+  fails it). `honest-gates` defines what a gate may claim; `gate-audit` checks whether yours do.
+- **`testing`** — `testing-expert` reviews the *tests*; `code-reviewer` reviews the code. Distinct
+  axes, both read-only.
+- **`release-promo`** — takes over after `release-tag`; this plugin deliberately does not draft
+  announcements.
+
 ## Design rules
 
 - **Never autonomous on shared state.** Every commit, push, PR open, tag, and release waits for an explicit "yes". The skills surface what they're about to do; you approve.

@@ -5,6 +5,18 @@ shippable project into a commercial decision and keeps it tracked, storing
 artifacts in the vault portfolio homes alongside `MATURITY.md` so the planning
 plugin's `portfolio` and `compass` skills can read business state.
 
+## Install
+
+```text
+/plugin install business@coder-plugins
+```
+
+**Prerequisites.** A configured vault (`vault_dir` in `~/.claude/portfolio-config.yaml`) — every
+artifact is vault-canonical, and the scripts fail loudly rather than writing into your repo. The
+research-backed skills additionally need **WebSearch**; without it they write nothing rather than
+emit an uncited guess. `assess` expects the project to exist in `~/.claude/projects-registry.yaml`
+(the `planning` plugin's `portfolio scan` seeds it).
+
 ## Skills
 
 | Skill | Does |
@@ -74,5 +86,51 @@ plan-parser regexes for `gtm-plan.md` progress — one contract, one implementat
 
 ## Design & plan
 
-- Design: `<vault>/Portfolio/ai-tools/business-planning/plans/2026-07-11-business-plugin-design.md`
-- Plan: `<vault>/Portfolio/ai-tools/business-planning/plans/2026-07-11-business-plugin-plan.md`
+- Design: `<vault>/Portfolio/ai-tools/coder-plugins/plans/2026-07-11-business-plugin-design.md`
+- Plan: `<vault>/Portfolio/ai-tools/coder-plugins/plans/2026-07-11-business-plugin-plan.md`
+
+## Worked example
+
+```text
+/plugin install business@coder-plugins
+
+/business:assess
+```
+
+Triages viability and writes a verdict to `business/BUSINESS.md` — one of *monetize*,
+*free-for-reputation*, *internal-only*, or *park*. A *park* verdict is a real outcome, not a
+failure; the rest of the pipeline is gated on it, so nothing further runs on a project that
+shouldn't be commercialized.
+
+```text
+/business:market-research
+```
+
+Asks for a depth tier (`brief` / `standard` / `deep`) and confirms scope before doing anything.
+Fans out `market-researcher` agents and writes `business/market-research.md` — **cited**. If
+WebSearch is unavailable it writes nothing at all rather than producing a research-shaped file
+from training data.
+
+```text
+/business:revenue-model
+/business:business-plan
+```
+
+The model, pricing and dated targets land in `BUSINESS.md`; the plan composes verdict + model +
+research + GTM + metrics into a twelve-section `business/plan.md`.
+
+```text
+/business:track
+```
+
+Records actuals and diffs them against the targets you set — the step that makes the earlier
+numbers accountable rather than aspirational.
+
+## Related plugins
+
+- **`planning`** — the sibling pipeline for the *engineering* side. `project-maturity`'s
+  ship-readiness verdict gates `launch`; `compass` and `portfolio` read the business state these
+  skills write; `decisions` is where a commercial constraint that binds the architecture belongs.
+- **`release-promo`** — drafts the launch announcements the `gtm-plan.md` checklist calls for.
+- **`git-github`** — `repo-health` and `license-audit` surface the compliance and maintenance
+  facts an honest assessment depends on.

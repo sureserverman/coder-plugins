@@ -30,7 +30,7 @@ Four components — one thin router skill, one full agent, two commands — over
 
 ### Agent
 
-- **`game-design-expert`** — sonnet-pinned, authoring-capable. Six protocols: Stack Detection, Mechanic Design, Feel Tune, Camera Audit, UX Review, Accessibility Audit. Cites sources by name.
+- **`game-design-expert`** — sonnet-pinned, authoring-capable. Seven protocols: Stack Detection, Mechanic Design, Feel Tune, Camera Audit, UX Review, Accessibility Audit. Cites sources by name.
 
 ### Commands
 

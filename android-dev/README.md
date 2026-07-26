@@ -21,7 +21,13 @@ Install the plugin:
 - Podman (for emulator containers and mock servers)
 - Gradle wrapper in the project (`./gradlew`)
 
-The emulator infrastructure (compose stack, Containerfiles, MCP server, mock backend) is bundled in `infrastructure/` — no external repo needed.
+The emulator infrastructure (compose stack, Containerfiles, MCP server, mock backend) is bundled in `infrastructure/` — no external repo needs to be *cloned*.
+
+> **Caveat — the compose file is not yet project-agnostic.** `infrastructure/compose.yaml` currently
+> **hardcodes** a sibling-repo path for both the APK mount and the screenshot output
+> (`../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`), and no
+> `APK_DIR` / `SCREENSHOT_DIR` override exists. To run the stack against a different project you must
+> edit those two lines in `compose.yaml`. Parameterising them is open work.
 
 ## Skills
 
@@ -103,7 +109,7 @@ The F-Droid and Google Play prep flows are now skills (invoke `/android-dev:andr
 
 ### `ui-android`
 
-The Android surface of the per-platform UI expert family (its four siblings — `ui-web`, `ui-gnome`, `ui-macos`, `ui-windows`, plus `ui-garmin` — live in the `ui-design` plugin). It lives here rather than there because Android UI work is inseparable from the Gradle and Compose tooling this plugin owns.
+The Android surface of the per-platform UI expert family (its five siblings — `ui-web`, `ui-gnome`, `ui-macos`, `ui-windows`, `ui-garmin` — live in the `ui-design` plugin). It lives here rather than there because Android UI work is inseparable from the Gradle and Compose tooling this plugin owns.
 
 **What it does.** Designs, reviews, and facelifts Android UI against Material 3 and Jetpack Compose — dynamic color, adaptive layouts and `WindowSizeClass`, predictive back, edge-to-edge, and TalkBack accessibility.
 
@@ -146,7 +152,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 | Artifact | Path | Written by |
 |---|---|---|
 | Debug/release APKs | your project's `app/build/outputs/apk/…` | `android-gradle-build`, `android-stage-verify` |
-| Play Store screenshots | `screenshots/<form-factor>/` in your project | `/android-screenshots` |
+| Play Store screenshots | `play-screenshots/` on the host (see the caveat below) | `/android-screenshots` |
 | Emulator stack env (random `MCP_AUTH_TOKEN`) | `infrastructure/.env` — generated on first run, **not** committed | `android-mcp-orchestrator` `run.sh` |
 | Signing config | per the `android-release-signing` skill; **keystores and passwords never enter the repo** | you, guided by the skill |
 | Mock server sources | generated into your project per the skill's declared output path | `mock-server-from-app-sources` |

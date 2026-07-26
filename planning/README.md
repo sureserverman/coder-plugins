@@ -1,6 +1,6 @@
 # planning
 
-A fifteen-skill pipeline (v0.27.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.29.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -98,7 +98,7 @@ A scoped gate report always discloses what actually ran. Policy lives in `skills
 
 **Two-tier code review.** Execution wires in `git-github`'s read-only `code-reviewer` agent on a distinct axis from the goal-evaluator (*code quality* vs *goal attainment*): **Tier 1** on each green task's diff, where a Critical finding blocks the task and is fixed within the same Red-Green cycle budget; **Tier 2** on the full stage diff at the gate, where a Critical is a gate failure and advisories are surfaced for triage. Trivial/non-code diffs are auto-skipped.
 
-**Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
+**Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `skills/executing-plans/scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
@@ -136,10 +136,10 @@ The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculat
 
 ### `backlog` (v0.4.0+; v0.5.0 adds `unify` + `complete`)
 
-Owns the per-project deferred-work register at `docs/backlog.md`. Append on defer, remove on implement, list on plan research. v0.5.0 adds:
+Owns the per-project deferred-work register at `<portfolio_home>/backlog.md` (vault-canonical — there is no repo mode; a missing `vault_dir` fails loudly). Append on defer, remove on implement, list on plan research. v0.5.0 adds:
 
 - `unify <project-path>` — derive backlog candidates from this project's plans via the parser rules in `portfolio/references/plan-parser.md`. Dedups by exact `Source` string equality. Dry-run by default.
-- `complete <BL-NNN> --summary "<text>"` — archive a backlog item as a short `docs/plans/YYYY-MM-DD-<slug>-done.md` plan-summary and remove the entry. Commit convention `Closes BL-NNN` remains the audit trail.
+- `complete <BL-NNN> --summary "<text>"` — archive a backlog item as a short `<portfolio_home>/plans/YYYY-MM-DD-<slug>-done.md` plan-summary and remove the entry. Commit convention `Closes BL-NNN` remains the audit trail.
 
 **Triggers:** "add to backlog", "defer this", "what's in the backlog", "BL-007 is done", "unify plans and backlog for this project".
 
@@ -224,13 +224,13 @@ constraint drifts, and the copy nobody updated is the one someone implements fro
 
 ### `workflow-spec` (v0.4.0+)
 
-Owns behavior contracts at `docs/workflows/`. Provides `capture`, `extend`, `audit` subcommands so behavior changes can be detected against a versioned spec.
+Owns behavior contracts at `docs/workflows/`. Provides `capture` (draft a spec for a scope), `audit` (regression checklist against a diff), `refresh` (re-verify and re-stamp), and `list` subcommands, so behavior changes can be detected against a versioned spec. There is no `extend` subcommand — extending a spec happens through `capture`.
 
 **Triggers:** "capture this workflow", "audit workflows against the diff", "this PR changes documented behavior".
 
 ### `project-maturity` (since v0.5.0)
 
-Scaffolds and audits a per-project `docs/MATURITY.md` checklist across six publishing-readiness axes: Documentation, Security, Packaging, UI/UX, i18n, Testing & CI. Three subcommands:
+Scaffolds and audits a per-project `<portfolio_home>/MATURITY.md` checklist across six publishing-readiness axes: Documentation, Security, Packaging, UI/UX, i18n, Testing & CI. Three subcommands:
 
 - `init <project-path>` — scaffold MATURITY.md from a template.
 - `audit <project-path> [--write]` — run deterministic auto-detectors (file globs, sec-audit-report findings parse, packaging-recipe presence, locale dirs, CI workflow detection). Dry-run by default. Never overwrites manual `[x] claim:` lines.
@@ -261,7 +261,7 @@ Cross-project orchestrator. Single user-facing entry point that ties registry + 
 - `maturity` — dispatches a sub-agent per project that invokes `project-maturity audit`; surfaces stale claims.
 - `migrate` — moves a project's plans/backlog/maturity from in-repo `docs/` into its vault `portfolio_home`, making the vault canonical. Dry-run first.
 - `integrate` — reads each project's `integration.md` and merges the declared edges into `Portfolio/integration-graph.md` + `integration-backlog.md`. Symmetry gaps are **reported, never auto-repaired**.
-- `rebuild` — regenerates the global roll-ups in the vault: `global-backlog.md`, `global-maturity.md`, `global-decisions.md`, `global-business.md`, `global-security.md`, plus each repo's `PORTFOLIO-STATUS` sidecar block. Preserves a `<! BEGIN PRESERVE !>` ... `<! END PRESERVE !>` block in `global-backlog.md` for hand-curated cross-project items. Writes only with `--write`; **a second consecutive run must produce zero writes**, and that idempotency is a gate every plan touching this lane has to preserve.
+- `rebuild` — regenerates the global roll-ups in the vault: `global-backlog.md`, `global-maturity.md`, `global-decisions.md`, `global-business.md`, `global-security.md`, plus each repo's `PORTFOLIO-STATUS` sidecar block. Preserves a `<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->` ... `<!-- END PRESERVE -->` block (the exact sentinels the parser matches — a hand-authored approximation is silently discarded on the next `rebuild --write`) in `global-backlog.md` for hand-curated cross-project items. Writes only with `--write`; **a second consecutive run must produce zero writes**, and that idempotency is a gate every plan touching this lane has to preserve.
 
 Default flow composes the four in order: `scan → unify (dry-run) → maturity (opt-in during staged rollout) → rebuild`. Idempotent: re-running with no upstream changes produces zero writes.
 

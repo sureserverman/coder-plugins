@@ -31,6 +31,21 @@ Everything **not** in the union is set to `false` for this project. Changes appl
 /loadout detect                auto-pick tech from Cargo.toml / build.gradle / etc.
 ```
 
+## Hook
+
+### `hooks/hooks.json` → `hooks/auto-detect.sh`
+
+Registers one **`SessionStart`** hook. This is the only thing in the plugin that runs without you asking, so it is worth knowing exactly what it does:
+
+- **No-ops when `.claude/loadout.json` already exists** — it only ever acts on a project it has never seen.
+- Runs `scripts/loadout.py detect` to infer a tech baseline from project markers (`Cargo.toml`, `build.gradle`, …).
+- **Silent on any failure, and never blocks session start** — `set -eu` plus explicit `exit 0` on both the already-configured and detection-failed paths.
+- On success emits a JSON `systemMessage` rather than plain stdout, so the notice reaches *you* in the TUI and not just the model.
+
+On detection it writes **both** `.claude/loadout.json` (the baseline, committed) and
+`.claude/settings.local.json` (`enabledPlugins`, gitignored) — `detect` calls the same
+`apply()` every other write path uses, so the hook is not read-only. To opt out entirely, uninstall the plugin or commit a `loadout.json` yourself — the hook will then no-op forever.
+
 A `SessionStart` hook runs `detect` automatically on first entry to any project. Subsequent sessions read the saved baseline. The hook surfaces a `systemMessage` like *"loadout: detected tech=rust. Restart or /clear to apply"* — the very first session in a new project loads with the global default, then scopes down on the second.
 
 ## Custom profiles

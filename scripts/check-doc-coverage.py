@@ -4,9 +4,11 @@
 Enforces the mechanical half of docs/plugin-readme-contract.md:
 
   * every plugin in .claude-plugin/marketplace.json has a README.md;
-  * every component on disk (skills/agents/commands, per the shared PATTERNS in
-    _frontmatter_common.py, excluding /tests/ and /fixtures/) has its name
-    present in that README;
+  * every component on disk has its name present in that README —
+    skills/agents/commands via the shared PATTERNS in _frontmatter_common.py,
+    plus hooks and .mcp.json (which carry no frontmatter, so the shared rules
+    correctly omit them and this guard must not), excluding /tests/ and
+    /fixtures/;
   * the README is not a stub relative to how many components it must cover.
 
 **What this CANNOT check.** It cannot tell a real usage section from a component
@@ -51,16 +53,35 @@ def plugins():
     out = []
     for entry in data.get("plugins", []):
         src = entry.get("source", "./" + entry["name"])
-        out.append((entry["name"], ROOT / src.lstrip("./")))
+        out.append((entry["name"], ROOT / src.removeprefix("./")))
     return sorted(out)
 
 
+# Component types the SHARED PATTERNS deliberately omit. _frontmatter_common
+# exists to reason about context budget, and hooks/MCP carry no frontmatter — so
+# they are correctly absent there and would be wrongly absent here. A hook is a
+# shipped, user-visible component: it runs on the user's machine, and an
+# undocumented one is a behaviour nobody asked for and cannot find the source of.
+EXTRA_PATTERNS = (
+    ("hook", "hooks/*.json"),
+    ("mcp", ".mcp.json"),
+)
+
+
 def components(plugin_dir):
-    """[(kind, name)] shipped by a plugin, using the shared component rules."""
+    """[(kind, name)] shipped by a plugin.
+
+    Skills/agents/commands come from the shared PATTERNS so this guard and the
+    context-budget tooling can never disagree about what a component is; hooks
+    and MCP servers are added on top (see EXTRA_PATTERNS).
+    """
     found = []
     for kind, pattern in fc.PATTERNS:
         # PATTERNS are marketplace-root-relative ("*/skills/*/SKILL.md"); strip
         # the leading plugin segment to glob inside one plugin directory.
+        assert pattern.startswith("*/"), (
+            f"shared PATTERNS entry {pattern!r} is not plugin-root-relative; "
+            "the segment-strip below would glob the wrong subpath")
         sub = pattern.split("/", 1)[1]
         for path in sorted(plugin_dir.glob(sub)):
             posix = "/" + path.relative_to(ROOT).as_posix()
@@ -68,6 +89,15 @@ def components(plugin_dir):
                 continue
             name = path.parent.name if kind == "skill" else path.stem
             found.append((kind, name))
+    for kind, pattern in EXTRA_PATTERNS:
+        for path in sorted(plugin_dir.glob(pattern)):
+            posix = "/" + path.relative_to(ROOT).as_posix()
+            if fc.is_excluded(posix):
+                continue
+            # Hooks are documented by their filename (`hooks.json`) or by the
+            # script they invoke; accept either, so a README that explains what
+            # the hook DOES satisfies the check without naming a JSON file.
+            found.append((kind, path.name))
     return found
 
 

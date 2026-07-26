@@ -30,7 +30,7 @@ All five are pinned to `sonnet` and carry the same tools — `Read`, `Grep`, `Gl
 - **Direct request** — "have `ui-web` run an accessibility audit on `src/checkout/`".
 - **From plan execution** — `planning`'s `dispatching-parallel-agents` selects the right one from the task's stack signal via `references/stack-routing.md` (GTK4 → `ui-gnome`, WCAG/a11y → `ui-web`, `*.mc`/`monkey.jungle` → `ui-garmin`, and so on). `planning:applying-design-handoff` also delegates cross-platform implementation to whichever agent matches the target.
 
-### The six protocols (identical across all five)
+### The six protocols (four identical; `ui-garmin` differs at 5)
 
 Each agent announces its protocol before acting. They compose.
 
@@ -42,6 +42,8 @@ Each agent announces its protocol before acting. They compose.
 | 4 | **Greenfield** | a new surface | a design built to the platform's conventions from the start |
 | 5 | **Accessibility audit** | any UI | contrast, focus order, semantics, assistive-technology behavior |
 | 6 | **Coach** | "why this way?" | a cited explanation, with tradeoffs where the guidance is contested |
+
+**`ui-garmin` differs at Protocol 5**, which is **Power & always-on audit** (watch faces / data fields) rather than an accessibility audit — on a watch, battery cost per frame is the binding constraint. Accessibility concerns there fold into its design-review protocol. The other four agents match the table exactly.
 
 Protocol 1 runs first on anything unfamiliar — a review that assumes the wrong toolkit produces confident, wrong advice.
 

@@ -26,7 +26,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` knowledge-router skill (fires on `*.rs`/`Cargo.toml` edits) + `rust-expert` subagent (author/review/idiomize/audit/migrate modes), over one shared `references/` set. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
 | [`game-dev`](./game-dev) | Source-cited game design/dev: a `game-dev` knowledge-router skill + `game-design-expert` subagent (mechanics, feel/juice, camera, UX/FTUE, accessibility, architecture across Godot/Unity/Unreal) over one shared `references/` set, plus `/game-review`, `/game-mechanic`. |
-| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`scripts/amo-check.py` linter). |
+| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
 | [`ui-design`](./ui-design) | Per-platform UI design, review, and facelift subagents — one expert per surface. |
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
@@ -64,7 +64,7 @@ its namespaced name:
 them:
 
 ```text
-/rust-review HEAD~1        # review a scoped diff for Rust idioms
+"have rust-expert review HEAD~1"   # review/idiomize/project-audit are agent modes
 /game-mechanic grapple     # guided design session for a new mechanic
 /promote-release           # survey the repo, draft posts per channel
 /android-screenshots       # Play Store captures across emulator form factors
