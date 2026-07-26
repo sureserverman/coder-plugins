@@ -12,12 +12,17 @@ Resolution targets:
     /<name>            -> any <plugin>/commands/<name>.md   (bare command form)
     /loadout set X     -> loadout/profiles/tech/X.json
     /loadout add X     -> loadout/profiles/task/X.json
-    **`<name>`**       -> any component of any type, or a plugin name
+    `<name>`           -> any component of any type, or a plugin name
+    **`<name>`**       -> same (the emphasised form is just bolded)
 
-That last form matters because agents are never slash-invocable, so a renamed or
-deleted agent is invisible to the slash-token sweep. The file's convention is to
-emphasise a named thing as ``**`name`**`` — used for agents (`ui-android`), skills
-(`capability-router`) and plugins (`loadout`) alike — so all three resolve here.
+The backtick forms matter because agents are never slash-invocable: of the 15 agent
+names this file mentions, only 4 use the emphasised form, so sweeping slash tokens
+and bold tokens alone left 11 agents plus every skill and plugin mention unchecked.
+Any lowercase-kebab backticked word is treated as a component reference — measured
+against the real file, 53 of 54 such tokens are components, and the one that isn't
+is allow-listed below. Tokens with a dot, slash, underscore or capital (`stack-routing.md`,
+`docs/USAGE.md`, `vault_dir`, `APK_DIR`, `DEC-NNN`) are not component-shaped and are
+skipped, which is what keeps the false-positive rate at zero.
 
 Prints the number of tokens checked: an empty sweep must not read as a pass.
 
@@ -33,6 +38,13 @@ USAGE = REPO / "docs" / "USAGE.md"
 # Slash tokens Claude Code itself provides, or that name a marketplace action
 # rather than a component in this repo.
 BUILTINS = {"plugin", "clear", "help", "config", "loadout"}
+
+# Backticked lowercase-kebab words that are legitimately NOT components. Keep this
+# list short and justified: each entry is a hole in the sweep, so prefer rewording
+# the doc over adding one.
+NON_COMPONENTS = {
+    "promote",   # a `decisions` subcommand, not a component of its own
+}
 
 
 def plugin_dirs():
@@ -103,13 +115,17 @@ def main():
                 f"/loadout {verb} {profile} — no "
                 f"loadout/profiles/{kind}/{profile}.json")
 
-    # **`name`** — the emphasised-component form. Agents appear only this way
-    # (they are not slash-invocable), so without this an agent rename ships silently.
-    for name in re.findall(r"\*\*`([a-z0-9-]+)`\*\*", text):
-        checked.append(f"**`{name}`**")
+    # `name` (bolded or not) — the backtick-component form. Agents are never
+    # slash-invocable and most are named only this way, so without this an agent
+    # rename ships silently. Component-shaped means lowercase kebab: no dot, slash,
+    # underscore or capital, which is what excludes file names and env vars.
+    for name in set(re.findall(r"`([a-z][a-z0-9-]*)`", text)):
+        if name in NON_COMPONENTS:
+            continue
+        checked.append(f"`{name}`")
         if not resolve_any_component(name, plugins):
             unresolved.append(
-                f"**`{name}`** — not a plugin, and no skills/{name}/SKILL.md, "
+                f"`{name}` — not a plugin, and no skills/{name}/SKILL.md, "
                 f"agents/{name}.md or commands/{name}.md in any plugin")
 
     if not checked:

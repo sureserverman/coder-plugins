@@ -80,6 +80,8 @@ check(run("/loadout add release\n") == 0, "loadout task profile resolves")
 check(run("Use **`thing-expert`** for this.\n") == 0, "emphasised agent resolves")
 check(run("Use **`do-thing`** for this.\n") == 0, "emphasised skill resolves")
 check(run("The **`loadout`** plugin.\n") == 0, "emphasised plugin name resolves")
+check(run("Route to `thing-expert` for this.\n") == 0, "plain-backtick agent resolves")
+check(run("The `alpha` plugin ships `do-thing`.\n") == 0, "plain-backtick plugin + skill resolve")
 
 print("group 2 — every fabrication shape is caught")
 check(run("/alpha:nope\n") == 1, "missing component in a real plugin fails")
@@ -88,15 +90,26 @@ check(run("/never-existed\n") == 1, "bare command that resolves nowhere fails")
 check(run("/loadout set nosuch\n") == 1, "missing tech profile fails")
 check(run("/loadout add nosuch\n") == 1, "missing task profile fails")
 check(run("Use **`ghost-expert`** here.\n") == 1, "emphasised nonexistent component fails")
+check(run("Route to `ghost-expert` here.\n") == 1, "plain-backtick nonexistent component fails")
+# The gap that shipped once: agents are usually named in PLAIN backticks, so a
+# renamed agent must not slip through just because it lacks the bold form.
+check(run("Route to `thing-experts` here.\n") == 1, "plain-backtick agent RENAME is caught")
 # A skill referenced as though it were a command of the wrong plugin:
 check(run("/loadout:do-thing\n") == 1, "component attributed to the wrong plugin fails")
 
-print("group 3 — path fragments must not be mistaken for commands")
+print("group 3 — non-component text must not be mistaken for a reference")
 for frag in ["Set `vault_dir` in ~/.claude/config.yaml\n",
              "Artifacts land in <repo>/docs/workflows/\n",
              "See [the contract](./plugin-readme-contract.md)\n",
              "Run <plugin>/skills/decisions/scripts/x.py\n",
-             "It is I/O-bound work\n"]:
+             "It is I/O-bound work\n",
+             # Backticked non-components: env vars (caps), files (dots),
+             # snake_case and ID shapes must all be skipped, or the backtick
+             # sweep would false-positive constantly.
+             "Set `APK_DIR` and `SCREENSHOT_DIR` first\n",
+             "See `stack-routing.md` and `plan-progress.json`\n",
+             "Cite `ARCH-NN` and `DEC-NNN` on task lines\n",
+             "Write `enabledPlugins` to settings\n"]:
     # Pair each fragment with one real token so the sweep is non-empty.
     check(run("/run-thing\n" + frag) == 0, f"no false positive: {frag.strip()[:38]}")
 

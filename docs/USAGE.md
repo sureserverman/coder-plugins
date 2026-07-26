@@ -122,10 +122,12 @@ Then the preflight, before you upload rather than after rejection:
 /planning:project-maturity
 ```
 
-`project-maturity` gives the ship verdict across six axes, and an extension trips the
-auto-detectors on several: **Packaging** reads `chrome/manifest.json` / `mozilla/manifest.json`
-directly, **UI/UX** expects a WCAG 2.1 AA audit for anything web, and **i18n** wants the locale
-catalogs — which is the next flow. Documentation and Security bind as they do everywhere.
+`project-maturity` gives the ship verdict across six axes. Two of them auto-detect an
+extension without you claiming anything: **Packaging** reads `chrome/manifest.json` /
+`mozilla/manifest.json` directly, and **UI/UX** finds an `icons/` directory beside the
+manifest. The accessibility half of UI/UX is a **manual claim** — for web and extensions, a
+WCAG 2.1 AA audit — as is most of what the axes ask for. **i18n** wants the locale catalogs,
+which is the next flow.
 
 ---
 
@@ -169,13 +171,13 @@ rather than defaulting everything to a generalist:
 | Test triage, flakiness, coverage | `testing-expert` | `testing` |
 | Catalog translation batches | `translator` | `i18n` |
 
-A second kind of routing runs *downward*, for cost rather than capability. **`stingy-agents`**
-ships three Haiku-pinned delegation targets — `readonly-scanner` for bulk grep and
-enumeration, `code-generator` for scaffolding from a concrete spec, `skill-rewriter` for
-mechanical markdown edits — so a phase that is I/O-bound doesn't run on a frontier model.
-The audit and review skills in `git-github`, `android-dev` and `infra-build` reference them
-by name today; the stack experts in the table above do not, so treat this as a pattern to
-reach for when writing a skill rather than something the routing table does for you.
+The same table routes *downward* too, for cost rather than capability. **`stingy-agents`**
+ships three delegation targets, each pinned to the smallest model that can do its job —
+`readonly-scanner` (Haiku) for bulk grep and enumeration, `code-generator` and
+`skill-rewriter` (Sonnet) for scaffolding from a spec and for mechanical markdown edits.
+`stack-routing.md` carries a dedicated row for each, so an I/O-bound or boilerplate phase is
+dispatched away from a frontier model automatically. Audit and review skills in `git-github`,
+`android-dev` and `infra-build` also name them directly.
 
 Game work has its own front door, since mechanics are a design problem before a coding one:
 
