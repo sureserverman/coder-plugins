@@ -371,12 +371,56 @@ def main():
           not re.search(r"can a sub-agent run this concurrently|it can be dispatched",
                         pp_text, re.I),
           "a permissive gloss of the Parallel field is still present")
+    # Scoped to the YES bullet, NOT the whole file. A file-wide keyword ban false-positives
+    # on the legitimate NO-task rule — "executing-plans may still delegate it ... at the
+    # executor's discretion" is correct English for sanctioned behavior, and a Tier-2 review
+    # reproduced the failure against a reasonable paraphrase of it. Protect the specific
+    # claim, not every occurrence of ordinary phrasing.
+    #
+    # Honest limit: this narrows the false-positive surface, it does not make the check
+    # evasion-proof. Arbitrary paraphrase inside the YES bullet ("left to the executor's
+    # judgment") can still slip a regex; the affirming checks above are what carry the
+    # requirement, and this is a backstop against the most likely regression, not a proof.
+    yes_bullet = section(pp_text, r"- \*\*YES\*\* if the task has no unfinished",
+                         r"- \*\*NO\*\* if it")
+    check("the YES bullet was locatable for scoped scanning", bool(yes_bullet),
+          "could not isolate the YES bullet — the scoped deny-check is not running")
     permissive = re.search(
         r"may be dispatched|need not be dispatched|dispatch is optional"
-        r"|at the executor.s discretion", pp_text, re.I)
-    check("no phrasing makes dispatch discretionary",
+        r"|at the executor.s discretion|left to the executor.s judgment"
+        r"|optional|inlined instead", yes_bullet, re.I)
+    check("no phrasing makes YES-task dispatch discretionary",
           permissive is None,
-          f"discretionary-dispatch phrasing present: {permissive.group(0) if permissive else ''}")
+          f"discretionary phrasing inside the YES bullet: {permissive.group(0) if permissive else ''}")
+
+    # The third format doc. light-plan-format.md legitimately has NO Parallel field, and
+    # that exclusion was named in the plan's gate but pinned nowhere — the exact
+    # "sibling site the notes name but the sweep omits" class this file warns about a few
+    # checks above, recurring inside the task meant to close it.
+    lpf = SKILLS_ROOT / "planning-projects" / "references" / "light-plan-format.md"
+    if lpf.is_file():
+        lpf_text = flat(lpf.read_text(encoding="utf-8"))
+        check("light-plan-format.md documents the field's ABSENCE, not a permissive gloss",
+              re.search(r"no fan-out|no Risk/Rollback/Blocks/Parallel", lpf_text, re.I)
+              is not None,
+              "light-plan-format.md no longer documents that Light plans have no Parallel field")
+        check("light-plan-format.md never introduces a YES/NO Parallel gloss",
+              not re.search(r"Parallel:\s*(YES|NO)\b", lpf_text),
+              "a task-level Parallel value appeared in the Light format, which has no such field")
+
+    # 11b — TASK-level `Parallel` (subagent dispatch, obligatory) and SUB-PLAN-level
+    # `Parallel` (session/worktree concurrency, permissive) are different mechanisms that
+    # share a field name. executing-plans' own master-plan section says sub-plans "may run
+    # concurrently (separate sessions or worktrees)", so the permissive wording in
+    # master-plan-format.md is CORRECT and must survive. Without this, the next sweep for
+    # permissive dispatch language "fixes" it and silently contradicts the master model.
+    mpf = SKILLS_ROOT / "planning-projects" / "references" / "master-plan-format.md"
+    if mpf.is_file():
+        check("sub-plan-level Parallel stays session-scoped, not subagent dispatch",
+              affirms(flat(mpf.read_text(encoding="utf-8")),
+                      r"separate session/worktree|separate session"),
+              "master-plan-format.md no longer scopes sub-plan Parallel to sessions — a "
+              "sweep may have collapsed it into the task-level dispatch obligation")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []

@@ -383,6 +383,15 @@ Step 3.2), it does not merely note that a subagent *could* handle it.
   or "none") — it is dispatched, whether or not another ready task exists to run alongside
   it. A lone ready task with no concurrent sibling is still dispatched, not inlined for
   lack of one.
+**A file conflict is expressed as a dependency, never as a downgraded `Parallel` field.**
+Two dependency-free tasks that touch the same file cannot both be `YES` (the checklist
+forbids two parallel tasks modifying one file), but neither is `NO` in the field's own
+terms, because `NO` means *blocked by a dependency* and there is none. Resolve it where it
+belongs: add an explicit `Depends on` edge serialising the two at authoring time, then the
+second task is `NO` for the ordinary reason. Downgrading the field instead would reintroduce
+exactly the reading this section removes — that `Parallel` describes whether things happen
+to run side by side, rather than instructing the executor to dispatch.
+
 - **NO** if it's blocked — list which dependency is blocking it. (Once unblocked, `NO`
   defaults to the main session, but `executing-plans` may still delegate it to a subagent
   on its own context-hygiene criteria — that decision doesn't depend on having a
@@ -392,7 +401,7 @@ Step 3.2), it does not merely note that a subagent *could* handle it.
 
 1. **Stages are sequential.** Stage 2 does not start until Stage 1's gate passes
 2. **Tasks within a stage follow their dependency graph.** If Task B needs output from Task A, Task A comes first — this isn't optional, it's structural
-3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Parallel: YES` carries
+3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously — and if only Task 2.3 is ready, it is dispatched by itself. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Parallel: YES` carries
 4. A task cannot enter its Red-Green loop until every task it depends on is green
 
 ### Risk flags
@@ -710,7 +719,7 @@ When executing the plan, use sub-agents to run independent tasks concurrently. T
 
 ### Dispatch rules
 
-1. **At stage start**, identify all tasks with `Parallel: YES` (no unfinished dependencies). Dispatch them all to sub-agents simultaneously
+1. **At stage start**, identify all tasks with `Parallel: YES` (no unfinished dependencies). Dispatch them all to sub-agents simultaneously. A single ready task is dispatched too — "simultaneously" describes the schedule when there are several, not a precondition for dispatching any
 2. **When a task completes green**, check its `Blocks` list. For each blocked task, check if ALL of that task's dependencies are now green. If yes, dispatch it to a new sub-agent
 3. **Never dispatch a task whose dependencies aren't all green.** The Parallel field in the plan is the initial state — during execution, a task becomes dispatchable only when its actual dependencies have passed
 4. **Each sub-agent runs one task's Red-Green loop independently.** The sub-agent attempts the task, runs the test, and if RED, diagnoses and fixes within the 3-cycle limit. It reports back GREEN or ESCALATE
