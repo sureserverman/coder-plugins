@@ -7,7 +7,21 @@
 #
 # Usage: ./up.sh [--mock] [compose-dir]
 #   --mock       also start the mock-synapse container (Matrix Synapse Manager testing)
-#   compose-dir  override compose root (default: bundled <plugin>/infrastructure)
+#   compose-dir  override compose root (default: bundled <plugin>/infrastructure).
+#                Positional only — exporting COMPOSE_DIR does not work here.
+#
+# Environment (read from the shell first, then <compose-dir>/.env, matching how
+# compose itself resolves them):
+#   APK_DIR         host dir mounted read-only at /apks. No working default: the
+#                   fallback is relative to the compose dir (the bundled plugin
+#                   dir), so set an absolute path to your project's
+#                   app/build/outputs/apk/debug.
+#   SCREENSHOT_DIR  host dir mounted at /screenshots. Same defaulting, but it is
+#                   created if missing.
+#
+# Exit codes:
+#   0 stack up   1 MCP never came up   2 no compose file   3 podman-compose
+#   missing   4 APK_DIR does not exist   5 SCREENSHOT_DIR could not be created
 #
 # Requires:
 #   - podman 4.x or 5.x
@@ -52,7 +66,10 @@ fi
 export PODMAN_COMPOSE_PROVIDER
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+  # Print the leading comment block (everything after the shebang up to the
+  # first non-comment line), stripping the leading "# ". Derived rather than a
+  # hardcoded line range, so editing the header can't silently truncate --help.
+  awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "$0"
   exit 0
 fi
 

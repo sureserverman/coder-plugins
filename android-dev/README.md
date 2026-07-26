@@ -57,8 +57,11 @@ SCREENSHOT_DIR=/path/to/your-project/play-screenshots \
 > empty directory for the missing bind source and the mistake would surface as "no APK found" from
 > inside the container minutes later. `SCREENSHOT_DIR` is an output, so `up.sh` creates it instead
 > (exit 5 if it cannot). The check reads the environment first and then `.env`, the same precedence
-> compose itself uses, so it agrees with what actually gets mounted. Bypassing `up.sh` with a direct
-> `podman compose up` skips these checks and gets the silent empty-mount behavior.
+> compose itself uses. It parses plain and quoted `KEY=value` lines, which is a deliberate subset of
+> compose's `.env` syntax — exotic forms (`export KEY=…`, spaces around `=`, `${OTHER}` interpolation,
+> trailing inline comments) are not recognised, so `up.sh` may refuse a path compose would have
+> accepted. It errs toward a loud false refusal, never toward the silent empty mount. Bypassing `up.sh`
+> with a direct `podman compose up` skips these checks entirely and gets that silent behavior.
 
 **Migration — `matrix-synapse-manager-android`.** Before these variables existed, `compose.yaml`
 hardcoded `../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`.
@@ -177,6 +180,8 @@ The stack is **off by default**. There is no `.mcp.json` — the in-container HT
 Canonical entrypoint:
 
 ```bash
+APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
 skills/android-mcp-orchestrator/scripts/run.sh [--mock] <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}

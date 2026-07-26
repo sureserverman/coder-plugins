@@ -29,4 +29,4 @@ Minimal mock of the Matrix Synapse admin API for testing and screenshot capture.
 
 ## Run
 
-From `mcp/android`: `podman compose up -d mock-synapse`. From the emulator, use server URL: `http://10.0.2.2:8008`.
+From the plugin's `infrastructure/`: `podman compose up -d mock-synapse`. From the emulator, use server URL: `http://10.0.2.2:8008`.

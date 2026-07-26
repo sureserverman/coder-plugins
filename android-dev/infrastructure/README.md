@@ -22,7 +22,7 @@ Two separate services:
 
 ## Quick start
 
-1. **Start services** (from this directory, `mcp/android`):
+1. **Start services** (from this directory, the plugin's `infrastructure/`):
 
    - **MCP only** (for any app):  
      `podman compose up --build -d android-mcp`  
@@ -90,10 +90,12 @@ Two separate services:
    - Add server `http://10.0.2.2:8008` and log in as **admin** / **1234**,
    - Tap the first 4 bottom-nav tabs and capture a screenshot after each.
 
-   No manual login or tab switching. Output: `play-screenshots/<avd>_users.png`, `_rooms.png`, `_stats.png`, `_settings.png`.
+   No manual login or tab switching. Output: `<avd>_users.png`, `_rooms.png`, `_stats.png`, `_settings.png`, written into whatever host directory `SCREENSHOT_DIR` points at (see [Volumes](#volumes)).
 
    ```bash
-   mkdir -p "$SCREENSHOT_DIR"   # the host dir mounted at /screenshots
+   # the host dir mounted at /screenshots (up.sh creates it for you; this is
+   # for the direct-compose path, which does not)
+   mkdir -p "${SCREENSHOT_DIR:-./play-screenshots}"
    # From your MCP client, call capture-emulator-screenshots
    ```
 
@@ -127,8 +129,10 @@ rather than working defaults. In `.env` write the path out in full: that file is
 `KEY=VALUE`, so a `~` is not expanded.
 
 **Which entry point you use changes the failure mode.** The orchestrator skill's `up.sh` validates both
-paths first — reading the environment then `.env`, the same precedence compose uses: a missing `APK_DIR`
-exits 4 with a message naming the path, and `SCREENSHOT_DIR` is created for you (exit 5 if it cannot be).
+paths first — reading the environment then `.env`, the same precedence compose uses, for plain and quoted
+`KEY=value` lines: a missing `APK_DIR` exits 4 with a message naming the path, and `SCREENSHOT_DIR` is
+created for you (exit 5 if it cannot be). Exotic `.env` forms it does not parse (`export KEY=…`, spaces
+around `=`, `${OTHER}` interpolation) make it refuse loudly rather than mount silently.
 The direct `podman compose up` shown above skips that check, and podman creates an empty directory for any
 bind source that does not exist — so a wrong path there fails silently and shows up as "no APK found" from
 inside the container. Prefer `up.sh` unless you have a reason not to.
