@@ -249,6 +249,8 @@ Run every check in the Preflight section and report pass/fail:
 - Baseline test suite passes
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
+- **Dispatch works in this session** — probed, not assumed; see below
+- **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
 
 ### Decisions re-check (the plan's snapshot can be stale)
 
@@ -295,6 +297,48 @@ Working tree dirty with unrelated changes? → surface them; don't sweep them in
 
 A missing remote is **not** a stop condition — local commits are the unit of
 record. Only an un-initializable repo (e.g. read-only filesystem) blocks here.
+
+### Dispatch roster and capability probe
+
+A `Parallel: YES` task is a directive to dispatch, not a note about concurrency
+(`../planning-projects/SKILL.md` § Stage structure) — and an inlined task and a
+dispatched one produce byte-identical artifacts. So a run that ignores the field leaves
+no trace in the diff, the commits, or the gate: there is nothing for a later reader to
+notice. The omission becomes visible only if the run wrote down what it was going to do
+*before* it did anything. Preflight is where that happens, and Preflight is already a
+hard stop.
+
+1. **Probe the capability.** Dispatch one throwaway subagent — `general-purpose`, whose
+   entire task is to reply with a fixed string (`DISPATCH-OK`) — and confirm the string
+   came back. One trivial dispatch proves the mechanism works in *this* session, while
+   the finding can still change what happens next. Learning at Stage 3 that dispatch is
+   unavailable is the same fact arriving after every decision it should have informed.
+2. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
+   list in the Preflight report each task whose `Parallel:` field reads `YES`, with the
+   `subagent_type` it routes to per
+   `../dispatching-parallel-agents/references/stack-routing.md`:
+
+   ```
+   Dispatch roster (Parallel: YES) — 5 of 18 tasks
+     Task 1.2 → stingy-agents:skill-rewriter
+     Task 2.1 → general-purpose
+     …
+   ```
+
+   The roster is a **sweep over the task set**, never one worked example: a report
+   naming a single task cannot fail on its siblings — the same instance-vs-class gap the
+   gate rules above close, arriving one phase earlier. A roster covering only the first
+   stage is not a roster. An empty roster is a legitimate result — write `0 tasks`, so
+   the absence is on the record as observed rather than as never examined. What the
+   roster buys is contradiction: a run whose Preflight declared five dispatches and whose
+   execution shows none now disagrees with a written list instead of disappearing.
+
+**A failed probe is a Preflight failure.** When dispatch is unavailable or disallowed in
+this session and the roster lists at least one task, Preflight fails and you stop — the
+user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or accept
+inline execution knowingly. Substituting inline execution on your own authority is not a
+resolution; it takes a decision that belongs to the user and makes it silently, which is
+the exact failure this check exists to surface.
 
 **If Preflight fails, stop.** Report which check failed and how it failed. Do not proceed to Stage 1. A broken baseline makes every downstream Red-Green loop noise.
 

@@ -450,6 +450,97 @@ def main():
           f"the |S|<2 escape is back in the dispatch skill: "
           f"{banned_dpa.group(0) if banned_dpa else ''}")
 
+    # 12 — (Task 2.1) Preflight declares the dispatch roster and probes the capability.
+    # The defect: an executor ran all 18 tasks of a plan inline although 5 carried
+    # `Parallel: YES`, and the violation left no trace — an inlined task and a dispatched
+    # task produce byte-identical artifacts, so the diff, the commits and every gate look
+    # the same either way. Nothing downstream can detect the substitution, so the fix has
+    # to run *upstream*: Preflight writes the roster down before any work, which turns a
+    # silent omission into a contradiction of a written list, and probes dispatch there,
+    # which moves "dispatch isn't available here" from close-out (where the executor
+    # decided for the user) to the one place that is already a hard stop.
+    #
+    # Anchored on the structural claims — a sweep over the task set, a probe returning a
+    # fixed string, an unavailable dispatch failing the gate — rather than on verbatim
+    # sentences (BL-031).
+    preflight = section(text, r"## Phase 2 — Preflight", r"## Phase 3 — Stage execution")
+    check("Preflight section present", bool(preflight),
+          "no '## Phase 2 — Preflight' … '## Phase 3 — Stage execution' block in SKILL.md")
+    check("Preflight probes dispatch with a throwaway subagent",
+          affirms(preflight, r"throwaway subagent[\s\S]{0,240}(fixed string|DISPATCH-OK)"),
+          "Preflight does not dispatch a throwaway subagent returning a fixed string — "
+          "dispatch availability is assumed rather than proven")
+    # Anchored on the probe STEP, not on the phrase anywhere in Preflight: the bullet list
+    # above the step already says "Dispatch works in this session", so a bare search was
+    # satisfied by the summary line and survived a mutation that gutted the step itself.
+    check("the probe proves dispatch in THIS session",
+          affirms_predicate(preflight, r"\*\*Probe the capability",
+                            r"works in \*?this\*? session", window=500),
+          "the probe step does not scope the proof to the running session, so a past "
+          "success — or an assumption — would count")
+    # The half that decides who owns the outcome. Without it a failed probe is just a
+    # note, and the executor silently substitutes inline execution — the original defect.
+    check("an unavailable dispatch is a Preflight failure",
+          affirms(preflight, r"dispatch is unavailable[\s\S]{0,120}Preflight fails"),
+          "an unavailable dispatch does not fail Preflight, so the run continues inline "
+          "and the user never gets the decision")
+    # Plain search, NOT affirms(): the claim is affirmative in meaning but negative in
+    # wording ("is not a resolution"), so the negation guard would reject it correctly and
+    # uselessly — the same distinction drawn at the close-out checks above.
+    check("inline substitution is refused as a resolution",
+          re.search(r"[Ss]ubstituting inline execution[\s\S]{0,80}not a resolution",
+                    preflight) is not None,
+          "nothing forbids the executor from resolving a failed probe by inlining on its "
+          "own authority")
+    # The roster must quantify over the plan's whole task set. A check that names one
+    # task cannot fail on its siblings — the instance-vs-class rule this suite enforces
+    # elsewhere, applied to the declaration itself.
+    check("the roster sweeps every task in the plan",
+          affirms(preflight,
+                  r"[Ss]weep \*{0,2}every task in the plan\*{0,2}[\s\S]{0,200}"
+                  r"[`*]*Parallel:[`*]*\s*field reads [`*]*YES"),
+          "Preflight does not enumerate every Parallel: YES task across the whole plan")
+    check("each rostered task carries its routed agent type and the routing source",
+          affirms(preflight,
+                  r"subagent_type[`*]* it routes to per[\s\S]{0,120}stack-routing\.md"),
+          "the roster does not pair each task with the subagent type from the "
+          "stack-routing table, so it records an intent no one can check")
+    # affirms_predicate, not affirms: the subject is itself an absence ("an empty
+    # roster"), and the surrounding prose necessarily says "rather than … never", which
+    # the negation screen would reject.
+    check("an empty roster is written down, not omitted",
+          affirms_predicate(preflight, r"empty roster is a legitimate result",
+                            r"write [`*]*0 tasks"),
+          "a plan with no Parallel: YES task produces no line at all, so 'nobody looked' "
+          "and 'nothing to dispatch' are indistinguishable")
+
+    # 12b — the authoring side. A plan template that never asks for a roster produces
+    # plans whose Preflight the reader above cannot execute, so the two sites are checked
+    # as a SET: the Phase 1 checklist (what the planner verifies) and the plan template
+    # (what the planner writes into the file). Fixing one and leaving the other is the
+    # sibling-survival pattern this file exists to catch.
+    pp_preflight_sites = [
+        ("planning-projects Phase 1 checklist",
+         section(pp_text, r"### Preflight checklist", r"## Phase 2 — Stage Breakdown")),
+        # Lookbehind, not a bare anchor: "### Preflight checklist" contains "## Preflight"
+        # as a substring and matches ~250 lines earlier, which would silently slice the
+        # wrong block and check the same site twice.
+        ("planning-projects plan template",
+         section(pp_text, r"(?<!#)## Preflight\b", r"\*\*Test-scope commands\*\*")),
+    ]
+    for label, block in pp_preflight_sites:
+        check(f"site present: {label}", bool(block),
+              f"could not locate the {label} Preflight block")
+        check(f"dispatch probe required at: {label}",
+              affirms(block, r"throwaway subagent[\s\S]{0,120}fixed string"),
+              f"{label} does not require a throwaway-subagent probe, so a plan authored "
+              f"from it carries no capability check")
+        check(f"dispatch roster required at: {label}",
+              affirms(block, r"[Ee]very [`*]*Parallel:\s*YES[`*]*\s*task[\s\S]{0,160}"
+                             r"subagent[ _]type"),
+              f"{label} does not require every Parallel: YES task to be listed with its "
+              f"routed subagent type")
+
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0

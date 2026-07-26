@@ -279,8 +279,12 @@ Verify each of these and report the result:
 - [ ] **Access**: Required permissions exist (repo write, service accounts, deploy targets)
 - [ ] **Environment**: The dev environment can build the project and run the test suite
 - [ ] **Baseline**: Existing tests pass before any changes begin (don't build on a broken foundation)
+- [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session
+- [ ] **Dispatch roster**: Every `Parallel: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding. Starting Stage 1 with a broken preflight is how you end up debugging environment issues instead of building features.
+
+The last two checks exist because `Parallel: YES` is a directive (see § Stage structure) whose breach is otherwise invisible: an inlined task and a dispatched one leave identical artifacts, so nothing downstream can detect the substitution. The roster is a sweep over the plan's whole task set — every stage, not the first — so it fails on siblings a single named example would miss, and it gives a later reader a written list to hold the run against. The probe moves "dispatch isn't available here" from close-out to before Stage 1, where it is still a choice the user gets to make; `executing-plans` treats an unavailable dispatch against a non-empty roster as a Preflight failure rather than a licence to inline (`../executing-plans/SKILL.md` § Dispatch roster and capability probe).
 
 For a project whose full test suite is expensive (see references/test-scope-tiers.md), the plan declares its stage-scope and plan-scope test commands here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution.
 
@@ -524,6 +528,8 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 
 - [ ] [Check 1]: [how to verify]
 - [ ] [Check 2]: [how to verify]
+- [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session
+- [ ] Dispatch roster: every `Parallel: YES` task below, with the subagent type it routes to (planning plugin's `dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none
 
 **Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
 - stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]
