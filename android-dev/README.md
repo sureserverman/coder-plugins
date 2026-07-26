@@ -23,11 +23,44 @@ Install the plugin:
 
 The emulator infrastructure (compose stack, Containerfiles, MCP server, mock backend) is bundled in `infrastructure/` — no external repo needs to be *cloned*.
 
-> **Caveat — the compose file is not yet project-agnostic.** `infrastructure/compose.yaml` currently
-> **hardcodes** a sibling-repo path for both the APK mount and the screenshot output
-> (`../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`), and no
-> `APK_DIR` / `SCREENSHOT_DIR` override exists. To run the stack against a different project you must
-> edit those two lines in `compose.yaml`. Parameterising them is open work.
+### Pointing the stack at your project
+
+Both host mounts are configurable — you never edit `compose.yaml` to run the stack against a
+different project:
+
+| Variable | Default | Mounted at |
+|---|---|---|
+| `APK_DIR` | `./app/build/outputs/apk/debug` | `/apks` (read-only) |
+| `SCREENSHOT_DIR` | `./play-screenshots` | `/screenshots` |
+
+Set either in `infrastructure/.env` (where `up.sh` seeds both as commented lines on first run) or in
+the environment:
+
+```bash
+APK_DIR=/path/to/your-project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/path/to/your-project/play-screenshots \
+  ./up.sh
+```
+
+> **Use absolute paths.** The defaults above are relative, and compose resolves relative mount paths
+> from the compose directory — which is this plugin's bundled `infrastructure/` directory, *not* the
+> project you are testing. So the defaults only land on a real APK if you point `COMPOSE_DIR` at a
+> compose file inside your project. For the normal `up.sh` flow, set both variables to absolute paths.
+>
+> **A missing directory does not fail loudly.** Podman creates an empty directory for a bind-mount
+> source that does not exist, so a wrong path surfaces later as "no APK found" from inside the
+> container rather than as a compose error. Check the path if the stack starts but finds nothing.
+
+**Migration — `matrix-synapse-manager-android`.** Before these variables existed, `compose.yaml`
+hardcoded `../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`.
+That path was relative to `infrastructure/`, so it resolved *inside this repo* — a directory that
+does not exist — and therefore mounted empty for everyone. Use the checkout's real location:
+
+```bash
+APK_DIR=~/dev/android/matrix-synapse-manager-android/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=~/dev/android/matrix-synapse-manager-android/play-screenshots \
+  ./up.sh
+```
 
 ## Skills
 
@@ -152,7 +185,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 | Artifact | Path | Written by |
 |---|---|---|
 | Debug/release APKs | your project's `app/build/outputs/apk/…` | `android-gradle-build`, `android-stage-verify` |
-| Play Store screenshots | `play-screenshots/` on the host (see the caveat below) | `/android-screenshots` |
+| Play Store screenshots | `${SCREENSHOT_DIR:-./play-screenshots}` on the host (see [Pointing the stack at your project](#pointing-the-stack-at-your-project)) | `/android-screenshots` |
 | Emulator stack env (random `MCP_AUTH_TOKEN`) | `infrastructure/.env` — generated on first run, **not** committed | `android-mcp-orchestrator` `run.sh` |
 | Signing config | per the `android-release-signing` skill; **keystores and passwords never enter the repo** | you, guided by the skill |
 | Mock server sources | generated into your project per the skill's declared output path | `mock-server-from-app-sources` |
