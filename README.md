@@ -111,7 +111,7 @@ Manually:
 
 2. Components (`skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json`) live at the **plugin root**, never inside `.claude-plugin/`.
 3. Register the plugin in `.claude-plugin/marketplace.json` under `plugins` — match the existing entries' shape (`name`, `source`, `description`, `version`, `category`, `tags`, `strict`).
-4. **Write `README.md` to [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)** — every component documented with how it fires, its arguments, what it writes, and its prerequisites. `python3 scripts/check-doc-coverage.py` must exit 0; CI runs it on every push. Arriving documented is cheap, retrofitting is not.
+4. **Write `README.md` to [`docs/plugin-readme-contract.md`](./docs/plugin-readme-contract.md)** — every component documented with how it fires, its arguments, what it writes, and its prerequisites. `python3 scripts/check-doc-coverage.py` must exit 0; CI runs it on every push and PR (that workflow is deliberately unfiltered, so a new component type can never slip past it). Arriving documented is cheap, retrofitting is not.
 5. Validate with the `plugin-validator` agent from `plugin-dev`.
 6. For non-trivial additions, write a staged plan first (the `planning-projects` skill).
 
@@ -145,7 +145,7 @@ Two further levers keep the footprint down:
   `model` pin. This lets a plugin stay agent-centric (a few big components) instead of many
   always-on skill descriptions.
 
-CI runs it on every push via `.github/workflows/validate-frontmatter-budget.yml`.
+CI runs it via `.github/workflows/validate-frontmatter-budget.yml`, on pushes and PRs touching component or script paths (that workflow is path-filtered).
 Rare, justified exceptions go in `scripts/frontmatter-budget-allow.txt` with a
 reason.
 

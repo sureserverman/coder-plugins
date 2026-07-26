@@ -9,34 +9,15 @@ name: validate-doc-coverage
 # see the contract for what it deliberately does not enforce.
 
 on:
+  # NO path filters, deliberately. The job is a sub-second Python run, and a
+  # filtered trigger is a maintenance hazard that already bit once: when the
+  # guard grew to cover hooks, .mcp.json and scripts/validate.sh, the filters
+  # were not extended, so the exact scenario the extension existed for — a
+  # plugin silently gaining a hook or a determinism lane — was a push on which
+  # this workflow never ran. The guard caught it; CI would not have.
+  # Every future component type is covered here for free.
   push:
-    paths:
-      - '*/README.md'
-      - 'README.md'
-      - '*/skills/*/SKILL.md'
-      - '*/agents/*.md'
-      - '*/commands/*.md'
-      - '.claude-plugin/marketplace.json'
-      - 'scripts/check-doc-coverage.py'
-      - 'scripts/doc-coverage-allow.txt'
-      - 'scripts/tests/test-doc-coverage.py'
-      - 'scripts/_frontmatter_common.py'
-      - 'docs/plugin-readme-contract.md'
-      - '.github/workflows/validate-doc-coverage.yml'
   pull_request:
-    paths:
-      - '*/README.md'
-      - 'README.md'
-      - '*/skills/*/SKILL.md'
-      - '*/agents/*.md'
-      - '*/commands/*.md'
-      - '.claude-plugin/marketplace.json'
-      - 'scripts/check-doc-coverage.py'
-      - 'scripts/doc-coverage-allow.txt'
-      - 'scripts/tests/test-doc-coverage.py'
-      - 'scripts/_frontmatter_common.py'
-      - 'docs/plugin-readme-contract.md'
-      - '.github/workflows/validate-doc-coverage.yml'
   workflow_dispatch:
 
 jobs:

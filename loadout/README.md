@@ -22,7 +22,7 @@ Everything **not** in the union is set to `false` for this project. Changes appl
 
 ```text
 /loadout                       show current loadout for this project
-/loadout list                  list available tech and task profiles
+/loadout list                  list available tech and task profiles (authoritative)
 /loadout set android           set sticky tech baseline
 /loadout add security-audit    add a task overlay (also: /loadout +security-audit)
 /loadout remove security-audit drop a task overlay (also: /loadout -security-audit)
@@ -30,6 +30,21 @@ Everything **not** in the union is set to `false` for this project. Changes appl
 /loadout reset                 drop tech + overlays — back to global enabledPlugins
 /loadout detect                auto-pick tech from Cargo.toml / build.gradle / etc.
 ```
+
+## Bundled profiles
+
+Profile names are **typed arguments** to `set` and `add`, so they are part of the interface.
+`/loadout list` is authoritative; these are what ships today:
+
+| Tech baselines (`/loadout set <name>`) | Task overlays (`/loadout add <name>`) |
+|---|---|
+| `android`, `rust`, `python`, `web-ext`, `docs`, `plugin-dev`, `none` | `security-audit`, `release`, `refactor`, `wiki`, `web`, `e2e-test`, `plugin-authoring` |
+
+`none` is a real baseline, not the absence of one — it pins "this project has no tech
+baseline" so `detect` stops re-guessing on every fresh clone.
+
+User profiles in `~/.claude/loadouts/` **override** a bundled profile of the same name
+(full replacement, not a merge); the bundled and user `always-on.json` are unioned instead.
 
 ## Hook
 
