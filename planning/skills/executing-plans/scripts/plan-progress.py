@@ -90,7 +90,21 @@ def phase_part(state):
     if phase == "preflight":
         return f"{YELLOW}⚑ preflight{RESET}"
     if phase == "gate":
-        return f"{PURPLE}◆ S{stage} gate{RESET}"
+        part = f"{PURPLE}◆ S{stage} gate{RESET}"
+        # Only present when a gate is being re-run after a failure; a gate on its
+        # first round renders exactly as it always did.
+        rnd = state.get("remediation_round")
+        # `type(... ) is int`, not isinstance: bool subclasses int, so a malformed
+        # `"remediation_round": true` would otherwise render as round 1.
+        if type(rnd) is int and rnd > 0:
+            budget = state.get("remediation_budget")
+            # The fallback duplicates the default stated in ../SKILL.md ("Remediation
+            # budget — default 2 rounds per gate"); test-gate-remediation-contract.py
+            # asserts the two stay equal, so change both or neither.
+            total = budget if type(budget) is int and budget > 0 else 2
+            colour = RED if rnd >= total else YELLOW
+            part += f" {colour}↻{rnd}/{total}{RESET}"
+        return part
     if phase == "closeout":
         return f"{GREEN}✔ close-out{RESET}"
     if phase == "blocked":

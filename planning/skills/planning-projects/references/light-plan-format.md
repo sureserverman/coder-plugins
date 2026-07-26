@@ -97,8 +97,16 @@ Include any decision in force that bears on the change, inline:
 
 ### Stage 1 Gate
 - [ ] [Integration check — the plan's goal proven end-to-end]
+- [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<claim>' <scope>`]
 - [ ] Full existing test suite passes (regressions check)
+- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it]
 ```
+
+**The class-predicate rule applies at Light too.** A gate check asserting a property of a
+*set* is written as the command that sweeps it, or carries the `(judgment)` marker — see
+the main skill's "Write a set-valued check as the sweep that proves it". Light drops
+ceremony, not the rule: an instance-shaped check costs a remediation round at any plan
+size, and a Light plan has only one gate to catch it.
 
 ### Field semantics
 

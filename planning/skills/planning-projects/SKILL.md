@@ -205,9 +205,12 @@ writing any task:
   invents structure not present in the doc is either missing a citation or
   contradicting an approved decision — resolve which before presenting the plan.
 - **Emit the conformance gate:** the plan's final stage gate includes the check
-  `- [ ] Built structure conforms to the architecture doc (ARCH-NN tree matches,
-  ARCH-NN boundaries respected — list the IDs actually in scope)` so
-  `executing-plans` verifies conformance at close-out without any special handling.
+  `- [ ] **(judgment)** Built structure conforms to the architecture doc (ARCH-NN tree
+  matches, ARCH-NN boundaries respected — list the IDs actually in scope)` so
+  `executing-plans` verifies conformance at close-out without any special handling. The
+  marker is required for the same reason as the decisions-conformance gate below: this
+  is a conformance judgment over a built tree, no sweep can prove it, and a template
+  emitting it unmarked would ship the one check shape the class-predicate rule forbids.
 - **Decomposed projects (Phase 2.5):** each *sub-plan* that creates structure carries
   its own ARCH-ID citations and its own conformance check in its own final stage
   gate; the master's register `**Gate:**` blocks are untouched, and the master's
@@ -234,8 +237,12 @@ Decisions use the **same citation mechanism as `ARCH-NN`** — deliberately, so
   makes the override *auditable* rather than silent, and it is the executor's instruction
   to record the supersede at close-out.
 - **Emit the conformance gate:** the plan's final stage gate carries
-  `- [ ] No change contradicts a decision in force (DEC-NNN / GDEC-… — list the IDs
-  actually in scope); any Supersedes citation has been recorded via decisions supersede`.
+  `- [ ] **(judgment)** No change contradicts a decision in force (DEC-NNN / GDEC-… — list
+  the IDs actually in scope); any Supersedes citation has been recorded via decisions
+  supersede`. The marker is **required**, not optional: this is the canonical
+  "conformance judgment over a diff" the set-valued-check rule below names as needing a
+  reader, so a template emitting it unmarked would ship the one check shape the rule
+  forbids.
 - **Per DEC-001**, a citation restates the constraint in the entry's own words. A decision
   sourced from a sec-audit never brings the report body into the plan.
 
@@ -308,8 +315,9 @@ Stage N: [Name]
 
   Stage gate:
     - [ ] Integration check 1
-    - [ ] Integration check 2
+    - [ ] Class predicate: the command that sweeps the set the claim is over
     - [ ] No regressions in existing tests
+    - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
 ```
 
 ### Status marking (per-task done-state)
@@ -491,8 +499,10 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 
 ### Stage 1 Gate
 - [ ] [Integration check]
+- [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
 - [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
 - [ ] [Stage goal verified end-to-end]
+- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it — the evaluator verifies this one]
 
 ---
 
@@ -510,8 +520,9 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]
-- [ ] [No change contradicts a decision in force (list the DEC/GDEC IDs in scope);
-      any Supersedes citation has been recorded via `decisions supersede`]
+- [ ] **(judgment)** [No change contradicts a decision in force (list the DEC/GDEC IDs in
+      scope); any Supersedes citation has been recorded via `decisions supersede`] — a
+      conformance judgment over a diff; no sweep can prove it
 ```
 
 ---
@@ -575,9 +586,71 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
 - **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
 
+### Write a set-valued check as the sweep that proves it
+
+A check asserting a property of a **set** — "no file still claims X", "every example sets
+Y", "all callers handle Z" — is written as the **command that sweeps the set**, never as
+prose about one member of it:
+
+- **BAD** — `- [ ] the README no longer claims the stack is not project-agnostic`
+- **ALSO BAD** — `` - [ ] `grep -q 'not yet project-agnostic' <plugin>/README.md` exits 1 ``
+- **ALSO BAD** — `` - [ ] `grep -c 'x' <plugin>/README.md` = 1 and no stale claims remain`` — bolting plural-sounding prose onto a narrow command does not widen its scope; the sweep still never runs
+- **GOOD** — `` - [ ] `! grep -rl 'not yet project-agnostic' <plugin>/` `` — no file in the plugin still carries the claim
+
+The first form is not merely vaguer. **An instance-shaped check cannot fail on the siblings
+that make the class**, so it passes while the other members of the defect class survive — and
+each survivor costs another remediation round at the gate. Naming one file where the goal is a
+property of many is how a single defect gets discovered three times.
+
+The second form is the trap worth naming explicitly: **being a shell command is not the
+point — scope is.** A command that inspects exactly one path is every bit as instance-shaped
+as the prose, and it will pass a mechanical classifier that can only read syntax. Scope the
+command to the set (a directory, a glob, a file list you generate), not merely to something
+that looks executable.
+
+So when writing a gate check, ask what set the claim is really over. If the answer is more
+than one artifact, the check is a command **over that set**. If the claim genuinely needs a
+reader — "reads coherently", "the flow works end-to-end", a conformance judgment over a diff
+— mark it **`(judgment)`** and name why a sweep cannot prove it, so the executor routes it to
+the evaluator instead of trying to make prose executable. Those two shapes cover every
+legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
+
+This is enforced mechanically rather than left to discipline. `scripts/validate-gate-checks.py`
+classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PROSE, and
+`executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before
+you present it:
+
+```bash
+python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>
+```
+
+**A newly authored plan must come back clean** — zero INSTANCE-SHAPED. Existing plans predate
+the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
+deliberate, because a check executors learn to route around protects nothing.
+
+Be honest about where the "mandatory" half lives: it is **this checklist**, and nothing else.
+No plan-file marker records that a plan was validated, so `executing-plans` cannot tell a
+post-rule plan that skipped the check from a legacy one — it reports either identically. A plan
+authored outside this skill, or hand-edited after authoring, reaches execution unenforced. If
+that becomes a real leak, the fix is a marker the authoring check writes and the executor looks
+for; today it is discipline with a mechanical *reporter*, not a mechanical *gate*. Calibrated
+against 374 real gate checks across 41 plans; its known limits, including the one escape hatch
+left open, are stated in the script's own docstring.
+
 ### When a stage gate fails
 
-If the gate fails, the problem is usually in how tasks interact, not in any single task. Identify which task interaction caused the failure, add a new test for that interaction to the relevant task, and run that task through its Red-Green loop again.
+If the gate fails, the problem is usually in how tasks interact, not in any single task. But
+it is also rarely a *single instance*: treat the failure as a defect class sampled once, name
+the set the finding quantifies over, and make the repair test the **sweep over that set** —
+otherwise the siblings survive and each costs another round.
+
+`executing-plans` owns the operative procedure and is the single source of truth for it —
+severity classification (Critical / Important / Suggestion), a bounded remediation budget
+defaulting to 2 rounds, an exit criterion that passes when no Critical remains and every
+Important is fixed or recorded to the `backlog`, and escalation with a residual list on
+exhaustion. Do not restate those rules here; a second copy is how the two drift apart. What
+matters at *authoring* time is that the plan's gate checks are shaped so a class can fail
+them at all — which is the class-predicate rule above.
 
 ---
 
@@ -667,6 +740,7 @@ Before showing the plan to the user, verify:
 - [ ] Every stage has a gate with specific checks
 - [ ] No stage has more than 7 tasks
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
+- [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it — no check names one artifact where the goal is a property of many (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED)
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)
@@ -720,6 +794,7 @@ and treat the rest as Standard-only.
 | Monolith stages | A 12-task stage where one failing gate is impossible to diagnose | Split stages at natural boundaries. 3-5 tasks per stage |
 | Vague stage gates | "Everything works" as a gate tells you nothing when it fails | Name the specific command or check. "Run `npm test` and all 47 tests pass" |
 | Static-only gates | Every gate is unit tests; a stubbed feature sails through all of them and ships broken | Gates on user-facing stages must run the artifact and drive the flow live, not just grep and test |
+| Instance-shaped gate checks | The check names one file where the goal is a property of many, so it passes while the other members of the defect class survive — and each survivor costs another remediation round at the gate. One defect gets discovered three times | Quantify the check: name the set and the command that sweeps it (`! grep -rl … <scope>`). If it genuinely needs a reader, mark it `(judgment)` instead of leaving it prose |
 | No rollback notes | Stage 3 fails, you've modified the database schema and 6 config files, and you don't know how to get back | Document rollback at planning time, not panic time |
 | Infinite Red-Green loops | Cycling through fixes without understanding the root cause | 3 cycles max. If 3 targeted fixes don't work, the approach — not just the code — needs rethinking |
 | Research-free planning | "I'll figure out the API as I go" | You won't. Research first, plan second, build third |

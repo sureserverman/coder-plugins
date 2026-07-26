@@ -127,6 +127,30 @@ def main():
     write_state(repo, plan=str(plan), phase="gate", stage=2)
     r, out = run(repo)
     check("◆ S2 gate" in out, "gate glyph")
+    check("↻" not in out, "no remediation marker on a gate's first round")
+
+    print("gate remediation round (optional schema field):")
+    write_state(repo, plan=str(plan), phase="gate", stage=2, remediation_round=2)
+    _, out = run(repo)
+    check("↻2/2" in out, "remediation round rendered against the default budget of 2")
+    write_state(repo, plan=str(plan), phase="gate", stage=2,
+                remediation_round=3, remediation_budget=4)
+    _, out = run(repo)
+    check("↻3/4" in out, "plan-overridden budget changes the denominator")
+    # Garbage must degrade to the plain gate label, never a traceback: the renderer
+    # runs inside the user's statusline, where a crash is worse than a missing field.
+    for bad in ("two", 0, -1, None, True, {"a": 1}):
+        write_state(repo, plan=str(plan), phase="gate", stage=2, remediation_round=bad)
+        proc, out = run(repo)
+        check(proc.returncode == 0 and "◆ S2 gate" in out and "↻" not in out,
+              f"non-positive-int remediation_round ({bad!r}) ignored, no crash")
+    # A malformed budget alongside a VALID round must fall back, not crash or vanish.
+    for bad_budget in ("four", 0, -1, None, True):
+        write_state(repo, plan=str(plan), phase="gate", stage=2,
+                    remediation_round=1, remediation_budget=bad_budget)
+        proc, out = run(repo)
+        check(proc.returncode == 0 and "↻1/2" in out,
+              f"malformed remediation_budget ({bad_budget!r}) falls back to default 2")
 
     print("preflight / closeout / blocked phases:")
     write_state(repo, plan=str(plan), phase="preflight")
