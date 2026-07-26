@@ -319,9 +319,9 @@ hard stop.
    `../dispatching-parallel-agents/references/stack-routing.md`:
 
    ```
-   Dispatch roster (Parallel: YES) — 5 of 18 tasks
-     Task 1.2 → stingy-agents:skill-rewriter
-     Task 2.1 → general-purpose
+   Dispatch roster (Parallel: YES) — <n> of <total> tasks
+     Task <N.M> → <subagent_type>
+     Task <N.M> → <subagent_type>
      …
    ```
 
@@ -443,6 +443,11 @@ When every task in the stage is green, run the stage gate:
 - **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
 - **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass (see Phase Close-out).
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while the Tier-2 review below is dispatched — the two are independent.
+- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory — `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) — and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A **Light plan** has no `Parallel` field and never fans out (§ Light plans, rule 2), so its single gate carries no dispatch line — the requirement is scoped to plans that can have a roster, not waived where one would be vacuous.
+
+  **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`. Reproduced on this branch — commits `065bd8b` and `6b09499` return empty for exactly this reason.
+
+  The counts are the point, not the prose: an **uncounted** thing is how a run reaches close-out with nobody noticing, which is the same reason the remediation rounds below are counted. The prior incident ran five `Parallel: YES` tasks inline and no gate said so, because no gate was asked to. A stated reason is also not a licence — `Parallel: YES` is a directive (`../planning-projects/SKILL.md` § Stage structure), so an inlined YES task is a **deviation being disclosed**, not a choice being ratified, and a gate report that keeps producing them is evidence the plan's `Parallel` fields are wrong and belong back in `planning-projects`.
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, if the
 project's platform ships a stage-verify skill, invoke it as the final gate step

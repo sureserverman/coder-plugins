@@ -57,14 +57,42 @@ What it pins:
      (no validator can decide whether a sentence asserts behavior), so what IS
      mechanically checkable is that it is stated and wired everywhere it is
      consumed. That distinction is stated here rather than left to be inferred.
+ 11. (dispatch-fidelity Stage 1) The `Parallel` field is DEFINED as a directive, not a
+     capability: YES obligates dispatch, a lone ready task with no concurrent sibling is
+     still dispatched, and no permissive gloss survives in the authoring skill. 11b keeps
+     the SUB-PLAN-level `Parallel` (session/worktree concurrency) permissive, since it is
+     a different mechanism sharing a name. 11c pins the same rule in the CONSUMING skill,
+     which kept its own "|S| < 2 → execute sequentially" escape after Stage 1 fixed the
+     definition — the sibling site a scope-limited sweep missed.
+ 12. (Stage 2, Task 2.1) Preflight probes dispatch with a throwaway subagent and
+     enumerates a roster of every `Parallel: YES` task with its routed agent type; an
+     unavailable dispatch fails Preflight rather than being resolved by inlining. 12b
+     checks the two authoring sites as a set, since a template that never asks for a
+     roster produces plans whose Preflight cannot be executed.
+ 13. (Stage 2, Task 2.2) Every per-task commit carries an executor trailer naming who ran
+     the task, constrained to one physical line (git drops a trailer block at the first
+     unparseable line), and the Status-flip rule is disclaimed as not being that record.
+ 14. (Stage 2, Task 2.3) The stage gate reports dispatched-vs-inline counts with a reason
+     per inlined YES task, read off the trailers and reconciled against the roster — with
+     an unparseable trailer counted as `unknown` rather than silently folded into either
+     count, and a stated reason framed as disclosure rather than authorisation.
+
+ Items 11-14 were added by the dispatch-fidelity plan, which also found this list had
+ stopped being maintained: groups 11 through 13 shipped without entries, and three
+ separate reviews flagged it before it was fixed.
 """
+import os
 import re
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SKILL = HERE.parent / "SKILL.md"
-SKILLS_ROOT = HERE.parent.parent  # planning/skills/
+# Overridable so the suite can be pointed at a COPY of the tree. That is what lets
+# test-contract-negation-mutations.py verify these checks actually bind: it mutates a
+# throwaway copy and re-runs this file against it. Without the override a mutation test
+# has to edit the real tree and revert, where a crash mid-run leaves the repo corrupted.
+SKILLS_ROOT = Path(os.environ.get("CONTRACT_SKILLS_ROOT", HERE.parent.parent))
+SKILL = SKILLS_ROOT / "executing-plans" / "SKILL.md"
 
 # Assembled at runtime rather than written literally: this file lives inside the
 # tree it sweeps, so a literal occurrence would make both this check and the
@@ -90,9 +118,15 @@ def check(name, ok, detail=""):
 
 # Word-boundary anchored: plain substring matching read "cannot" as "not " and
 # "whenever" as "never " (a Tier-1 finding), which would have rejected true prose.
+# The second half of the list is not padding: a requirement is most often softened
+# rather than contradicted, and "is waived" / "though this is optional" negate a rule
+# without using a single word from the first half. A review demonstrated three such
+# inversions passing a check that had every token in the first half.
 NEGATION_RE = re.compile(
     r"\b(?:not|never|no|without|isn't|aren't|doesn't|don't|exempt|"
-    r"rather than|instead of|unless|except|excluding|optional)\b",
+    r"rather than|instead of|unless|except|excluding|optional|optionally|"
+    r"waived?|waives|unnecessary|dropped|skipped|advisory|discretionary|"
+    r"need not|nor)\b",
     re.I,
 )
 
@@ -153,6 +187,66 @@ def affirms_predicate(hay, anchor_pat, target_pat, window=200):
         if not tgt:
             continue
         if not NEGATION_RE.search(span[:tgt.start()] + tgt.group(0)):
+            return True
+    return False
+
+
+# ASYMMETRIC on purpose — the two directions are not the same grammatical question, and a
+# single boundary set gets one of them wrong:
+#
+#   backward  "The gate report never skips a stage, AND a reason for every inlined task
+#             is stated" — the preceding comma-joined clause is a SEPARATE assertion, and
+#             its `never` must not reject the claim beside it. So a comma ends the span.
+#   forward   "…a reason for every inlined task, THOUGH this is not mandatory" — a
+#             trailing clause MODIFIES the claim, so it belongs inside the screened span.
+#             A comma must therefore NOT end it; only a sentence does.
+#
+# `:` is a backward boundary but never a forward one: "`Parallel: YES`" puts a colon
+# inside the requirement's own text, and treating it as a boundary truncated the forward
+# span right before the trailing qualifier — which is precisely how three constructed
+# inversions escaped a version of this helper that used one symmetric set.
+CLAUSE_START = re.compile(r"[.;:,]\s|\s[-–—]\s|\*\*\s|\bso\b|\brather\b|\bthough\b")
+SENTENCE_END = re.compile(r"[.;]\s|\.\*\*|\s[-–—]\s")
+
+
+def affirms_claim(hay, target_pat):
+    """True when `target` appears in a clause that carries no negation.
+
+    THE default for a prose requirement. Prefer it over `affirms` / `affirms_predicate`.
+
+    Those two both let the CHECK AUTHOR pick how far to screen — `affirms` looks
+    NEGATION_LOOKBEHIND characters back, `affirms_predicate` screens only the span
+    between two author-chosen anchors — and three separate Criticals on the
+    dispatch-fidelity branch were all the same bug wearing different window sizes:
+      * an inversion placed BEFORE `affirms_predicate`'s anchor is never examined
+        (Task 2.2: "never who did it" → "including who did it" passed clean);
+      * a fixed character window anchored on a repeated phrase bleeds across bullets,
+        so a sibling bullet's unnegated opening satisfies an `any()` over windows
+        (Task 2.3: "and a reason for…" → "and NO reason for…" passed clean);
+      * every window size in this file (120 … 500) was tuned to the prose as it stood
+        that day, so the next legitimate clarification breaks the guard, not the rule.
+
+    A claim lives in a clause, so the clause is the unit to screen. The span runs from
+    the last clause boundary before the match to the END of the match, which is what
+    catches both a negated verb ("does not require") and a negated object ("no reason").
+
+    Use `affirms_predicate` ONLY when the requirement's own subject is an absence
+    ("when no concurrent sibling exists, dispatch anyway") — there the clause
+    legitimately contains a negation and screening it would reject true prose.
+    """
+    for m in re.finditer(target_pat, hay, re.I | re.S):
+        starts = [b.end() for b in CLAUSE_START.finditer(hay[:m.start()])]
+        # BOTH ends derived from the text. The first cut of this helper sliced back to the
+        # previous boundary but stopped dead at m.end(), so a negation TRAILING the match
+        # inside the same clause escaped — "…a reason for every inlined task, though this
+        # is not mandatory" passed clean. That is the identical defect the helper was
+        # written to kill (an author-chosen span edge), surviving on the side nobody
+        # looked at. A review found it by constructing inversions rather than reading the
+        # code. If one edge is derived and the other is picked, the guard is only as good
+        # as the picked one.
+        after = SENTENCE_END.search(hay, m.end())
+        span = hay[(starts[-1] if starts else 0): (after.start() if after else len(hay))]
+        if not NEGATION_RE.search(span):
             return True
     return False
 
@@ -554,7 +648,11 @@ def main():
     check("Step 3.3 commit rule located", bool(commit_rule),
           "could not slice rule 7 — the executor-trailer checks are not running")
     check("every per-task commit carries an executor trailer",
-          affirms(commit_rule, r"[Ee]very per-task commit[\s\S]{0,60}executor trailer"),
+          # Either order — the paraphrase control caught the fixed one: "an executor
+          # trailer is required on every per-task commit" says the same thing backwards.
+          affirms_claim(commit_rule,
+                        r"every per-task commit[^.]{0,60}executor trailer"
+                        r"|executor trailer[^.]{0,60}every per-task commit"),
           "the commit convention does not require an executor trailer, so who ran a task "
           "is recorded nowhere")
     # Both values, checked as a set. A trailer that only ever names dispatched agents is
@@ -623,6 +721,77 @@ def main():
           bool(done_claim) and NEGATION_RE.search(done_claim.group(1)) is not None,
           "the flip is no longer disclaimed as not recording the executor, so the rule "
           "now reads as if [x] were the record of who ran the task")
+
+    # 14 — (Task 2.3) The stage gate reports dispatched-vs-inline.
+    # Groups 12 and 13 give a run a declaration (the roster) and a record (the trailer).
+    # This is what compares them. Without it both artifacts exist and nobody reads either:
+    # the prior incident's five inlined `Parallel: YES` tasks passed every gate, because no
+    # gate was asked for the count. Same shape as the remediation-round count the report
+    # already carries — an uncounted thing is how a run reaches close-out unnoticed.
+    gate_step = section(text, r"### Step 3\.5 — Stage gate", r"\*\*Platform stage-verify hook")
+    check("Step 3.5 gate-report block located", bool(gate_step),
+          "could not slice Step 3.5 — the dispatch-ledger checks are not running")
+    # Both use affirms_claim: structural (BL-031 — a faithful paraphrase must pass) AND
+    # clause-scoped, so the negation screen lands on the claim rather than on a window
+    # the author sized. The two earlier drafts of these very checks are the case study in
+    # affirms_claim's docstring: one anchored a 400-char window on "gate report", which
+    # bled into the previous bullet, and a negated restatement passed clean.
+    check("the gate report states dispatched-vs-inline counts",
+          affirms_claim(gate_step,
+                        r"dispatched[- ]vs[- ]inline|dispatched .{0,20}inline"),
+          "the gate report carries no dispatch counts, so a stage that inlined every YES "
+          "task reports exactly what a stage that dispatched them all reports")
+    check("a reason is required per inlined Parallel: YES task",
+          # No trailing `Parallel: YES` requirement: the paraphrase control showed a
+          # faithful rewording ("and why every inlined one was") puts the quantifier and
+          # the object in the other order and never repeats the field name. The
+          # structural claim is reason + universal + inlined, inside one unnegated clause.
+          affirms_claim(gate_step,
+                        r"(reason|why)[^.]{0,60}(every|each|per)[^.]{0,40}inlin"),
+          "an inlined YES task needs no stated reason, so the count degrades to a number "
+          "with nothing behind it")
+    # The Critical a Tier-1 review reproduced against this branch: git drops a whole
+    # trailer block at a line it cannot parse, so a wrapped `Executor:` line returns
+    # blank with exit 0. `065bd8b` and `6b09499` do exactly that. Without a rule for the
+    # blank, the prescribed query silently undercounts at the very gate that runs it —
+    # and "no trailer" would be read as "inline", inventing a deviation, or as
+    # "dispatched", hiding one.
+    check("an unparseable trailer is counted as unknown, not as inline",
+          affirms(gate_step, r"empty trailer value is [`*]*unknown"),
+          "a blank trailer has no defined reading, so the prescribed query undercounts "
+          "silently and the gate report states a number nobody can trust")
+    check("the unknowns are reported, not absorbed into the counts",
+          affirms(gate_step, r"report the unknowns"),
+          "unknown-executor commits vanish into one of the two counts, which is the "
+          "false-record failure the trailer rule calls worse than none")
+    # The counts must come from the artifact, not from the executor's recollection — the
+    # executor is the party the count is about, and Task 2.2 exists precisely so this is
+    # readable rather than remembered.
+    check("the counts are read off the executor trailers, not from memory",
+          # Window widened from 120 to 260: defining `<base>` inline (a Tier-1 finding —
+          # the placeholder was undefined and drifted from rule 7's) pushed the two
+          # anchors apart, and a window sized to yesterday's prose is a guard that breaks
+          # on the next legitimate clarification.
+          affirms(gate_step, r"trailers:key=Executor[\s\S]{0,260}reconcile against the "
+                             r"roster"),
+          "nothing ties the gate count to the trailers or to Preflight's roster, so the "
+          "report can restate the plan's intent instead of the run's history")
+    # affirms_predicate on the AFFIRMATIVE half. The requirement's natural wording ends
+    # "…rather than saying nothing", and both "rather than" and "nothing" are negation
+    # tokens — screening that phrase rejects the sentence that satisfies the rule. The
+    # positive claim (it states a count) is the checkable part.
+    check("a fully-dispatched stage still states its count",
+          affirms_predicate(gate_step, r"dispatched everything it marked",
+                            r"[`*]*dispatch: 4 of 4"),
+          "only deviations get reported, so 'no dispatch line' means both 'all dispatched' "
+          "and 'nobody counted' — the distinction the whole ledger exists to draw")
+    # The half that keeps the report from becoming a rubber stamp. A stated reason makes a
+    # deviation auditable; it does not make it authorised, or `Parallel: YES` would be
+    # discretionary again by way of the gate — the exact reading Stage 1 removed.
+    check("a stated reason is disclosure, not authorisation",
+          affirms(gate_step, r"deviation being disclosed"),
+          "an inlined YES task with a reason attached reads as sanctioned, which restores "
+          "the discretionary reading of the field that Stage 1 removed")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
