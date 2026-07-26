@@ -2,7 +2,14 @@
 
 Each plugin's own README documents its components (per
 [`plugin-readme-contract.md`](./plugin-readme-contract.md)). This guide covers what no
-single README can: the flows that **span** plugins.
+single README can: how the pieces **compose** into an end-to-end flow.
+
+Most flows here cross plugin boundaries — that is the interesting case, and the one a
+README structurally cannot describe. Two do not, and deliberately: **flow 6** (knowing what
+to work on) and **flow 7** (the decisions register) are *layers* rather than pipelines, and
+both live entirely in `planning`. They are here because they are cross-cutting in scope —
+they operate over every project in the portfolio — not because they are cross-plugin. A
+flow being single-plugin is not a gap to be padded out with components it does not use.
 
 Nothing here is required reading to use one plugin. It matters when you want the
 plugins to compose — which is what they were built for.
@@ -11,7 +18,8 @@ plugins to compose — which is what they were built for.
 
 ## 1. Idea → shipped feature
 
-The core loop. Five skills in the `planning` plugin, each handing to the next.
+The core loop. Five skills in the `planning` plugin carry an idea to a green branch, then
+`git-github` takes it the rest of the way — review, commit, PR.
 
 ```text
 /plugin install planning@coder-plugins
@@ -42,9 +50,22 @@ ceremony. Then it researches, and writes a staged plan where structure-creating 
 ```
 
 `executing-plans` drives it: Red-Green loop per task, a commit per green task, tiered test
-gates, two-tier code review, and independent tasks fanned out via
-`dispatching-parallel-agents` to stack-matched subagents. At close-out it bumps versions
+gates, and independent tasks fanned out via `dispatching-parallel-agents` to stack-matched
+subagents. Its two review tiers are not its own — both dispatch `code-reviewer` from the
+`git-github` plugin, per task and again over each stage diff. At close-out it bumps versions
 across every mirror, reconciles the backlog, and records any decision the work created.
+
+```text
+"review this, then open a PR"
+```
+
+The plan is green; shipping it is `git-github`'s half of the loop. `code-review` audits the
+branch diff as one piece — the per-task reviews only ever saw a task at a time — and
+`gate-audit` sweeps it for faked verification: stubbed gates, tests that never ran,
+hidden exclusions. `create-commit` and `create-pr`
+each dispatch a Haiku subagent to draft and then, on your confirmation, create the thing;
+neither fires on its own. When the branch lands, `release-tag` cuts the tag and drafts notes
+from the changelog, asking before it tags and again before it pushes.
 
 **Cross-cutting the whole flow:** `honest-gates` defines what a gate may claim, and
 `no-fafo-debugging` takes over the moment something breaks — evidence before theories.

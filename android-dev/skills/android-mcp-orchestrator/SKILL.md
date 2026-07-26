@@ -36,6 +36,12 @@ default — the shipped default is a placeholder relative to the plugin's own `i
 defaults the same way but is created for you; set it whenever you want the PNGs somewhere specific. Both
 accept absolute paths, and both can live in `infrastructure/.env` instead of the command line.
 
+Both are **host-side** overrides. The MCP server inside the container reads a different pair —
+`APK_BASE_DIR` and `SCREENSHOTS_DIR` (plural), defaulting to the mount points `/apks` and
+`/screenshots` — so `SCREENSHOT_DIR` and `SCREENSHOTS_DIR` differ by one letter and are not
+interchangeable. Overriding the container-side pair is not a supported way to aim the stack at a
+project.
+
 ```bash
 # Any Android app (no mock-synapse):
 APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
