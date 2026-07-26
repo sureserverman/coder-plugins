@@ -151,6 +151,23 @@ CI runs it via `.github/workflows/validate-frontmatter-budget.yml`, on pushes an
 Rare, justified exceptions go in `scripts/frontmatter-budget-allow.txt` with a
 reason.
 
+## Running the tests
+
+```bash
+bash scripts/run-tests.sh          # every suite, then every validator
+bash scripts/run-tests.sh --list   # print the suites it discovered, run nothing
+```
+
+That is the canonical invocation — use it rather than hand-writing a glob. Suites are
+discovered by filename (`test-*.py`, `test-*.sh`) across the whole tree, so one in a new
+directory or a new language is picked up without editing the runner; `scripts/tests/test-run-tests-discovery.py`
+fails if discovery and the tree ever disagree. There is no pytest: suites are plain
+scripts run directly, and each exits non-zero on failure.
+
+CI does not use the runner — it runs suites through path-filtered per-workflow jobs in
+`.github/workflows/`, so a change touching one area doesn't re-run everything. The runner
+is the local and plan-authoring path.
+
 ## License
 
 MIT unless a plugin's own LICENSE states otherwise; most plugins carry their own LICENSE file.
