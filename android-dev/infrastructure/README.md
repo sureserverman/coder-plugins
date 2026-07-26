@@ -132,7 +132,8 @@ rather than working defaults. In `.env` write the path out in full: that file is
 paths first — reading the environment then `.env`, the same precedence compose uses, for plain and quoted
 `KEY=value` lines: a missing `APK_DIR` exits 4 with a message naming the path, and `SCREENSHOT_DIR` is
 created for you (exit 5 if it cannot be). Exotic `.env` forms it does not parse (`export KEY=…`, spaces
-around `=`, `${OTHER}` interpolation) make it refuse loudly rather than mount silently.
+around `=`, `${OTHER}` interpolation, trailing inline comments) make it refuse loudly rather than mount
+silently.
 The direct `podman compose up` shown above skips that check, and podman creates an empty directory for any
 bind source that does not exist — so a wrong path there fails silently and shows up as "no APK found" from
 inside the container. Prefer `up.sh` unless you have a reason not to.

@@ -39,7 +39,7 @@ the environment:
 ```bash
 APK_DIR=/path/to/your-project/app/build/outputs/apk/debug \
 SCREENSHOT_DIR=/path/to/your-project/play-screenshots \
-  ./up.sh
+  skills/android-mcp-orchestrator/scripts/up.sh
 ```
 
 > **Use absolute paths — treat the relative defaults as placeholders.** Compose resolves relative
@@ -71,7 +71,7 @@ does not exist — and therefore mounted empty for everyone. Use the checkout's 
 ```bash
 APK_DIR=~/dev/android/matrix-synapse-manager-android/app/build/outputs/apk/debug \
 SCREENSHOT_DIR=~/dev/android/matrix-synapse-manager-android/play-screenshots \
-  ./up.sh
+  skills/android-mcp-orchestrator/scripts/up.sh
 ```
 
 ## Skills

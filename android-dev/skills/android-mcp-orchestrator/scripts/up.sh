@@ -39,6 +39,17 @@
 
 set -Eeuo pipefail
 
+# --help before the provider lookup below: a machine missing podman-compose is
+# exactly the machine whose owner is reading --help, and exiting 3 at them
+# instead of printing usage is unhelpful.
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  # Print the leading comment block (everything after the shebang up to the
+  # first non-comment line), stripping the leading "# ". Derived rather than a
+  # hardcoded line range, so editing the header can't silently truncate --help.
+  awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "$0"
+  exit 0
+fi
+
 # Force `podman compose` to delegate to podman-compose (the python tool that
 # drives the podman engine) and never to `docker compose`. Without this, on
 # any machine where docker-compose-v2 is installed, podman 5.x will silently
@@ -64,14 +75,6 @@ if [ -z "${PODMAN_COMPOSE_PROVIDER:-}" ] || [ ! -x "$PODMAN_COMPOSE_PROVIDER" ];
   exit 3
 fi
 export PODMAN_COMPOSE_PROVIDER
-
-if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  # Print the leading comment block (everything after the shebang up to the
-  # first non-comment line), stripping the leading "# ". Derived rather than a
-  # hardcoded line range, so editing the header can't silently truncate --help.
-  awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "$0"
-  exit 0
-fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # scripts/ -> skill/ -> skills/ -> plugin-root/infrastructure
@@ -103,9 +106,10 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "MCP_AUTH_TOKEN=$TOKEN"
     echo
     echo "# Where the stack finds your APKs and writes screenshots. Both are"
-    echo "# left COMMENTED OUT on purpose: uncommenting one makes this file the"
-    echo "# authoritative source for that path, a second place it is configured"
-    echo "# alongside the compose default. Uncomment only to override."
+    echo "# left COMMENTED OUT on purpose: uncommenting one adds a second place"
+    echo "# the path is configured, alongside the compose default. Uncomment"
+    echo "# only to override. A value in the shell environment still wins over"
+    echo "# whatever is set here — that is the precedence compose itself uses."
     echo "#"
     echo "# The compose defaults shown below are relative to the compose"
     echo "# directory itself, which is this plugin's bundled infrastructure/"
@@ -139,9 +143,15 @@ cd "$COMPOSE_DIR"
 # to set these. Mirror that precedence: fold in .env only for a variable the
 # shell did not already provide. Read the two keys directly rather than sourcing
 # the file, which would execute whatever it contains.
+#
+# `[ -v ]`, not `-z`: a variable exported as EMPTY counts as provided, and
+# compose then ignores .env for it and falls through to the compose-file default
+# (verified against `podman compose config`). Treating empty as absent here would
+# validate the .env path while compose mounted the placeholder instead — the one
+# direction that produces the silent empty mount this check exists to prevent.
 if [ -f "$ENV_FILE" ]; then
   for _v in APK_DIR SCREENSHOT_DIR; do
-    if [ -z "${!_v:-}" ]; then
+    if ! [ -v "$_v" ]; then
       _line="$(grep -E "^${_v}=" "$ENV_FILE" | tail -n1 || true)"
       if [ -n "$_line" ]; then
         _val="${_line#*=}"
@@ -170,7 +180,12 @@ if [ ! -d "$apk_dir" ]; then
   if [ -z "${APK_DIR:-}" ]; then
     echo "       APK_DIR is set neither in the environment nor in" >&2
     echo "       $ENV_FILE, so this is the placeholder default resolved against" >&2
-    echo "       $PWD — the bundled plugin dir, not your project." >&2
+    if [ "$COMPOSE_DIR" = "$DEFAULT_COMPOSE_DIR" ]; then
+      echo "       $PWD — the bundled plugin dir, not your project." >&2
+    else
+      echo "       the compose dir you passed, $PWD — not your project unless" >&2
+      echo "       that is where your APK lands." >&2
+    fi
     echo "       Set APK_DIR to an absolute path holding your debug APK:" >&2
     echo "         APK_DIR=/path/to/project/app/build/outputs/apk/debug ./up.sh" >&2
     echo "       or uncomment APK_DIR in $ENV_FILE." >&2
