@@ -541,6 +541,89 @@ def main():
               f"{label} does not require every Parallel: YES task to be listed with its "
               f"routed subagent type")
 
+    # 13 — (Task 2.2) The per-task commit records WHO executed the task.
+    # This is the finding that makes group 12 enforceable. The roster declares an intent
+    # before the work; without a matching record after it, nothing can be compared against
+    # that declaration — the diff, the `Status: [x]` flip and the commit subject are
+    # byte-identical whether a task ran inline or in a subagent. So the trailer is the
+    # only artifact that distinguishes them, which is why both the commit rule AND the
+    # Status-flip rule are checked: the flip is where a reader would *expect* the record
+    # to live, and saying plainly that it is not there is what sends them to the trailer.
+    commit_rule = section(text, r"7\. \*\*Commit after each green task",
+                          r"### Step 3\.4")
+    check("Step 3.3 commit rule located", bool(commit_rule),
+          "could not slice rule 7 — the executor-trailer checks are not running")
+    check("every per-task commit carries an executor trailer",
+          affirms(commit_rule, r"[Ee]very per-task commit[\s\S]{0,60}executor trailer"),
+          "the commit convention does not require an executor trailer, so who ran a task "
+          "is recorded nowhere")
+    # Both values, checked as a set. A trailer that only ever names dispatched agents is
+    # satisfied by omitting it on the inlined tasks — which is exactly the run this plan
+    # exists to make visible. These two are literal-token *presence* checks (a trailer
+    # value has no negated restatement), so they fail on removal only — the same honest
+    # limit the `site present:` locators above carry. The five substantive claims around
+    # them are the ones verified against negation.
+    for form, pat in (("inline", r"Executor: inline"),
+                      ("dispatched — <subagent_type>",
+                       r"Executor: dispatched [—-] .{0,20}subagent_type")):
+        check(f"trailer form documented: {form}",
+              re.search(pat, commit_rule) is not None,
+              f"the '{form}' trailer form is not documented, so the convention cannot "
+              f"distinguish an inlined task from a dispatched one")
+    # Plain search, not affirms(): the claim is affirmative in meaning and negative in
+    # wording ("not the routing table's suggestion"), same as the group-12 sibling.
+    check("the trailer names the agent that actually ran, not the routed one",
+          re.search(r"actual [`*]*subagent_type[`*]* that ran[\s\S]{0,80}"
+                    r"not the routing table", commit_rule) is not None,
+          "nothing distinguishes what was planned from what happened, so a trailer copied "
+          "from the roster would read green on a run that dispatched nothing")
+    # The constraint that makes the trailer machine-readable at all. A Tier-1 review ran
+    # `git log --format='%(trailers:key=Executor,valueonly)'` against the two commits that
+    # had already been written under this convention and got EMPTY for both: their
+    # `Executor:` line wrapped, and git stops parsing a trailer block at the first
+    # non-trailer line. A documented check that silently returns nothing is worse than no
+    # check, so the single-line rule is pinned, not left as authoring folklore.
+    check("the trailer is constrained to one physical line",
+          affirms(commit_rule, r"one physical line"),
+          "nothing forbids a wrapped trailer, so the reason-carrying form — the one case "
+          "this whole rule exists for — drops out of %(trailers:...) unnoticed")
+    # Measured limit: the requirement is stated at TWO sites (the form list and the prose
+    # sentence), and this check is satisfied by either. Negating only the prose therefore
+    # leaves it green — correctly, since the form list still documents the case. The
+    # mutation that rejects it has to negate both, which is what was actually run.
+    check("a failed dispatch finished inline is recorded as such",
+          affirms(commit_rule, r"dispatch failed"),
+          "a dispatch that failed and was finished inline has no recorded form, so the "
+          "substitution is invisible again")
+    # The honest-gates coupling: the trailer's value is that it can be compared, and a
+    # false trailer is worse than a missing one because it forecloses the comparison.
+    check("a misstated trailer is called worse than none",
+          affirms(commit_rule, r"trailer that misstates[\s\S]{0,80}worse than none"),
+          "the commit rule does not say a false trailer is worse than an absent one, so "
+          "'write what the plan expected' reads as acceptable")
+    status_rule = section(text, r"5\. \*\*Flip the task's Status", r"\n6\. \*\*Quick review")
+    check("Step 3.3 Status-flip rule located", bool(status_rule),
+          "could not slice rule 5 — the flip/trailer division of labour is unchecked")
+    # affirms_predicate anchored PAST the rule's own negative ("never who did it"): that
+    # phrase is the requirement, so anchoring before it puts a negation the screen must
+    # reject between anchor and target. Anchor on the consequence instead — the identical
+    # `[x]` — which is affirmative and sits immediately before the pointer to the trailer.
+    check("the Status flip is stated NOT to record the executor",
+          affirms_predicate(status_rule, r"write the identical", r"executor trailer"),
+          "the Status-flip rule does not point at the trailer, so a reader looking for "
+          "who ran the task finds an identical [x] and stops there")
+    # The pointer check above proves the two phrases CO-OCCUR, not that the disclaimer is
+    # still a disclaimer: a Tier-1 review inverted "never who did it" to "including who
+    # did it" and the suite stayed green, because affirms_predicate screens only BETWEEN
+    # its anchor and target and the mutation sat before the anchor. So assert the clause
+    # itself — whatever follows "records that the task is done" must be negative. This is
+    # structural (a negation must be present), not a verbatim sentence match (BL-031).
+    done_claim = re.search(r"records that the task is done(.{0,40})", status_rule)
+    check("the flip's scope is stated as EXCLUDING who did it",
+          bool(done_claim) and NEGATION_RE.search(done_claim.group(1)) is not None,
+          "the flip is no longer disclaimed as not recording the executor, so the rule "
+          "now reads as if [x] were the record of who ran the task")
+
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
     scanned = 0
