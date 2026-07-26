@@ -48,6 +48,11 @@ for both, taken from the project under test, or set them in `infrastructure/.env
 them inline; always set `SCREENSHOT_DIR` too when the mode captures screenshots, or the PNGs land inside
 the installed plugin.
 
+Both are **host-side** variables. The MCP server inside the container reads a separate pair,
+`APK_BASE_DIR` and `SCREENSHOTS_DIR` (plural), which default to the mount points `/apks` and
+`/screenshots`; `SCREENSHOT_DIR` and `SCREENSHOTS_DIR` differ by one letter and are not
+interchangeable. Set the host-side pair — the container-side one is not a supported override.
+
 For modes `full` / `login`, pass `--mock` so the mock-synapse container is started.
 
 Example invocation for `full`:
