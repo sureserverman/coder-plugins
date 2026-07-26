@@ -308,8 +308,9 @@ Stage N: [Name]
 
   Stage gate:
     - [ ] Integration check 1
-    - [ ] Integration check 2
+    - [ ] Class predicate: the command that sweeps the set the claim is over
     - [ ] No regressions in existing tests
+    - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
 ```
 
 ### Status marking (per-task done-state)
@@ -491,8 +492,10 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 
 ### Stage 1 Gate
 - [ ] [Integration check]
+- [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
 - [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
 - [ ] [Stage goal verified end-to-end]
+- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it — the evaluator verifies this one]
 
 ---
 
@@ -574,6 +577,38 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Regressions**: Scoped to the gate's position in the plan. Intermediate gates check at **stage-scope** — cheap host-side checks (unit tests, lint, static/architecture checks, build) run in full, and any expensive suite (device/instrumented/e2e) is restricted to the modules the stage touched, never `clean`. The final gate (and close-out) runs **plan-scope** — one full clean pass, quarantined slow tests included. If the project's full suite is cheap (well under ~5 min), skip the tiering and just run it in full at every gate. Scope policy: references/test-scope-tiers.md.
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
 - **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
+
+### Write a set-valued check as the sweep that proves it
+
+A check asserting a property of a **set** — "no file still claims X", "every example sets
+Y", "all callers handle Z" — is written as the **command that sweeps the set**, never as
+prose about one member of it:
+
+- **BAD** — `- [ ] the README no longer claims the stack is not project-agnostic`
+- **ALSO BAD** — `` - [ ] `grep -q 'not yet project-agnostic' <plugin>/README.md` exits 1 ``
+- **GOOD** — `` - [ ] `! grep -rl 'not yet project-agnostic' <plugin>/` `` — no file in the plugin still carries the claim
+
+The first form is not merely vaguer. **An instance-shaped check cannot fail on the siblings
+that make the class**, so it passes while the other members of the defect class survive — and
+each survivor costs another remediation round at the gate. Naming one file where the goal is a
+property of many is how a single defect gets discovered three times.
+
+The second form is the trap worth naming explicitly: **being a shell command is not the
+point — scope is.** A command that inspects exactly one path is every bit as instance-shaped
+as the prose, and it will pass a mechanical classifier that can only read syntax. Scope the
+command to the set (a directory, a glob, a file list you generate), not merely to something
+that looks executable.
+
+So when writing a gate check, ask what set the claim is really over. If the answer is more
+than one artifact, the check is a command **over that set**. If the claim genuinely needs a
+reader — "reads coherently", "the flow works end-to-end", a conformance judgment over a diff
+— mark it **`(judgment)`** and name why a sweep cannot prove it, so the executor routes it to
+the evaluator instead of trying to make prose executable. Those two shapes cover every
+legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
+
+This is enforced mechanically rather than left to discipline — see Stage 1 Tasks 1.2–1.3 of
+`plans/2026-07-26-gate-oscillation-p2-p6-p7-plan.md`, which add
+`scripts/validate-gate-checks.py` and wire it into `executing-plans`' critique phase.
 
 ### When a stage gate fails
 
@@ -667,6 +702,7 @@ Before showing the plan to the user, verify:
 - [ ] Every stage has a gate with specific checks
 - [ ] No stage has more than 7 tasks
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
+- [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it — no check names one artifact where the goal is a property of many (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED)
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)
@@ -720,6 +756,7 @@ and treat the rest as Standard-only.
 | Monolith stages | A 12-task stage where one failing gate is impossible to diagnose | Split stages at natural boundaries. 3-5 tasks per stage |
 | Vague stage gates | "Everything works" as a gate tells you nothing when it fails | Name the specific command or check. "Run `npm test` and all 47 tests pass" |
 | Static-only gates | Every gate is unit tests; a stubbed feature sails through all of them and ships broken | Gates on user-facing stages must run the artifact and drive the flow live, not just grep and test |
+| Instance-shaped gate checks | The check names one file where the goal is a property of many, so it passes while the other members of the defect class survive — and each survivor costs another remediation round at the gate. One defect gets discovered three times | Quantify the check: name the set and the command that sweeps it (`! grep -rl … <scope>`). If it genuinely needs a reader, mark it `(judgment)` instead of leaving it prose |
 | No rollback notes | Stage 3 fails, you've modified the database schema and 6 config files, and you don't know how to get back | Document rollback at planning time, not panic time |
 | Infinite Red-Green loops | Cycling through fixes without understanding the root cause | 3 cycles max. If 3 targeted fixes don't work, the approach — not just the code — needs rethinking |
 | Research-free planning | "I'll figure out the API as I go" | You won't. Research first, plan second, build third |
