@@ -42,14 +42,23 @@ SCREENSHOT_DIR=/path/to/your-project/play-screenshots \
   ./up.sh
 ```
 
-> **Use absolute paths.** The defaults above are relative, and compose resolves relative mount paths
-> from the compose directory — which is this plugin's bundled `infrastructure/` directory, *not* the
-> project you are testing. So the defaults only land on a real APK if you point `COMPOSE_DIR` at a
-> compose file inside your project. For the normal `up.sh` flow, set both variables to absolute paths.
+> **Use absolute paths — treat the relative defaults as placeholders.** Compose resolves relative
+> mount paths from the compose directory, which is this plugin's bundled `infrastructure/` directory,
+> *not* the project you are testing. There is no supported way to make the defaults resolve against
+> your project (`up.sh` and `down.sh` take the compose directory as a positional argument only, and
+> `run.sh` does not forward one), so set both variables to absolute paths for any real run.
 >
-> **A missing directory does not fail loudly.** Podman creates an empty directory for a bind-mount
-> source that does not exist, so a wrong path surfaces later as "no APK found" from inside the
-> container rather than as a compose error. Check the path if the stack starts but finds nothing.
+> **In `.env`, write the path out in full — no `~`.** Compose reads `.env` as literal `KEY=VALUE`
+> with no shell expansion, so `APK_DIR=~/dev/…` there tries to mount a directory named `~`. Tilde
+> works only in the shell-invocation form shown above.
+>
+> **`up.sh` validates both paths before starting anything.** A missing `APK_DIR` is a hard error
+> (exit 4) naming the path it tried and how to set it — because podman would otherwise create an
+> empty directory for the missing bind source and the mistake would surface as "no APK found" from
+> inside the container minutes later. `SCREENSHOT_DIR` is an output, so `up.sh` creates it instead
+> (exit 5 if it cannot). The check reads the environment first and then `.env`, the same precedence
+> compose itself uses, so it agrees with what actually gets mounted. Bypassing `up.sh` with a direct
+> `podman compose up` skips these checks and gets the silent empty-mount behavior.
 
 **Migration — `matrix-synapse-manager-android`.** Before these variables existed, `compose.yaml`
 hardcoded `../../matrix-synapse-manager-android/{app/build/outputs/apk/debug, play-screenshots}`.

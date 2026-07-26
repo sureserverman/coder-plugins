@@ -66,7 +66,7 @@ skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
 | Tool | Use |
 |------|-----|
 | `start-android-tablet-emulators` | Verify adb connectivity to all 3 emulators. Call this first to confirm readiness. AVDs are created automatically by the container entrypoint. |
-| `install-app-on-emulators` | Install APK; pass `apkPath` (default: `/apks/app-debug.apk`). Mount the app's APK dir in compose. |
+| `install-app-on-emulators` | Install APK; pass `apkPath` (default: `/apks/app-debug.apk`). Point `APK_DIR` at the host dir mounted as `/apks` (absolute path; see the plugin README). |
 | `launch-app` | Launch **any** app: `packageName`, optional `activity`. |
 | `capture-emulator-screenshots` | Capture N screenshots per device. For any app: set `launchPackage`, `loginFlow: "none"`, `navItemCount` (3–10). For Matrix Synapse Manager: `loginFlow: "matrix-synapse"` (requires mock-synapse). |
 | `matrix-synapse-login` | **Only for Matrix Synapse Manager:** add server + login (mock Synapse). Ignore for other apps. |

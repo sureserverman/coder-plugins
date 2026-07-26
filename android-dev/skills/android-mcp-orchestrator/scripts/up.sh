@@ -109,6 +109,75 @@ fi
 
 cd "$COMPOSE_DIR"
 
+# Validate the host mount sources before compose can paper over them. Podman
+# creates an EMPTY directory for a bind-mount source that does not exist, so a
+# wrong APK_DIR otherwise surfaces as "no APK found" from inside the container,
+# minutes later, instead of as an error here. Relative values are resolved
+# against this directory — we validate after the `cd` above precisely so that
+# resolution matches how compose itself will resolve them.
+#
+# Compose resolves ${VAR} from the shell environment FIRST and falls back to
+# $ENV_FILE, so validating the shell environment alone would reject a path that
+# compose would have mounted correctly — and .env is a documented, seeded place
+# to set these. Mirror that precedence: fold in .env only for a variable the
+# shell did not already provide. Read the two keys directly rather than sourcing
+# the file, which would execute whatever it contains.
+if [ -f "$ENV_FILE" ]; then
+  for _v in APK_DIR SCREENSHOT_DIR; do
+    if [ -z "${!_v:-}" ]; then
+      _line="$(grep -E "^${_v}=" "$ENV_FILE" | tail -n1 || true)"
+      if [ -n "$_line" ]; then
+        _val="${_line#*=}"
+        # compose strips one layer of surrounding quotes; match that.
+        _val="${_val%\"}"; _val="${_val#\"}"
+        _val="${_val%\'}"; _val="${_val#\'}"
+        [ -n "$_val" ] && export "$_v=$_val"
+      fi
+    fi
+  done
+  unset _v _line _val
+fi
+
+# These two defaults MIRROR the ones in compose.yaml's volumes block; that file
+# is the source of truth. They are placeholders: relative to this bundled
+# infrastructure/ dir, not to any project (see the plugin README, "Pointing the
+# stack at your project"). Keep the pair in sync when either changes.
+apk_dir="${APK_DIR:-./app/build/outputs/apk/debug}"
+screenshot_dir="${SCREENSHOT_DIR:-./play-screenshots}"
+
+# APK_DIR is an INPUT — it must already hold a built APK, so a missing dir is a
+# hard error. Creating it would guarantee the empty-mount failure we are here to
+# prevent.
+if [ ! -d "$apk_dir" ]; then
+  echo "error: APK directory does not exist: $apk_dir" >&2
+  if [ -z "${APK_DIR:-}" ]; then
+    echo "       APK_DIR is set neither in the environment nor in" >&2
+    echo "       $ENV_FILE, so this is the placeholder default resolved against" >&2
+    echo "       $PWD — the bundled plugin dir, not your project." >&2
+    echo "       Set APK_DIR to an absolute path holding your debug APK:" >&2
+    echo "         APK_DIR=/path/to/project/app/build/outputs/apk/debug ./up.sh" >&2
+    echo "       or uncomment APK_DIR in $ENV_FILE." >&2
+  else
+    echo "       APK_DIR is set to '$APK_DIR'. Build the app first (./gradlew" >&2
+    echo "       assembleDebug), or correct the path. Note that a relative value" >&2
+    echo "       resolves against $PWD, so prefer an absolute path." >&2
+  fi
+  exit 4   # 4 = misconfigured input path
+fi
+
+# SCREENSHOT_DIR is an OUTPUT — creating it is correct, and matches the
+# documented `mkdir -p` step it replaces. Only a genuine failure to create it
+# (bad path, no permission) is an error.
+if [ ! -d "$screenshot_dir" ]; then
+  echo "=== creating screenshot output dir: $screenshot_dir ==="
+  if ! mkdir -p "$screenshot_dir"; then
+    echo "error: could not create screenshot directory: $screenshot_dir" >&2
+    echo "       Set SCREENSHOT_DIR to a writable absolute path." >&2
+    exit 5   # 5 = output dir could not be created (distinct from 4 so wrappers
+             #     can tell "wrong project" from "permissions/disk")
+  fi
+fi
+
 # Skip-build guard: podman compose build always re-walks every Containerfile
 # (slow, noisy) even on a full cache hit. Skip the build entirely when every
 # image the active profile needs is already present locally. To force a rebuild

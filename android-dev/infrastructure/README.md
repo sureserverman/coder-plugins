@@ -17,7 +17,8 @@ Two separate services:
 
 - **Podman** (or Docker)
 - **KVM** on the host (for fast emulators; `/dev/kvm` is passed into the container)
-- App repo **matrix-synapse-manager-android** as a sibling of **mcp** (e.g. `../../matrix-synapse-manager-android` from this directory)
+- An app whose debug APK you point `APK_DIR` at — see [Volumes](#volumes). No particular repo, and no
+  particular checkout location, is required.
 
 ## Quick start
 
@@ -92,7 +93,7 @@ Two separate services:
    No manual login or tab switching. Output: `play-screenshots/<avd>_users.png`, `_rooms.png`, `_stats.png`, `_settings.png`.
 
    ```bash
-   mkdir -p ../../matrix-synapse-manager-android/play-screenshots
+   mkdir -p "$SCREENSHOT_DIR"   # the host dir mounted at /screenshots
    # From your MCP client, call capture-emulator-screenshots
    ```
 
@@ -100,17 +101,39 @@ Two separate services:
 
 ## Using with another app
 
-- **APK:** Override the `/apks` volume when running compose (e.g. mount your app’s `app/build/outputs/apk/debug`), or pass `apkPath` to `install-app-on-emulators` (e.g. `/apks/other-app-debug.apk` if you mount it).
-- **Screenshots:** Override the `/screenshots` volume so PNGs go to a folder you choose.
+- **APK:** Set `APK_DIR` to your app’s `app/build/outputs/apk/debug` (see [Volumes](#volumes)), or pass `apkPath` to `install-app-on-emulators` (e.g. `/apks/other-app-debug.apk`) to pick a specific APK from whatever is mounted.
+- **Screenshots:** Set `SCREENSHOT_DIR` so PNGs go to a folder you choose.
 - **Flow:** Install your APK → `launch-app` with your app’s package name → `capture-emulator-screenshots` with `launchPackage` set (or leave unset if already in app), `loginFlow: "none"`, and `navItemCount` matching your app’s bottom nav (e.g. 3 for 3 tabs, 5 for 5). Use `autoNavigate: false` and `delayMs` if you prefer to switch screens manually.
 
 ## Volumes
 
 - **android-sdk** — persistent SDK/AVD data for the MCP container  
-- **../../matrix-synapse-manager-android/app/build/outputs/apk/debug** → `/apks` (read-only)  
-- **../../matrix-synapse-manager-android/play-screenshots** → `/screenshots` (capture script writes here)
+- **`${APK_DIR:-./app/build/outputs/apk/debug}`** → `/apks` (read-only)  
+- **`${SCREENSHOT_DIR:-./play-screenshots}`** → `/screenshots` (capture script writes here)
 
-If your app repo is elsewhere, adjust the volume paths in `compose.yaml` (paths are relative to `mcp/android`).
+Both host paths are environment overrides — you never edit `compose.yaml` to run the stack against a
+different project. Set them in this directory's `.env` (where `up.sh` seeds both as commented lines on
+first run) or in the environment:
+
+```bash
+APK_DIR=/absolute/path/to/your-project/app/build/outputs/apk/debug \
+SCREENSHOT_DIR=/absolute/path/to/your-project/play-screenshots \
+  podman compose up --build -d android-mcp
+```
+
+**Use absolute paths.** The defaults above are relative, and compose resolves relative mount paths from
+this directory — the bundled plugin's `infrastructure/`, not your project — so they are placeholders
+rather than working defaults. In `.env` write the path out in full: that file is parsed as literal
+`KEY=VALUE`, so a `~` is not expanded.
+
+**Which entry point you use changes the failure mode.** The orchestrator skill's `up.sh` validates both
+paths first — reading the environment then `.env`, the same precedence compose uses: a missing `APK_DIR`
+exits 4 with a message naming the path, and `SCREENSHOT_DIR` is created for you (exit 5 if it cannot be).
+The direct `podman compose up` shown above skips that check, and podman creates an empty directory for any
+bind source that does not exist — so a wrong path there fails silently and shows up as "no APK found" from
+inside the container. Prefer `up.sh` unless you have a reason not to.
+
+See the plugin README's "Pointing the stack at your project" for the full contract.
 
 ## Mock Synapse
 
