@@ -119,7 +119,35 @@ finally:
     if (ROOT / "tools").exists() and not any((ROOT / "tools").iterdir()):
         (ROOT / "tools").rmdir()
 
-print("group 4 — --list is side-effect free and arguments are validated")
+print("group 4 — a suite in an unrunnable language fails loudly, never silently")
+# The BL-020 class, generalized: a suite the runner cannot execute must not be
+# skipped in silence. Planted under a tests/ dir because that is what scopes the
+# check away from test-scope-tiers.md and test-fixtures/.
+rb = ROOT / "scripts" / "tests" / "test-planted-unrunnable.rb"
+try:
+    rb.write_text("puts 'hi'\n")
+    res = subprocess.run(["bash", str(RUNNER)], capture_output=True, text=True, cwd=ROOT)
+    chk(res.returncode != 0, "an unrunnable-language suite makes the runner exit non-zero")
+    chk("test-planted-unrunnable.rb" in (res.stderr + res.stdout),
+        "the failure names the offending file")
+    chk(".py, .sh" in (res.stderr + res.stdout),
+        "the failure states which extensions ARE supported")
+    res_list = subprocess.run(["bash", str(RUNNER), "--list"],
+                              capture_output=True, text=True, cwd=ROOT)
+    chk(res_list.returncode != 0, "--list refuses too rather than reporting a clean set")
+finally:
+    if rb.exists():
+        rb.unlink()
+
+print("group 5 — the check does not fire on non-suite paths named test-*")
+for benign in ["planning/skills/planning-projects/references/test-scope-tiers.md",
+               "planning/skills/applying-design-handoff/scripts/test-fixtures"]:
+    chk((ROOT / benign).exists(), f"benign path still present and not swept: {benign}")
+chk(subprocess.run(["bash", str(RUNNER), "--list"], capture_output=True,
+                   cwd=ROOT).returncode == 0,
+    "with only benign test-* paths present, --list succeeds")
+
+print("group 6 — --list is side-effect free and arguments are validated")
 sentinel = ROOT / ".run-tests-sentinel"
 if sentinel.exists():
     sentinel.unlink()

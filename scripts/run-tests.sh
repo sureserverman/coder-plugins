@@ -36,7 +36,29 @@ discover() {
     | sort
 }
 
+# A suite written in a language this runner cannot execute must FAIL, never be
+# skipped. Silently ignoring it is precisely BL-020 in a new language: the bash
+# suite was invisible to a python-only glob and nobody noticed for weeks. Scoped
+# to tests/ directories so it cannot fire on test-scope-tiers.md or a
+# test-fixtures/ data directory, and __pycache__ is excluded so stale .pyc files
+# are not mistaken for suites.
+unsupported() {
+  find . -path ./node_modules -prune -o -path '*/__pycache__' -prune -o \
+       -type f -path '*/tests/*' -name 'test-*' \
+       ! -name '*.py' ! -name '*.sh' -print \
+    | sed 's|^\./||' \
+    | sort
+}
+
 mapfile -t SUITES < <(discover)
+mapfile -t UNSUPPORTED < <(unsupported)
+
+if [ "${#UNSUPPORTED[@]}" -ne 0 ]; then
+  echo "FAIL: ${#UNSUPPORTED[@]} suite file(s) in a language this runner cannot run:" >&2
+  printf '  %s\n' "${UNSUPPORTED[@]}" >&2
+  echo "Supported suite extensions: .py, .sh. Add an interpreter to run_one() in $0." >&2
+  exit 1
+fi
 
 # An empty sweep must never read as a pass — the same rule validate-plan-progress.yml
 # states in its own words ("the glob is wrong, not the tree"). A runner that finds
@@ -64,6 +86,9 @@ run_one() {
     *.py) python3 "$path" ;;
     *.sh) bash "$path" ;;
     *)
+      # Unreachable via discover(), which only emits .py/.sh — kept as a guard so
+      # adding an extension to discover() without adding an interpreter here fails
+      # loudly instead of running nothing.
       echo "FAIL: $path has no known interpreter (expected .py or .sh)" >&2
       return 1
       ;;
