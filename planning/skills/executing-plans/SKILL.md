@@ -739,9 +739,12 @@ Stop immediately and escalate to the user when:
 - A stage gate's remediation budget is exhausted — the responsible task(s), or the defect class they belong to, were re-run and Critical findings remain (escalate with the residual list)
 - The plan contains an instruction you don't understand
 - A test cannot be run (missing fixture, unreachable service, unclear invocation)
+- **A mandated verification or dispatch cannot be performed** — dispatch is unavailable or disallowed and the plan marks tasks `Parallel: YES`, or a review the gate requires cannot be run. Substituting inline execution, or proceeding unreviewed, is not a documented resolution; asking is
 - Verifying the test requires modifying shared infrastructure (production DB, live service) — see Safety rails below
 
 **Never guess through a stop condition.** Ask.
+
+The dispatch entry restores a symmetry the list already had and had lost. "A test cannot be run" blocks, because an unrunnable check is not a passed check — and a mandated dispatch or review that cannot be run is the same fact about a different mechanism. What made the asymmetry survive is that the substitute looks like the work: an inlined task produces the same diff, and an unreviewed gate reads exactly like a reviewed one. That is the reason it needs a rule rather than judgment — the failure is invisible in the artifact, so nothing downstream will raise it. **The choice belongs to the user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through `planning-projects`, or accept inline execution knowingly. What the executor may not do is make that call silently on their behalf, which is exactly what happened in the incident this rule comes from.
 
 ## When to revisit earlier steps
 

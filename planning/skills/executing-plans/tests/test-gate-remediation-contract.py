@@ -246,7 +246,11 @@ def affirms_claim(hay, target_pat):
         # as the picked one.
         after = SENTENCE_END.search(hay, m.end())
         span = hay[(starts[-1] if starts else 0): (after.start() if after else len(hay))]
-        if not NEGATION_RE.search(span):
+        # Blank out `code spans` first: they hold literals, not prose. The rule "the user
+        # can re-mark the tasks `Parallel: NO`" names a FIELD VALUE, and reading its `NO`
+        # as a negation rejected the sentence — the same mistake as treating the colon in
+        # `Parallel: YES` as a clause boundary. A guard over prose must screen prose only.
+        if not NEGATION_RE.search(re.sub(r"`[^`]*`", " ", span)):
             return True
     return False
 
@@ -792,6 +796,30 @@ def main():
           affirms(gate_step, r"deviation being disclosed"),
           "an inlined YES task with a reason attached reads as sanctioned, which restores "
           "the discretionary reading of the field that Stage 1 removed")
+
+    # 15 — (Task 2.4) An unperformable mandated dispatch or review STOPS the run.
+    # The list already blocked on "a test cannot be run" while an unavailable dispatch or
+    # reviewer silently downgraded to inline/unreviewed. Both are verification; only one
+    # blocked. The asymmetry survived because the substitute is indistinguishable from
+    # the work in every artifact — which is also why it needs a rule and not judgment.
+    stops = section(text, r"## Stop conditions", r"## When to revisit earlier steps")
+    check("Stop-conditions list located", bool(stops),
+          "could not slice the Stop conditions list — group 15 is not running")
+    check("an unperformable mandated dispatch or review is a Stop condition",
+          affirms_claim(stops,
+                        r"mandated verification or dispatch cannot be performed"
+                        r"|mandated (dispatch|review) cannot be (run|performed)"),
+          "an unavailable dispatch or reviewer does not stop the run, so the executor "
+          "substitutes inline execution and the user never learns of the choice")
+    # The half that makes it a Stop rather than a note. Without it "stop" is satisfiable
+    # by stopping to think and then inlining anyway.
+    check("inline substitution is named as not a resolution",
+          re.search(r"[Ss]ubstituting inline execution[^.]{0,80}not a documented "
+                    r"resolution", stops) is not None,
+          "the entry does not refuse the substitution, so the rule reads as advice")
+    check("the decision is routed to the user, with the options named",
+          affirms_claim(stops, r"choice belongs to the user"),
+          "nothing says whose call this is, which is how the executor took it silently")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
