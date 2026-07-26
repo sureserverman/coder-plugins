@@ -122,8 +122,10 @@ Then the preflight, before you upload rather than after rejection:
 /planning:project-maturity
 ```
 
-`project-maturity` gives the ship verdict across six axes. For an extension the binding ones
-are Documentation, Security and i18n — which is the next flow.
+`project-maturity` gives the ship verdict across six axes, and an extension trips the
+auto-detectors on several: **Packaging** reads `chrome/manifest.json` / `mozilla/manifest.json`
+directly, **UI/UX** expects a WCAG 2.1 AA audit for anything web, and **i18n** wants the locale
+catalogs — which is the next flow. Documentation and Security bind as they do everywhere.
 
 ---
 
@@ -167,11 +169,13 @@ rather than defaulting everything to a generalist:
 | Test triage, flakiness, coverage | `testing-expert` | `testing` |
 | Catalog translation batches | `translator` | `i18n` |
 
-**`stingy-agents` is the offload target any of them can reach**, and it exists for cost
-rather than capability: `readonly-scanner` for bulk grep/enumeration when the caller is on a
-larger model, `code-generator` for scaffolding from a concrete spec, `skill-rewriter` for
-mechanical markdown edits. Hand I/O-bound work down instead of paying a frontier model to
-read files.
+A second kind of routing runs *downward*, for cost rather than capability. **`stingy-agents`**
+ships three Haiku-pinned delegation targets — `readonly-scanner` for bulk grep and
+enumeration, `code-generator` for scaffolding from a concrete spec, `skill-rewriter` for
+mechanical markdown edits — so a phase that is I/O-bound doesn't run on a frontier model.
+The audit and review skills in `git-github`, `android-dev` and `infra-build` reference them
+by name today; the stack experts in the table above do not, so treat this as a pattern to
+reach for when writing a skill rather than something the routing table does for you.
 
 Game work has its own front door, since mechanics are a design problem before a coding one:
 
