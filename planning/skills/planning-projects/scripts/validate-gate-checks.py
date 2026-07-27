@@ -48,8 +48,9 @@ carefully here:
     simply aren't executable yet; failing them would retro-fail every pre-rule plan.
   - Classification is syntactic. It cannot know that a directory argument happens to
     hold one file, nor read a script to see what it really asserts.
-  - NOT MEASURED OVER THE FROZEN CORPUS — this one bullet is a hand-read of the 23
-    INSTANCE-SHAPED checks in the full ~415-check vault corpus as it stood 2026-07-26,
+  - NOT MEASURED OVER THE FROZEN CORPUS — this one bullet is a MANUAL read (no script,
+    so nothing re-runs it) of the 23 INSTANCE-SHAPED checks found across 12 of the 44
+    plans in the vault corpus at /mnt/vault/Portfolio/ai-tools/coder-plugins/plans/,
     kept because the qualitative point survives the corpus change and nothing in the
     repo reproduces it. Roughly a quarter were set-valued claims narrowed to one member
     (the harmful form); about a third were live/manual judgment checks predating the
