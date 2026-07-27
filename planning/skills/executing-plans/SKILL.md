@@ -448,6 +448,15 @@ When every task in the stage is green, run the stage gate:
 
   **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`. Reproduced on this branch — commits `065bd8b` and `6b09499` return empty for exactly this reason.
 
+- **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for a tier that did not run, the evidenced opt-out (§ Review opt-out) or the trivial/non-code diff that excused it. One line per tier, with the range spelled out rather than described:
+
+  ```
+  review: Tier-2 git-github:code-reviewer over 6b09499..HEAD — APPROVE, 0 Critical
+  evaluator: goal-evaluator, briefed on the Stage 3 goal + gate criteria — PASS, 2 Material
+  ```
+
+  Naming the **agent** is what distinguishes a dispatched review from the executor reading its own diff, which Step 3.5 forbids. Nothing else in the artifact tells the two apart — the same invisibility the executor trailer closes for dispatch, one axis over. Naming the **diff** is what makes the review's coverage checkable: a reviewer briefed on the wrong range returns a clean verdict over code nobody looked at, and "reviewed" reads identically either way. A gate that reports green with no reviewer named is incomplete on its face, so the omission stops being invisible.
+
   The counts are the point, not the prose: an **uncounted** thing is how a run reaches close-out with nobody noticing, which is the same reason the remediation rounds below are counted. The prior incident ran five `Parallel: YES` tasks inline and no gate said so, because no gate was asked to. A stated reason is also not a licence — `Parallel: YES` is a directive (`../planning-projects/SKILL.md` § Stage structure), so an inlined YES task is a **deviation being disclosed**, not a choice being ratified, and a gate report that keeps producing them is evidence the plan's `Parallel` fields are wrong and belong back in `planning-projects`.
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, if the
@@ -808,6 +817,7 @@ When every stage is green:
    - Total commits
    - Version bumps applied (component → old → new)
    - Plan location for future reference
+   - Reviews that ran: each tier, the agent that ran it, and the diff range it saw — or, for a tier that did not run, the evidenced opt-out that excused it. Same requirement as the stage gate's, at plan scope: a close-out that says the work was reviewed without saying by what, over what, is the claim this list exists to stop being unfalsifiable.
    - Backlog items closed (by ID) and any new ones opened during execution
    - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)

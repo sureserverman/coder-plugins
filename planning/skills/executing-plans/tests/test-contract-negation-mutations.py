@@ -277,6 +277,31 @@ MUTATIONS = [
      "are auto-skipped at Tier 1 without needing an annotation.",
      "are auto-skipped at Tier 1 without needing an annotation. " + RAMP,
      ["no review or evaluator excuses itself on availability"]),
+    # --- Stage 3 Task 3.3: the report names the reviewer and the diff (group 18) ---
+    # Each of the three set checks is mutated at a DIFFERENT one of its two sites, so the
+    # suite proves the set property from both directions rather than only where the author
+    # happened to look — a sibling surviving its pair's mutation is the group-12b defect.
+    ("close-out report drops the reviewer's name", EP,
+     "each tier, the agent that ran it, and the diff range it saw",
+     "each tier and the diff range it saw, though not the agent that ran it",
+     ["every review report names the agent that ran it, at: stage gate (Step 3.5); "
+      "close-out report list"]),
+    ("gate report drops the diff the review saw", EP,
+     "the agent that ran it, and the diff it saw**",
+     "the agent that ran it**, though not the diff it saw",
+     ["every review report names the diff the review saw, at: stage gate (Step 3.5); "
+      "close-out report list"]),
+    ("skipped tier no longer has to say what excused it", EP,
+     "the trivial/non-code diff that excused it. One line per tier",
+     "the trivial/non-code diff that excused it, though this is optional. One line per tier",
+     ["every review report records what excused a tier that did not run, at: "
+      "stage gate (Step 3.5); close-out report list"]),
+    # The rationale, inverted rather than deleted: prose that keeps a rule's words while
+    # withdrawing its force is the shape these guards exist for.
+    ("self-review rationale withdrawn", EP,
+     "its own diff, which Step 3.5 forbids.",
+     "its own diff, which Step 3.5 no longer forbids.",
+     ["naming the agent is tied to the executor-self-review it rules out"]),
     ("stated reason turned into authorisation", EP,
      "so an inlined YES task is a **deviation being disclosed**, not a choice being ratified",
      "so an inlined YES task with a stated reason is a choice the gate ratifies",
@@ -332,9 +357,18 @@ SCOPE = [
     'dispatching-parallel-agents/SKILL.md is readable',
     'each rostered task carries its routed agent type and the routing source',
     'every per-task commit carries an executor trailer',
+    'every review report names the agent that ran it, at: stage gate (Step 3.5); '
+    'close-out report list',
+    'every review report names the diff the review saw, at: stage gate (Step 3.5); '
+    'close-out report list',
+    'every review report records what excused a tier that did not run, at: '
+    'stage gate (Step 3.5); close-out report list',
     'every skip clause requires the opt-out to be evidenced, at: gate evaluator '
     '(Step 3.5); close-out evaluator; Integration summary (goal-evaluator entry)',
     'executor judgment is named as not constituting an opt-out',
+    'naming the agent is tied to the executor-self-review it rules out',
+    'report site located: close-out report list',
+    'report site located: stage gate (Step 3.5)',
     'inline substitution is named as not a resolution',
     'inline substitution is refused as a resolution',
     'no review or evaluator excuses itself on availability',
@@ -376,6 +410,8 @@ EXEMPT = {
     "Stop-conditions list located": "locator",
     "site present: planning-projects Phase 1 checklist": "locator",
     "site present: planning-projects plan template": "locator",
+    "report site located: stage gate (Step 3.5)": "locator",
+    "report site located: close-out report list": "locator",
     "dispatching-parallel-agents/SKILL.md is readable": "file-readable guard",
     # Literal trailer values. `Executor: inline` is a token, not a proposition; there is
     # no negated restatement of a string that still leaves the string documented.

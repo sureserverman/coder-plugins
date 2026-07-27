@@ -92,8 +92,14 @@ What it pins:
      is explicitly exempted from the quote, because it is checkable from the diff and a
      quote requirement over it would be unsatisfiable. Checked at all three skip sites as
      a set (DEC-005): a definition only its defining site honors is the Stage 1 defect.
+ 18. (Stage 3, Task 3.3) The review analogue of 14's dispatch ledger: both places a run
+     claims it was reviewed — the stage gate report and the close-out report list — name
+     the agent that ran each review, the diff it saw, and what excused any tier that did
+     not run. Checked as a set over the two sites, each mutated at a different one of
+     them so the set property is proved from both directions. The rationale is pinned
+     alongside the rule, because a rule whose reason is dropped reads as formatting.
 
- Items 11-17 were added by the dispatch-fidelity plan, which also found this list had
+ Items 11-18 were added by the dispatch-fidelity plan, which also found this list had
  stopped being maintained: groups 11 through 13 shipped without entries, three separate
  reviews flagged it, and the first fix still omitted group 15 — a fourth instance, caught
  by the gate review. Coverage of this list is now asserted mechanically by
@@ -971,6 +977,54 @@ def main():
           not unevidenced,
           f"these skip clauses still accept a bare asserted opt-out: "
           f"{', '.join(unevidenced)}")
+
+    # 18 — (Stage 3, Task 3.3) the review analogue of group 14's dispatch ledger. Groups 16
+    # and 17 decide WHEN a review may be skipped; this makes the answer readable off the
+    # report either way. Written as a set over both reporting sites for the same reason
+    # group 14 reconciles counts rather than trusting memory: the stage gate and the
+    # close-out are the two places a run claims it was reviewed, and a requirement landing
+    # on only one of them leaves the other free to assert it.
+    report_sites = [
+        ("stage gate (Step 3.5)", gate_step),
+        ("close-out report list",
+         section(text, r"9\. Report to the user with:", r"\n10\. Offer merge")),
+    ]
+    for label, slab in report_sites:
+        check(f"report site located: {label}", bool(slab),
+              f"could not slice {label} — the group-18 set checks would pass vacuously "
+              f"over an empty string")
+    no_agent = [n for n, s in report_sites if not affirms_claim(s, r"the agent that ran it")]
+    check("every review report names the agent that ran it, at: "
+          + "; ".join(n for n, _ in report_sites),
+          not no_agent,
+          f"these report sites let a run claim it was reviewed without naming the "
+          f"reviewer: {', '.join(no_agent)}")
+    # `(?: range)?` so the two sites may word it naturally — the gate reports one stage's
+    # diff, the close-out a range across the plan — without either being pinned verbatim
+    # (BL-031). What is pinned is that the diff is identified at all.
+    no_diff = [n for n, s in report_sites
+               if not affirms_claim(s, r"the diff(?: range)? it saw")]
+    check("every review report names the diff the review saw, at: "
+          + "; ".join(n for n, _ in report_sites),
+          not no_diff,
+          f"these report sites name a reviewer but not what it reviewed, so a review "
+          f"briefed on the wrong range is indistinguishable: {', '.join(no_diff)}")
+    no_skip = [n for n, s in report_sites
+               if not affirms_claim(s, r"evidenced opt-out[^.]{0,60}excused it")]
+    check("every review report records what excused a tier that did not run, at: "
+          + "; ".join(n for n, _ in report_sites),
+          not no_skip,
+          f"these report sites are silent about a review that did not happen, which is "
+          f"the state that reads as 'reviewed': {', '.join(no_skip)}")
+    # The rationale, not just the rule. This is the claim that says WHY naming the agent is
+    # load-bearing rather than ceremony, and it is the first thing a future tightening
+    # would drop as redundant — at which point the rule reads as a formatting preference.
+    check("naming the agent is tied to the executor-self-review it rules out",
+          affirms_claim(gate_step,
+                        r"distinguishes a dispatched review from the executor reading "
+                        r"its own diff"),
+          "the gate report's reviewer name is no longer connected to the self-review "
+          "Step 3.5 forbids, leaving it as a formatting rule with no stated purpose")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
