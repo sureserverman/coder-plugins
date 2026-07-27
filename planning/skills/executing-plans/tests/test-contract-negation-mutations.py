@@ -229,10 +229,47 @@ MUTATIONS = [
      "is not a third one: it is the Stop condition for a mandated review that cannot be run",
      "is a third one: note it, stand that tier down, and proceed on the checks that remain",
      ["an undispatchable reviewer routes to the Stop condition"]),
+    # Task 3.2 rewrote this clause from "explicit" to "evidenced"; the inversion tracks the
+    # current wording. A mutation whose ORIGINAL no longer exists silently stops testing
+    # anything, which is why the harness fails on an unmatched original rather than
+    # skipping it.
     ("gate evaluator skip loosened again", EP,
-     "Skip the evaluator only on an explicit user opt-out",
-     "Skipping the evaluator needs no explicit user opt-out",
+     "Skip the evaluator only on an **evidenced** user opt-out",
+     "Skipping the evaluator needs no evidenced user opt-out",
      ["the gate evaluator's skip clause is closed the same way"]),
+    # --- Stage 3 Task 3.2: the surviving opt-out must be evidenced (group 17) ---
+    # The inversion that matters here is not "delete the rule" but "name the rule and then
+    # excuse it" — the shape prose actually erodes into.
+    ("quote requirement made optional", EP,
+     "words**, with where they were said. For example:",
+     "words**, with where they were said, though a quote is optional. For example:",
+     ["an opt-out is evidenced by quoting the user"]),
+    # Anchored WITHIN one physical line, without the leading "the only": the contract
+    # suite reads flattened text (section() collapses the wrap) while mutations rewrite the
+    # raw file, so an anchor spanning the SKILL's line break matches there and not here.
+    ("opt-out authorship widened to the executor", EP,
+     "person who can author it is the user",
+     "person who can author it is not always the user",
+     ["only the user can author an opt-out"]),
+    ("executor judgment promoted to an opt-out", EP,
+     "**Executor judgment is not an opt-out.**",
+     "**Executor judgment is a legitimate opt-out.**",
+     ["executor judgment is named as not constituting an opt-out"]),
+    # The over-reach direction: making the trivial-diff reason ALSO need a quote is the
+    # natural way this rule breaks, because it reads stricter and is therefore easy to
+    # wave through — but it closes the very path Task 3.1 kept open.
+    ("trivial diff dragged under the quote requirement", EP,
+     "A **trivial/non-code diff** carries its own evidence:",
+     "A **trivial/non-code diff** must quote the user too:",
+     ["a trivial diff is exempted from the quote requirement"]),
+    # Sibling survival, the group-12b pattern applied to group 17: mutate ONE of the three
+    # sites and the set check must still go red. A per-site check would let the other two
+    # carry it.
+    ("one sibling skip clause left unevidenced", EP,
+     "Skip only on an **evidenced** user opt-out — the close-out report quotes",
+     "Skip only on an asserted user opt-out — the close-out report need not quote",
+     ["every skip clause requires the opt-out to be evidenced, at: gate evaluator "
+      "(Step 3.5); close-out evaluator; Integration summary (goal-evaluator entry)"]),
     # The ramp itself, reinstated verbatim. The three entries above pin the sentences that
     # replaced it; this one pins the CLASS — that no availability-based excuse for a
     # review returns anywhere in the file, in this or any other wording.
@@ -281,7 +318,9 @@ SCOPE = [
     'a misstated trailer is called worse than none',
     'a reason is required per inlined Parallel: YES task',
     'a stated reason is disclosure, not authorisation',
+    'a trivial diff is exempted from the quote requirement',
     'an empty roster is written down, not omitted',
+    'an opt-out is evidenced by quoting the user',
     'an unavailable dispatch is a Preflight failure',
     'an undispatchable reviewer routes to the Stop condition',
     'an unparseable trailer is counted as unknown, not as inline',
@@ -293,11 +332,15 @@ SCOPE = [
     'dispatching-parallel-agents/SKILL.md is readable',
     'each rostered task carries its routed agent type and the routing source',
     'every per-task commit carries an executor trailer',
+    'every skip clause requires the opt-out to be evidenced, at: gate evaluator '
+    '(Step 3.5); close-out evaluator; Integration summary (goal-evaluator entry)',
+    'executor judgment is named as not constituting an opt-out',
     'inline substitution is named as not a resolution',
     'inline substitution is refused as a resolution',
     'no review or evaluator excuses itself on availability',
     'no threshold makes a lone YES task skip dispatch',
     'only an EMPTY set returns control to the caller',
+    'only the user can author an opt-out',
     'review skips are closed to user opt-out and trivial diffs',
     'site present: planning-projects Phase 1 checklist',
     'site present: planning-projects plan template',

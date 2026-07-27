@@ -86,8 +86,14 @@ What it pins:
      the "is not a gate failure" shape: the platform stage-verify line uses that shape
      correctly, because a platform verifier is conditionally applicable (not every
      project is Android) where a code reviewer always applies.
+ 17. (Stage 3, Task 3.2) The one surviving discretionary reason — the user opt-out — has
+     to be EVIDENCED: the report quotes the user's own words, only the user can author
+     one, and executor judgment is named as not constituting one. The trivial-diff reason
+     is explicitly exempted from the quote, because it is checkable from the diff and a
+     quote requirement over it would be unsatisfiable. Checked at all three skip sites as
+     a set (DEC-005): a definition only its defining site honors is the Stage 1 defect.
 
- Items 11-16 were added by the dispatch-fidelity plan, which also found this list had
+ Items 11-17 were added by the dispatch-fidelity plan, which also found this list had
  stopped being maintained: groups 11 through 13 shipped without entries, three separate
  reviews flagged it, and the first fix still omitted group 15 — a fourth instance, caught
  by the gate review. Coverage of this list is now asserted mechanically by
@@ -909,6 +915,62 @@ def main():
           escape is None,
           f"an availability-based excuse for skipping a review is back in the file: "
           f"{escape.group(0) if escape else ''}")
+
+    # 17 — (Stage 3, Task 3.2) group 16 closed the LIST of skip reasons at two; this group
+    # is about what the surviving user opt-out has to show for itself. Deleting the ramp
+    # without this is a dead end: the legitimate path stays open only if it is auditable,
+    # and "the user asked me to skip this" and "I decided to skip this" currently produce
+    # the identical record — the same invisibility the executor trailer (group 13) exists
+    # to end, one axis over.
+    check("an opt-out is evidenced by quoting the user",
+          affirms_claim(review_optout,
+                        r"recording it means \*\*quoting the user's own\s+words\*\*"),
+          "the user opt-out no longer has to quote the user, so an asserted opt-out and "
+          "an evidenced one leave the same artifact")
+    check("only the user can author an opt-out",
+          affirms_claim(review_optout,
+                        r"the only person who can author it is the user"),
+          "the opt-out's authorship is unstated, which is what lets an executor record "
+          "its own decision as the user's")
+    # Plain search WITH the negation inside the pattern — deliberately, and NOT the same
+    # mistake as the sibling check two blocks up (`Stop condition for a mandated review`),
+    # which a Tier-1 review demonstrated stays green when `not` is inserted BEFORE its
+    # match. The distinction is where the negation sits relative to the pattern: here the
+    # requirement IS the negation, so the minimal inversion — dropping `not` — deletes the
+    # matched text and turns this red. affirms_claim cannot be used at all, because it
+    # would screen the requirement's own `not` and reject the true sentence (the
+    # absence-subject case its docstring carves out).
+    check("executor judgment is named as not constituting an opt-out",
+          re.search(r"\*\*Executor judgment is not an opt-out\.\*\*",
+                    review_optout) is not None,
+          "the file no longer says that an executor's own judgment fails to be an "
+          "opt-out, which is the only reading that makes the quote requirement bite")
+    # The asymmetry is load-bearing, not decoration: without it "evidenced" over-reaches
+    # onto the trivial-diff reason, which has no user to quote and would become
+    # unsatisfiable — closing the legitimate path this task exists to keep open.
+    check("a trivial diff is exempted from the quote requirement",
+          affirms_claim(review_optout,
+                        r"trivial/non-code diff\*\* carries its own evidence"),
+          "the quote requirement is not scoped away from the trivial-diff reason, which "
+          "has no user to quote and would be unsatisfiable")
+    # Set check (DEC-005): the sibling skip clauses are checked together, not one at a
+    # time. A definition that only the defining site honors is how the Stage 1 defect
+    # worked — the authoring site said one thing and the consuming sites another.
+    evidenced_sites = [
+        ("gate evaluator (Step 3.5)", gate_eval),
+        ("close-out evaluator",
+         section(text, r"3\. \*\*Independent evaluator pass \(default\)",
+                 r"\n4\. \*\*Bump versions")),
+        ("Integration summary (goal-evaluator entry)",
+         section(text, r"- \*\*goal-evaluator agent\*\*", r"\n- \*\*git-github:code-reviewer")),
+    ]
+    unevidenced = [n for n, s in evidenced_sites
+                   if not affirms_claim(s, r"evidenced\b[^.]{0,40}user opt-out")]
+    check("every skip clause requires the opt-out to be evidenced, at: "
+          + "; ".join(n for n, _ in evidenced_sites),
+          not unevidenced,
+          f"these skip clauses still accept a bare asserted opt-out: "
+          f"{', '.join(unevidenced)}")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []

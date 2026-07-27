@@ -483,10 +483,12 @@ end-to-end"), dispatch a fresh evaluator agent for those checks, briefed ONLY
 with the stage goal and the gate's pass criteria — never the implementation
 transcript or your own summary of the work. The session that wrote the code
 grades its own work too generously; external judgment catches what
-self-assessment misses. Skip the evaluator only on an explicit user opt-out, or
-when every check in the gate is a command — a gate with nothing to judge is the
-evaluator's analogue of a trivial diff. There is no third reason: an evaluator
-that cannot be dispatched is a Stop condition (§ Stop conditions), not a skip.
+self-assessment misses. Skip the evaluator only on an **evidenced** user opt-out
+(§ Review opt-out — the gate report quotes the user's words; executor judgment is
+not one), or when every check in the gate is a command — a gate with nothing to
+judge is the evaluator's analogue of a trivial diff. There is no third reason: an
+evaluator that cannot be dispatched is a Stop condition (§ Stop conditions), not a
+skip.
 
 **Brief it to grade by severity, not just pass/fail.** A bare per-criterion
 pass/fail gives the loop nothing to terminate on, because a fresh judgment agent
@@ -762,7 +764,7 @@ When every stage is green:
 
 1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
-3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail **plus a severity for every finding** (Blocking / Material / Minor — same vocabulary as the gate evaluator in Step 3.5). **A Blocking finding is the stop condition** — surface it to the user before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on explicit user opt-out.
+3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail **plus a severity for every finding** (Blocking / Material / Minor — same vocabulary as the gate evaluator in Step 3.5). **A Blocking finding is the stop condition** — surface it to the user before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on an **evidenced** user opt-out — the close-out report quotes the user's own words (§ Review opt-out); executor judgment does not constitute one.
 4. **Bump versions for what changed.** A completed plan almost always shifts a
    shippable version somewhere — bump it as part of close-out, don't leave it for
    later. Walk the artifacts the plan touched and apply a SemVer bump to each
@@ -856,7 +858,7 @@ When every stage is green:
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
-- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only when the user opts out or every check is a command.
+- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only on an evidenced user opt-out (quoted, per § Review opt-out) or when every check is a command.
 - **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
@@ -872,3 +874,27 @@ When every stage is green:
 - **test-scope-tiers reference** (`../planning-projects/references/test-scope-tiers.md`) — the shared scope policy Step 3.3 (fix-scope), Step 3.5 (stage-scope), and Close-out (plan-scope) follow
 
 **Review opt-out.** Both review tiers are default-on. Disable them per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped at Tier 1 without needing an annotation. **Two reasons excuse a review, and the list is closed at two: an explicit user opt-out, and a trivial/non-code diff.** A `git-github:code-reviewer` that cannot be dispatched is not a third one: it is the Stop condition for a mandated review that cannot be run (§ Stop conditions), on the same ground as an unrunnable test. An unrun review is not a passed review, and it leaves an artifact indistinguishable from a reviewed one — which is why the resolution is the user's to choose and not the executor's to assume.
+
+**An opt-out is evidenced, not asserted.** The two reasons differ in who authors them, so
+they carry their evidence differently. A **trivial/non-code diff** carries its own evidence:
+it is a property of the diff, and any later reader can check it against the diff itself. A
+**user opt-out** is a claim about something that happened outside the artifact, and the only
+person who can author it is the user — so recording it means **quoting the user's own
+words**, with where they were said. For example:
+
+```
+Review skipped — user opt-out, Preflight: "don't bother with the reviewer on this one"
+```
+
+A `Review: skip` annotation on the task line is already evidence of this kind — it lives in
+the plan the user approved, so cite the task rather than a quote.
+
+**Executor judgment is not an opt-out.** *"I judged the review unnecessary"*, *"the diff
+looked small to me"*, *"there was nothing a reviewer would have caught"* are the executor
+deciding on the user's behalf and then recording the decision as though the user had made
+it. That is the same substitution the executor trailer exists to expose (Step 3.3 rule 7),
+one axis over. A skip reported without a quote or a cited annotation is an **unevidenced
+skip**: it reads downstream as a review that did not happen, because that is what it is.
+The point is not to make opting out hard — it is to keep the legitimate path open and
+auditable, so that "the user asked me to skip this" and "I decided to skip this" stop
+producing the same record.
