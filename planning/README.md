@@ -110,7 +110,7 @@ Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the sp
 
 ### `dispatching-parallel-agents`
 
-Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel YES` and all their dependencies are green. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
+Used by `executing-plans` (or directly) when a task is marked `Parallel YES` and its dependencies are green — one such task or many. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 

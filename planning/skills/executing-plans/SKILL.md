@@ -369,8 +369,12 @@ to a single stack-matched subagent instead of running it inline. This keeps the
 orchestrator's window on plan state and gates rather than filling it with churn it will
 never reference again. **Brief it with the decisions in force that bear on the task**,
 exactly as the parallel path does (`../dispatching-parallel-agents/SKILL.md` § Prompt
-template) — both dispatch paths, one convention. A delegated task is no less bound by the
-register than an inline one; it is just less able to discover that on its own. It is a context-hygiene move, **not** a token saving — the
+template), **and require the same executor trailer** — `Executor: dispatched — <type>`,
+per Step 3.3 rule 7. Both dispatch paths, one convention: this path does not go through
+`dispatching-parallel-agents`, so nothing else asks for the trailer, and a task delegated
+here would otherwise land indistinguishable from one the orchestrator ran itself. A
+delegated task is no less bound by the register than an inline one; it is just less able
+to discover that on its own. It is a context-hygiene move, **not** a token saving — the
 subagent's intermediate tokens still burn. Keep a task inline when it is coupled to
 accumulated session context, needs iterative back-and-forth, or is a quick targeted
 edit. Pick the subagent type (and the stack skill it should load first) from the
