@@ -229,6 +229,15 @@ MUTATIONS = [
      "is not a third one: it is the Stop condition for a mandated review that cannot be run",
      "is a third one: note it, stand that tier down, and proceed on the checks that remain",
      ["an undispatchable reviewer routes to the Stop condition"]),
+    # The MINIMAL negation of the same claim, added at the Stage 3 gate. The entry above
+    # rewrites the whole clause, which is why it stayed green while the check was a plain
+    # `re.search` — a broad edit hides a guard that only ever looked inside its own match.
+    # Two reviews reproduced this independently; the reproduction lives here now instead of
+    # in a scratchpad, which is the whole premise of this file.
+    ("undispatchable reviewer minimally negated", EP,
+     "it is the Stop condition for a mandated review",
+     "it is not the Stop condition for a mandated review",
+     ["an undispatchable reviewer routes to the Stop condition"]),
     # Task 3.2 rewrote this clause from "explicit" to "evidenced"; the inversion tracks the
     # current wording. A mutation whose ORIGINAL no longer exists silently stops testing
     # anything, which is why the harness fails on an unmatched original rather than
@@ -278,9 +287,14 @@ MUTATIONS = [
      "are auto-skipped at Tier 1 without needing an annotation. " + RAMP,
      ["no review or evaluator excuses itself on availability"]),
     # --- Stage 3 Task 3.3: the report names the reviewer and the diff (group 18) ---
-    # Each of the three set checks is mutated at a DIFFERENT one of its two sites, so the
-    # suite proves the set property from both directions rather than only where the author
-    # happened to look — a sibling surviving its pair's mutation is the group-12b defect.
+    # SIX entries, not three: each of the three set checks is mutated at BOTH of its two
+    # sites. The first cut mutated each check at one site and the comment here claimed that
+    # "proved the set property from both directions" — which two gate reviews independently
+    # showed was false (two of the three anchors sat in the stage-gate site, and no check
+    # was ever mutated at both). A set check that is only ever regressed at one site is
+    # exactly the sibling-survival defect group 12b exists to catch, reproduced inside the
+    # harness meant to prove the set is checked. Closed by testing the combinations rather
+    # than by rewording the claim.
     ("close-out report drops the reviewer's name", EP,
      "each tier, the agent that ran it, and the diff range it saw",
      "each tier and the diff range it saw, though not the agent that ran it",
@@ -296,11 +310,27 @@ MUTATIONS = [
      "the trivial/non-code diff that excused it, though this is optional. One line per tier",
      ["every review report records what excused a tier that did not run, at: "
       "stage gate (Step 3.5); close-out report list"]),
+    # The other site of each pair. These three are what make the comment above true.
+    ("gate report drops the reviewer's name", EP,
+     "names every review that ran, the agent that ran it",
+     "names every review that ran, though not the agent that ran it",
+     ["every review report names the agent that ran it, at: stage gate (Step 3.5); "
+      "close-out report list"]),
+    ("close-out report drops the diff the review saw", EP,
+     "the agent that ran it, and the diff range it saw",
+     "the agent that ran it, but not the diff range it saw",
+     ["every review report names the diff the review saw, at: stage gate (Step 3.5); "
+      "close-out report list"]),
+    ("close-out skipped tier no longer says what excused it", EP,
+     "the evidenced opt-out that excused it.",
+     "the evidenced opt-out that excused it, though stating it is optional.",
+     ["every review report records what excused a tier that did not run, at: "
+      "stage gate (Step 3.5); close-out report list"]),
     # The rationale, inverted rather than deleted: prose that keeps a rule's words while
     # withdrawing its force is the shape these guards exist for.
     ("self-review rationale withdrawn", EP,
-     "its own diff, which Step 3.5 forbids.",
-     "its own diff, which Step 3.5 no longer forbids.",
+     "its own diff, which both tiers forbid",
+     "its own diff, which no tier actually forbids",
      ["naming the agent is tied to the executor-self-review it rules out"]),
     ("stated reason turned into authorisation", EP,
      "so an inlined YES task is a **deviation being disclosed**, not a choice being ratified",

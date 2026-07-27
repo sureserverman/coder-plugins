@@ -95,9 +95,10 @@ What it pins:
  18. (Stage 3, Task 3.3) The review analogue of 14's dispatch ledger: both places a run
      claims it was reviewed — the stage gate report and the close-out report list — name
      the agent that ran each review, the diff it saw, and what excused any tier that did
-     not run. Checked as a set over the two sites, each mutated at a different one of
-     them so the set property is proved from both directions. The rationale is pinned
-     alongside the rule, because a rule whose reason is dropped reads as formatting.
+     not run. Checked as a set over the two sites, with every check mutated at BOTH of
+     them (six entries) — the first cut mutated each at one site and claimed that proved
+     both directions, which two gate reviews falsified. The rationale is pinned alongside
+     the rule, because a rule whose reason is dropped reads as formatting.
 
  Items 11-18 were added by the dispatch-fidelity plan, which also found this list had
  stopped being maintained: groups 11 through 13 shipped without entries, three separate
@@ -899,11 +900,16 @@ def main():
           affirms_claim(review_optout, r"the list is closed at two"),
           "the review opt-out no longer states its reasons as an exhaustive pair, so a "
           "third situation can be read into it the way an uninstalled reviewer once was")
-    # Plain search, NOT affirms(): the claim is affirmative in meaning and negative in
-    # wording ("is not a third one"), the same distinction drawn at the group-12 and
-    # group-13 siblings above.
+    # Was a plain `re.search`, justified as "the claim is affirmative in meaning and
+    # negative in wording". That justification was wrong, and two independent gate reviews
+    # both reproduced it: inserting `not` before the match ("it is NOT the Stop condition
+    # for a mandated review") left the whole suite green, because a plain search never
+    # looks outside its own match. The negation the sentence carries — "is not a third
+    # one" — sits in the PRECEDING clause, which `affirms_claim` correctly excludes; the
+    # colon is a backward boundary. So the helper works here after all, and the special
+    # case was never real. Fourth instance of the author-chosen-span class.
     check("an undispatchable reviewer routes to the Stop condition",
-          re.search(r"Stop condition for a mandated review", review_optout) is not None,
+          affirms_claim(review_optout, r"Stop condition for a mandated review"),
           "an unavailable code-reviewer has no stated resolution, so the run proceeds on "
           "whatever checks remain and the user never gets the decision")
     gate_eval = section(text, r"\*\*Independent evaluator for non-command checks",
@@ -913,9 +919,19 @@ def main():
                         r"[Ss]kip the evaluator only on[^.]{0,60}user opt-out"),
           "the Step 3.5 evaluator's skip clause no longer scopes skipping to an explicit "
           "opt-out — the loose wording the reviewer ramp grew out of")
-    # The class check: not "is this one sentence gone" but "does any review or evaluator
-    # anywhere in the file excuse itself on its own availability". See REVIEW_ESCAPE_RE
-    # for why it is scoped to the subject and not to the sentence shape.
+    # Catches the deleted ramp and its near neighbours returning ANYWHERE in the file,
+    # rather than only at the sentence Task 3.1 rewrote. See REVIEW_ESCAPE_RE for why it is
+    # scoped to the subject and not to the sentence shape.
+    #
+    # MEASURED LIMIT, stated because the earlier wording here ("the class check") claimed
+    # more than four alternations can deliver, and two gate reviews independently
+    # demonstrated it: "cannot be found", "unreachable", "can't be located", "doesn't
+    # exist", "if the reviewer agent is currently unavailable, proceed with the checks that
+    # remain" all express the ramp's idea and all evade this regex. It is defence in depth
+    # behind the sentence-anchored checks above, which are what actually bind the rule — a
+    # keyword sweep cannot decide whether a sentence excuses a review, and pretending
+    # otherwise is the failure mode this file exists to catch. Its scope is also one file
+    # (`text`), not the tree; gate criterion 2 sweeps the tree separately.
     escape = REVIEW_ESCAPE_RE.search(text)
     check("no review or evaluator excuses itself on availability",
           escape is None,
