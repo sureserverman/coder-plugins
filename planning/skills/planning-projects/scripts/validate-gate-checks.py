@@ -32,10 +32,13 @@ corpus exists, i.e. locally. On CI the corpus is absent and those assertions ski
 the pin catches drift on a developer machine and NOT in CI. Vendoring a real-plan
 corpus into the repo would close that; until then this caveat is the honest statement:
 
-  - Calibrated against 415 gate checks in 43 real plans: 166 EXECUTABLE,
-    15 JUDGMENT, 23 INSTANCE-SHAPED, 211 PROSE. Those 23 are legacy non-compliance, which is why
-    `executing-plans` treats this as advisory on existing plans and mandatory only for
-    newly authored ones.
+  - Calibrated against 48 gate checks in 3 real plans: 21 EXECUTABLE,
+    7 JUDGMENT, 3 INSTANCE-SHAPED, 17 PROSE. The corpus is frozen in the repo at
+    tests/fixtures/gate-check-corpus/ (see its PROVENANCE.md) and these figures are pinned
+    to it by tests/test-validate-gate-checks.py group 9, so they move only when someone
+    deliberately edits that directory. Those 3 INSTANCE-SHAPED are legacy non-compliance,
+    which is why `executing-plans` treats this as advisory on existing plans and mandatory
+    only for newly authored ones.
   - A check carrying BOTH a narrow command and explicitly plural language ("`grep -c x
     one.md` = 1 and no stray refs remain") classifies EXECUTABLE. That branch carries 15
     real corpus checks, so it is deliberate — but it IS a way for a narrow command to
