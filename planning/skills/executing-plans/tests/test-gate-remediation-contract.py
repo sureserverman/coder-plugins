@@ -607,6 +607,9 @@ def main():
 
     roster = section(text, r"### Dispatch roster and capability probe",
                      r"## Phase 3 — Stage execution")
+    closeout_report = section(text, r"9\. Report to the user with:", r"\n10\. Offer merge")
+    resets = section(text, r"## Context resets at stage boundaries",
+                     r"## Progress state file")
     check("the Preflight roster/probe block is present", bool(roster),
           "could not slice the dispatch roster section — the two checks below would "
           "pass vacuously over an empty string")
@@ -615,6 +618,23 @@ def main():
           and affirms_claim(roster, r"Sweep \*\*every task in the plan\*\*"),
           "Preflight no longer probes dispatch or sweeps the plan for YES tasks, so an "
           "unavailable dispatch is discovered at close-out instead of before Stage 1")
+    check("the probe is conditioned on a non-empty roster",
+          affirms_claim(roster, r"only if the roster is non-empty"),
+          "the probe runs unconditionally again, so a plan that will never dispatch "
+          "still burns a throwaway one to prove a capability nothing uses")
+    check("Review: skip annotations are snapshotted at Preflight",
+          affirms_claim(roster, r"Snapshot the `Review: skip` annotations"),
+          "nothing pins the annotations to the run's base commit, so an executor can "
+          "add one mid-run and cite it as a user opt-out")
+    check("close-out reconciles dispatch plan-wide against the roster",
+          affirms_claim(closeout_report, r"reconciled against Preflight's roster"),
+          "the roster is declared plan-wide but answered only per stage, so a skipped "
+          "or silent stage gate leaves a hole no per-stage check can see")
+    check("the handoff carries the ledgers a reset would discard",
+          affirms_claim(resets, r"dispatch and review lines are carried here"),
+          "the gate's ledgers stay transcript-only while the skill recommends discarding "
+          "that context — and the review ledger cannot be rebuilt from git")
+
     check("an unavailable dispatch fails Preflight",
           affirms_predicate(roster, r"dispatch is unavailable or disallowed",
                             r"Preflight fails and you stop"),
@@ -662,6 +682,11 @@ def main():
           affirms_claim(review_optout, r"Stop condition for a mandated review"),
           "an unavailable code-reviewer has no stated resolution, so the run proceeds on "
           "whatever checks remain and the user never gets the decision")
+    check("only a snapshotted annotation counts as an opt-out",
+          affirms_claim(review_optout,
+                        r"counts as an opt-out when Preflight's snapshot lists it"),
+          "an annotation read at skip time is accepted again, which cannot distinguish "
+          "a user's decision from the executor's own")
     check("an opt-out is evidenced by quoting the user",
           affirms_claim(review_optout, r"quoting the user's own\s+words"),
           "an asserted opt-out and an evidenced one leave the same artifact again")

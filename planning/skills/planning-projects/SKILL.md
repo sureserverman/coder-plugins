@@ -284,7 +284,7 @@ Verify each of these and report the result:
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding. Starting Stage 1 with a broken preflight is how you end up debugging environment issues instead of building features.
 
-The last two checks exist because `Parallel: YES` is a directive (see § Stage structure) whose breach is otherwise invisible: an inlined task and a dispatched one leave identical artifacts, so nothing downstream can detect the substitution. The roster is a sweep over the plan's whole task set — every stage, not the first — so it fails on siblings a single named example would miss, and it gives a later reader a written list to hold the run against. The probe moves "dispatch isn't available here" from close-out to before Stage 1, where it is still a choice the user gets to make; `executing-plans` treats an unavailable dispatch against a non-empty roster as a Preflight failure rather than a licence to inline (`../executing-plans/SKILL.md` § Dispatch roster and capability probe).
+The last two checks exist because `Parallel: YES` is a directive (see § Stage structure) whose breach is otherwise invisible. They are the *executor's* rules; the author's job is to carry them into the plan's Preflight so a run cannot skip them by never being asked. Note the roster must cover **every stage, not the first** — a partial roster is the instance-shaped check this skill rejects everywhere else. The rest of the reasoning lives at `../executing-plans/SKILL.md` § Dispatch roster and capability probe and is deliberately not repeated here.
 
 For a project whose full test suite is expensive (see references/test-scope-tiers.md), the plan declares its stage-scope and plan-scope test commands here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution.
 
@@ -312,6 +312,7 @@ Stage N: [Name]
                   subagent; it is not a note about whether a sibling task runs alongside it)
       Scope:      [the SET this task changes — omit when it changes exactly one thing]
       Test:       [concrete pass/fail criterion]
+      Review:     skip   (OPTIONAL, and only on the user's say-so — see below)
 
     Task N.2: [description]
       Depends on: Task N.1
@@ -325,6 +326,24 @@ Stage N: [Name]
     - [ ] No regressions in existing tests
     - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
 ```
+
+### `Review: skip` — an authored field, never an executor's
+
+Both review tiers are default-on in `executing-plans`. A task may carry `Review: skip` to
+turn them off for that task — but **only when the user has said so**, and the field exists
+in this template precisely so the annotation has a provenance: it lands in the plan the
+user reads and approves, before execution starts.
+
+Do not add it on your own judgment that a task looks trivial. `executing-plans` already
+auto-skips genuinely non-code diffs (docs-only, config-only, pure version bumps) without
+any annotation, so the field is not needed for that case — its only job is to record a
+*user's* decision. An executor that adds it mid-run is recording its own decision as the
+user's, which is why `executing-plans` snapshots these annotations at Preflight and honors
+only the ones present at the run's base commit (`../executing-plans/SKILL.md` § Dispatch
+roster and capability probe, and § Review opt-out).
+
+Omit the field entirely on every task the user did not name. An absent field is the
+default; `Review: run` is not a thing.
 
 ### Status marking (per-task done-state)
 

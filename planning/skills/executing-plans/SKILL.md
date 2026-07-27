@@ -249,8 +249,9 @@ Run every check in the Preflight section and report pass/fail:
 - Baseline test suite passes
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
-- **Dispatch works in this session** — probed, not assumed; see below
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
+- **Dispatch works in this session** — probed, not assumed, and only when the roster is non-empty; see below
+- **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 
 ### Decisions re-check (the plan's snapshot can be stale)
 
@@ -308,12 +309,7 @@ notice. The omission becomes visible only if the run wrote down what it was goin
 *before* it did anything. Preflight is where that happens, and Preflight is already a
 hard stop.
 
-1. **Probe the capability.** Dispatch one throwaway subagent — `general-purpose`, whose
-   entire task is to reply with a fixed string (`DISPATCH-OK`) — and confirm the string
-   came back. One trivial dispatch proves the mechanism works in *this* session, while
-   the finding can still change what happens next. Learning at Stage 3 that dispatch is
-   unavailable is the same fact arriving after every decision it should have informed.
-2. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
+1. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
    list in the Preflight report each task whose `Parallel:` field reads `YES`, with the
    `subagent_type` it routes to per
    `../dispatching-parallel-agents/references/stack-routing.md`:
@@ -332,6 +328,40 @@ hard stop.
    the absence is on the record as observed rather than as never examined. What the
    roster buys is contradiction: a run whose Preflight declared five dispatches and whose
    execution shows none now disagrees with a written list instead of disappearing.
+
+2. **Probe the capability — only if the roster is non-empty.** Dispatch one throwaway
+   subagent — `general-purpose`, whose entire task is to reply with a fixed string
+   (`DISPATCH-OK`) — and confirm the string came back. One trivial dispatch proves the
+   mechanism works in *this* session, while the finding can still change what happens
+   next. Learning at Stage 3 that dispatch is unavailable is the same fact arriving after
+   every decision it should have informed.
+
+   **Roster first, probe second**, because the roster decides whether the probe is worth
+   running: a plan with `0 tasks` on its roster will never dispatch, so a throwaway
+   dispatch there proves a capability nothing in the run will use. Record `probe: skipped
+   — empty roster` and move on. This is also why the failure rule below is conditioned on
+   a non-empty roster; ordering the steps the other way made that condition read as an
+   afterthought.
+
+3. **Snapshot the `Review: skip` annotations.** In the same sweep, list every task
+   already carrying `Review: skip`, and record it in the Preflight report against the
+   commit the run starts from:
+
+   ```
+   Review: skip annotations at <base-sha> — <n> task(s): <Task N.M>, …
+   ```
+
+   This is what makes the annotation usable as evidence later. `Review: skip` says *the
+   user chose not to review this task* — but the executor writes to the plan file on
+   every task (Status flips, review notes), so an annotation read at skip time cannot
+   distinguish one the user authored from one the executor added ten minutes earlier.
+   The snapshot fixes the reference point: an annotation in this list was there before
+   the run touched anything, and one that is not **is not evidence of a user opt-out**,
+   whatever it says. Cite the snapshot when you skip, not the task line.
+
+   Same shape as the decisions re-check above, and for the same reason: an artifact the
+   run can modify is not evidence about the run unless you pin it first. Write `0 tasks`
+   when there are none — an empty list observed beats an absent one.
 
 **A failed probe is a Preflight failure.** When dispatch is unavailable or disallowed in
 this session and the roster lists at least one task, Preflight fails and you stop — the
@@ -432,7 +462,7 @@ Every task follows this loop. No task is "done" until its test is green.
    Executor: inline (user authorised)                          (dispatch was available)
    ```
 
-   **Keep the trailer to one physical line.** Git stops parsing a trailer block at the first line that does not look like a trailer, so a wrapped continuation is not a trailer at all — it vanishes from every `%(trailers:…)` query without any error. This is not hypothetical: two commits on this branch wrote a wrapped `Executor:` line and `git log --format='%(trailers:key=Executor,valueonly)'` returns **empty** for both, which is how a convention silently stops being checkable. Put the reason in the commit body; keep the trailer bare.
+   **Keep the trailer to one physical line.** Git parses the trailer block at the end of the message; a continuation line is folded into the preceding trailer only when it is **indented**, and an unindented wrap ends the block instead — so the trailer vanishes from every `%(trailers:…)` query without any error. The rule here is deliberately stricter than git: one physical line, never a folded continuation, because "indent it and it still parses" is a detail nobody checks at commit time and the failure is silent. This is not hypothetical: two commits on this branch wrote a wrapped `Executor:` line and `git log --format='%(trailers:key=Executor,valueonly)'` returns **empty** for both, which is how a convention silently stops being checkable. Put the reason in the commit body; keep the trailer bare.
 
    Name the actual `subagent_type` that ran the work, not the routing table's suggestion for it — and a dispatch that failed and was finished inline says so, because a substitution nobody can see is the defect this trailer exists to end.
 
@@ -675,6 +705,8 @@ the handoff artifact.
   ```
   **Stage N handoff:** <deviations from plan, surprises found, decisions made,
   anything a fresh context needs that the Status flips don't capture>
+  `dispatch: <the gate report's dispatched-vs-inline line, verbatim>`
+  `review: <the gate report's per-tier reviewer/diff line, verbatim>`
   **Decisions in force:** <the DEC/GDEC IDs still binding, plus any Supersedes
   citation raised in this stage and not yet recorded>
   ```
@@ -685,8 +717,17 @@ the handoff artifact.
   entry the Preflight re-check caught) exists nowhere else. A constraint absent
   from the handoff is one the next session will not know about.
 
+  **The dispatch and review lines are carried here for the same reason**, and
+  they earn the space: this section tells the executor to *discard the context*
+  that holds them. The dispatch counts can be rebuilt from the executor trailers
+  (`git log`), but **the review ledger cannot** — which agent saw which diff
+  exists only in the gate report, so a reset without it turns "the stage was
+  reviewed" into a claim with no artifact behind it. Copy the two lines the gate
+  already produced; do not re-derive them.
+
   Committed with the `"Stage N green"` commit. Keep it to a few lines — it is
-  a briefing, not a log.
+  a briefing, not a log. The two ledger lines are the exception that proves it:
+  they are one line each because they are quoted, not narrated.
 - **Resuming fresh:** a new session (or a post-compaction continuation) picks
   up the plan by reading the Research Summary, the `Status:` flips, and the
   handoff notes — never by needing the prior transcript. If you find yourself
@@ -825,6 +866,7 @@ When every stage is green:
    - Version bumps applied (component → old → new)
    - Plan location for future reference
    - Reviews that ran: each tier, the agent that ran it, and the diff range it saw — or, for a tier that did not run, the evidenced opt-out that excused it. Same requirement as the stage gate's, at plan scope: a close-out that says the work was reviewed without saying by what, over what, is the claim this list exists to stop being unfalsifiable.
+   - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)' <plan-base>..HEAD`) and state the total: `dispatch: <n> of <total> rostered tasks dispatched`, naming every inlined `Parallel: YES` task with its reason. The per-stage gates each reconcile their own slice, so aggregate coverage holds **only if every stage gate ran and reported** — a stage that was skipped, or one whose gate report omitted the line, leaves a hole no per-stage check can see. The roster is declared once for the whole plan; this is where it is finally answered.
    - Backlog items closed (by ID) and any new ones opened during execution
    - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
@@ -903,12 +945,13 @@ words**, with where they were said. For example:
 Review skipped — user opt-out, Preflight: "don't bother with the reviewer on this one"
 ```
 
-A `Review: skip` annotation on the task line may be cited instead of a quote — but it is
-**weaker evidence than a quote, not equivalent**, and the difference is worth stating: the
-executor writes to the plan file throughout the run (Status flips, review notes), and
-nothing snapshots the task lines at Preflight the way the decisions register is re-scanned
-and diffed. So an annotation cannot by itself prove the user authored it. Cite it with the
-commit that introduced it, which is the part an executor cannot backdate.
+**A `Review: skip` annotation counts as an opt-out when Preflight's snapshot lists it**
+(§ Dispatch roster and capability probe, step 3), and the snapshot is what makes it
+evidence. The executor writes to the plan file throughout the run, so an annotation read
+at skip time proves nothing about who put it there; one recorded against the run's base
+commit was demonstrably there before the run began. An annotation missing from that
+snapshot is an executor-authored note, worth exactly what the executor's own judgment is
+worth here — nothing. Cite the snapshot line rather than the task line.
 
 **Executor judgment is not an opt-out.** *"I judged the review unnecessary"*, *"the diff
 looked small to me"*, *"there was nothing a reviewer would have caught"* are the executor
