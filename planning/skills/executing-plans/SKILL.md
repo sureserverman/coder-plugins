@@ -127,14 +127,19 @@ running at full weight:
    single pre-gate review IS the light plan's Tier-2 — do not also run a separate Step 3.5
    Tier-2 pass.** It keeps one real review in the loop without paying per-task review
    overhead on a handful of tasks.
-4. **Both evaluator passes are opt-in, not default.** A light plan does **not** dispatch
-   the independent goal-evaluator by default — neither at the gate (Step 3.5) **nor at
-   close-out (Phase Close-out step 3)**, which for a Standard plan is default-on. Dispatch
-   it only if a check requires genuine judgment ("reads coherently", "flow works
-   end-to-end") or the user asks — same rule as any gate, just that a light plan's single
-   command-ish gate rarely has such a check. (This is the one place "everything else is
-   unchanged from Standard" below does **not** apply — the close-out evaluator's default
-   flips from on to off at Light.)
+
+   **This rule sets the review's *shape* only.** How many passes run, and whether an
+   evaluator runs beside them, comes from the declared review-scope tier — see
+   § Review scope → *Composing with the plan format*. A light plan whose diff is `high`
+   still gets the second independent pass; it just gets it over the whole diff.
+4. **The evaluator follows the tier, not the format.** Whether the independent
+   goal-evaluator runs — at the gate (Step 3.5) and at close-out (Phase Close-out step 3) —
+   is decided by the review-scope table, not by this plan being Light: off at `none` and
+   `light`, on at `standard` wherever a gate check carries `(judgment)`, always on at
+   `high`. A Light plan's gate is usually all commands, which is why it *usually* runs no
+   evaluator — but that is a consequence of what its gate contains, not an exemption the
+   format grants. A `(judgment)` check is a check that needs a reader; being in a small
+   plan does not make it need one less.
 5. **Close-out is one stated bump.** Run the full suite one final time — unless the
    single gate's full-suite run was the last thing to execute with no commits landed
    after it, in which case that run counts as the close-out run (one full pass, not
@@ -408,6 +413,42 @@ ever asked.
 **A tier is a floor, not a ceiling.** Escalate mid-plan when the diff turns out riskier than
 it looked (say so in the gate report); do not quietly de-escalate — that is what the
 declaration exists to catch.
+
+### Composing with the plan format
+
+The format ladder (Direct / Light / Standard / Master) and the tier above answer **different
+questions**, and a plan carries both at once. Resolve them this way, always:
+
+> **The format decides the review's SHAPE. The tier decides its DEPTH.**
+
+| From the **format** — shape | |
+|---|---|
+| Direct, Light | reviews run over the **whole plan diff**, once, before close-out — never per task |
+| Standard, Master | Tier-1 **per task**, Tier-2 **per stage gate** |
+
+| From the **tier** — depth | Review passes | Evaluator |
+|---|---|---|
+| `none` | none | no |
+| `light` | one | only if a gate check carries `(judgment)` |
+| `standard` | one, at the shape the format sets | **yes, at any gate with a `(judgment)` check** |
+| `high` | that, plus a second independent pass | **yes, always** — every gate and close-out |
+
+**Do not resolve a disagreement by "taking the lighter option".** That heuristic is
+seductive and wrong at the top of the table: a Light plan touching an auth path is a *small
+plan doing a dangerous thing*, and the format's smallness says nothing about the danger.
+Under this rule it gets whole-diff shape (from Light) *and* the second independent pass and
+mandatory evaluator (from `high`) — which is the correct answer and the one "lighter wins"
+would have thrown away.
+
+Master plans declare a tier **per sub-plan**, from that sub-plan's own diff — sub-plans are
+independently executable, so a `high` sub-plan must not be diluted by a cheap sibling.
+
+**Why this is written down at all.** Before it existed, the two axes were each internally
+consistent and silent about the other, so an executor meeting a Light plan that declared
+`standard` could run one review or four and be equally compliant either way. That is not a
+tie the executor should be breaking on instinct — it is a rule that was missing. Observed
+live: the run that introduced this section resolved the same collision twice by instinct,
+took the lighter option both times, and skipped an evaluator this table requires.
 
 ## Phase 3 — Stage execution
 
