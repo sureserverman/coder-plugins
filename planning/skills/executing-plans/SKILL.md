@@ -252,6 +252,7 @@ Run every check in the Preflight section and report pass/fail:
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
 - **Dispatch works in this session** — probed, not assumed, and only when the roster is non-empty; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
+- **Review scope is declared** — which tier the plan's diff warrants, and why; see below
 
 ### Decisions re-check (the plan's snapshot can be stale)
 
@@ -372,6 +373,42 @@ the exact failure this check exists to surface.
 
 **If Preflight fails, stop.** Report which check failed and how it failed. Do not proceed to Stage 1. A broken baseline makes every downstream Red-Green loop noise.
 
+### Review scope — the machinery scales to the change
+
+Declare this at Preflight, next to the test-scope commands, and state it in every gate
+report. Test scope is already tiered (`../planning-projects/references/test-scope-tiers.md`)
+so a gate does not run the full suite to prove a one-line fix. **Review scope is the same
+idea applied to the review machinery**, which until now ran at one weight regardless of what
+it was reviewing.
+
+| Tier | When | Tier-1 (per task) | Tier-2 (per gate) | Evaluator |
+|---|---|---|---|---|
+| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan | skip | skip | skip |
+| **light** | Prose/config edits, or one file, or no new executable behavior | skip | **one** review over the whole plan diff, before close-out | only if a gate check needs judgment |
+| **standard** | Multi-file code with new behavior — the default when unsure | per task | per stage gate | at any gate with a non-command check |
+| **high** | Security-sensitive, data-destructive, public API, schema/migration, auth | per task | per stage gate + a second independent pass | every gate, and close-out |
+
+Pick the tier from the **plan's cumulative diff**, not per task, and pick it once. A plan
+that edits three markdown files is `light` even if it has four stages; a plan touching an
+auth path is `high` even if it is small.
+
+**The tier is declared, not assumed.** Write it in the Preflight report
+(`review-scope: light — prose edits to 3 skill files`) and repeat it in each gate report.
+An undeclared run is `standard`. This is the honest-gates disclosure rule applied to review
+effort: downgrading silently and downgrading openly produce the same diff, so the
+declaration is what makes the choice reviewable.
+
+**Why this exists.** A review pass is not free and does not have a fixed value: dispatching
+four agents over a 160-line prose change costs more than the change and returns findings
+about the reviewing apparatus rather than the product. Running the same four over an auth
+rewrite is cheap insurance. The failure this table prevents is the one that is invisible
+without it — machinery whose cost nobody compares to what it is protecting, because no rule
+ever asked.
+
+**A tier is a floor, not a ceiling.** Escalate mid-plan when the diff turns out riskier than
+it looked (say so in the gate report); do not quietly de-escalate — that is what the
+declaration exists to catch.
+
 ## Phase 3 — Stage execution
 
 For each stage in order:
@@ -442,7 +479,7 @@ Every task follows this loop. No task is "done" until its test is green.
 3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so a `Parallel: YES` task run inline is indistinguishable here. Rule 7's executor trailer is what carries that, and it is the only artifact that does.
-6. **Quick review gate (Tier 1).** Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. **Brief it to check behavioral claims too** — every sentence in the diff asserting what the code does (a default, an exit code, what invokes what, a count, an "every") is verified against the source or flagged, per `honest-gates` § *A behavioral claim is a gate too*. Handle the verdict by severity:
+6. **Quick review gate (Tier 1).** Runs at review-scope `standard` and `high` (§ Review scope); at `light` and `none` there is no per-task review and the plan gets one pass over its whole diff instead. Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. **Brief it to check behavioral claims too** — every sentence in the diff asserting what the code does (a default, an exit code, what invokes what, a count, an "every") is verified against the source or flagged, per `honest-gates` § *A behavioral claim is a gate too*. Handle the verdict by severity:
    - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
    - **Important / Suggestion → advisory.** Do not act on them now. Append them to the plan file as a note under the task (`**Review notes (Task N.M):** …`) so the stage gate's deep review (Step 3.5) can triage the batch. They never block the task.
    - **Skip for trivial/non-code diffs.** Docs-only, config-only, pure version-bump, or comment-only diffs don't need Tier 1 — note the skip and proceed. Honor a `Review: skip` task annotation and the global opt-out (see References) the same way — but an opt-out is **evidenced, not asserted** (§ Review opt-out): note the skip *with* the quote or the cited annotation, never as a bare "skipped".
@@ -555,7 +592,7 @@ residuals**, not a failure. Tell the evaluator that a report listing only Materi
 and Minor findings is a legitimate PASS verdict, or it will withhold PASS to seem
 rigorous and hand the loop back an unsatisfiable condition.
 
-**Deep code review (Tier 2).** The evaluator above verifies *goals* (black-box,
+**Deep code review (Tier 2).** Runs per stage gate at `standard` and `high`; at `light` it is the single pre-close-out pass over the plan diff, and at `none` it does not run (§ Review scope). The evaluator above verifies *goals* (black-box,
 briefed only on criteria). Add a complementary *white-box* pass: dispatch
 `git-github:code-reviewer` (read-only) over the **full stage diff** (`git diff`
 across the stage's commits) **plus the collected Tier-1 advisory notes**

@@ -452,6 +452,33 @@ If a stage has more than 7 tasks, it's too large. Split it. Large stages hide in
 
 ---
 
+### A plan that adds an obligation names what it removes
+
+This applies to plans that change a **process** — a skill, a gate, a checklist, a
+convention every future run must honor. It does not apply to ordinary feature work.
+
+Every such plan arrives with a reason to add a step, and none arrives with a reason to
+remove one, so the process only ever grows. That growth is invisible per plan and obvious
+in aggregate: each new rule is individually defensible, and the sum is a workflow where a
+small change costs more than it is worth. Nothing in this skill previously asked the
+question, which is why it kept happening.
+
+So a plan that adds a mandatory step states, in its Research Summary, one of:
+
+- **Removes:** the obligation it retires, or the one it subsumes; or
+- **Replaces:** the step it supersedes rather than sits beside; or
+- **Adds, net:** the new obligation with its **cost** (what it makes every future run do)
+  and **what it catches that nothing else does** — a step that duplicates an existing
+  check's coverage is not new protection, it is new cost.
+
+The third option is legitimate and expected; the point is that it must be *argued*, not
+assumed. A run cannot be asked to weigh a cost nobody wrote down.
+
+**The honest test for an existing obligation: has it ever caught a real defect?** Not
+"could it in principle" — has it, in this repo's history. An obligation that has produced
+only false alarms, or only findings about itself, is a candidate for the `Removes:` line of
+the next plan that touches its area.
+
 ## Phase 2.5 — Decomposition decision (master plan + sub-plans)
 
 Stage sizing has a project-level analogue: when the *plan itself* is too large, don't

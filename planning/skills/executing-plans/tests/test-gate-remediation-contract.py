@@ -595,6 +595,18 @@ def main():
     # inside the claim's own sentence. This is the absence-subject case, one clause over.
     split = section(text, r"### Step 3\.2 — Split by parallelism",
                     r"### Step 3\.3 — Red-Green loop")
+    review_scope = section(text, r"### Review scope — the machinery scales to the change",
+                           r"## Phase 3 — Stage execution")
+    check("review effort is tiered to the diff, and the tier is declared",
+          affirms_claim(review_scope,
+                        r"the declaration is what makes the choice reviewable"),
+          "the review machinery runs at one weight regardless of what it reviews, and a "
+          "downgrade leaves no record — the cost nobody compares to what it protects")
+    check("a process plan must name what it removes",
+          affirms_claim(flat(pp), r"adds an obligation names what it removes"),
+          "plans can add mandatory steps without ever retiring one, so the process grows "
+          "monotonically and each addition looks individually defensible")
+
     check("a file conflict serializes the dispatch instead of inlining it",
           affirms_claim(split, r"serialize the dispatches"),
           "a file-conflicting YES task routes to the main session again — the one "
