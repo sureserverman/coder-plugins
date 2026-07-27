@@ -79,8 +79,15 @@ What it pins:
  15. (Stage 2, Task 2.4) An unperformable mandated dispatch or review is a Stop
      condition, inline substitution is refused as a resolution, and the decision is
      routed to the user with the three legitimate options named.
+ 16. (Stage 3, Task 3.1) A review is skipped for two reasons and no third — an explicit
+     user opt-out or a trivial/non-code diff — and a code-reviewer that cannot be
+     dispatched is routed to the Stop condition instead of excusing itself. The class
+     check is a deny-sweep scoped to the review/evaluator SUBJECT, deliberately not to
+     the "is not a gate failure" shape: the platform stage-verify line uses that shape
+     correctly, because a platform verifier is conditionally applicable (not every
+     project is Android) where a code reviewer always applies.
 
- Items 11-15 were added by the dispatch-fidelity plan, which also found this list had
+ Items 11-16 were added by the dispatch-fidelity plan, which also found this list had
  stopped being maintained: groups 11 through 13 shipped without entries, three separate
  reviews flagged it, and the first fix still omitted group 15 — a fourth instance, caught
  by the gate review. Coverage of this list is now asserted mechanically by
@@ -137,6 +144,21 @@ NEGATION_RE = re.compile(
     # corpus-specific, not universal — recorded rather than asserted.
     r"recommended|"
     r"need not|nor)\b",
+    re.I,
+)
+
+# The availability-based excuses for skipping a review (group 16). Scoped to the
+# review/evaluator SUBJECT rather than to the sentence shape: "Absence of a match is not
+# a gate failure" is the same grammar and is CORRECT about a platform stage-verify skill,
+# which is conditionally applicable. `[^.\n]` spans never cross a sentence boundary, which
+# is what keeps that line and the "If no matching skill is installed" hook out of the
+# sweep. `fall(?:s|ing)?` rather than a plain `fall`: this file lives inside the tree the
+# task's gate greps, so the literal phrase must not appear in it.
+REVIEW_ESCAPE_RE = re.compile(
+    r"(?:missing|absent|unavailable|uninstalled)\s+(?:code-)?(?:reviewer|evaluator)"
+    r"|(?:reviewer|evaluator)[^.\n]{0,40}\b(?:isn't|is not|not)\s+installed"
+    r"|fall(?:s|ing)? back to the goal-evaluator"
+    r"|(?:review|reviewer|evaluator)[^.\n]{0,60}(?:is|are)\s+not\s+a\s+gate\s+failure",
     re.I,
 )
 
@@ -843,6 +865,50 @@ def main():
     check("the decision is routed to the user, with the options named",
           affirms_claim(stops, r"choice belongs to the user"),
           "nothing says whose call this is, which is how the executor took it silently")
+
+    # 16 — (Task 3.1) The review escape ramp. One sentence used to bundle three
+    # situations — the user opted out, the diff is trivial, `git-github:code-reviewer` was
+    # not installed — and only the first two are legitimate. The third made an unavailable
+    # *review* excuse itself in a file that already blocked on an unrunnable *test*; group
+    # 15 gave it the Stop condition it belongs in, and this group keeps it deleted.
+    # Neither block gets a `site present:` locator: an empty slice fails every assertion
+    # below it, so these are fail-closed already and a locator would only add a check with
+    # no negatable form.
+    review_optout = section(text, r"\*\*Review opt-out\.\*\*", r"\Z")
+    # The claim is worded "the list is closed at two" rather than "the only reasons a
+    # review is skipped" because `skipped` is itself on NEGATION_RE — the clause screen
+    # rejected the sentence that satisfied the rule, which is the documented cost of a
+    # corpus-specific negation list, hit here for the second time (see `may`, above).
+    # Honest limit (BL-031): an exhaustiveness claim has no structural anchor the way a
+    # count or a citation does, so this one is close to verbatim and a faithful rewording
+    # ("the two reasons are the whole list") would fail it. The deny-sweep below is the
+    # check that binds the CLASS; this one binds the sentence.
+    check("review skips are closed to user opt-out and trivial diffs",
+          affirms_claim(review_optout, r"the list is closed at two"),
+          "the review opt-out no longer states its reasons as an exhaustive pair, so a "
+          "third situation can be read into it the way an uninstalled reviewer once was")
+    # Plain search, NOT affirms(): the claim is affirmative in meaning and negative in
+    # wording ("is not a third one"), the same distinction drawn at the group-12 and
+    # group-13 siblings above.
+    check("an undispatchable reviewer routes to the Stop condition",
+          re.search(r"Stop condition for a mandated review", review_optout) is not None,
+          "an unavailable code-reviewer has no stated resolution, so the run proceeds on "
+          "whatever checks remain and the user never gets the decision")
+    gate_eval = section(text, r"\*\*Independent evaluator for non-command checks",
+                        r"\*\*Deep code review")
+    check("the gate evaluator's skip clause is closed the same way",
+          affirms_claim(gate_eval,
+                        r"[Ss]kip the evaluator only on[^.]{0,60}user opt-out"),
+          "the Step 3.5 evaluator's skip clause no longer scopes skipping to an explicit "
+          "opt-out — the loose wording the reviewer ramp grew out of")
+    # The class check: not "is this one sentence gone" but "does any review or evaluator
+    # anywhere in the file excuse itself on its own availability". See REVIEW_ESCAPE_RE
+    # for why it is scoped to the subject and not to the sentence shape.
+    escape = REVIEW_ESCAPE_RE.search(text)
+    check("no review or evaluator excuses itself on availability",
+          escape is None,
+          f"an availability-based excuse for skipping a review is back in the file: "
+          f"{escape.group(0) if escape else ''}")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []

@@ -483,8 +483,10 @@ end-to-end"), dispatch a fresh evaluator agent for those checks, briefed ONLY
 with the stage goal and the gate's pass criteria — never the implementation
 transcript or your own summary of the work. The session that wrote the code
 grades its own work too generously; external judgment catches what
-self-assessment misses. Skip the evaluator only if the user opts out or every
-check in the gate is a command.
+self-assessment misses. Skip the evaluator only on an explicit user opt-out, or
+when every check in the gate is a command — a gate with nothing to judge is the
+evaluator's analogue of a trivial diff. There is no third reason: an evaluator
+that cannot be dispatched is a Stop condition (§ Stop conditions), not a skip.
 
 **Brief it to grade by severity, not just pass/fail.** A bare per-criterion
 pass/fail gives the loop nothing to terminate on, because a fresh judgment agent
@@ -869,4 +871,4 @@ When every stage is green:
 - **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
 - **test-scope-tiers reference** (`../planning-projects/references/test-scope-tiers.md`) — the shared scope policy Step 3.3 (fix-scope), Step 3.5 (stage-scope), and Close-out (plan-scope) follow
 
-**Review opt-out.** Both review tiers are default-on. Disable them per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped at Tier 1 without needing an annotation. If `git-github:code-reviewer` isn't installed, note it and fall back to the goal-evaluator alone; a missing reviewer is not a gate failure.
+**Review opt-out.** Both review tiers are default-on. Disable them per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped at Tier 1 without needing an annotation. **Two reasons excuse a review, and the list is closed at two: an explicit user opt-out, and a trivial/non-code diff.** A `git-github:code-reviewer` that cannot be dispatched is not a third one: it is the Stop condition for a mandated review that cannot be run (§ Stop conditions), on the same ground as an unrunnable test. An unrun review is not a passed review, and it leaves an artifact indistinguishable from a reviewed one — which is why the resolution is the user's to choose and not the executor's to assume.

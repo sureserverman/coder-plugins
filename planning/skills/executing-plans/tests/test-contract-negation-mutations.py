@@ -40,6 +40,17 @@ EP = "executing-plans/SKILL.md"
 PP = "planning-projects/SKILL.md"
 DPA = "dispatching-parallel-agents/SKILL.md"
 
+# The review escape ramp Task 3.1 deleted, reassembled at runtime so it can be put back
+# into a THROWAWAY COPY of the skill and the deny-sweep proved to catch it. Assembled the
+# way the contract suite assembles BANNED_PHRASE and for the same reason: this file lives
+# under planning/skills/, and the task's gate greps that tree for exactly these phrasings
+# — a literal here would make the gate red against the harness that keeps the ramp
+# deleted. `join`, never adjacent literals: CPython constant-folds those back together in
+# __pycache__/*.pyc, which a `grep -r` also reads.
+RAMP = ("If `git-github:code-reviewer` " + " ".join(("isn't", "installed,"))
+        + " note it and " + " ".join(("fall", "back to the goal-evaluator alone;"))
+        + " a " + " ".join(("missing", "reviewer")) + " is not a gate failure.")
+
 # (label, relative file, original, negated restatement, [checks that must go red])
 #
 # Keep one entry per SUBSTANTIVE claim added by the dispatch-fidelity plan. A claim with
@@ -209,6 +220,26 @@ MUTATIONS = [
      None,
      ["dispatch roster required at: planning-projects Phase 1 checklist",
       "dispatch roster required at: planning-projects plan template"]),
+    # --- Stage 3 Task 3.1: the review escape ramp is gone (group 16) ---
+    ("review skip reasons reopened", EP,
+     "and the list is closed at two",
+     "and the list is not closed at two",
+     ["review skips are closed to user opt-out and trivial diffs"]),
+    ("undispatchable reviewer excused again", EP,
+     "is not a third one: it is the Stop condition for a mandated review that cannot be run",
+     "is a third one: note it, stand that tier down, and proceed on the checks that remain",
+     ["an undispatchable reviewer routes to the Stop condition"]),
+    ("gate evaluator skip loosened again", EP,
+     "Skip the evaluator only on an explicit user opt-out",
+     "Skipping the evaluator needs no explicit user opt-out",
+     ["the gate evaluator's skip clause is closed the same way"]),
+    # The ramp itself, reinstated verbatim. The three entries above pin the sentences that
+    # replaced it; this one pins the CLASS — that no availability-based excuse for a
+    # review returns anywhere in the file, in this or any other wording.
+    ("the escape ramp put back", EP,
+     "are auto-skipped at Tier 1 without needing an annotation.",
+     "are auto-skipped at Tier 1 without needing an annotation. " + RAMP,
+     ["no review or evaluator excuses itself on availability"]),
     ("stated reason turned into authorisation", EP,
      "so an inlined YES task is a **deviation being disclosed**, not a choice being ratified",
      "so an inlined YES task with a stated reason is a choice the gate ratifies",
@@ -252,6 +283,7 @@ SCOPE = [
     'a stated reason is disclosure, not authorisation',
     'an empty roster is written down, not omitted',
     'an unavailable dispatch is a Preflight failure',
+    'an undispatchable reviewer routes to the Stop condition',
     'an unparseable trailer is counted as unknown, not as inline',
     'an unperformable mandated dispatch or review is a Stop condition',
     'dispatch probe required at: planning-projects Phase 1 checklist',
@@ -263,8 +295,10 @@ SCOPE = [
     'every per-task commit carries an executor trailer',
     'inline substitution is named as not a resolution',
     'inline substitution is refused as a resolution',
+    'no review or evaluator excuses itself on availability',
     'no threshold makes a lone YES task skip dispatch',
     'only an EMPTY set returns control to the caller',
+    'review skips are closed to user opt-out and trivial diffs',
     'site present: planning-projects Phase 1 checklist',
     'site present: planning-projects plan template',
     'the Status flip is stated NOT to record the executor',
@@ -272,6 +306,7 @@ SCOPE = [
     'the counts are reconciled against Preflight\'s roster',
     'the decision is routed to the user, with the options named',
     "the flip's scope is stated as EXCLUDING who did it",
+    "the gate evaluator's skip clause is closed the same way",
     'the gate report states dispatched-vs-inline counts',
     'the probe proves dispatch in THIS session',
     'the roster sweeps every task in the plan',
