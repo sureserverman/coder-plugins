@@ -20,6 +20,10 @@ So these pin discovery itself, not a suite count:
   * --list is side-effect free (it must not execute the suites it names);
   * an unknown argument is rejected rather than silently treated as a full run.
 
+Every group that plants a file does so in a throwaway tree, never in the repo under
+test — see throwaway_repo() for why cleanup blocks are not sufficient. Group 1 is the
+only group that reads the real tree, and it writes nothing.
+
 No pytest. Plain assertions, non-zero exit on failure.
 Run: python3 scripts/tests/test-run-tests-discovery.py
 """
@@ -45,22 +49,49 @@ def chk(cond, msg):
     print(f"  {'ok' if cond else 'FAIL'}: {msg}")
 
 
-def listing() -> set[str]:
-    """Suite paths the runner reports, as a set of repo-relative strings.
+def listing(runner: Path = RUNNER, cwd: Path | None = None) -> set[str]:
+    """Suite paths the runner reports, as a set of tree-relative strings.
 
     Deliberately NOT check=True: a nonzero --list (the runner refusing because of an
     unsupported suite, an unreadable subtree, or leftover state from an interrupted
     run) would raise CalledProcessError and abort the whole file with a traceback,
     which is precisely the unstructured failure this suite's own reporting discipline
     exists to avoid. Return the empty set and let the caller's chk() report it.
+
+    `runner`/`cwd` are parameters so the planting groups can point this at a throwaway
+    tree instead of the repo under test — see throwaway_repo().
     """
     out = subprocess.run(
-        ["bash", str(RUNNER), "--list"],
-        capture_output=True, text=True, cwd=ROOT)
+        ["bash", str(runner), "--list"],
+        capture_output=True, text=True, cwd=cwd or ROOT)
     if out.returncode != 0:
         chk(False, f"--list exited {out.returncode}: {(out.stderr or out.stdout).strip()[:160]}")
         return set()
     return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+
+
+def throwaway_repo(td: str) -> tuple[Path, Path]:
+    """A fresh tree holding a copy of the runner, for any group that PLANTS files.
+
+    No group that writes a file writes it into the repo under test. Two reasons, both
+    found the hard way. Invoking the full runner from inside a suite the runner
+    discovers is unbounded recursion (this file -> run-tests.sh -> this file -> ...) —
+    group 6's first cut hung until it was killed. And a hard kill mid-test leaves
+    planted files behind in the real working tree, which happened during this suite's
+    own development: a `finally:` block cleans up after an assertion failure but never
+    after a SIGKILL, so isolation has to come from the tree, not from cleanup.
+
+    This does not weaken the planting claims. Discovery is location-independent by
+    construction — run-tests.sh derives REPO from its own path (line 29) and matches by
+    filename — so a claim proved in a copied tree holds in the real one. Group 1 is
+    what pins discovery against the real repo's size and prune rules; the planting
+    groups pin its generality, which is orthogonal.
+    """
+    tmp = Path(td)
+    (tmp / "scripts").mkdir(parents=True)
+    runner = tmp / "scripts" / "run-tests.sh"
+    shutil.copy(RUNNER, runner)
+    return tmp, runner
 
 
 def walk_disk() -> set[str]:
@@ -89,25 +120,23 @@ chk(not extra, f"--list names nothing that is not on disk (extra: {extra or 'non
 chk(len(disk) > 0, f"the walk found suites at all ({len(disk)} on disk)")
 
 print("group 2 — discovery generalizes to homes and languages the runner has never seen")
-planted_dir = ROOT / "tools" / "experimental" / "tests"
-planted_sh = planted_dir / "test-planted-generality.sh"
-planted_py = ROOT / "android-dev" / "tests" / "test-planted-crosslang.py"
-created_roots = []
-try:
-    if not (ROOT / "tools").exists():
-        created_roots.append(ROOT / "tools")
-    if not (ROOT / "android-dev" / "tests").exists():
-        created_roots.append(ROOT / "android-dev" / "tests")
-    planted_dir.mkdir(parents=True, exist_ok=True)
-    planted_py.parent.mkdir(parents=True, exist_ok=True)
+# Directory names mirror plausible-but-absent homes rather than real ones: the claim is
+# about a home the runner has never seen, and a throwaway tree satisfies that more
+# honestly than a real plugin dir the runner already walks.
+with tempfile.TemporaryDirectory() as td:
+    tmp, tmp_runner = throwaway_repo(td)
+    planted_sh = tmp / "tools" / "experimental" / "tests" / "test-planted-generality.sh"
+    planted_py = tmp / "android-dev" / "tests" / "test-planted-crosslang.py"
+    for p in (planted_sh, planted_py):
+        p.parent.mkdir(parents=True, exist_ok=True)
     planted_sh.write_text("#!/usr/bin/env bash\nexit 0\n")
     planted_py.write_text("import sys\nsys.exit(0)\n")
 
-    after = listing()
-    rel_sh = str(planted_sh.relative_to(ROOT))
-    rel_py = str(planted_py.relative_to(ROOT))
+    rel_sh = str(planted_sh.relative_to(tmp))
+    rel_py = str(planted_py.relative_to(tmp))
+    after = listing(tmp_runner, tmp)
     chk(rel_sh in after, f"a .sh suite in an unseen directory is discovered ({rel_sh})")
-    chk(rel_py in after, f"a .py suite in a bash-only plugin tree is discovered ({rel_py})")
+    chk(rel_py in after, f"a .py suite in a separate unseen tree is discovered ({rel_py})")
 
     print("group 3 — the comparison has teeth (against a real listing, not set algebra)")
     # The previous form asserted `bool((after - (after - {x})) - set())`, which is an
@@ -115,47 +144,45 @@ try:
     # rather than a test. It never re-invoked the runner. This deletes the planted file
     # from DISK and re-reads the runner's actual output.
     planted_sh.unlink()
-    after_removal = listing()
+    after_removal = listing(tmp_runner, tmp)
     chk(rel_sh not in after_removal,
         "a suite deleted from disk disappears from a FRESH --list invocation")
     chk(rel_py in after_removal,
         "and its sibling is still listed, so the drop was specific, not a wholesale failure")
     planted_sh.write_text("#!/usr/bin/env bash\nexit 0\n")
-    chk(rel_sh in listing(), "restoring the file brings it back — discovery is live, not cached")
-finally:
-    for p in (planted_sh, planted_py):
-        if p.exists():
-            p.unlink()
-    for d in (planted_dir, planted_py.parent):
-        if d.exists() and not any(d.iterdir()):
-            d.rmdir()
-    for r in created_roots:
-        if r.exists() and not any(r.iterdir()):
-            r.rmdir()
-    if (ROOT / "tools" / "experimental").exists() and not any((ROOT / "tools" / "experimental").iterdir()):
-        (ROOT / "tools" / "experimental").rmdir()
-    if (ROOT / "tools").exists() and not any((ROOT / "tools").iterdir()):
-        (ROOT / "tools").rmdir()
+    chk(rel_sh in listing(tmp_runner, tmp),
+        "restoring the file brings it back — discovery is live, not cached")
 
 print("group 4 — a suite in an unrunnable language fails loudly, never silently")
 # The BL-020 class, generalized: a suite the runner cannot execute must not be
 # skipped in silence. Planted under a tests/ dir because that is what scopes the
 # check away from test-scope-tiers.md and test-fixtures/.
-rb = ROOT / "scripts" / "tests" / "test-planted-unrunnable.rb"
-try:
+#
+# What carries this group is the two MESSAGE assertions, not the return code. A copied
+# runner cannot exit 0 outside the real repo anyway — EXTRA_VALIDATORS names a path that
+# does not exist in a throwaway tree — so `returncode != 0` would hold even with the
+# unsupported-extension branch deleted. The strings it prints would not.
+#
+# The runnable .py alongside the .rb keeps the tree shaped like the real case (one suite
+# the runner can execute, one it cannot) rather than a tree with nothing runnable in it.
+# It is not what makes the assertions bite: UNSUPPORTED is checked at run-tests.sh:109,
+# ahead of the empty-sweep guard at :121, so the message appears either way.
+with tempfile.TemporaryDirectory() as td:
+    tmp, tmp_runner = throwaway_repo(td)
+    (tmp / "scripts" / "tests").mkdir(parents=True)
+    (tmp / "scripts" / "tests" / "test-planted-runnable.py").write_text("import sys\nsys.exit(0)\n")
+    rb = tmp / "scripts" / "tests" / "test-planted-unrunnable.rb"
     rb.write_text("puts 'hi'\n")
-    res = subprocess.run(["bash", str(RUNNER)], capture_output=True, text=True, cwd=ROOT)
+
+    res = subprocess.run(["bash", str(tmp_runner)], capture_output=True, text=True, cwd=tmp)
     chk(res.returncode != 0, "an unrunnable-language suite makes the runner exit non-zero")
     chk("test-planted-unrunnable.rb" in (res.stderr + res.stdout),
         "the failure names the offending file")
     chk(".py, .sh" in (res.stderr + res.stdout),
         "the failure states which extensions ARE supported")
-    res_list = subprocess.run(["bash", str(RUNNER), "--list"],
-                              capture_output=True, text=True, cwd=ROOT)
+    res_list = subprocess.run(["bash", str(tmp_runner), "--list"],
+                              capture_output=True, text=True, cwd=tmp)
     chk(res_list.returncode != 0, "--list refuses too rather than reporting a clean set")
-finally:
-    if rb.exists():
-        rb.unlink()
 
 print("group 5 — the check does not fire on non-suite paths named test-*")
 for benign in ["planning/skills/planning-projects/references/test-scope-tiers.md",
@@ -168,20 +195,13 @@ chk(subprocess.run(["bash", str(RUNNER), "--list"], capture_output=True,
 print("group 6 — --list is side-effect free and arguments are validated")
 # The previous form checked for a sentinel nothing ever wrote, so it passed even if
 # --list executed every suite. This plants a suite that DOES write one when run.
-#
-# It runs in a THROWAWAY tree, never the real repo, for two reasons. Invoking the full
-# runner from inside a suite the runner discovers is unbounded recursion (this file ->
-# run-tests.sh -> this file -> ...) — found the hard way, the first cut hung until it
-# was killed. And a hard kill mid-test leaves planted files behind in the repo under
-# test, which is exactly what happened.
+# Throwaway tree per throwaway_repo(), which is where the isolation rationale lives.
 with tempfile.TemporaryDirectory() as td:
-    tmp = Path(td)
+    tmp, tmp_runner = throwaway_repo(td)
     (tmp / "scripts" / "tests").mkdir(parents=True)
-    shutil.copy(RUNNER, tmp / "scripts" / "run-tests.sh")
     sentinel = tmp / "sentinel"
     spy = tmp / "scripts" / "tests" / "test-planted-spy.sh"
     spy.write_text(f"#!/usr/bin/env bash\ntouch '{sentinel}'\nexit 0\n")
-    tmp_runner = tmp / "scripts" / "run-tests.sh"
 
     lst = subprocess.run(["bash", str(tmp_runner), "--list"],
                          capture_output=True, text=True, cwd=tmp)

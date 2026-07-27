@@ -119,7 +119,10 @@ fi
 # states in its own words ("the glob is wrong, not the tree"). A runner that finds
 # nothing and exits 0 is worse than no runner: it reports success for zero coverage.
 if [ "${#SUITES[@]}" -eq 0 ]; then
-  echo "FAIL: discovered 0 test suites under $REPO — the discovery glob is wrong, not the tree." >&2
+  echo "FAIL: discovered 0 test suites under $REPO." >&2
+  echo "Either the discovery glob no longer matches this repo's suites, or this is not" >&2
+  echo "the repo tree (a partial checkout, or a copy of this script somewhere else)." >&2
+  echo "Both are failures here: an empty sweep must never report a pass." >&2
   exit 1
 fi
 
