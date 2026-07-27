@@ -602,6 +602,11 @@ def main():
                         r"the declaration is what makes the choice reviewable"),
           "the review machinery runs at one weight regardless of what it reviews, and a "
           "downgrade leaves no record — the cost nobody compares to what it protects")
+    check("format and tier compose as shape-vs-depth, not lighter-wins",
+          affirms_claim(review_scope,
+                        r"format decides the review's SHAPE\. The tier decides its DEPTH"),
+          "the two axes are unspecified where they meet again, so a Light plan declaring "
+          "a heavy tier can be run at either weight and be equally compliant")
     check("a process plan must name what it removes",
           affirms_claim(flat(pp), r"adds an obligation names what it removes"),
           "plans can add mandatory steps without ever retiring one, so the process grows "

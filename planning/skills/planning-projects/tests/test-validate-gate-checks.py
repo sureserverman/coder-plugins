@@ -186,6 +186,12 @@ check(r.returncode in (0, 1) and "gate check(s) across" in r.stdout,
       "the 18 plan-parser fixtures classify without a traceback")
 check("Traceback" not in r.stderr, "no traceback on legacy/edge-case plan shapes")
 
+# The frozen calibration corpus, in-repo. Group 9 pins the docstring against THIS, so the
+# figures move only when someone deliberately edits the fixture directory — see its
+# PROVENANCE.md. The live vault sweep below stays, but purely as an informational rate.
+corpus = sorted((repo / "planning/skills/planning-projects/tests/fixtures"
+                 / "gate-check-corpus").glob("*-plan.md"))
+
 vault = pathlib.Path("/mnt/vault/Portfolio/ai-tools/coder-plugins/plans")
 real = sorted(vault.glob("*.md")) if vault.is_dir() else []
 if real:
@@ -284,22 +290,27 @@ rc6, _ = run(plan("the README no longer claims X"))
 check(rc5 == rc6,
       "exit code is identical with and without the Scope: field — advisory, not a gate")
 
-print("group 9 — the docstring's calibration numbers match a live run")
-if real:
-    import collections
-    live = collections.Counter()
-    for f in real:
-        for c in vgc.gate_checks(f.read_text()):
-            live[vgc.classify(c)[0]] += 1
-    doc = vgc.__doc__
-    for label, n in (("EXECUTABLE", live["EXECUTABLE"]), ("JUDGMENT", live["JUDGMENT"]),
-                     ("INSTANCE-SHAPED", live["INSTANCE-SHAPED"]), ("PROSE", live["PROSE"])):
-        check(f"{n} {label}" in doc,
-              f"docstring states the live {label} count ({n})")
-    check(f"{sum(live.values())} gate checks" in doc,
-          f"docstring states the live total ({sum(live.values())})")
-else:
-    print("       skip: no vault corpus to pin the docstring against")
+print("group 9 — the docstring's calibration numbers match the frozen corpus")
+# Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
+# including CI, where the old vault-conditioned version skipped silently and pinned
+# nothing. A missing corpus is now a failure rather than a skip, because an absent
+# fixture directory is a defect in the repo, not a property of the machine.
+check(bool(corpus), "frozen calibration corpus present "
+                    f"({len(corpus)} plan(s) in tests/fixtures/gate-check-corpus/)")
+import collections
+frozen = collections.Counter()
+for f in corpus:
+    for c in vgc.gate_checks(f.read_text()):
+        frozen[vgc.classify(c)[0]] += 1
+doc = vgc.__doc__
+for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
+    # Every class must be represented, or the corpus silently stops testing that branch
+    # while the count still "matches" at zero.
+    check(frozen[label] > 0, f"corpus exercises the {label} branch")
+    check(f"{frozen[label]} {label}" in doc,
+          f"docstring states the corpus {label} count ({frozen[label]})")
+check(f"{sum(frozen.values())} gate checks" in doc,
+      f"docstring states the corpus total ({sum(frozen.values())})")
 
 print()
 if FAILURES:
