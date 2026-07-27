@@ -32,8 +32,8 @@ corpus exists, i.e. locally. On CI the corpus is absent and those assertions ski
 the pin catches drift on a developer machine and NOT in CI. Vendoring a real-plan
 corpus into the repo would close that; until then this caveat is the honest statement:
 
-  - Calibrated against 374 gate checks in 41 real plans: 145 EXECUTABLE,
-    4 JUDGMENT, 23 INSTANCE-SHAPED, 202 PROSE. Those 23 are legacy non-compliance, which is why
+  - Calibrated against 415 gate checks in 43 real plans: 166 EXECUTABLE,
+    15 JUDGMENT, 23 INSTANCE-SHAPED, 211 PROSE. Those 23 are legacy non-compliance, which is why
     `executing-plans` treats this as advisory on existing plans and mandatory only for
     newly authored ones.
   - A check carrying BOTH a narrow command and explicitly plural language ("`grep -c x
@@ -57,6 +57,11 @@ corpus into the repo would close that; until then this caveat is the honest stat
     EXECUTABLE.
   - `INLINE_SCRIPT`'s quote matching is not escape-aware, so an interpreter payload
     containing an escaped copy of its own delimiter truncates early.
+  - The `Scope:`-advisory (`unswept_scopes`) is REPORTED, never failed, and only for
+    stages that declare the field — so a plan predating it classifies identically. It
+    accepts either sanctioned shape (a sweep or a `(judgment)` marker) as covering the
+    declared set; it cannot tell whether the sweep actually covers the set the `Scope:`
+    names, only that the stage has one.
 
 Usage:
     validate-gate-checks.py <plan.md> [<plan.md> ...]
@@ -312,6 +317,45 @@ def gate_checks(text):
     return out
 
 
+SCOPE_FIELD = re.compile(r"^\s*[-*]\s+\*\*Scope:\*\*\s*(.+)$", re.MULTILINE)
+
+
+def unswept_scopes(text):
+    """Stage numbers whose tasks declare a `Scope:` but whose gate sweeps nothing.
+
+    `Scope:` names the set at authoring time; the gate check is what proves the set was
+    swept. Declaring one without the other is the failure the field exists to prevent,
+    dressed up as compliance — the author enumerated the class and then verified one
+    member of it.
+
+    Reported, never failed, and ONLY for stages that declare the field. A plan with no
+    `Scope:` anywhere is classified exactly as it was before the field existed, so every
+    plan authored before this rule reports identically — the same
+    advisory-on-legacy asymmetry `executing-plans` applies to INSTANCE-SHAPED, and for
+    the same reason: a check executors learn to route around protects nothing.
+    """
+    out = []
+    stages = re.split(r"\n(?=## Stage )", text)
+    for seg in stages:
+        m = re.match(r"## Stage (\S+)", seg)
+        if not m:
+            continue
+        if not SCOPE_FIELD.search(seg):
+            continue
+        checks = gate_checks(seg)
+        if not checks:
+            continue
+        # EXECUTABLE **or** JUDGMENT. The class-predicate rule sanctions exactly two
+        # shapes for a set-valued check — the sweep, or the `(judgment)` marker for a
+        # claim a reader must genuinely verify. Accepting only the first made this
+        # advisory contradict the rule it exists to support, flagging a stage that
+        # covered its Scope: the sanctioned second way. An advisory that is wrong on
+        # its own stated criteria teaches authors to route around it.
+        if not any(classify(c)[0] in ("EXECUTABLE", "JUDGMENT") for c in checks):
+            out.append(m.group(1).rstrip(":"))
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="validate-gate-checks")
     ap.add_argument("plans", nargs="+", type=pathlib.Path)
@@ -323,12 +367,17 @@ def main(argv=None):
     failures = []
     examined_files = 0
     empty_files = []
+    scope_notes = []
 
     for path in args.plans:
         if not path.is_file():
             print(f"error: not a file: {path}", file=sys.stderr)
             return 2
-        checks = gate_checks(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+        checks = gate_checks(raw)
+        unswept = unswept_scopes(raw)
+        if unswept:
+            scope_notes.append((path, unswept))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -360,6 +409,12 @@ def main(argv=None):
     if empty_files:
         print(f"\nnote: {len(empty_files)} file(s) yielded 0 gate checks — "
               f"verify they genuinely have no gate: {', '.join(empty_files)}")
+
+    # Advisory, never a failure: it changes no exit code, so a legacy plan is
+    # unaffected and a post-rule plan gets told.
+    for path, stages in scope_notes:
+        print(f"\nnote: {path.name}: stage(s) {', '.join(stages)} declare a Scope: "
+              f"but their gate has no executable sweep — the set was named, not swept")
 
     print(f"\n{total} gate check(s) across {examined_files} file(s): "
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))

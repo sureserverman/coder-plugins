@@ -241,6 +241,49 @@ check(vgc.gate_checks("### Stage 1 Gate\n- [ ] `grep -c 'x'\n      a/b.md` = 1\n
       .endswith("a/b.md` = 1"),
       "a genuine mid-backtick wrap is still joined")
 
+print("group 8b — a declared Scope: must be swept, not merely named")
+
+
+def scoped_plan(scope_line, *checks):
+    """A one-stage plan whose task optionally declares a Scope:."""
+    body = "\n".join(f"- [ ] {c}" for c in checks)
+    scope = f"- **Scope:** {scope_line}\n" if scope_line else ""
+    return ("# Project Plan: x\n\n## Stage 1: x\n\n### Task 1.1: t\n"
+            "- **Status:** [ ]\n" + scope +
+            "- **Test:** `python3 t.py`\n\n### Stage 1 Gate\n" + body + "\n")
+
+
+rc, out = run(scoped_plan("every commands/*.md", "the README no longer claims X"))
+check("was named, not swept" in out,
+      "a stage declaring Scope: whose gate has no executable sweep is reported")
+
+rc2, out2 = run(scoped_plan("every commands/*.md",
+                            "`! grep -rl 'X' commands/`"))
+check("was named, not swept" not in out2,
+      "a stage declaring Scope: WITH an executable sweep is not reported")
+
+# The sanctioned SECOND shape: a (judgment)-marked check covers a declared Scope: too.
+rc_j, out_j = run(scoped_plan("every commands/*.md",
+                              "**(judgment)** every command doc reads coherently"))
+check("was named, not swept" not in out_j,
+      "a Scope: covered by a (judgment) check is NOT flagged — both sanctioned shapes count")
+
+# The asymmetry that must hold: a plan predating the field reports exactly as before.
+legacy = plan("the README no longer claims X")
+rc3, out3 = run(legacy)
+check("was named, not swept" not in out3,
+      "a plan with NO Scope: field anywhere is never given the scope note")
+check(rc3 == 1 and "instance-shaped" in out3.lower(),
+      "and it is still classified exactly as before (no retro-failure, no new failure)")
+
+# The note is advisory: it must not change an exit code in either direction.
+rc4, _ = run(scoped_plan("every commands/*.md", "`python3 sweep.py`"))
+check(rc4 == 0, "the scope note alone never fails a plan whose checks are clean")
+rc5, out5 = run(scoped_plan("every commands/*.md", "the README no longer claims X"))
+rc6, _ = run(plan("the README no longer claims X"))
+check(rc5 == rc6,
+      "exit code is identical with and without the Scope: field — advisory, not a gate")
+
 print("group 9 — the docstring's calibration numbers match a live run")
 if real:
     import collections

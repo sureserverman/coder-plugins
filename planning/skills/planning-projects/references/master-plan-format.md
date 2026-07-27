@@ -46,7 +46,9 @@ when its name ends in `-master-plan.md` **or** its first heading is `# Master Pl
 
 The master plan holds the shared research, the sub-plan register (the cross-plan
 dependency graph), and the integration gates. It contains **no tasks and no Preflight** —
-sub-plans own those.
+sub-plans own those. Because it carries no tasks, it carries no `Scope:` fields either —
+those live on task lines only (see the Scope-marking rule in `../SKILL.md`), and the
+no-raw-checkbox parser-safety invariant below is unaffected by that convention.
 
 ```markdown
 # Master Plan: [Name]
@@ -109,7 +111,7 @@ master close-out line:
 | `Plan` | Relative link (`./…`) to the sub-plan file in the same directory. Must resolve. |
 | `Goal` | One sentence; the master-level analogue of a stage Goal. |
 | `Depends on` / `Blocks` | Cross-sub-plan dependency graph. Symmetric, exactly like task fields: if Sub-plan 2 depends on Sub-plan 1, Sub-plan 1 lists Sub-plan 2 in Blocks. |
-| `Parallel` | YES when all dependencies are done/none — the sub-plan may execute in a separate session/worktree. File-conflict rule still applies: two sub-plans touching the same files run sequentially regardless. |
+| `Parallel` | YES when all dependencies are done/none — the sub-plan may execute in a separate session/worktree. **This is a different field from the task-level `Parallel`** (`../SKILL.md` § Scope/dependency marking), which obligates subagent dispatch; here it is a recommendation to a human about sessions, so "may" is correct and must not be imported onto task lines. File-conflict rule still applies: two sub-plans touching the same files run sequentially regardless. |
 | `**Gate:**` | Bold marker + `- [ ]` checks, **always the last block of the register entry**. Run when the sub-plan completes; proves integration with previously completed sub-plans. |
 
 ## Sub-plan skeleton

@@ -57,6 +57,22 @@ What it pins:
      (no validator can decide whether a sentence asserts behavior), so what IS
      mechanically checkable is that it is stated and wired everywhere it is
      consumed. That distinction is stated here rather than left to be inferred.
+ 11. (dispatch-fidelity) The dispatch and review contract, pinned at one assertion per
+     rule: `Parallel: YES` obligates dispatch (including a lone ready task), Preflight
+     probes and rosters it, each per-task commit carries a one-line executor trailer,
+     the gate reports dispatched-vs-inline, an unperformable dispatch or review is a
+     Stop condition, review skips are closed at two reasons, an opt-out is evidenced,
+     and both report sites name the reviewer and the diff.
+
+     **Deliberately small.** The first version of this group ran 62 assertions plus a
+     574-line mutation harness that re-ran this suite against mutated copies, plus a
+     coverage meta-check over that harness. It generated more defects than the rules it
+     guarded — five backlog entries were about the guards themselves, none about the
+     product — because pinning English with regexes regresses: each guard is prose-
+     dependent, so it needs a meta-guard, which needs a meta-meta-guard. Cut back to one
+     assertion per rule. These catch DELETION of a rule, which is the failure that
+     actually happens; they do not pretend to catch every rewording, and no meta-layer
+     is added to make them pretend harder.
 """
 import re
 import sys
@@ -90,9 +106,35 @@ def check(name, ok, detail=""):
 
 # Word-boundary anchored: plain substring matching read "cannot" as "not " and
 # "whenever" as "never " (a Tier-1 finding), which would have rejected true prose.
+# The second half is not padding: a requirement is more often softened than contradicted,
+# and "is waived" / "though this is optional" negate a rule without using a word from the
+# first half. `may` was tried and reverted with evidence — it is the CORRECT word at the
+# sub-plan-level `Parallel` site, which is legitimately permissive, so banning it turned a
+# true statement red. A negation list is corpus-specific, not universal.
 NEGATION_RE = re.compile(
     r"\b(?:not|never|no|without|isn't|aren't|doesn't|don't|exempt|"
-    r"rather than|instead of|unless|except|excluding|optional)\b",
+    r"rather than|instead of|unless|except|excluding|optional|optionally|"
+    r"waived?|waives|unnecessary|advisory|discretionary|recommended|"
+    r"need not|nor)\b",
+    re.I,
+)
+
+# Availability-based excuses for skipping a review. Scoped to the review/evaluator SUBJECT
+# rather than the sentence shape: "Absence of a match is not a gate failure" is the same
+# grammar and is CORRECT about a platform stage-verify skill, which is conditionally
+# applicable where a code reviewer always applies. `[^.\n]` spans never cross a sentence
+# boundary, which is what keeps that line out of the sweep. `fall(?:s|ing)?` rather than a
+# bare `fall`: this file lives inside the tree the gate greps.
+#
+# MEASURED LIMIT: four alternations, not a decision procedure. "cannot be found",
+# "unreachable", "if the reviewer is currently unavailable, proceed" all express the same
+# idea and evade it. It is defence in depth behind the sentence-anchored check below,
+# which is what actually binds the rule.
+REVIEW_ESCAPE_RE = re.compile(
+    r"(?:missing|absent|unavailable|uninstalled)\s+(?:code-)?(?:reviewer|evaluator)"
+    r"|(?:reviewer|evaluator)[^.\n]{0,40}\b(?:isn't|is not|not)\s+installed"
+    r"|fall(?:s|ing)? back to the goal-evaluator"
+    r"|(?:review|reviewer|evaluator)[^.\n]{0,60}(?:is|are)\s+not\s+a\s+gate\s+failure",
     re.I,
 )
 
@@ -133,6 +175,78 @@ def affirms(hay, pattern, flags=re.I | re.S):
         # strength of a "not" that was part of the sentence before it.
         pre = re.split(r"[.;:]\s|\s[-–—]\s", pre)[-1]
         if not NEGATION_RE.search(pre + m.group(0)):
+            return True
+    return False
+
+
+def affirms_predicate(hay, anchor_pat, target_pat, window=200):
+    """True when `target` follows `anchor` with no negation BETWEEN the two.
+
+    For requirements whose subject is itself an absence — "when no `Scope:` exists,
+    enumerate one" — `affirms()` rejects the subject's own "no", while a plain search
+    leaves the predicate wide open. A Tier-2 review demonstrated the cost concretely:
+    "When no `Scope:` field exists, the task must NOT attempt to enumerate one"
+    satisfied the plain form, i.e. prose stating the exact opposite of the requirement
+    passed the check meant to pin it.
+    """
+    for m in re.finditer(anchor_pat, hay, re.I | re.S):
+        span = hay[m.end(): m.end() + window]
+        tgt = re.search(target_pat, span, re.I | re.S)
+        if not tgt:
+            continue
+        if not NEGATION_RE.search(span[:tgt.start()] + tgt.group(0)):
+            return True
+    return False
+
+
+def affirmed_index(hay, pattern):
+    """Index of the first match of `pattern` that is NOT negated, else -1.
+
+    Only the preceding clause is scanned, never the match itself: the token this is
+    used for — `no-fafo-debugging` — literally begins with "no", so including the
+    match would make NEGATION_RE reject every genuine reference.
+    """
+    for m in re.finditer(pattern, hay, re.I | re.S):
+        pre = hay[max(0, m.start() - NEGATION_LOOKBEHIND):m.start()]
+        pre = re.split(r"[.;:]\s|\s[-–—]\s", pre)[-1]
+        if not NEGATION_RE.search(pre):
+            return m.start()
+    return -1
+
+
+# Clause boundaries for affirms_claim. Asymmetric on purpose: a PRECEDING comma-joined
+# clause is a separate assertion whose negation must not bleed in, while a TRAILING one
+# modifies the claim and must be screened. `:` is a backward boundary and never a forward
+# one — `Parallel: YES` puts a colon inside a requirement's own text.
+CLAUSE_START = re.compile(r"[.;:,]\s|\s[-–—]\s|\*\*\s|\bso\b|\brather\b|\bthough\b")
+SENTENCE_END = re.compile(r"[.;]\s|\.\*\*|\s[-–—]\s")
+
+
+def affirms_claim(hay, target_pat):
+    """True when `target` appears in a clause that carries no negation.
+
+    THE default for a prose requirement. Prefer it over `affirms` / `affirms_predicate`,
+    which both let the check AUTHOR pick how far to screen — a fixed character lookbehind,
+    or the span between two chosen anchors — so an inversion placed outside the chosen
+    window is never examined, and every window size drifts as the prose is clarified.
+
+    A claim lives in a clause, so the clause is the unit to screen: back to the previous
+    boundary, forward to the end of the sentence. Both ends derived from the text, which
+    is what catches a negated verb ("does not require") and a negated object ("no reason")
+    and a trailing withdrawal ("…, though this is optional") alike.
+
+    Use `affirms_predicate` ONLY when the requirement's own subject is an absence
+    ("when no concurrent sibling exists, dispatch anyway") — there the clause legitimately
+    contains a negation and screening it would reject true prose.
+    """
+    for m in re.finditer(target_pat, hay, re.I | re.S):
+        starts = [b.end() for b in CLAUSE_START.finditer(hay[:m.start()])]
+        after = SENTENCE_END.search(hay, m.end())
+        span = hay[(starts[-1] if starts else 0): (after.start() if after else len(hay))]
+        # Blank out `code spans` first: they hold literals, not prose. The rule "the user
+        # can re-mark the tasks `Parallel: NO`" names a FIELD VALUE, and reading its `NO`
+        # as a negation rejected the sentence.
+        if not NEGATION_RE.search(re.sub(r"`[^`]*`", " ", span)):
             return True
     return False
 
@@ -252,6 +366,53 @@ def main():
     check("class sweep re-run alongside narrow re-verification",
           re.search(r"sweep", gate_fail, re.I) is not None,
           "the class sweep is not required at re-verification")
+
+    # 5b — the set has a DERIVATION SOURCE, not just an instruction to name it (P1).
+    # "name the set" was already present and was not enough: naming is not deriving,
+    # and a set produced from recollection is how a class arrives one member short.
+    check("the set is derived from the task's Scope: field",
+          affirms(gate_fail, r"`?Scope:`?[^.]{0,80}field|field'?s? `?Scope:`?"),
+          "step 2 does not name the task's Scope: field as the derivation source")
+    check("a missing Scope: has a stated fallback",
+          affirms_predicate(gate_fail, r"(no `?Scope:`?|when no scope)", r"enumerate"),
+          "there is no procedure for deriving the set when the task declares no Scope:")
+    check("the derived sweep command is recorded in the gate report",
+          affirms(gate_fail, r"write the command down|command down in the gate report"),
+          "the derivation is not required to be written down, so the next round re-guesses")
+    check("every member found is fixed in the SAME round",
+          affirms(gate_fail, r"every member[^.]{0,80}this round|fix every member"),
+          "repair may still proceed one instance per round, which is oscillation")
+
+    # 6b — no-fafo-debugging is routed AT the diagnosis step, not merely mentioned (P4).
+    # A bare reference anywhere in the file would satisfy a naive grep and change
+    # nothing, so position is the assertion: it must sit inside the gate-failure
+    # block, and before the set is named.
+    check("no-fafo-debugging is referenced in the gate-failure procedure",
+          affirmed_index(gate_fail, r"no-fafo") != -1,
+          "the gate-failure procedure never routes to no-fafo-debugging "
+          "(or names it only to opt out)")
+    # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
+    # ("Diagnose evidence-first, then name the set…") already contains "name the set"
+    # and states the order itself, so anchoring there compares against the wrong point.
+    fafo_at = affirmed_index(gate_fail, r"no-fafo")
+    derive_at = gate_fail.lower().find("derive it")
+    check("step 2's heading orders diagnosis before naming",
+          affirms(gate_fail, r"diagnose evidence-first, then name the set"),
+          "step 2 does not state diagnosis-before-generalization in its own heading")
+    check("no-fafo is routed BEFORE the set is derived",
+          fafo_at != -1 and derive_at != -1 and fafo_at < derive_at,
+          "diagnosis is not ordered before generalization, so a wrong root cause "
+          "yields a confidently-swept wrong set")
+    check("the ordering rationale is stated, not just the order",
+          affirms(gate_fail, r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
+          "nothing explains why diagnosis must precede generalization")
+
+    # 6c — BL-027's SECOND site. An independent evaluator deleted the Red-Green
+    # diagnose-rule reference and this suite stayed green, so the site was unpinned.
+    rg = section(text, r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget")
+    check("no-fafo is routed at the Red-Green diagnose step too",
+          affirmed_index(rg, r"no-fafo") != -1,
+          "the Red-Green loop's diagnose rule does not route to no-fafo-debugging")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []
@@ -411,6 +572,150 @@ def main():
                     r"asserting a fact about", docs_skip, re.I) is not None,
           "the exception's trigger is not scoped to *asserting* a fact — 'naming' a "
           "flag would make nearly every docs diff in this file non-trivial")
+
+    # ---- 11 — dispatch fidelity. One assertion per rule; see the docstring for why
+    # this group is deliberately small. Each names the rule it would lose.
+    pp = (SKILLS_ROOT / "planning-projects" / "SKILL.md").read_text(encoding="utf-8")
+    dpa = (SKILLS_ROOT / "dispatching-parallel-agents" / "SKILL.md").read_text(
+        encoding="utf-8")
+
+    # Anchored past the `YES | NO` field gloss: that `NO` is a FIELD VALUE in a fenced
+    # block (not a code span, so it survives the backtick blanking) and reads as a
+    # negation. Screening prose means screening prose only.
+    check("Parallel: YES is defined as a dispatch obligation",
+          affirms_claim(flat(pp), r"YES obligates dispatch"),
+          "the authoring skill no longer defines YES as an obligation, so an author and "
+          "an executor can read the same field two ways — the original defect")
+    check("no permissive gloss survives in the authoring skill",
+          not re.search(r"can a sub-agent run this concurrently|it can be dispatched",
+                        pp, re.I),
+          "a permissive gloss is back: YES reads as 'a subagent could do this'")
+    # `affirms`, not `affirms_claim`: the sentence continues "...and is NEVER a reason to
+    # hand the task back to the caller", which reinforces the rule but is a negation token
+    # inside the claim's own sentence. This is the absence-subject case, one clause over.
+    split = section(text, r"### Step 3\.2 — Split by parallelism",
+                    r"### Step 3\.3 — Red-Green loop")
+    review_scope = section(text, r"### Review scope — the machinery scales to the change",
+                           r"## Phase 3 — Stage execution")
+    check("review effort is tiered to the diff, and the tier is declared",
+          affirms_claim(review_scope,
+                        r"the declaration is what makes the choice reviewable"),
+          "the review machinery runs at one weight regardless of what it reviews, and a "
+          "downgrade leaves no record — the cost nobody compares to what it protects")
+    check("a process plan must name what it removes",
+          affirms_claim(flat(pp), r"adds an obligation names what it removes"),
+          "plans can add mandatory steps without ever retiring one, so the process grows "
+          "monotonically and each addition looks individually defensible")
+
+    check("a file conflict serializes the dispatch instead of inlining it",
+          affirms_claim(split, r"serialize the dispatches"),
+          "a file-conflicting YES task routes to the main session again — the one "
+          "documented authorization to inline a task the plan marked for dispatch")
+
+    check("a lone ready task is still dispatched",
+          affirms(flat(dpa), r"lone ready task is \*\*still dispatched\*\*"),
+          "|S| = 1 can return control to the caller again, which is how a stage with one "
+          "ready task inlines it while looking compliant")
+
+    roster = section(text, r"### Dispatch roster and capability probe",
+                     r"## Phase 3 — Stage execution")
+    closeout_report = section(text, r"9\. Report to the user with:", r"\n10\. Offer merge")
+    resets = section(text, r"## Context resets at stage boundaries",
+                     r"## Progress state file")
+    check("the Preflight roster/probe block is present", bool(roster),
+          "could not slice the dispatch roster section — the two checks below would "
+          "pass vacuously over an empty string")
+    check("Preflight probes dispatch and declares a roster",
+          affirms_claim(roster, r"Dispatch one throwaway subagent")
+          and affirms_claim(roster, r"Sweep \*\*every task in the plan\*\*"),
+          "Preflight no longer probes dispatch or sweeps the plan for YES tasks, so an "
+          "unavailable dispatch is discovered at close-out instead of before Stage 1")
+    check("the probe is conditioned on a non-empty roster",
+          affirms_claim(roster, r"only if the roster is non-empty"),
+          "the probe runs unconditionally again, so a plan that will never dispatch "
+          "still burns a throwaway one to prove a capability nothing uses")
+    check("Review: skip annotations are snapshotted at Preflight",
+          affirms_claim(roster, r"Snapshot the `Review: skip` annotations"),
+          "nothing pins the annotations to the run's base commit, so an executor can "
+          "add one mid-run and cite it as a user opt-out")
+    check("close-out reconciles dispatch plan-wide against the roster",
+          affirms_claim(closeout_report, r"reconciled against Preflight's roster"),
+          "the roster is declared plan-wide but answered only per stage, so a skipped "
+          "or silent stage gate leaves a hole no per-stage check can see")
+    check("the handoff carries the ledgers a reset would discard",
+          affirms_claim(resets, r"dispatch and review lines are carried here"),
+          "the gate's ledgers stay transcript-only while the skill recommends discarding "
+          "that context — and the review ledger cannot be rebuilt from git")
+
+    check("an unavailable dispatch fails Preflight",
+          affirms_predicate(roster, r"dispatch is unavailable or disallowed",
+                            r"Preflight fails and you stop"),
+          "an unavailable dispatch no longer stops the run, so the executor substitutes "
+          "inline execution and the user never gets the decision")
+
+    commit_rule = section(text, r"7\. \*\*Commit after each green task", r"### Step 3\.4")
+    check("every per-task commit carries an executor trailer",
+          affirms_claim(commit_rule, r"ends with an executor trailer"),
+          "nothing records WHO ran a task, so an inlined YES task and a dispatched one "
+          "are byte-identical again — the finding that made the rest enforceable")
+    check("the trailer is constrained to one physical line",
+          affirms_claim(commit_rule, r"trailer to one physical line"),
+          "a wrapped trailer silently vanishes from every %(trailers:...) query, so the "
+          "convention documents a check that returns nothing")
+
+    gate_step = section(text, r"### Step 3\.5 — Stage gate", r"\*\*Platform stage-verify")
+    check("the gate reports dispatched-vs-inline with a reason",
+          affirms_claim(gate_step, r"dispatched-vs-inline counts")
+          and affirms_claim(gate_step, r"a reason for every inlined"),
+          "the gate stops counting dispatch, which is how the prior run reached close-out "
+          "with five inlined YES tasks and nobody noticing")
+    check("the report names the reviewer and the diff it saw",
+          affirms_claim(gate_step, r"the agent that ran it")
+          and affirms_claim(gate_step, r"the diff it saw"),
+          "a gate can report green without saying who reviewed what, so an unrun review "
+          "and a passed one leave the same record")
+
+    stops = section(text, r"## Stop conditions", r"## When to revisit")
+    check("an unperformable mandated dispatch or review is a Stop condition",
+          affirms(stops, r"mandated verification or dispatch cannot be performed"
+                         r"|mandated (dispatch|review) cannot be (run|performed)"),
+          "an unavailable dispatch or reviewer no longer stops the run")
+    check("inline substitution is refused as a resolution",
+          re.search(r"[Ss]ubstituting inline execution[^.]{0,80}not a documented "
+                    r"resolution", stops) is not None,
+          "the Stop entry does not refuse the substitution, so it reads as advice")
+
+    review_optout = section(text, r"\*\*Review opt-out\.\*\*", r"\Z")
+    check("review skips are closed to two reasons",
+          affirms_claim(review_optout, r"the list is closed at two"),
+          "the review opt-out no longer states its reasons as an exhaustive pair, so a "
+          "third situation can be read in the way an uninstalled reviewer once was")
+    check("an undispatchable reviewer routes to the Stop condition",
+          affirms_claim(review_optout, r"Stop condition for a mandated review"),
+          "an unavailable code-reviewer has no stated resolution, so the run proceeds on "
+          "whatever checks remain and the user never gets the decision")
+    check("only a snapshotted annotation counts as an opt-out",
+          affirms_claim(review_optout,
+                        r"counts as an opt-out when Preflight's snapshot lists it"),
+          "an annotation read at skip time is accepted again, which cannot distinguish "
+          "a user's decision from the executor's own")
+    check("an opt-out is evidenced by quoting the user",
+          affirms_claim(review_optout, r"quoting the user's own\s+words"),
+          "an asserted opt-out and an evidenced one leave the same artifact again")
+    # The negation is INSIDE the pattern deliberately: the requirement itself is negative,
+    # so affirms_claim would screen its own `not` and reject true prose. Dropping the `not`
+    # deletes the match and turns this red. It does NOT catch a trailing clause that keeps
+    # the literal and withdraws its force — stated, not implied closed.
+    check("executor judgment is named as not constituting an opt-out",
+          re.search(r"\*\*Executor judgment is not an opt-out\.\*\*", review_optout)
+          is not None,
+          "the file no longer says an executor's own judgment fails to be an opt-out, "
+          "which is the only reading that makes the quote requirement bite")
+    escape = REVIEW_ESCAPE_RE.search(text)
+    check("no review or evaluator excuses itself on availability",
+          escape is None,
+          f"an availability-based excuse for skipping a review is back: "
+          f"{escape.group(0) if escape else ''}")
 
     check("sweep examined a non-empty set", scanned > 0,
           "no markdown files scanned — an empty sweep is not a pass")

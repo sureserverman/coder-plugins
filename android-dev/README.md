@@ -33,6 +33,13 @@ different project:
 | `APK_DIR` | `./app/build/outputs/apk/debug` | `/apks` (read-only) |
 | `SCREENSHOT_DIR` | `./play-screenshots` | `/screenshots` |
 
+> **Don't confuse these with the container-side pair.** The MCP server reads `APK_BASE_DIR`
+> and `SCREENSHOTS_DIR` (plural) — see [`infrastructure/mcp-server/server.mjs`](./infrastructure/mcp-server/server.mjs),
+> which defaults them to `/apks` and `/screenshots`. Those name paths *inside* the container,
+> which is the far end of the mounts above; `SCREENSHOT_DIR` and `SCREENSHOTS_DIR` differ by
+> one letter and mean different things. Setting the container-side pair is not a supported way
+> to aim the stack at a project — the host-side overrides in this table are.
+
 Set either in `infrastructure/.env` (where `up.sh` seeds both as commented lines on first run) or in
 the environment:
 

@@ -1,6 +1,6 @@
 # planning
 
-A fifteen-skill pipeline (v0.30.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.33.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -96,7 +96,9 @@ Preflight includes a **git bootstrap** — if the project isn't a repo it runs `
 
 A scoped gate report always discloses what actually ran. Policy lives in `skills/planning-projects/references/test-scope-tiers.md`, shared with `planning-projects`.
 
-**Two-tier code review.** Execution wires in `git-github`'s read-only `code-reviewer` agent on a distinct axis from the goal-evaluator (*code quality* vs *goal attainment*): **Tier 1** on each green task's diff, where a Critical finding blocks the task and is fixed within the same Red-Green cycle budget; **Tier 2** on the full stage diff at the gate, where a Critical is a gate failure and advisories are surfaced for triage. Trivial/non-code diffs are auto-skipped.
+**Tiered review scope (v0.33.0).** The same idea applied to the review machinery, which previously ran at one weight regardless of what it reviewed. The plan declares a tier at Preflight from its cumulative diff — **none** (docs/config/version-bump only), **light** (prose or single-file, no new behavior — one whole-diff review instead of per-task passes), **standard** (the default), **high** (security, data-destructive, public API, schema) — and repeats it in every gate report, so a downgrade is on the record rather than silent. Escalating mid-plan is allowed; quietly de-escalating is what the declaration exists to catch. A four-agent review over a small prose change costs more than the change and returns findings about the reviewing apparatus rather than the product; over an auth rewrite it is cheap insurance.
+
+**Two-tier code review.** Execution wires in `git-github`'s read-only `code-reviewer` agent on a distinct axis from the goal-evaluator (*code quality* vs *goal attainment*): **Tier 1** on each green task's diff, where a Critical finding blocks the task and is fixed within the same Red-Green cycle budget; **Tier 2** on the full stage diff at the gate, where a Critical is a gate failure and advisories are surfaced for triage. Both run at the tier the review scope above declares. Trivial/non-code diffs are auto-skipped.
 
 **Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `skills/executing-plans/scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
 
@@ -110,7 +112,7 @@ Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the sp
 
 ### `dispatching-parallel-agents`
 
-Used by `executing-plans` (or directly) when a set of tasks is marked `Parallel YES` and all their dependencies are green. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
+Used by `executing-plans` (or directly) when a task is marked `Parallel YES` and its dependencies are green — one such task or many. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 

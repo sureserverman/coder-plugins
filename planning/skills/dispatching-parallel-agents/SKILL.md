@@ -49,14 +49,17 @@ From the current stage, identify tasks where:
 - Every task in `Depends on` is in the completed set (check TodoWrite or plan status notes)
 - The task has not already been dispatched or completed
 
-Call this set **S**. If |S| < 2, there's no parallelism to exploit — return to the caller and execute sequentially.
+Call this set **S**. A lone ready task is **still dispatched**: |S| = 1 runs as a single
+dispatch rather than a fan-out, and is never a reason to hand the task back to the caller.
+Having nothing to run alongside it is a fact about *concurrency*, while `Parallel: YES` is
+a *delegation* directive — two different properties (`../planning-projects/SKILL.md` § Stage structure). Only |S| = 0 returns control to the caller with nothing to do.
 
 ## Phase 2 — Guard against file conflicts
 
 For every pair `(tᵢ, tⱼ)` in S, compare the file paths each task will modify:
 
 - If paths are disjoint → keep both in S
-- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task will be worked sequentially after dispatch returns.
+- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task is **dispatched on its own after this batch returns** — removing it from S drops it from *this concurrent batch*, never from dispatch. It carries `Parallel: YES`, so it goes to a subagent whenever it runs; the conflict decided *when*, not *whether*.
 
 Also guard against **shared resources** beyond files: same DB table schema migration, same CI config section, same feature flag — these are "logical" file conflicts even when the literal paths differ.
 
@@ -106,7 +109,12 @@ and follow it" — the same skill body, loaded from disk (see stack-routing.md �
 - Do NOT modify files outside the Files list above
 - Do NOT refactor unrelated code
 - Do NOT introduce new dependencies not already in the project
-- Commit with message: "Stage <N> Task <N.M>: <description>"
+- Commit with message: "Stage <N> Task <N.M>: <description>", ending with the
+  executor trailer on its own single physical line:
+  `Executor: dispatched — <your subagent_type>`
+  (`../executing-plans/SKILL.md` Step 3.3 rule 7 — the trailer is the only
+  artifact that distinguishes a dispatched task from an inlined one, so a
+  dispatched run that omits it reads downstream as `unknown`, not as dispatched)
 
 ## Return
 A structured report:
@@ -166,7 +174,8 @@ For each GREEN task:
 
 1. Mark the task completed in the plan's status notes and in TodoWrite
 2. Run the task's test **in the main session** (not just via the sub-agent's report) — agents occasionally claim green on a test that was skipped or misreported
-3. Check the task's `Blocks` list: for each blocked task, check whether its `Depends on` is now fully green. If yes, that task becomes dispatchable in the next round.
+3. **Verify the executor trailer the agent was asked to write**: `git log -1 --format='%(trailers:key=Executor,valueonly)' <sha>` must be non-empty and read `dispatched`. If it is blank or wrong, amend it now. This is the same trust-but-verify this phase already applies to the test, aimed at the one artifact a sub-agent cannot check for itself — it never sees the main session's conventions, and a blank trailer otherwise surfaces only at the stage gate as an `unknown`, long after the cheap moment to fix it (`../executing-plans/SKILL.md` Step 3.3 rule 7, Step 3.5)
+4. Check the task's `Blocks` list: for each blocked task, check whether its `Depends on` is now fully green. If yes, that task becomes dispatchable in the next round.
 
 For each ESCALATE task:
 
@@ -207,7 +216,7 @@ Return to `executing-plans` (or the calling session) with:
 
 - Tasks are related (one fix might fix others) — investigate as a group first
 - You don't have a plan — brainstorm and plan before dispatching
-- |S| = 1 — no parallelism; just execute
+- |S| = 0 — nothing is dispatchable yet (a `Depends on` is still red). **|S| = 1 is not on this list**: a lone `Parallel: YES` task is dispatched as a single dispatch, per Phase 1
 - Tasks touch shared state (same file, same DB schema, same CI job) — force sequential
 - The stage gate is ready to run — gates are a synchronization point; don't dispatch past them
 

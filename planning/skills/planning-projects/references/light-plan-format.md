@@ -87,6 +87,7 @@ Include any decision in force that bears on the change, inline:
 
 ### Task 1.1: [description]
 - **Status:** [ ]
+- **Scope:** [the set this task sweeps — omit for a single-artifact task]
 - **Test:** `[exact command or concrete pass/fail criterion]`
 
 ### Task 1.2: [description]

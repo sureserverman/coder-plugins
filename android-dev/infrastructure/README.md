@@ -117,6 +117,15 @@ Both host paths are environment overrides — you never edit `compose.yaml` to r
 different project. Set them in this directory's `.env` (where `up.sh` seeds both as commented lines on
 first run) or in the environment:
 
+> **Host side vs container side.** `APK_DIR` / `SCREENSHOT_DIR` above are *host* directories you
+> override to aim the stack at a project. Inside the container the MCP server reads a different,
+> similarly-named pair — `APK_BASE_DIR` and `SCREENSHOTS_DIR` (plural), defaulting to `/apks` and
+> `/screenshots` in [`mcp-server/server.mjs`](./mcp-server/server.mjs) — which name the *mount
+> points*, i.e. the other end of the two volumes listed above. `SCREENSHOT_DIR` (host) and
+> `SCREENSHOTS_DIR` (container) differ by a single letter; overriding the container-side pair is
+> not how you point the stack at a project, and doing so decouples the server from where the
+> volumes are actually mounted.
+
 ```bash
 APK_DIR=/absolute/path/to/your-project/app/build/outputs/apk/debug \
 SCREENSHOT_DIR=/absolute/path/to/your-project/play-screenshots \
