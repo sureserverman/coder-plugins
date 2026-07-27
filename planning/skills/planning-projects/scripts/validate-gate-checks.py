@@ -27,10 +27,11 @@ Always prints a per-class count and the total examined: an empty sweep must not
 read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
-tests/test-validate-gate-checks.py against a live run — but ONLY where the vault plan
-corpus exists, i.e. locally. On CI the corpus is absent and those assertions skip, so
-the pin catches drift on a developer machine and NOT in CI. Vendoring a real-plan
-corpus into the repo would close that; until then this caveat is the honest statement:
+tests/test-validate-gate-checks.py group 9 against the frozen corpus in
+tests/fixtures/gate-check-corpus/, so the pin runs wherever the suite runs, CI included.
+Every figure below is measured over that corpus and is therefore reproducible from the
+repo alone — except where a bullet says otherwise, which is the one thing worth reading
+carefully here:
 
   - Calibrated against 48 gate checks in 3 real plans: 21 EXECUTABLE,
     7 JUDGMENT, 3 INSTANCE-SHAPED, 17 PROSE. The corpus is frozen in the repo at
@@ -40,19 +41,22 @@ corpus into the repo would close that; until then this caveat is the honest stat
     which is why `executing-plans` treats this as advisory on existing plans and mandatory
     only for newly authored ones.
   - A check carrying BOTH a narrow command and explicitly plural language ("`grep -c x
-    one.md` = 1 and no stray refs remain") classifies EXECUTABLE. That branch carries 15
-    real corpus checks, so it is deliberate — but it IS a way for a narrow command to
-    pass, and a human reviewer is the only backstop.
-  - PROSE is reported, never failed. 35 real checks are set-quantified claims that
+    one.md` = 1 and no stray refs remain") classifies EXECUTABLE. That branch carries 3
+    corpus checks ("command plus set-quantified claim"), so it is deliberate — but it IS
+    a way for a narrow command to pass, and a human reviewer is the only backstop.
+  - PROSE is reported, never failed. 7 corpus checks are set-quantified claims that
     simply aren't executable yet; failing them would retro-fail every pre-rule plan.
   - Classification is syntactic. It cannot know that a directory argument happens to
     hold one file, nor read a script to see what it really asserts.
-  - Most of the 23 are not the oscillation-causing shape. Hand-read, roughly a quarter
-    are set-valued claims narrowed to one member (the harmful form); about a third are
-    live/manual judgment checks that predate the `(judgment)` marker and want the marker
-    rather than a sweep; the rest are single-file facts where one file really is the
-    whole set. All are non-compliant with the rule as written, but the class name
-    oversells how many are dangerous.
+  - NOT MEASURED OVER THE FROZEN CORPUS — this one bullet is a hand-read of the 23
+    INSTANCE-SHAPED checks in the full ~415-check vault corpus as it stood 2026-07-26,
+    kept because the qualitative point survives the corpus change and nothing in the
+    repo reproduces it. Roughly a quarter were set-valued claims narrowed to one member
+    (the harmful form); about a third were live/manual judgment checks predating the
+    `(judgment)` marker, wanting the marker rather than a sweep; the rest were
+    single-file facts where one file really is the whole set. All are non-compliant with
+    the rule as written, but the class name oversells how many are dangerous. Treat the
+    proportions as an unpinned observation, not a figure you can re-derive from here.
   - A nested `- [ ]` sub-item under a gate bullet counts as its own top-level check.
     No real plan does this today; a sub-checklist would be double-counted.
   - An extension-less path (`plugins/foo`) is read as a directory, because syntax cannot
