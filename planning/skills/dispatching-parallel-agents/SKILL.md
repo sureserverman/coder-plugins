@@ -59,7 +59,7 @@ a *delegation* directive — two different properties (`../planning-projects/SKI
 For every pair `(tᵢ, tⱼ)` in S, compare the file paths each task will modify:
 
 - If paths are disjoint → keep both in S
-- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task will be worked sequentially after dispatch returns.
+- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task is **dispatched on its own after this batch returns** — removing it from S drops it from *this concurrent batch*, never from dispatch. It carries `Parallel: YES`, so it goes to a subagent whenever it runs; the conflict decided *when*, not *whether*.
 
 Also guard against **shared resources** beyond files: same DB table schema migration, same CI config section, same feature flag — these are "logical" file conflicts even when the literal paths differ.
 

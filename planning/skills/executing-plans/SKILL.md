@@ -352,10 +352,13 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 
 ### Step 3.2 — Split by parallelism
 
-- Tasks with `Parallel: YES` and no file conflicts with another ready task → hand to `dispatching-parallel-agents`
-- Tasks with `Parallel: NO` or that modify files another parallel task modifies → work sequentially in the main session
+- Tasks with `Parallel: YES` and no file conflicts with another ready task → hand to `dispatching-parallel-agents`, concurrently
+- Tasks with `Parallel: YES` that modify files another ready task modifies → still dispatched, one after another (see the file-conflict check)
+- Tasks with `Parallel: NO` → work in the main session, unless the delegation rule below applies
 
-**File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, force one of them sequential even if the graph says independent.
+**File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, **serialize the dispatches — do not inline either one.** A file conflict is a fact about *scheduling*: it says these two cannot run at the same moment, which is a different claim from "this task need not go to a subagent". `Parallel: YES` is a delegation directive (`../planning-projects/SKILL.md` § Stage structure), and nothing about a sibling touching the same file withdraws it. So the conflicting task is dispatched on its own once the first returns, and its commit carries `Executor: dispatched — <type>` like any other.
+
+This is the same conflation the field's definition was rewritten to remove — "sequential" is a word about time, and using it to mean "in the main session" is how a directive quietly became a preference. If you genuinely need the task inline, that is a deviation: run it inline, say so in the gate report's dispatch line with a reason, and let the trailer record `Executor: inline`.
 
 **Delegate sequential tasks for context hygiene.** `Parallel: YES` tasks already go
 to subagents. A `Parallel: NO` task still defaults to the main session — but when it
@@ -864,7 +867,7 @@ When every stage is green:
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
-- **dispatching-parallel-agents** — invoked for `Parallel: YES` tasks with no file conflicts; its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
+- **dispatching-parallel-agents** — invoked for every `Parallel: YES` task; a file conflict serializes the dispatches rather than cancelling one (Step 3.2). Its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `ui-android`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
