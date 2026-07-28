@@ -3,8 +3,7 @@ name: create-pr
 description: >
   Use when the user explicitly asks to open a GitHub pull request — "open
   a PR", "create a pull request", "draft a PR for this branch", "gh pr
-  create". Dispatches a Haiku subagent to draft the PR and call it after
-  confirmation. Does NOT trigger on its own — only on an explicit user
+  create". Does NOT trigger on its own — only on an explicit user
   request.
 ---
 
