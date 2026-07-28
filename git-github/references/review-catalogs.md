@@ -6,6 +6,19 @@ need at most one section.
 
 ---
 
+## Structural principles (Protocol 3)
+
+Name the specific principle; "bad design" is not a finding.
+
+- **Single Responsibility** — a function or class doing two unrelated things.
+- **Open-Closed** — modification required for an extension that should have been additive.
+- **Liskov** — a subclass that breaks a contract the parent promised.
+- **Interface Segregation** — a client forced to depend on methods it doesn't use.
+- **Dependency Inversion** — a high-level module depending on a low-level detail.
+- **Coupling & cohesion** — high coupling between modules that should be independent; low cohesion within a module that should be focused.
+
+---
+
 ## Fowler smell catalog (Protocol 4)
 
 Name smells by name. "This is bad" is not a review — "this is **Feature Envy**:

@@ -114,5 +114,5 @@ Fowler smells, OWASP/CWE) where relevant."""
 - **OWASP Top 10 / ASVS / CWE** — the security baseline applied in the
   agent's security-review protocol.
 - **code-reviewer agent protocols** — `${CLAUDE_PLUGIN_ROOT}/agents/code-reviewer.md`
-  (the 6 protocols, 12 house rules, and output schemas this skill consumes; shipped
+  (the 6 protocols, 10 house rules, and output schemas this skill consumes; shipped
   in this plugin, read-only)
