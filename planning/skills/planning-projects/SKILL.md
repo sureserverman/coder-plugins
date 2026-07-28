@@ -11,6 +11,21 @@ This skill produces plans where every task has a concrete test and the execution
 
 ---
 
+## Reference map
+
+The trunk carries the authoring decisions. These load when their condition is met:
+
+| Read this | When |
+|---|---|
+| `references/plan-document-template.md` | writing the plan file — the literal template |
+| `references/task-fields.md` | the exact semantics of any task or stage field |
+| `references/set-valued-checks.md` | writing a gate check whose goal quantifies over a set |
+| `references/light-plan-format.md` | Phase -0.5 selected **Light** |
+| `references/master-plan-format.md` | Phase 2.5 selected **Master** |
+| `references/test-scope-tiers.md` | declaring the plan's test-scope commands |
+
+---
+
 ## Phase -1 — Clarification
 
 Before researching or planning anything, make sure you understand what the user actually wants. Ambiguous or underspecified prompts produce plans that solve the wrong problem — and a wrong plan executed perfectly is worse than no plan at all.
@@ -327,23 +342,6 @@ Stage N: [Name]
     - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
 ```
 
-### `Review: skip` — an authored field, never an executor's
-
-Both review tiers are default-on in `executing-plans`. A task may carry `Review: skip` to
-turn them off for that task — but **only when the user has said so**, and the field exists
-in this template precisely so the annotation has a provenance: it lands in the plan the
-user reads and approves, before execution starts.
-
-Do not add it on your own judgment that a task looks trivial. `executing-plans` already
-auto-skips genuinely non-code diffs (docs-only, config-only, pure version bumps) without
-any annotation, so the field is not needed for that case — its only job is to record a
-*user's* decision. An executor that adds it mid-run is recording its own decision as the
-user's, which is why `executing-plans` snapshots these annotations at Preflight and honors
-only the ones present at the run's base commit (`../executing-plans/SKILL.md` § Dispatch
-roster and capability probe, and § Review opt-out).
-
-Omit the field entirely on every task the user did not name. An absent field is the
-default; `Review: run` is not a thing.
 
 ### Status marking (per-task done-state)
 
@@ -351,101 +349,19 @@ Every task carries a **Status** checkbox as its first field: `- **Status:** [ ]`
 
 When the whole plan is finished, `executing-plans` appends a close-out line at the end of the plan: `**Completed:** YYYY-MM-DD — commits: <list>`. A plan with that line and all `Status: [x]` is unambiguously done; absent the line, any `Status: [ ]` task is genuinely unexecuted.
 
-### Scope marking (the set a task changes)
+### Task and stage fields
 
-A task that changes a **class** of artifact declares the set it must sweep, on a `Scope:`
-field:
+Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
+`Red-Green max cycles:`; a task sweeping a set also carries `Scope:`, and each stage carries
+`Risk:` and `Rollback:`. Two rules are load-bearing enough to state here rather than defer:
 
-```
-Scope: every commands/*.md, each skills/*/SKILL.md, both scripts' --help
-```
+- **`Parallel: YES` is a directive to dispatch**, not a description of what happened.
+- **`Scope:` is only as good as the sweep behind it** — a truncated authoring command is a
+  documented way for one to arrive short, and a gate failure then repairs an instance while
+  its siblings survive.
 
-This is the authoring-time half of the class-predicate rule. The gate check proves the set
-was swept; `Scope:` is where the set gets **named**, before anyone starts editing — so the
-surfaces are enumerated once rather than discovered one gate round at a time.
-
-**Conditional, not universal.** Declare it only when the task changes more than one
-artifact. A task editing exactly one file has no set, and writing `Scope: this file`
-everywhere is noise that trains readers to skip the field. No `Scope:` on a
-single-artifact task is correct, not missing.
-
-**Derive the set with a command; do not type it from memory.** This is the failure mode
-worth naming, because it is not carelessness and it survives careful authors:
-
-> A plan authored in this repo enumerated "every doc naming the host-side mount vars" as
-> three files, from a `grep` whose output had been truncated by `head -40`. A fourth doc
-> existed. The task shipped covering three; the stage gate's set-valued check found the
-> fourth. A `Scope:` line is only as trustworthy as the sweep behind it — paste the
-> command you ran, not the answer you remember.
-
-So: run the sweep, and prefer a `Scope:` that names the **command** (`Scope: every file
-matching grep -rl 'X' src/ — 7 files at authoring time`) over one that names a
-hand-copied list. A count is useful precisely because it is falsifiable later.
-
-**There is an automated backstop.** `scripts/validate-gate-checks.py` reports a stage that
-declares a `Scope:` whose gate contains neither an executable sweep nor a `(judgment)`
-marker — the set named but not swept. It is advisory (it never changes an exit code), so
-treat it as a reminder, not a gate.
-
-**Masters carry no `Scope:`.** A master plan has no tasks (`references/master-plan-format.md`),
-so the field never appears there and its parser-safety invariant is untouched.
-
-### Dependency marking
-
-Every task and stage carries two dependency fields — this makes the graph navigable in both directions:
-
-- **Depends on**: What must be green before this task/stage can start
-- **Blocks**: What is waiting on this task/stage to finish
-
-These fields are symmetric: if Task 2.1 depends on Task 1.3, then Task 1.3 must list Task 2.1 in its Blocks field. This redundancy is intentional — when a task finishes, you can immediately see what it unblocks without scanning the entire plan.
-
-Mark each task's **Parallel** field. It is a directive to the executor, not a description
-of the task: `executing-plans` dispatches every `Parallel: YES` task to a subagent (its
-Step 3.2), it does not merely note that a subagent *could* handle it.
-- **YES** if the task has no unfinished dependencies (all its `Depends on` items are green
-  or "none") — it is dispatched, whether or not another ready task exists to run alongside
-  it. A lone ready task with no concurrent sibling is still dispatched, not inlined for
-  lack of one.
-**A file conflict is expressed as a dependency, never as a downgraded `Parallel` field.**
-Two dependency-free tasks that touch the same file cannot both be `YES` (the checklist
-forbids two parallel tasks modifying one file), but neither is `NO` in the field's own
-terms, because `NO` means *blocked by a dependency* and there is none. Resolve it where it
-belongs: add an explicit `Depends on` edge serialising the two at authoring time, then the
-second task is `NO` for the ordinary reason. Downgrading the field instead would reintroduce
-exactly the reading this section removes — that `Parallel` describes whether things happen
-to run side by side, rather than instructing the executor to dispatch.
-
-- **NO** if it's blocked — list which dependency is blocking it. (Once unblocked, `NO`
-  defaults to the main session, but `executing-plans` may still delegate it to a subagent
-  on its own context-hygiene criteria — that decision doesn't depend on having a
-  concurrent sibling either.)
-
-### Ordering rules
-
-1. **Stages are sequential.** Stage 2 does not start until Stage 1's gate passes
-2. **Tasks within a stage follow their dependency graph.** If Task B needs output from Task A, Task A comes first — this isn't optional, it's structural
-3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously — and if only Task 2.3 is ready, it is dispatched by itself. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Parallel: YES` carries
-4. A task cannot enter its Red-Green loop until every task it depends on is green
-
-### Risk flags
-
-Mark each stage with a risk level. This tells the user (and you) where to expect friction:
-
-- **LOW**: Well-understood tech, clear path, prior art exists in the codebase
-- **MEDIUM**: Some unknowns — unfamiliar API, complex integration point, limited docs
-- **HIGH**: Novel territory, unreliable external dependencies, tight constraints, or no prior art
-
-High-risk stages deserve extra care: consider a spike or prototype first, prepare the rollback plan in detail, and expect the Red-Green loop to cycle more than once per task.
-
-### Rollback notes
-
-Each stage documents what to undo if it fails beyond recovery. Half-built states with no way back are worse than not starting:
-
-- Which files or changes to revert (`git` refs if applicable)
-- Which migrations or schema changes to roll back
-- Which services or infrastructure to restore to prior state
-- Which side effects (messages sent, data written) cannot be undone — flag these explicitly
-
+Exact semantics for every field — including `Review: skip`, dependency symmetry, ordering
+rules, risk flags, rollback notes and stage sizing: `references/task-fields.md`.
 ### Stage sizing
 
 If a stage has more than 7 tasks, it's too large. Split it. Large stages hide integration problems behind a wall of individual task tests that all pass but don't work together. Aim for 3-5 tasks per stage.
@@ -542,150 +458,18 @@ master plan as `YYYY-MM-DD-<topic>-master-plan.md` and each sub-plan as
 
 ## Plan Document Format
 
-Output the plan as a markdown document following this structure. Save it to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` (vault), or `docs/plans/` only in the no-`vault_dir` fallback above.
-
-```markdown
-# Project Plan: [Name]
-Date: [YYYY-MM-DD]
-
-## Research Summary
-
-### Online sources
-- [What was found, with links]
-
-### Vault / local docs
-- [Prior decisions, architecture notes]
-
-### Project context
-- [Existing patterns, dependencies, test framework]
-
-## Decisions in force
-
-[One NON-CHECKBOX bullet per binding entry — a raw `- [ ]` here would be read as
-deferred work by the portfolio parser and become a false backlog candidate.]
-
-- DEC-001 — [title] (accepted; [domains]) — [the constraint in one line]
-- GDEC-SEC-001 — [title] (accepted; security) — [the constraint in one line]
-
-**Registers consulted:** [`<portfolio_home>/decisions.md`; `Portfolio/decisions/<slug>.md` …]
-**Domains inferred:** [slugs, and any that had no register yet]
-
-## Preflight
-
-- [ ] [Check 1]: [how to verify]
-- [ ] [Check 2]: [how to verify]
-- [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session
-- [ ] Dispatch roster — `<n> of <total> tasks`: every `Parallel: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
-
-**Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
-- stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]
-- plan-scope:  [the single full clean pass, quarantined tests included]
-
----
-
-## Stage 1: [Name]
-
-**Goal:** [one sentence]
-**Depends on:** none
-**Blocks:** Stage 2
-**Risk:** LOW | MEDIUM | HIGH — [reason]
-**Rollback:** [what to undo and how]
-
-### Task 1.1: [description]
-- **Status:** [ ]
-- **Depends on:** none
-- **Blocks:** Task 1.2
-- **Parallel:** YES
-- **Scope:** [the set this task sweeps — omit for a single-artifact task]
-- **Test:** `[exact command or criterion]`
-- **Red-Green max cycles:** 3
-
-### Task 1.2: [description]
-- **Status:** [ ]
-- **Depends on:** Task 1.1
-- **Blocks:** Task 1.3, Task 2.1
-- **Parallel:** NO (blocked by 1.1)
-- **Test:** `[exact command or criterion]`
-- **Red-Green max cycles:** 3
-
-### Stage 1 Gate
-- [ ] [Integration check]
-- [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
-- [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
-- [ ] [Stage goal verified end-to-end]
-- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it — the evaluator verifies this one]
-
----
-
-## Stage 2: [Name]
-
-**Goal:** ...
-**Depends on:** Stage 1 gate passing
-**Blocks:** Stage 3
-**Risk:** ...
-**Rollback:** ...
-
-[Tasks with Depends on / Blocks / Parallel fields...]
-
-### Stage 2 Gate
-[Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
-regression check above with the plan-scope bullet instead:
-- [ ] [Full clean test pass (plan-scope — the plan's single full run)]
-- [ ] **(judgment)** [No change contradicts a decision in force (list the DEC/GDEC IDs in
-      scope); any Supersedes citation has been recorded via `decisions supersede`] — a
-      conformance judgment over a diff; no sweep can prove it
-```
-
----
-
+Save to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md`. The literal template — Research
+Summary, Decisions in force, Preflight, per-stage tasks with their fields, and the gate
+shape — is `references/plan-document-template.md`. Copy it there rather than reconstructing it from
+memory; the parser-safety rules (a non-checkbox bullet in Decisions in force, the exact
+`- **Status:** [ ]` form) are why it is a fixture rather than a sketch.
 ## Phase 3 — The Red-Green Loop
 
-This is the execution model for every task. No task is "done" until its test is green. "It looks right" is not green — run the test.
-
-```
-    +----------+
-    | Attempt  |  Write the code / make the change
-    +----+-----+
-         |
-         v
-    +----------+
-    |   Test   |  Run the task's specific test
-    +----+-----+
-         |
-     +---+---+
-     | Pass? |
-     +---+---+
-      |     |
-    GREEN   RED
-      |     |
-      |     v
-      |  +----------+
-      |  | Diagnose |  Read the error. Understand WHY it failed
-      |  +----+-----+
-      |       |
-      |       v
-      |  +----------+
-      |  |   Fix    |  One targeted fix based on diagnosis
-      |  +----+-----+
-      |       |
-      |       v
-      |    Retest ----> back to Test
-      |       |
-      |  (max 3 RED cycles, then escalate)
-      |
-      v
-  Next task
-```
-
-### Loop rules
-
-1. **One fix per cycle.** Don't shotgun multiple changes hoping one sticks. Isolate the problem, fix that one thing, retest
-2. **Diagnose before fixing.** Read the actual error output. Form a hypothesis. Confirm it against the code. Only then write the fix
-3. **Max 3 RED cycles per task.** If a task fails its test 3 times in a row, stop the loop and escalate to the user. Three failures usually means the approach is wrong, not just the implementation. Continuing to loop is wasting time
-4. **Never skip the test.** Every attempt ends with running the test. No exceptions. The test is the only thing that says you're done
-
----
-
+Every task carries a `Test:` and a `Red-Green max cycles:` because execution drives them
+through a diagnose → fix → retest loop with a bounded budget. The loop itself is
+`executing-plans` Step 3.3 and is not restated here. What the plan owes it: a test that is a
+**runnable command or a checkable criterion**, never "should work", and a cycle budget
+(default 3).
 ## Phase 4 — Stage Gates
 
 After all tasks in a stage pass their individual tests, run a stage-level integration check before proceeding to the next stage. Individual tests prove each piece works. Stage gates prove the pieces work together.
@@ -767,75 +551,15 @@ them at all — which is the class-predicate rule above.
 
 ## Phase 5 — Parallel Execution
 
-When executing the plan, use sub-agents to run independent tasks concurrently. This is where the dependency graph pays off — you don't have to guess what can run in parallel, the `Blocks` and `Depends on` fields tell you exactly.
+Mark a task `Parallel: YES` when its `Depends on` are satisfiable independently and it
+shares no file with a sibling. **The field is a directive to dispatch, not a note about
+concurrency** — a single ready task is dispatched too; "simultaneously" describes the
+schedule when there are several, not a precondition for dispatching any.
 
-### Dispatch rules
-
-1. **At stage start**, identify all tasks with `Parallel: YES` (no unfinished dependencies). Dispatch them all to sub-agents simultaneously. A single ready task is dispatched too — "simultaneously" describes the schedule when there are several, not a precondition for dispatching any
-2. **When a task completes green**, check its `Blocks` list. For each blocked task, check if ALL of that task's dependencies are now green. If yes, dispatch it to a new sub-agent
-3. **Never dispatch a task whose dependencies aren't all green.** The Parallel field in the plan is the initial state — during execution, a task becomes dispatchable only when its actual dependencies have passed
-4. **Each sub-agent runs one task's Red-Green loop independently.** The sub-agent attempts the task, runs the test, and if RED, diagnoses and fixes within the 3-cycle limit. It reports back GREEN or ESCALATE
-5. **Stage gate runs only after all tasks in the stage are green.** Don't start the gate while any task is still in its Red-Green loop
-6. **Match each sub-agent to the task's stack.** Pick the sub-agent type — and the stack skill it should load first — from the shared routing table at `../dispatching-parallel-agents/references/stack-routing.md` (Rust → `rust-expert`, tests → `testing-expert`, … with a `general-purpose` fallback). The same table governs `executing-plans` and `dispatching-parallel-agents`, so dispatch decisions stay consistent from planning through execution
-
-### Dispatch flow
-
-```
-Stage starts
-    |
-    v
-Scan tasks: which have all dependencies green?
-    |
-    +---> Dispatch each ready task to a sub-agent (in parallel)
-    |
-    v
-Wait for any sub-agent to finish
-    |
-    v
-Task GREEN?
-  |       |
-  YES     NO (escalated after 3 RED cycles)
-  |       |
-  |       +--> Pause. Surface to user. Do NOT dispatch dependents
-  |
-  v
-Check Blocks list of completed task
-  |
-  v
-For each blocked task: are ALL its dependencies now green?
-  |       |
-  YES     NO
-  |       |
-  v       (wait for other dependencies)
-Dispatch to sub-agent
-    |
-    v
-(repeat until all tasks green or escalated)
-    |
-    v
-Run stage gate
-```
-
-### What a sub-agent receives
-
-Each sub-agent needs enough context to work independently:
-
-- The task description and its test criterion
-- Relevant research findings from Phase 0 (not the entire research summary — just what this task needs)
-- File paths and patterns from the project context
-- The Red-Green loop rules (attempt, test, diagnose, fix, retest, max 3 cycles)
-- The stack skill to invoke first, if the routing table names one for this task's stack — so the agent authors to that stack's conventions instead of generic defaults
-- The **decisions in force that bear on this task** (from the plan's `## Decisions in force`) — only the relevant entries, same discipline as the research extract. A sub-agent never reads the register, so a constraint absent from its prompt is one it cannot honor
-- What to do on failure: report back with the error and diagnosis, don't keep looping silently
-
-### Guardrails
-
-- **No cross-task file conflicts.** Before dispatching parallel tasks, verify they don't modify the same files. If two tasks edit the same file, they must run sequentially even if the dependency graph says they're independent
-- **Merge check after parallel tasks complete.** If multiple sub-agents wrote code in the same stage, run the test suite before the stage gate to catch integration issues introduced by parallel work — at stage-scope on an expensive suite (references/test-scope-tiers.md), same as the gate it precedes
-- **Failed task blocks its dependents.** If Task 2.1 fails and escalates, do not dispatch Tasks 2.3 and 2.4 that depend on it. Mark them as BLOCKED and surface the entire chain to the user
-
----
-
+The dispatch procedure itself — how tasks are selected, briefed, routed to a stack-matched
+subagent, and integrated — belongs to `../dispatching-parallel-agents/SKILL.md` and
+`executing-plans` Step 3.2, and is deliberately not restated here. What the *plan* owes them
+is accurate `Depends on` / `Blocks` / `Parallel` fields and a file-conflict-free set.
 ## Checklist — Before Presenting the Plan
 
 **Light plans use the "Checklist — Light plans" below instead of this one.** This full
@@ -889,28 +613,20 @@ apply:
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
 
 ---
+### Write a set-valued check as the sweep that proves it
 
-## Common Pitfalls
+**A gate check over a set is an executable sweep, not a spot check** (DEC-005). A check that
+names one artifact where the goal is a property of many cannot fail on the siblings that make
+the defect class — they survive the gate, and each survivor costs another remediation round.
+So a check whose goal quantifies over a set is written as the command that sweeps that set:
+`! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y".
 
-These pitfalls are written for **Standard** (and Master) plans. Rows about Risk, Rollback,
-`Blocks`, `Parallel`, mandated research, or the Preflight section don't apply to a **Light**
-plan, which legitimately drops those fields (Phase -0.5) — a Light author should read the
-"Tasks without tests", "Wrong task order", and "Vague stage gates" rows as still binding
-and treat the rest as Standard-only.
+A check that genuinely needs a reader carries the **(judgment)** marker and routes to the
+gate's evaluator — the sanctioned escape hatch, not a loophole.
 
-| Pitfall | What goes wrong | Fix |
-|---------|----------------|-----|
-| Tasks without tests | You don't know if the task actually works until 3 stages later when something breaks | Write the test first. If you can't write a test, the task is too vague — split or clarify it |
-| Wrong task order | Task B fails because Task A's output isn't ready yet, wasting Red-Green cycles | Draw the dependency graph before ordering. If B reads from A, A comes first |
-| Skipping research | You plan around an API that was deprecated last month, or a config format that changed | 20 minutes of research prevents hours of rework. Check the current docs |
-| Monolith stages | A 12-task stage where one failing gate is impossible to diagnose | Split stages at natural boundaries. 3-5 tasks per stage |
-| Vague stage gates | "Everything works" as a gate tells you nothing when it fails | Name the specific command or check. "Run `npm test` and all 47 tests pass" |
-| Static-only gates | Every gate is unit tests; a stubbed feature sails through all of them and ships broken | Gates on user-facing stages must run the artifact and drive the flow live, not just grep and test |
-| Instance-shaped gate checks | The check names one file where the goal is a property of many, so it passes while the other members of the defect class survive — and each survivor costs another remediation round at the gate. One defect gets discovered three times | Quantify the check: name the set and the command that sweeps it (`! grep -rl … <scope>`). If it genuinely needs a reader, mark it `(judgment)` instead of leaving it prose |
-| No rollback notes | Stage 3 fails, you've modified the database schema and 6 config files, and you don't know how to get back | Document rollback at planning time, not panic time |
-| Infinite Red-Green loops | Cycling through fixes without understanding the root cause | 3 cycles max. If 3 targeted fixes don't work, the approach — not just the code — needs rethinking |
-| Research-free planning | "I'll figure out the API as I go" | You won't. Research first, plan second, build third |
-| Asymmetric dependencies | Task A says it blocks B, but B doesn't list A in Depends on — the graph is broken | Always write both directions. If you add a Depends on, update the other task's Blocks |
-| Parallel file conflicts | Two sub-agents edit the same file simultaneously, producing merge conflicts or silent overwrites | Check file paths before dispatching. If tasks touch the same file, force sequential execution |
-| Full suite at every gate | On an expensive suite (device/e2e), every intermediate gate re-proves unchanged code — hours of wall-clock lost per plan, plus `clean` wiping incremental state each time | Tier the scope — stage-scope at intermediate gates, one clean plan-scope pass at the final gate (references/test-scope-tiers.md) |
-| Planning without clarifying | The prompt says "build a dashboard" so you plan a React app, but the user wanted a CLI tool | If the prompt is ambiguous about scope, target, or constraints, ask before you plan. A 30-second question saves a 30-minute rewrite |
+Verify before presenting the plan:
+`python3 {plugin}/skills/planning-projects/scripts/validate-gate-checks.py <plan>` —
+**a newly authored plan may not be presented while it reports INSTANCE-SHAPED.**
+
+Worked examples, the predicate-vs-instance test, and the validator's classification rules:
+`references/set-valued-checks.md`.

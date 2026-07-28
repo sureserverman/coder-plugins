@@ -53,7 +53,7 @@ one you need rather than working from memory:
 | `references/sources.md` | citing why a rule here exists |
 
 Paths are relative to this skill's directory; from a dispatch use
-`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/<file>`.
+`references/<file>`.
 
 ---
 
@@ -70,7 +70,7 @@ Run `validate-gate-checks.py` on the master itself, not only on each sub-plan: a
 cross-plan checks are exactly the ones that prove integration *between* sub-plans, so an
 instance-shaped one there survives every sub-plan gate.
 
-Full execution model, critique checklist and close-out: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/master-plans.md`.
+Full execution model, critique checklist and close-out: `references/master-plans.md`.
 
 ---
 
@@ -87,7 +87,7 @@ Everything else is unchanged — Status flips, a commit per green task, the cycl
 Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.
 
 Full deltas, including how the review shape composes with the declared tier:
-`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/light-plans.md`.
+`references/light-plans.md`.
 
 ---
 
@@ -254,7 +254,7 @@ user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or acc
 execution knowingly. Substituting inline execution on your own authority is not a
 resolution; it takes a decision that belongs to the user and makes it silently.
 
-Why each of these three exists, and what breaks without them: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/dispatch-fidelity.md`.
+Why each of these three exists, and what breaks without them: `references/dispatch-fidelity.md`.
 
 ### Review scope — the machinery scales to the change
 
@@ -281,7 +281,7 @@ second pass and mandatory evaluator.
 A tier is a floor, not a ceiling: escalate mid-plan when the diff turns out riskier than it
 looked and say so in the gate report; never quietly de-escalate.
 
-`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/review-scope.md` is the authority on this — it carries the worked composition table,
+`references/review-scope.md` is the authority on this — it carries the worked composition table,
 the per-sub-plan rule for masters, and the opt-out rules. Where a summary here and that file
 appear to disagree, the file wins.
 ## Phase 3 — Stage execution
@@ -526,7 +526,7 @@ noticing the third. On exhaustion, escalate with the residual list — a documen
 condition, not a licence to keep looping.
 
 The full procedure — how to derive the set, when the task's `Scope:` field is the authority
-and when it is wrong, and what each severity obliges: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/gate-failure-procedure.md`.
+and when it is wrong, and what each severity obliges: `references/gate-failure-procedure.md`.
 
 **If the gate passes** (per the exit criterion above — including its obligation to have
 recorded every unfixed Important and told the user): mark the stage complete, append the
@@ -583,7 +583,7 @@ never commit it, and ensure `.claude/plan-progress.json` is gitignored during th
 bootstrap.
 
 Schema, the per-phase field table, `remediation_round`, and the one-time statusline wiring:
-`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/progress-state-file.md`.
+`references/progress-state-file.md`.
 
 ---
 
@@ -684,7 +684,7 @@ When every stage is green:
 Beck (TDD's red-green cycle), Cooper (phase gates), Gawande (preflight as a hard gate),
 Torvalds and *The Pragmatic Programmer* (commit per logical change), and Anthropic's
 harness-design work (independent evaluators, structured context handoffs). Full list with
-what each one is load-bearing for: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/sources.md`.
+what each one is load-bearing for: `references/sources.md`.
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
@@ -730,4 +730,4 @@ user had. A skip reported without a quote or a cited snapshot is an **unevidence
 reads downstream as a review that did not happen, because that is what it is.
 
 Why the snapshot rather than the task line is the evidence, and the full tier table:
-`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/review-scope.md`.
+`references/review-scope.md`.
