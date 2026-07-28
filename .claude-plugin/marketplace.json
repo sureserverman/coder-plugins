@@ -324,31 +324,6 @@
       "strict": false
     },
     {
-      "name": "ui-design",
-      "source": "./ui-design",
-      "description": "Opinionated per-platform UI design, review, and facelift subagents — one expert per surface. ui-web (WCAG 2.2 AA / WAI-ARIA / semantic HTML, framework-agnostic), ui-gnome (GNOME HIG + libadwaita, adaptive GTK4), ui-macos (Apple HIG + SwiftUI/AppKit, menu-bar-first), ui-windows (Fluent 2 + WinUI 3/WPF), and ui-garmin (Garmin Connect IQ / Monkey C watch faces, data fields, widgets, glances — power-budget- and device-matrix-aware). Each runs a surface-detection → design-review → facelift / greenfield / accessibility protocol and cites its platform guidelines by name. Android UI lives in the android-dev plugin (android-dev:ui-android).",
-      "version": "0.1.2",
-      "category": "development",
-      "tags": [
-        "ui",
-        "ux",
-        "design",
-        "facelift",
-        "accessibility",
-        "wcag",
-        "gnome",
-        "libadwaita",
-        "macos",
-        "swiftui",
-        "fluent",
-        "winui",
-        "garmin",
-        "connect-iq",
-        "monkey-c"
-      ],
-      "strict": false
-    },
-    {
       "name": "testing",
       "source": "./testing",
       "description": "Generalist, strongly-opinionated testing subagent (testing-expert). Triage-first: covers running/debugging tests, authoring new tests, coverage gap-analysis, reviewing tests for smells, and coaching methodology. Opinionated about the test pyramid, mutation-score-over-line-coverage, and an OWASP baseline; cites Beck, Fowler, Meszaros, Feathers, Google Testing, OWASP WSTG, Stryker, Hypothesis, and axe-core by name. Dispatched as testing:testing-expert — by planning's executing-plans / dispatching-parallel-agents for test-stack tasks, or directly.",
