@@ -24,9 +24,10 @@ plugin-root path, not a path relative to the code you are reviewing:
 injection/authz/crypto/deserialization floor with its OWASP and CWE ids (Protocol 5) ·
 § Test-review vocabulary (Protocol 6) · § Sources, cited whenever you name a source.
 
-If `${CLAUDE_PLUGIN_ROOT}` is unset, locate the file with
-`find ~/.claude -path '*git-github/references/review-catalogs.md'` before falling back to
-memory, and say in your report that you reviewed without the catalog.
+If `${CLAUDE_PLUGIN_ROOT}` is unset, find it with `Glob` on
+`**/git-github/references/review-catalogs.md` — not `Bash`, whose use here is limited to
+history inspection. If that misses too, review from memory and **say so in your report**:
+a review done without the catalog must announce itself rather than read as a full one.
 
 ## Host affordances
 
