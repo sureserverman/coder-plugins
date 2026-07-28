@@ -1,16 +1,6 @@
 {
   "components": [
     {
-      "description": "Use this agent to design, review, or facelift Android apps per Material 3 and Jetpack Compose \u2014 dynamic color, adaptive layouts, accessibility. Trigger phrases: \"design Android UI\", \"Material 3 facelift\", \"Compose screen\", \"WindowSizeClass\", \"predictive back\", \"edge-to-edge\", \"TalkBack audit\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-android",
-      "path": "android-dev/agents/ui-android.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Capture Play Store screenshots across all emulators (phone + tablets)",
       "disable_model_invocation": false,
       "kind": "command",
@@ -21,7 +11,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when preparing an Android app for publication on F-Droid \u2014 scaffolding fastlane metadata, drafting the fdroiddata build recipe, and choosing the RFP or direct merge-request path. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fdroiddata YAML\", \"AllowedAPKSigningKeys\".",
+      "description": "Use when preparing an already-signed Android app for publication on F-Droid, scaffolding or repairing its fastlane metadata, or maintaining an existing listing after a new release. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fastlane metadata\", \"fdroiddata YAML\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -51,7 +41,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when preparing an Android app for publication on Google Play \u2014 building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on \"publish to Google Play\", \"submit to play store\", \"Play Console setup\", \"Data safety form\".",
+      "description": "Use when preparing an already-signed Android app for publication on Google Play, or navigating Play Console setup, store listing, or policy forms for an existing listing. Trigger on \"publish to Google Play\", \"submit to play store\", \"Play Console setup\", \"Data safety form\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -61,7 +51,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when setting up Android release signing \u2014 creating an upload keystore, wiring keystore.properties, configuring signingConfigs.release in Gradle, or wiring a GitHub Actions release workflow. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
+      "description": "Use when an Android app needs a release signing setup \u2014 a build falling back to the debug key, a release CI workflow failing because keystore secrets aren't wired, or prep before publishing. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -171,7 +161,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Compose a full, detailed business plan for ONE portfolio project \u2014 executive summary, market analysis, competitive landscape, financials, risks, milestones \u2014 into business/plan.md. Triggers on \"write a business plan\", \"full business plan for this\", \"business plan document\".",
+      "description": "Compose a full, detailed business plan for ONE portfolio project into business/plan.md. Triggers on \"write a business plan\", \"full business plan for this\", \"business plan document\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -291,7 +281,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Dispatches a Haiku subagent to draft and create it. Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -301,7 +291,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Dispatches a Haiku subagent to draft the PR and call it after confirmation. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Does NOT trigger on its own \u2014 only on an explicit user request.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -391,7 +381,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when auditing a project for i18n readiness \u2014 detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
+      "description": "Use when auditing a project for i18n readiness. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -561,7 +551,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android UI, game design, i18n, testing, packaging). Finds it in capability-index.json and loads it from disk. Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
+      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -671,7 +661,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only \u2014 never posts, never edits files. Dispatched in parallel by /promote-release, one invocation per channel.",
+      "description": "Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only \u2014 never posts, never edits files. Fires from /promote-release, or on a direct request for one channel's post.",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "haiku",
@@ -771,7 +761,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Read-only bulk file scanner on Haiku. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs \u2014 when the calling skill/agent is on Opus/Sonnet and I/O-bound. Never writes, edits, renames, or deletes.",
+      "description": "Read-only bulk file scanner. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs \u2014 when the work is I/O-bound and the caller wants it off its own context. Never writes, edits, renames, or deletes.",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "haiku",
@@ -791,63 +781,13 @@
       "requires_enablement": false
     },
     {
-      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\". Opinionated: test pyramid, mutation-score-over-line-coverage, OWASP baseline.",
+      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\".",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "sonnet",
       "name": "testing-expert",
       "path": "testing/agents/testing-expert.md",
       "plugin": "testing",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift Garmin Connect IQ apps in Monkey C \u2014 watch faces, data fields, widgets, and device apps. Trigger phrases include \"design a watch face\", \"Connect IQ\", \"Monkey C UI\", or \"always-on AMOLED\". Opinionated: power budget and device-matrix design.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-garmin",
-      "path": "ui-design/agents/ui-garmin.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift GNOME/Ubuntu desktop apps (GTK4 + libadwaita). Trigger phrases include \"design GNOME app\", \"facelift GTK\", \"libadwaita migration\", or \"GNOME HIG review\". Opinionated: libadwaita over hand-rolled GTK, adaptive by default, HIG is the law.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-gnome",
-      "path": "ui-design/agents/ui-gnome.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift macOS apps per Apple HIG with SwiftUI/AppKit. Trigger phrases include \"design Mac app\", \"macOS HIG review\", \"SwiftUI facelift\", or \"AppKit modernize\". Opinionated: menu bar first, semantic colors, no iPad idioms on Mac, VoiceOver required.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-macos",
-      "path": "ui-design/agents/ui-macos.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift web UIs per WCAG 2.2 AA, WAI-ARIA APG, and Nielsen Norman heuristics. Trigger phrases include \"web UI facelift\", \"accessibility audit\", \"a11y review\", or \"WCAG compliance\". Opinionated: semantic HTML first, ARIA only when needed, mobile-first.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-web",
-      "path": "ui-design/agents/ui-web.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift Windows 10/11 desktop apps per Fluent 2 using WinUI 3, WPF, or WinForms. Trigger phrases include \"design Windows app\", \"Fluent 2 facelift\", or \"WinUI 3\". Opinionated: WinUI 3 first, theme resources always, Segoe Fluent Icons on Win11.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-windows",
-      "path": "ui-design/agents/ui-windows.md",
-      "plugin": "ui-design",
       "requires_enablement": false
     }
   ],

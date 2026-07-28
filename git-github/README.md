@@ -74,6 +74,14 @@ the `planning` plugin's `executing-plans` consumes it for its two-tier review
 per-stage deep review at the gate). Because it ships here, both consumers resolve it
 as `git-github:code-reviewer` with no "if installed" fallback.
 
+The agent body carries the protocols, the triage thresholds and the output contract;
+the stable catalogs it cites — the SOLID/structural discriminators, the Fowler smell
+vocabulary, the security checklist with its OWASP/CWE ids, the test-smell vocabulary and
+the bibliography — live in
+[`references/review-catalogs.md`](references/review-catalogs.md) and are read only when a
+protocol calls for one. A given review needs at most one or two of them, so keeping them
+out of the always-loaded body is what lets the agent stay a router rather than a rulebook.
+
 ## Install
 
 ```

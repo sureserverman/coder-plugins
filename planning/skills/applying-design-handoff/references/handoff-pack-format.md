@@ -56,7 +56,7 @@ The linter is name-tolerant. Beyond the names above it also recognizes: tokens a
 `screens/`, `layouts/`, `layout/`, or `frames/` (and a manifest `frames` key); assets
 in `assets/`, `asset/`, or `media/`.
 
-`scripts/validate-handoff-pack.py` is the deterministic structural linter for this
+`../scripts/validate-handoff-pack.py` is the deterministic structural linter for this
 path: it locates the pack root, confirms at least one recognizable section, and emits
 the normalized manifest. Run it before parsing.
 

@@ -1,6 +1,6 @@
 ---
 name: android-release-signing
-description: Use when setting up Android release signing — creating an upload keystore, wiring keystore.properties, configuring signingConfigs.release in Gradle, or wiring a GitHub Actions release workflow. Trigger on "sign my APK", "create upload keystore", "set up release signing", "build a signed AAB".
+description: Use when an Android app needs a release signing setup — a build falling back to the debug key, a release CI workflow failing because keystore secrets aren't wired, or prep before publishing. Trigger on "sign my APK", "create upload keystore", "set up release signing", "build a signed AAB".
 ---
 
 # Android Release Signing

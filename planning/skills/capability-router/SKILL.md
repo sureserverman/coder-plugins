@@ -1,6 +1,6 @@
 ---
 name: capability-router
-description: Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android UI, game design, i18n, testing, packaging). Finds it in capability-index.json and loads it from disk. Triggers on "load the Rust expert", "which plugin covers X", "write idiomatic Rust", "review my game design".
+description: Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on "load the Rust expert", "which plugin covers X", "write idiomatic Rust", "review my game design".
 ---
 
 # capability-router

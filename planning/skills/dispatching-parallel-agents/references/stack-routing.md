@@ -65,13 +65,8 @@ built-in fallback.
 |---|---|---|
 | Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring; the agent's own review/idiomize/project-audit modes handle the rest) |
 | Android build / Kotlin / Gradle | `general-purpose` | `android-gradle-build` |
-| Android UI — Compose / Material 3 screens | `android-dev:ui-android` | `android-ui-layout-patterns`, `android-ui-design-figma` |
+| Android UI — Compose / Material 3 screens | `general-purpose` | `android-ui-layout-patterns`, `android-ui-design-figma` |
 | Android tests — Compose/Espresso/MockWebServer | `testing:testing-expert` | `kotlin-compose-testing-patterns` |
-| GNOME / GTK4 / libadwaita UI | `ui-design:ui-gnome` | — |
-| Web UI / a11y / WCAG | `ui-design:ui-web` | — |
-| macOS (SwiftUI/AppKit) UI | `ui-design:ui-macos` | — |
-| Windows (WinUI/WPF) UI | `ui-design:ui-windows` | — |
-| Garmin Connect IQ / Monkey C watch UI — `*.mc`, `monkey.jungle`, `manifest.xml`, watch face / data field / widget / glance | `ui-design:ui-garmin` | — |
 | Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
 | Research ONE architecture candidate — evidence, layout, libraries (any stack) | `planning:architecture-researcher` | `architecting-projects` (dispatching context only — the skill orchestrates, the agent researches) |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
@@ -88,17 +83,23 @@ When the table names a stack skill, put it in the dispatched agent's prompt
 (`## Stack skill — invoke <skill> first`) so the delegate authors to the stack's
 conventions instead of generic defaults.
 
-The **design-handoff redesign** row composes with the platform rows: the
-`applying-design-handoff` skill orchestrates the redesign and dispatches
-`planning:design-handoff-reproducer` for precise per-slice reproduction, while the
-matching `ui-*` row supplies platform best-practice judgment for the same stack. Use
-both — the reproducer enforces spec fidelity, the `ui-*` agent enforces platform idiom.
+**A row earns its place by adding something the fallback doesn't.** Android UI keeps a row
+because it names stack skills; the other UI surfaces lost theirs when their agents were
+retired, because a row reading `general-purpose` / `—` says exactly what the final
+*Nothing above fits* row already says. Don't re-add informational rows that carry no
+routing signal.
 
-**Exception — `ui-design:ui-garmin`.** A Claude Design handoff pack is a visual HTML/component
-spec; it does **not** map onto Monkey C's resource-layout / `Dc` model. Route Garmin
-Connect IQ work to `ui-design:ui-garmin` for general design/review/facelift, but do **not** drive
-it through `applying-design-handoff` for precise reproduction — treat a handoff pack there
-as loose visual inspiration, not a fidelity target.
+The **design-handoff redesign** row carries the redesign path on its own: the
+`applying-design-handoff` skill orchestrates and dispatches
+`planning:design-handoff-reproducer` for precise per-slice reproduction. Platform idiom
+is the dispatched agent's job, informed by whatever stack skill its row names — there is
+no separate per-surface UI agent to pair it with.
+
+**Exception — Garmin Connect IQ / Monkey C** (`*.mc`, `monkey.jungle`, `manifest.xml`, watch
+face / data field / widget / glance). A Claude Design handoff pack is a visual
+HTML/component spec; it does **not** map onto Monkey C's resource-layout / `Dc` model. Do
+not drive Connect IQ work through `applying-design-handoff` for precise reproduction —
+treat a handoff pack there as loose visual inspiration, not a fidelity target.
 
 ---
 
@@ -155,7 +156,7 @@ flow.
 ## Keeping this table honest
 
 Every agent and skill named above must resolve to a built-in, a marketplace-shipped
-agent/skill, or an agent tagged `*(if installed)*`. `scripts/validate-stack-routing.py`
+agent/skill, or an agent tagged `*(if installed)*`. `../scripts/validate-stack-routing.py`
 checks this and fails on drift (renamed/removed agent, typo, undeclared external dep).
 It runs in CI (`.github/workflows/validate-stack-routing.yml`) on any edit to this
 file, the script, or any plugin agent/skill; run it locally with:

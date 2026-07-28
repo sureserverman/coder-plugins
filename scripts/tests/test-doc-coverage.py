@@ -162,7 +162,7 @@ chk(cdc.mentions("the backlog skill", "backlog"), "`backlog` not matched when ge
 chk(not cdc.mentions("we mention code only", "code-review"),
     "hyphenated name wrongly satisfied by a prefix word")
 chk(cdc.mentions("run `code-review` first", "code-review"), "hyphenated name not matched when present")
-chk(not cdc.mentions("ui-android-extra is different", "ui-android"),
+chk(not cdc.mentions("rust-expert-extra is different", "rust-expert"),
     "name wrongly matched inside a longer hyphenated token")
 
 # --- allowlist --------------------------------------------------------------

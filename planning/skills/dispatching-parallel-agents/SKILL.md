@@ -144,7 +144,7 @@ Agent(description: "Task 2.5: write config file", prompt: <per task 2.5>)
 
 Match each Agent's `subagent_type` — **and the stack skill it should load first** — using
 the routing table in `references/stack-routing.md`. That table is the source of truth (it
-covers Rust → `rust-expert`, Android UI → `ui-android`, tests → `testing-expert`, game
+covers Rust → `rust-expert`, tests → `testing-expert`, game
 design → `game-design-expert`, i18n → `translator`, scaffolding → `code-generator`,
 markdown rewrites → `skill-rewriter`, bulk read-only scans → `readonly-scanner`, and a
 `general-purpose` fallback). Read it before dispatch; don't reinvent the mapping here.
@@ -235,5 +235,5 @@ Return to `executing-plans` (or the calling session) with:
 
 - **planning-projects** — the upstream skill producing the plan with Parallel and dependency fields this skill consumes
 - **executing-plans** — the usual caller; decides when to invoke this skill during stage execution
-- **stack-routing reference** (`references/stack-routing.md`) — the source of truth for Phase 4's `subagent_type` + stack-skill choice; maps stacks to real marketplace agents (`rust-dev:rust-expert`, `android-dev:ui-android`, the `ui-design:*` family, `testing:testing-expert`, `game-dev:game-design-expert`, `i18n:translator`, `stingy-agents:code-generator`/`skill-rewriter`/`readonly-scanner`) with a `general-purpose` fallback. Shared with `executing-plans` Step 3.2
+- **stack-routing reference** (`references/stack-routing.md`) — the source of truth for Phase 4's `subagent_type` + stack-skill choice; maps stacks to real marketplace agents (`rust-dev:rust-expert`, `testing:testing-expert`, `game-dev:game-design-expert`, `i18n:translator`, `planning:design-handoff-reproducer`, `stingy-agents:code-generator`/`skill-rewriter`/`readonly-scanner`) with a `general-purpose` fallback. Shared with `executing-plans` Step 3.2
 - **code-reviewer agent** — optional between dispatch rounds if integrated diffs need independent review before the stage gate

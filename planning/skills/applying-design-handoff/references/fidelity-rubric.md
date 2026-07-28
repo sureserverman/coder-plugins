@@ -40,5 +40,5 @@ Each item: `dimension → exact-deviation → smallest-fix → file:locus`. Orde
 deviation; re-grade after the batch, not after each item.
 
 This mirrors the proven loop in `android-dev`'s `android-ui-design-figma`
-(`references/ui-grading-rubric.md`): four weighted dimensions, a pass threshold, a
+(`ui-grading-rubric.md`): four weighted dimensions, a pass threshold, a
 capped iterate loop, and an evaluator that never sees the generator's work.
