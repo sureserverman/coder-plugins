@@ -111,4 +111,4 @@ An existing i18n setup. These skills work *within* your framework's conventions 
 ## Related plugins
 
 - **`planning`** — `project-maturity`'s i18n axis records the durable translation-readiness verdict; `dispatching-parallel-agents` routes catalog translation to `i18n:translator`.
-- **`android-dev`** / **`ui-design`** — string externalization is a UI concern; pair an audit with a UI review when retrofitting i18n.
+- **`android-dev`** — string externalization is a UI concern; pair an audit with `android-ui-design-figma` when retrofitting i18n into Android screens.

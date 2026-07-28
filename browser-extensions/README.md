@@ -74,7 +74,6 @@ Nothing persisted. The linter prints findings; the authoring skill edits your ex
 
 ## Related plugins
 
-- **`ui-design`** — extension popup and options UI is web UI; pair with `ui-web` for a WCAG pass.
 - **`planning`** — `project-maturity` records the durable Packaging and Security readiness verdicts for an extension you intend to publish.
 - **`release-promo`** — drafts the announcement once the extension is listed.
 

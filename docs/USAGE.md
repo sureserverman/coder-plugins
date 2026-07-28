@@ -75,8 +75,8 @@ an explicit "yes", once before tagging and again before pushing.
 
 ## 2. Build an Android feature
 
-Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev`,
-`testing` and the UI agents attach at the points where the platform actually matters.
+Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev` and
+`testing` attach at the points where the platform actually matters.
 
 ```text
 /loadout set android
@@ -84,9 +84,8 @@ Flow 1 with a platform under it. The `planning` loop stays in charge; `android-d
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. The screen itself routes to
-**`ui-android`** (an `android-dev` agent — the `ui-design` plugin covers other platforms,
-not Android), with `android-ui-layout-patterns` supplying the Compose spacing and Material 3
+`android-gradle-build` handles module and dependency wiring. The screen itself is authored
+against `android-ui-layout-patterns`, which supplies the Compose spacing and Material 3
 decision rules. For a full redesign rather than one screen, `android-ui-design-figma` runs
 the longer app-analysis → spec → apply workflow.
 
@@ -130,9 +129,9 @@ Two plugins and a register, because an extension is judged by a reviewer who is 
 ```
 
 The `browser-extensions` skill covers manifest v3, the Firefox/Chrome split, and
-`browser_specific_settings`. Popup and options pages are ordinary web UI, so they route to
-**`ui-web`** (`ui-design`) for layout and the accessibility baseline — keyboard reachability
-and contrast are what AMO reviewers actually cite.
+`browser_specific_settings`. Popup and options pages are ordinary web UI: there is no
+dedicated agent for them, so hold the accessibility baseline yourself — keyboard
+reachability and contrast are what AMO reviewers actually cite.
 
 Then the preflight, before you upload rather than after rejection:
 
@@ -186,9 +185,7 @@ rather than defaulting everything to a generalist:
 | Task looks like | Routes to | Shipped by |
 |---|---|---|
 | Rust | `rust-expert` | `rust-dev` |
-| Compose / Android screens | `ui-android` | `android-dev` |
-| Web UI, popup/options pages | `ui-web` | `ui-design` |
-| GNOME, macOS, Windows, Garmin UI | `ui-gnome`, `ui-macos`, `ui-windows`, `ui-garmin` | `ui-design` |
+| Reproduce a Claude Design handoff pack | `design-handoff-reproducer` | `planning` |
 | Game mechanics, feel, camera | `game-design-expert` | `game-dev` |
 | Test triage, flakiness, coverage | `testing-expert` | `testing` |
 | Catalog translation batches | `translator` | `i18n` |
@@ -209,8 +206,8 @@ Game work has its own front door, since mechanics are a design problem before a 
 ```
 
 > Routing does **not** require the target plugin to be enabled. Plan execution resolves the
-> component from `capability-index.json` on disk — the same mechanism as flow 10 — so an
-> Android task gets `ui-android` even when only `planning` is on. Components needing hooks or
+> component from `capability-index.json` on disk — the same mechanism as flow 10 — so a Rust
+> task gets `rust-expert` even when only `planning` is on. Components needing hooks or
 > MCP are flagged `requires_enablement` and stop for explicit enablement.
 
 ---

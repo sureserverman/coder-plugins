@@ -89,8 +89,6 @@ for anything intended for release.
 
 - **`planning`** — `dispatching-parallel-agents` routes game-design work to `game-design-expert`;
   `brainstorming` is the better entry point for "should this game exist" questions.
-- **`ui-design`** — menu, HUD, and settings UI is ordinary platform UI; pair with the matching
-  surface agent.
 
 ## License
 
