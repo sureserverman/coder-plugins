@@ -95,7 +95,8 @@ The **design-handoff redesign** row carries the redesign path on its own: the
 is the dispatched agent's job, informed by whatever stack skill its row names — there is
 no separate per-surface UI agent to pair it with.
 
-**Exception — Garmin Connect IQ / Monkey C.** A Claude Design handoff pack is a visual
+**Exception — Garmin Connect IQ / Monkey C** (`*.mc`, `monkey.jungle`, `manifest.xml`, watch
+face / data field / widget / glance). A Claude Design handoff pack is a visual
 HTML/component spec; it does **not** map onto Monkey C's resource-layout / `Dc` model. Do
 not drive Connect IQ work through `applying-design-handoff` for precise reproduction —
 treat a handoff pack there as loose visual inspiration, not a fidelity target.

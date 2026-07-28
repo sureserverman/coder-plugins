@@ -207,7 +207,7 @@ Verdict: APPROVE | REQUEST CHANGES | BLOCK
   BLOCK          — one or more Critical must be resolved before re-review
 Summary:
   - <one-line per finding category>
-Next: <author action | re-review trigger | recommend testing-expert/ui-*/etc.>
+Next: <author action | re-review trigger | recommend testing-expert/rust-expert/game-design-expert/etc.>
 ```
 
 ## Safety rails

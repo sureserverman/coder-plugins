@@ -92,7 +92,7 @@ Ground the redesign in the real app before changing anything.
 
 1. **Stack detection.** Identify framework/platform (web, Android, GTK/GNOME, macOS,
    Windows) and the UI layer — this picks the routing row, and with it the stack skill the
-   reproducer loads in Phase 5 if that row names one.
+   reproducer loads in Phase 6 if that row names one.
 2. **Screen & component inventory.** Map the app's screens, navigation, and reusable
    components so the fidelity map has real targets.
 3. **Behavior contracts.** If `docs/workflows/` exists, read every spec whose scope the
