@@ -157,20 +157,6 @@ Captures Play Store screenshots across all emulator form factors (phone 6", tabl
 
 The F-Droid and Google Play prep flows are now skills (invoke `/android-dev:android-fdroid-publish` or `/android-dev:android-play-publish`, or let them model-trigger). Each carries a **Quick audit (punchlist)** section — the former `check`-mode checklist — plus the full signing → metadata/AAB → recipe/listing walkthrough.
 
-## Agents
-
-### `ui-android`
-
-The Android surface of the per-platform UI expert family (its five siblings — `ui-web`, `ui-gnome`, `ui-macos`, `ui-windows`, `ui-garmin` — live in the `ui-design` plugin). It lives here rather than there because Android UI work is inseparable from the Gradle and Compose tooling this plugin owns.
-
-**What it does.** Designs, reviews, and facelifts Android UI against Material 3 and Jetpack Compose — dynamic color, adaptive layouts and `WindowSizeClass`, predictive back, edge-to-edge, and TalkBack accessibility.
-
-**How it fires.** Automatic delegation on "design Android UI", "Material 3 facelift", "Compose screen", "TalkBack audit"; direct request; or from plan execution, where `planning`'s `stack-routing.md` maps *Android UI — Compose / Material 3* to this agent with `android-ui-layout-patterns` and `android-ui-design-figma` loaded first.
-
-**Six protocols**, announced before it acts and composable — the same shape as its `ui-design` siblings: Surface detection → Design review → Facelift → Greenfield → Accessibility audit → Coach. Protocol 1 runs first on unfamiliar code, because a review that assumes the wrong Compose version or theming setup produces confident, wrong advice.
-
-**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `Edit`, `Write`, `Bash`, `WebFetch`, `TaskCreate`, `TaskUpdate` — it edits source, so scope your request.
-
 ## Infrastructure
 
 The `infrastructure/` directory contains the full emulator stack:
@@ -219,7 +205,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` fires for the module/dependency wiring; `ui-android` handles the Compose screen against Material 3, then `android-ui-layout-patterns` informs the adaptive layout.
+`android-gradle-build` fires for the module/dependency wiring; `android-ui-design-figma` drives the Compose screen against Material 3, then `android-ui-layout-patterns` informs the adaptive layout.
 
 ```text
 "verify this stage on device"
@@ -236,7 +222,6 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 ## Related plugins
 
 - **`planning`** — `executing-plans` invokes `android-stage-verify` automatically at every Android stage gate, scoped by gate tier (touched-module instrumented tests at intermediate gates, the full device suite once at close-out). `dispatching-parallel-agents` routes Android work here via `stack-routing.md`.
-- **`ui-design`** — the five non-Android surfaces of the same UI-expert family.
 - **`testing`** — `testing-expert` handles Compose/Espresso test authoring and triage, loading `kotlin-compose-testing-patterns` first.
 - **`infra-build`** / **`release-promo`** — packaging registration and release announcements once you're shipping.
 
