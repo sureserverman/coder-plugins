@@ -642,9 +642,15 @@ def main():
     check("the Preflight roster/probe block is present", bool(roster),
           "could not slice the dispatch roster section — the two checks below would "
           "pass vacuously over an empty string")
+    # Both patterns were bare literals and false-alarmed on a meaning-preserving
+    # rewrite (BL-031): naming the probe's agent type ("Dispatch one throwaway
+    # `general-purpose` subagent") and widening the sweep's scope ("sweep **every task
+    # in the plan, across all stages**") each broke a pin while strengthening the prose.
+    # Loosened to tolerate an inserted qualifier and the leading case, and no further —
+    # deleting either sentence still fails, which is what these assert.
     check("Preflight probes dispatch and declares a roster",
-          affirms_claim(roster, r"Dispatch one throwaway subagent")
-          and affirms_claim(roster, r"Sweep \*\*every task in the plan\*\*"),
+          affirms_claim(roster, r"[Dd]ispatch one throwaway[^.]{0,40}subagent")
+          and affirms_claim(roster, r"[Ss]weep \*\*every task in the plan"),
           "Preflight no longer probes dispatch or sweeps the plan for YES tasks, so an "
           "unavailable dispatch is discovered at close-out instead of before Stage 1")
     check("the probe is conditioned on a non-empty roster",

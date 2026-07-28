@@ -37,124 +37,57 @@ reject it for those missing fields; execute it per the **Light plans** section b
 
 ---
 
+## Reference map
+
+The trunk carries what fires on every run. These load when their condition is met — read the
+one you need rather than working from memory:
+
+| Read this | When |
+|---|---|
+| `references/master-plans.md` | the plan file is a `*-master-plan.md` |
+| `references/light-plans.md` | the plan file is a `*-light-plan.md` |
+| `references/review-scope.md` | declaring the tier at Preflight, or resolving how format and tier compose — **the authority on both, and on the opt-out rules** |
+| `references/dispatch-fidelity.md` | the roster, probe or executor trailer needs justifying rather than just following |
+| `references/gate-failure-procedure.md` | a stage gate has failed |
+| `references/progress-state-file.md` | writing `.claude/plan-progress.json`, or wiring the statusline |
+| `references/sources.md` | citing why a rule here exists |
+
+Paths are relative to this skill's directory; from a dispatch use
+`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/<file>`.
+
+---
+
 ## Master plans
 
-A master plan links 2–7 **sub-plans** — each a standard planning-projects plan in the
-same directory — through a `## Sub-plans` register carrying per-entry `Status`, `Plan`
-link, `Goal`, `Depends on` / `Blocks`, `Parallel`, and a `**Gate:**` block of cross-plan
-integration checks.
+A `*-master-plan.md` (or `# Master Plan:` heading) links 2–7 sub-plans through a
+`## Sub-plans` register. It deliberately has no Preflight, Stages or Tasks — do not reject
+it. Execute sub-plans in register dependency order, one per fresh session where practical;
+on each sub-plan's close-out flip its register `Status`, run that entry's `**Gate:**` checks,
+append a handoff note, and commit `"Sub-plan N green"`. **Version bumps defer to the master
+close-out** — one feature landing across five sub-plans is one release event, not five.
 
-**Critique (master-level Phase 1).** Before executing anything: every register `Plan:`
-link resolves to an existing file; register `Depends on` / `Blocks` fields are symmetric
-and acyclic; every entry ends with a `**Gate:**` block; every sub-plan carries the
-`Master:` backlink and is itself a valid planning-projects plan (critique each one on
-load, as usual). Surface concerns before starting.
+Run `validate-gate-checks.py` on the master itself, not only on each sub-plan: a master's
+cross-plan checks are exactly the ones that prove integration *between* sub-plans, so an
+instance-shaped one there survives every sub-plan gate.
 
-**Step 4a applies here too** — run `validate-gate-checks.py` on the master itself, not only
-on each sub-plan as it loads. A master's cross-plan checks live under `**Gate:**` markers
-rather than `### Stage N Gate` headings, and those are precisely the checks that prove
-integration *between* sub-plans, so an instance-shaped one there survives every sub-plan
-gate and surfaces only at the master close-out — the most expensive place to find it.
-
-**Execution model:**
-
-1. **Order by the register graph.** A sub-plan is dispatchable when every entry in its
-   `Depends on` is `[x]`. Execute it via the normal single-plan flow below — its own
-   Preflight, stages, Red-Green loops, gates, and close-out. `Parallel: YES` sub-plans
-   with no repo/file overlap may run concurrently (separate sessions or worktrees), but
-   the file-conflict rule applies at this level too: overlapping sub-plans run
-   sequentially regardless of the graph.
-2. **One sub-plan per session, ideally.** Each sub-plan is a natural context-reset
-   boundary (see Context resets below, scaled up): finish a sub-plan, then recommend the
-   user start the next one in a fresh session pointed at the master path. The master
-   file — register `Status` flips plus its handoff notes — is the cross-session handoff
-   artifact; a fresh session needs the master, the next sub-plan, and nothing else.
-3. **On a sub-plan's close-out** (its `**Completed:**` line just landed): flip the
-   master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
-   checks (they prove integration with previously completed sub-plans — a failure here
-   is handled like any stage-gate failure — same severity classification, remediation
-   budget, and the same **exit criterion**, so each Important leaves the gate fixed or
-   recorded to the `backlog` with the user told — traced to the responsible
-   sub-plan/task or to the defect class it belongs to), append
-   a short `**Sub-plan N handoff:**` note under the entry, and commit
-   `"Sub-plan N green"`.
-4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
-   their usual steps (full suite, evaluator, backlog reconcile, workflow audit) EXCEPT
-   step 4 (version bumps) — one feature landing across five sub-plans is one release
-   event, not five. Note the deferral in each sub-plan's close-out.
-5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
-   the deferred version bumps once across everything the sub-plans touched (all mirrors),
-   run the full suite and the independent evaluator pass against the *master's* overall
-   goal, then append to the master:
-   `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
-
-**Stop conditions are unchanged** and apply inside whichever sub-plan is executing; a
-stopped sub-plan blocks its register dependents exactly as a failed task blocks its
-`Blocks` list.
+Full execution model, critique checklist and close-out: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/master-plans.md`.
 
 ---
 
 ## Light plans
 
-A **light plan** (`*-light-plan.md`, format:
-`../planning-projects/references/light-plan-format.md`) is a single stage of 2–5
-Status-carrying tasks with one gate. Execute it through the normal single-plan flow
-below, with these deltas — the machinery **scales to the size of the job** rather than
-running at full weight:
+A `*-light-plan.md` (or `# Light Plan:` heading) is a single stage of 2–5 tasks with one
+gate. It deliberately has **no Research Summary, no Preflight section, and no Risk /
+Rollback / Blocks / Parallel fields** — do not reject it for those. Execute it through the
+normal flow with four deltas: Preflight is git-bootstrap plus a green baseline only; every
+task runs **inline** (no fan-out); **one** whole-diff review replaces per-task Tier-1; and
+close-out applies a single stated version bump.
 
-1. **Preflight is git-bootstrap + baseline tests only.** A light plan has no Preflight
-   section; the "baseline tests pass" check lives in its single gate. Still do the git
-   bootstrap (Phase 2 — a repo must exist for commit-per-task) and confirm the baseline
-   is green before Stage 1. Nothing else to verify.
-2. **No parallel dispatch.** Every task runs **inline in the main session**, in listed
-   order, through the normal Red-Green loop. A light plan has no `Parallel` field and no
-   fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
-   `Depends on`; honor it as ordering.)
-3. **One review, not per-task.** **Skip the Tier-1 per-task review.** Instead, after the
-   last task goes green and **before** the gate (this is a pre-gate check, not the gate
-   itself — a light plan still has exactly one gate, its Stage 1 Gate), run **one**
-   `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
-   across all the light plan's commits). Handle its verdict exactly like the Tier-2 stage
-   review: a **Critical** blocks close-out just as a Tier-2 Critical fails a gate (fix
-   within the same discipline, re-run test + review), and Important findings are surfaced
-   for the user's triage rather than auto-fixed — but they are still bound by the **exit
-   criterion** (Step 3.5), so each one leaves the gate either fixed or recorded to the
-   `backlog` with the user told. A light plan is a small plan, not one where findings
-   evaporate. Skip only on the usual opt-out /
-   trivial-diff rules — so an entirely docs-only light plan skips it too (zero reviews is
-   correct there, exactly as a docs-only task auto-skips Tier-1 in a Standard plan); the
-   one review is guaranteed only when the plan's diff carries reviewable code. **This
-   single pre-gate review IS the light plan's Tier-2 — do not also run a separate Step 3.5
-   Tier-2 pass.** It keeps one real review in the loop without paying per-task review
-   overhead on a handful of tasks.
+Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
+Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.
 
-   **This rule sets the review's *shape* only.** How many passes run, and whether an
-   evaluator runs beside them, comes from the declared review-scope tier — see
-   § Review scope → *Composing with the plan format*. A light plan whose diff is `high`
-   still gets the second independent pass; it just gets it over the whole diff.
-4. **The evaluator follows the tier, not the format.** Whether the independent
-   goal-evaluator runs — at the gate (Step 3.5) and at close-out (Phase Close-out step 3) —
-   is decided by the review-scope table, not by this plan being Light: off at `none` and
-   `light`, on at `standard` wherever a gate check carries `(judgment)`, always on at
-   `high`. A Light plan's gate is usually all commands, which is why it *usually* runs no
-   evaluator — but that is a consequence of what its gate contains, not an exemption the
-   format grants. A `(judgment)` check is a check that needs a reader; being in a small
-   plan does not make it need one less.
-5. **Close-out is one stated bump.** Run the full suite one final time — unless the
-   single gate's full-suite run was the last thing to execute with no commits landed
-   after it, in which case that run counts as the close-out run (one full pass, not
-   two) — reconcile the backlog (`Closes BL-NNN`), and append the `**Completed:**`
-   line. For version bumps,
-   apply a **single stated SemVer bump** to what changed and its mirror — in this repo,
-   name the plugin's `.claude-plugin/plugin.json` **and** the root marketplace entry
-   explicitly (that pair) rather than running the full mirror-grep ritual. State your call
-   so the user can override.
-
-**Everything else is unchanged from a Standard plan:** Status flips the moment a test is
-green, a commit per green task, the Red-Green cycle budget and all Stop conditions,
-run-to-completion (don't pause at the gate to ask permission), one handoff note at the
-single gate, and the honest-gates integrity contract. A light plan is a small plan, not a
-sloppy one.
+Full deltas, including how the review shape composes with the declared tier:
+`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/light-plans.md`.
 
 ---
 
@@ -174,72 +107,53 @@ Create a task for each, work them in order:
 
 ## Run to completion — don't stop until you have to
 
-Once Preflight passes, **drive the plan straight through to close-out.** Stage
-boundaries are checkpoints, not approval gates: when a stage gate passes,
-commit it and start the next stage without pausing to ask "should I continue?"
-The plan is the approval. Burning a turn to ask permission between green stages
-is the failure mode this skill exists to prevent.
+Once Preflight passes, **drive the plan straight through to close-out.** Stage boundaries
+are checkpoints, not approval gates: commit a passed gate and start the next stage without
+asking "should I continue?" The plan is the approval, and burning a turn to ask permission
+between green stages is the failure mode this skill exists to prevent. Keep going through a
+green task, a passed gate, a failed cycle that still has budget, and any surprise you can
+resolve from the plan plus evidence.
 
-Keep going through:
-
-- a task that goes green (→ next task / unblock)
-- a stage gate that passes (→ next stage, immediately)
-- a Red-Green cycle that fails but still has budget (→ diagnose and retry)
-- a recoverable surprise you can resolve from the plan + evidence (→ resolve, note it, continue)
-
-**Only the documented Stop conditions below halt execution** — they are real
-blockers (exhausted cycle budget, failed gate that a re-run didn't fix, a
-destructive/secret/shared-infra action needing consent, an instruction you
-genuinely can't parse). Everything else is work to push through, not a reason to
-hand back. When you do stop, it's because continuing would be guessing or unsafe
-— say which, with evidence, and what you need to resume.
-
-The context-reset guidance below is an efficiency tactic for very large plans,
-**not** a license to stop early: prefer a fresh session over a *degraded* one,
-but never over *finishing the work*.
+**Only the documented Stop conditions below halt execution.** Everything else is work to push
+through. When you do stop, it is because continuing would be guessing or unsafe — say which,
+with evidence, and what you need to resume. The context-reset guidance is an efficiency
+tactic for very large plans, **not** a licence to stop early: prefer a fresh session over a
+*degraded* one, never over *finishing the work*.
 
 ---
 
 ## Phase 1 — Load and critique
 
 1. Read the plan file in full
-2. Verify the structure: Research Summary, Preflight, Stages with the expected fields.
-   **For a light plan (`*-light-plan.md` / `# Light Plan:`), the absence of a Research
-   Summary section, a Preflight section, and Risk / Rollback / Blocks / Parallel fields
-   is correct, not a defect — do not flag it.** Verify instead that it is a single stage
-   of 2–5 tasks, each with a `Status` field and a runnable `Test:`, plus one gate. (A
-   light plan with a second stage or a 6th task should have been a Standard plan — flag
-   that, per the format's upgrade rule.)
+2. Verify the structure: Research Summary, Preflight, Stages with the expected fields. **For
+   a light plan those first two and the Risk / Rollback / Blocks / Parallel fields are
+   correctly absent — do not flag it**; verify instead a single stage of 2–5 tasks, each with
+   a `Status` and a runnable `Test:`, plus one gate. A light plan with a second stage or a
+   6th task should have been Standard — flag that.
 3. Critique: is any task's test vague ("should work")? Is any stage oversized (>7 tasks)? Is any dependency cycle present? Does any task modify a file that a parallel sibling also modifies? (The parallel-conflict and stage-oversize checks are moot for a light plan — one stage, inline execution.)
 4. **If concerns exist, surface them to the user before starting.** A plan with an unrunnable test or a dependency cycle will waste an entire Red-Green budget before the problem is found
 
 4a. **Classify the plan's gate checks** — run
    `python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>`
-   and surface the result with the other critique concerns. An **INSTANCE-SHAPED** check
-   names one artifact where the goal is a property of many, so it *cannot fail on the
-   siblings that make the defect class* — they survive the gate, and each survivor costs
-   another remediation round. Catching that here is the cheapest it will ever be.
+   and surface the result with the other concerns. An **INSTANCE-SHAPED** check names one
+   artifact where the goal is a property of many, so it cannot fail on the siblings that make
+   the defect class — each survivor costs another remediation round, and catching it here is
+   the cheapest it will ever be.
 
-   **Advisory on an existing plan, mandatory on a new one.** Every plan written before
-   this rule predates it, and retro-failing them would only teach executors to route
-   around the check — so a flagged *existing* plan is a reported concern you note and
-   execute anyway, while `planning-projects` may not present a *newly authored* plan that
-   fails it. Say which case you are in when you report the result.
+   **Advisory on an existing plan, mandatory on a new one** — retro-failing old plans would
+   only teach executors to route around the check, so note a flagged existing plan and
+   execute it anyway, while `planning-projects` may not present a *newly authored* plan that
+   fails. Say which case you are in. The `(judgment)` marker is the sanctioned escape hatch:
+   a check that genuinely needs a reader carries it and routes to the evaluator at Step 3.5.
+   A plan with no marked checks and no executable sweeps is usually one whose gates were
+   never written to be run.
 
-   The `(judgment)` marker is the sanctioned escape hatch, not a loophole: a check that
-   genuinely needs a reader carries it and routes to the evaluator at Step 3.5. A plan
-   with **no** marked checks and **no** executable sweeps is usually a plan whose gates
-   were never written to be run.
-
-5. **Read the plan's `## Decisions in force`.** These are the constraints the plan was
-   written under — the architectural decisions the register holds, carried into the plan
-   file precisely so a session that never reads the register still implements under them.
-   Note which tasks carry `Honors DEC-NNN` (a constraint to respect) and which carry
-   `Supersedes …` (a deliberate override you will record at close-out).
-
-   **A plan with no such section is not a plan with no decisions.** Every plan written
-   before this convention lacks one. Treat its absence as *"not recorded"*, never as
-   *"none apply"* — run the scan yourself at Preflight (below) and proceed on that result.
+5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
+   carried into the file so a session that never reads the register still implements under
+   them. Note which tasks carry `Honors DEC-NNN` and which carry `Supersedes …` (a deliberate
+   override you record at close-out). **A plan with no such section is not a plan with no
+   decisions** — treat its absence as *"not recorded"*, never *"none apply"*, and run the
+   Preflight scan below.
 
 Create a TodoWrite list mirroring the plan: one task per stage, sub-items per task. Mark the current stage as `in_progress` only when Preflight passes.
 
@@ -307,149 +221,69 @@ record. Only an un-initializable repo (e.g. read-only filesystem) blocks here.
 
 ### Dispatch roster and capability probe
 
-A `Parallel: YES` task is a directive to dispatch, not a note about concurrency
-(`../planning-projects/SKILL.md` § Stage structure) — and an inlined task and a
-dispatched one produce byte-identical artifacts. So a run that ignores the field leaves
-no trace in the diff, the commits, or the gate: there is nothing for a later reader to
-notice. The omission becomes visible only if the run wrote down what it was going to do
-*before* it did anything. Preflight is where that happens, and Preflight is already a
-hard stop.
-
-1. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
-   list in the Preflight report each task whose `Parallel:` field reads `YES`, with the
-   `subagent_type` it routes to per
+1. **Enumerate the roster** — sweep **every task in the plan, across all stages**, and list
+   each one whose `Parallel:` reads `YES` with the `subagent_type` it routes to per
    `../dispatching-parallel-agents/references/stack-routing.md`:
 
    ```
    Dispatch roster (Parallel: YES) — <n> of <total> tasks
      Task <N.M> → <subagent_type>
-     Task <N.M> → <subagent_type>
-     …
    ```
 
-   The roster is a **sweep over the task set**, never one worked example: a report
-   naming a single task cannot fail on its siblings — the same instance-vs-class gap the
-   gate rules above close, arriving one phase earlier. A roster covering only the first
-   stage is not a roster. An empty roster is a legitimate result — write `0 tasks`, so
-   the absence is on the record as observed rather than as never examined. What the
-   roster buys is contradiction: a run whose Preflight declared five dispatches and whose
-   execution shows none now disagrees with a written list instead of disappearing.
+   A roster covering only the first stage is not a roster. An empty roster is a legitimate
+   result — write `0 tasks`, so the absence is recorded as observed rather than as never
+   examined.
 
 2. **Probe the capability — only if the roster is non-empty.** Dispatch one throwaway
-   subagent — `general-purpose`, whose entire task is to reply with a fixed string
-   (`DISPATCH-OK`) — and confirm the string came back. One trivial dispatch proves the
-   mechanism works in *this* session, while the finding can still change what happens
-   next. Learning at Stage 3 that dispatch is unavailable is the same fact arriving after
-   every decision it should have informed.
+   `general-purpose` subagent whose whole task is to reply `DISPATCH-OK`, and confirm it came
+   back. With an empty roster, record `probe: skipped — empty roster`.
 
-   **Roster first, probe second**, because the roster decides whether the probe is worth
-   running: a plan with `0 tasks` on its roster will never dispatch, so a throwaway
-   dispatch there proves a capability nothing in the run will use. Record `probe: skipped
-   — empty roster` and move on. This is also why the failure rule below is conditioned on
-   a non-empty roster; ordering the steps the other way made that condition read as an
-   afterthought.
-
-3. **Snapshot the `Review: skip` annotations.** In the same sweep, list every task
-   already carrying `Review: skip`, and record it in the Preflight report against the
-   commit the run starts from:
+3. **Snapshot the `Review: skip` annotations** against the commit the run starts from:
 
    ```
    Review: skip annotations at <base-sha> — <n> task(s): <Task N.M>, …
    ```
 
-   This is what makes the annotation usable as evidence later. `Review: skip` says *the
-   user chose not to review this task* — but the executor writes to the plan file on
-   every task (Status flips, review notes), so an annotation read at skip time cannot
-   distinguish one the user authored from one the executor added ten minutes earlier.
-   The snapshot fixes the reference point: an annotation in this list was there before
-   the run touched anything, and one that is not **is not evidence of a user opt-out**,
-   whatever it says. Cite the snapshot when you skip, not the task line.
-
-   Same shape as the decisions re-check above, and for the same reason: an artifact the
-   run can modify is not evidence about the run unless you pin it first. Write `0 tasks`
-   when there are none — an empty list observed beats an absent one.
+   The executor writes to the plan file throughout the run, so only an annotation in this
+   snapshot is evidence the *user* authored it. Cite the snapshot when you skip, not the
+   task line. Write `0 tasks` when there are none.
 
 **A failed probe is a Preflight failure.** When dispatch is unavailable or disallowed in
-this session and the roster lists at least one task, Preflight fails and you stop — the
-user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or accept
-inline execution knowingly. Substituting inline execution on your own authority is not a
-resolution; it takes a decision that belongs to the user and makes it silently, which is
-the exact failure this check exists to surface.
+this session and the roster lists at least one task, **Preflight fails and you stop** — the
+user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or accept inline
+execution knowingly. Substituting inline execution on your own authority is not a
+resolution; it takes a decision that belongs to the user and makes it silently.
 
-**If Preflight fails, stop.** Report which check failed and how it failed. Do not proceed to Stage 1. A broken baseline makes every downstream Red-Green loop noise.
+Why each of these three exists, and what breaks without them: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/dispatch-fidelity.md`.
 
 ### Review scope — the machinery scales to the change
 
-Declare this at Preflight, next to the test-scope commands, and state it in every gate
-report. Test scope is already tiered (`../planning-projects/references/test-scope-tiers.md`)
-so a gate does not run the full suite to prove a one-line fix. **Review scope is the same
-idea applied to the review machinery**, which until now ran at one weight regardless of what
-it was reviewing.
+**Declare a tier at Preflight and restate it in every gate report** (`review-scope: light —
+prose edits to 3 skill files`). An undeclared run is `standard`. Pick it once, from the
+plan's **cumulative diff**, not per task. This is the honest-gates disclosure rule applied to
+review effort: downgrading silently and downgrading openly produce the same diff, so **the
+declaration is what makes the choice reviewable**.
 
-| Tier | When | Tier-1 (per task) | Tier-2 (per gate) | Evaluator |
-|---|---|---|---|---|
-| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan | skip | skip | skip |
-| **light** | Prose/config edits, or one file, or no new executable behavior | skip | **one** review over the whole plan diff, before close-out | only if a gate check needs judgment |
-| **standard** | Multi-file code with new behavior — the default when unsure | per task | per stage gate | at any gate with a non-command check |
-| **high** | Security-sensitive, data-destructive, public API, schema/migration, auth | per task | per stage gate + a second independent pass | every gate, and close-out |
+| Tier | When | Passes | Evaluator |
+|---|---|---|---|
+| **none** | docs/config/version-bump/comment-only across the whole plan | none | no |
+| **light** | prose or config edits, one file, or no new executable behavior | one | only if a gate check carries `(judgment)` |
+| **standard** | multi-file code with new behavior — the default when unsure | one, at the shape the format sets | yes, at any gate with a `(judgment)` check |
+| **high** | security-sensitive, data-destructive, public API, schema/migration, auth | that, plus a second independent pass | yes, always |
 
-Pick the tier from the **plan's cumulative diff**, not per task, and pick it once. A plan
-that edits three markdown files is `light` even if it has four stages; a plan touching an
-auth path is `high` even if it is small.
+**The format decides the review's SHAPE. The tier decides its DEPTH.** Direct and Light plans
+review the **whole plan diff once** before close-out; Standard and Master review **per task
+(Tier-1) and per stage gate (Tier-2)**. The two axes are independent, so resolve a
+disagreement by applying both — never by taking the lighter option. A Light plan touching an
+auth path is a small plan doing a dangerous thing: it gets whole-diff shape *and* `high`'s
+second pass and mandatory evaluator.
 
-**The tier is declared, not assumed.** Write it in the Preflight report
-(`review-scope: light — prose edits to 3 skill files`) and repeat it in each gate report.
-An undeclared run is `standard`. This is the honest-gates disclosure rule applied to review
-effort: downgrading silently and downgrading openly produce the same diff, so the
-declaration is what makes the choice reviewable.
+A tier is a floor, not a ceiling: escalate mid-plan when the diff turns out riskier than it
+looked and say so in the gate report; never quietly de-escalate.
 
-**Why this exists.** A review pass is not free and does not have a fixed value: dispatching
-four agents over a 160-line prose change costs more than the change and returns findings
-about the reviewing apparatus rather than the product. Running the same four over an auth
-rewrite is cheap insurance. The failure this table prevents is the one that is invisible
-without it — machinery whose cost nobody compares to what it is protecting, because no rule
-ever asked.
-
-**A tier is a floor, not a ceiling.** Escalate mid-plan when the diff turns out riskier than
-it looked (say so in the gate report); do not quietly de-escalate — that is what the
-declaration exists to catch.
-
-### Composing with the plan format
-
-The format ladder (Direct / Light / Standard / Master) and the tier above answer **different
-questions**, and a plan carries both at once. Resolve them this way, always:
-
-> **The format decides the review's SHAPE. The tier decides its DEPTH.**
-
-| From the **format** — shape | |
-|---|---|
-| Direct, Light | reviews run over the **whole plan diff**, once, before close-out — never per task |
-| Standard, Master | Tier-1 **per task**, Tier-2 **per stage gate** |
-
-| From the **tier** — depth | Review passes | Evaluator |
-|---|---|---|
-| `none` | none | no |
-| `light` | one | only if a gate check carries `(judgment)` |
-| `standard` | one, at the shape the format sets | **yes, at any gate with a `(judgment)` check** |
-| `high` | that, plus a second independent pass | **yes, always** — every gate and close-out |
-
-**Do not resolve a disagreement by "taking the lighter option".** That heuristic is
-seductive and wrong at the top of the table: a Light plan touching an auth path is a *small
-plan doing a dangerous thing*, and the format's smallness says nothing about the danger.
-Under this rule it gets whole-diff shape (from Light) *and* the second independent pass and
-mandatory evaluator (from `high`) — which is the correct answer and the one "lighter wins"
-would have thrown away.
-
-Master plans declare a tier **per sub-plan**, from that sub-plan's own diff — sub-plans are
-independently executable, so a `high` sub-plan must not be diluted by a cheap sibling.
-
-**Why this is written down at all.** Before it existed, the two axes were each internally
-consistent and silent about the other, so an executor meeting a Light plan that declared
-`standard` could run one review or four and be equally compliant either way. That is not a
-tie the executor should be breaking on instinct — it is a rule that was missing. Observed
-live: the run that introduced this section resolved the same collision twice by instinct,
-took the lighter option both times, and skipped an evaluator this table requires.
-
+`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/review-scope.md` is the authority on this — it carries the worked composition table,
+the per-sub-plan rule for masters, and the opt-out rules. Where a summary here and that file
+appear to disagree, the file wins.
 ## Phase 3 — Stage execution
 
 For each stage in order:
@@ -466,39 +300,25 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 
 **File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, **serialize the dispatches — do not inline either one.** A file conflict is a fact about *scheduling*: it says these two cannot run at the same moment, which is a different claim from "this task need not go to a subagent". `Parallel: YES` is a delegation directive (`../planning-projects/SKILL.md` § Stage structure), and nothing about a sibling touching the same file withdraws it. So the conflicting task is dispatched on its own once the first returns, and its commit carries `Executor: dispatched — <type>` like any other.
 
-This is the same conflation the field's definition was rewritten to remove — "sequential" is a word about time, and using it to mean "in the main session" is how a directive quietly became a preference. If you genuinely need the task inline, that is a deviation: run it inline, say so in the gate report's dispatch line with a reason, and let the trailer record `Executor: inline`.
+If you genuinely need a `Parallel: YES` task inline, that is a deviation: run it, say so in
+the gate report's dispatch line with a reason, and let the trailer record `Executor: inline`.
 
-**Delegate sequential tasks for context hygiene.** `Parallel: YES` tasks already go
-to subagents. A `Parallel: NO` task still defaults to the main session — but when it
-is **independent** (doesn't need the running session's context, and later steps won't
-need its working trace), **output-heavy** (builds, broad greps, long test logs, large
-reads the orchestrator would otherwise absorb), and **not latency-critical**, hand it
-to a single stack-matched subagent instead of running it inline. This keeps the
-orchestrator's window on plan state and gates rather than filling it with churn it will
-never reference again. **Brief it with the decisions in force that bear on the task**,
-exactly as the parallel path does (`../dispatching-parallel-agents/SKILL.md` § Prompt
-template), **and require the same executor trailer** — `Executor: dispatched — <type>`,
-per Step 3.3 rule 7. Both dispatch paths, one convention: this path does not go through
-`dispatching-parallel-agents`, so nothing else asks for the trailer, and a task delegated
-here would otherwise land indistinguishable from one the orchestrator ran itself. A
-delegated task is no less bound by the register than an inline one; it is just less able
-to discover that on its own. It is a context-hygiene move, **not** a token saving — the
-subagent's intermediate tokens still burn. Keep a task inline when it is coupled to
-accumulated session context, needs iterative back-and-forth, or is a quick targeted
-edit. Pick the subagent type (and the stack skill it should load first) from the
-routing table at `../dispatching-parallel-agents/references/stack-routing.md` — the
-same table the dispatch path uses.
+**Delegate sequential tasks for context hygiene.** A `Parallel: NO` task defaults to the main
+session, but when it is **independent**, **output-heavy** (builds, broad greps, long test
+logs) and not latency-critical, hand it to one stack-matched subagent instead. This keeps the
+orchestrator's window on plan state rather than churn it will never reference again — it is
+context hygiene, **not** a token saving, since the subagent's tokens still burn. Brief it
+with the decisions bearing on the task and **require the same executor trailer**
+(`Executor: dispatched — <type>`): this path doesn't go through `dispatching-parallel-agents`,
+so nothing else asks for it, and the task would otherwise land indistinguishable from one the
+orchestrator ran. Keep a task inline when it is coupled to session context, needs
+back-and-forth, or is a quick targeted edit. Pick the type and its stack skill from
+`../dispatching-parallel-agents/references/stack-routing.md`.
 
-**If the matched capability's plugin isn't enabled**, don't silently fall through to
-`general-purpose` with no domain knowledge — resolve it from disk per
-`../dispatching-parallel-agents/references/stack-routing.md` § *Resolving a capability
-whose plugin isn't enabled*: look the component up in `capability-index.json` (at the
-marketplace root; paths resolve against the index file's own directory), then Read-and-follow
-its SKILL.md or inject its agent body with the `model` pin. A component flagged
-`requires_enablement` (hooks / MCP) can't be lazy-loaded — stop and ask the user to enable
-that plugin. When the plugin **is** enabled, use the normal registered `subagent_type` /
-skill invocation. (Outside plan execution, the `capability-router` skill wraps this same
-lookup-and-resolve flow for ad-hoc needs.)
+**If the matched capability's plugin isn't enabled**, don't fall through to `general-purpose`
+with no domain knowledge — resolve it from disk per that same reference's § *Resolving a
+capability whose plugin isn't enabled*. A component flagged `requires_enablement` (hooks /
+MCP) can't be lazy-loaded: stop and ask the user to enable that plugin.
 
 ### Step 3.3 — Red-Green loop (per task)
 
@@ -516,19 +336,19 @@ Every task follows this loop. No task is "done" until its test is green.
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
-2. **Diagnose before fixing.** Read the actual error. Form a hypothesis. Confirm against the code. Then write the fix. On the second RED cycle for the same task, stop improvising and invoke `no-fafo-debugging` — one failed targeted fix is bad luck, two is a sign the hypothesis is wrong rather than the patch, and that is the point at which evidence-first diagnosis is cheaper than a third guess.
-3. **Respect the cycle budget.** The plan sets a max (default 3). When exceeded, stop and escalate — don't keep looping. Three failed targeted fixes means the approach is wrong, not just the implementation. If the user chooses to skip rather than re-plan, defer the task to the `backlog` skill (`add`) before moving on; don't silently drop it.
+2. **Diagnose before fixing.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch.
+3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
-5. **Flip the task's Status to `[x]` the moment its test is green** — edit the plan's `- **Status:** [ ]` line for that task to `- **Status:** [x]`. This is the authoritative done-marker; downstream tools (e.g. `portfolio unify`) read it instead of guessing from gates or git. Do this in the same change as the work. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so a `Parallel: YES` task run inline is indistinguishable here. Rule 7's executor trailer is what carries that, and it is the only artifact that does.
-6. **Quick review gate (Tier 1).** Runs at review-scope `standard` and `high` (§ Review scope); at `light` and `none` there is no per-task review and the plan gets one pass over its whole diff instead. Once the test is green and Status is flipped, but **before** the commit, run a per-task code review on the task's diff. Dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch that sees only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:` criterion. **Brief it to check behavioral claims too** — every sentence in the diff asserting what the code does (a default, an exit code, what invokes what, a count, an "every") is verified against the source or flagged, per `honest-gates` § *A behavioral claim is a gate too*. Handle the verdict by severity:
+5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
+6. **Quick review gate (Tier 1).** Whether it runs, and at what shape, comes from § Review scope — do not re-derive it. After the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:`. **Brief it to check behavioral claims too**: every sentence in the diff asserting what the code does (a default, an exit code, a count, an "every") is verified against the source or flagged, per `honest-gates`. Handle by severity:
    - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
    - **Important / Suggestion → advisory.** Do not act on them now. Append them to the plan file as a note under the task (`**Review notes (Task N.M):** …`) so the stage gate's deep review (Step 3.5) can triage the batch. They never block the task.
    - **Skip for trivial/non-code diffs.** Docs-only, config-only, pure version-bump, or comment-only diffs don't need Tier 1 — note the skip and proceed. Honor a `Review: skip` task annotation and the global opt-out (see References) the same way — but an opt-out is **evidenced, not asserted** (§ Review opt-out): note the skip *with* the quote or the cited annotation, never as a bare "skipped".
 
-     **Exception — docs that assert executable behavior are not a trivial diff.** A docs change **asserting a fact about** commands, flags, env vars, exit codes, default values, file paths or invocation examples makes exactly the claims `honest-gates` § *A behavioral claim is a gate too* governs, and prose is where they go unchecked longest — there is no compiler and no test. Such a diff does **not** auto-skip Tier 1; review it for whether each claim matches the source. The test is *asserting*, not *mentioning*: merely naming a flag in a heading, a link or an unchanged code sample claims nothing and still skips, as does a typo fix or a reworded sentence asserting nothing executable. When the diff does make such an assertion, the reviewer reads the cited source file to check it — the Tier-1 dispatch is scoped to the task *diff*, which bounds what it reviews, not what it may read.
+     **Exception — docs that assert executable behavior are not a trivial diff.** A docs change **asserting a fact about** commands, flags, env vars, exit codes, defaults, paths or invocation examples makes exactly the **behavioral claims** `honest-gates` § *A behavioral claim is a gate too* governs, and prose is where they go unchecked longest: no compiler, no test. Such a diff does **not** auto-skip Tier 1. The test is *asserting*, not *mentioning* — naming a flag in a heading or an unchanged sample claims nothing and still skips. The Tier-1 dispatch is scoped to the task *diff*, which bounds what it reviews, not what it may read, so the reviewer opens the cited source to check the claim.
 
-   This is a context-hygiene **and** quality move: the review burns its own tokens but keeps bad code from compounding across tasks. It does **not** pause to ask the user — it pauses only to fix autonomously within budget, preserving run-to-completion.
-7. **Commit after each green task** with a message referencing the stage and task (`"Stage 2 Task 2.3: parse config entries"`). The commit includes the work, any Tier-1 fixes, and the flipped `Status: [x]`. This is non-negotiable and assumes the Preflight git bootstrap ran — the per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed stage gate then adds its own `"Stage N green"` commit (Step 3.5): you keep **both** granularities, the per-task commits *and* the per-stage marker — never collapse to only one.
+   Tier 1 does **not** pause to ask the user — only to fix autonomously within budget, preserving run-to-completion.
+7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
 
    **Every per-task commit ends with an executor trailer** — the last line of the message, taking one of these shapes:
 
@@ -540,11 +360,20 @@ Every task follows this loop. No task is "done" until its test is green.
    Executor: inline (user authorised)                          (dispatch was available)
    ```
 
-   **Keep the trailer to one physical line.** Git parses the trailer block at the end of the message; a continuation line is folded into the preceding trailer only when it is **indented**, and an unindented wrap ends the block instead — so the trailer vanishes from every `%(trailers:…)` query without any error. The rule here is deliberately stricter than git: one physical line, never a folded continuation, because "indent it and it still parses" is a detail nobody checks at commit time and the failure is silent. This is not hypothetical: two commits on this branch wrote a wrapped `Executor:` line and `git log --format='%(trailers:key=Executor,valueonly)'` returns **empty** for both, which is how a convention silently stops being checkable. Put the reason in the commit body; keep the trailer bare.
+   **Keep the trailer to one physical line.** Git folds a continuation into the preceding
+   trailer only when it is **indented**; an unindented wrap ends the block instead, so the
+   trailer vanishes from every `%(trailers:…)` query with no error at all. The rule here is
+   deliberately stricter than git — one physical line, never a folded continuation — because
+   "indent it and it still parses" is a detail nobody checks at commit time and the failure
+   is silent. Put the reason in the body; keep the trailer bare.
 
-   Name the actual `subagent_type` that ran the work, not the routing table's suggestion for it — and a dispatch that failed and was finished inline says so, because a substitution nobody can see is the defect this trailer exists to end.
-
-   **Why a trailer rather than a note somewhere.** Everything else a task produces is byte-identical whether it ran inline or in a subagent: the same diff, the same `Status: [x]`, the same commit subject. So a run that ignored five `Parallel: YES` directives left *nothing* to notice, and the breach surfaced only because a human happened to say so. With the trailer, `git log --format='%(trailers:key=Executor,valueonly)' <base>..HEAD` is the check — "5 tasks marked YES, 0 dispatched" reads straight off the log, against the roster Preflight already wrote down. **A trailer that misstates who ran the task is worse than none**, since it converts a visible gap into a false record; per `honest-gates`, write what happened, not what the plan expected.
+   Name the actual `subagent_type` that ran the work, not the routing table's suggestion, and
+   say so when a dispatch failed and finished inline: a substitution nobody can see is the
+   defect this trailer exists to end. **A trailer that misstates who ran the task is worse
+   than none** — it converts a visible gap into a false record. Why a trailer at all: every
+   other artifact is byte-identical whether a task ran inline or dispatched, so
+   `git log --format='%(trailers:key=Executor,valueonly)' <base>..HEAD` is the only check
+   that can read "5 marked YES, 0 dispatched" straight off the log.
 
 ### Step 3.4 — Propagate unblock
 
@@ -561,7 +390,7 @@ When every task in the stage is green, run the stage gate:
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while the Tier-2 review below is dispatched — the two are independent.
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory — `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) — and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A **Light plan** has no `Parallel` field and never fans out (§ Light plans, rule 2), so its single gate carries no dispatch line — the requirement is scoped to plans that can have a roster, not waived where one would be vacuous.
 
-  **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`. Reproduced on this branch — commits `065bd8b` and `6b09499` return empty for exactly this reason.
+  **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`.
 
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for a tier that did not run, the evidenced opt-out (§ Review opt-out) or the trivial/non-code diff that excused it. One line per tier, resolving `<base>` the same way the dispatch line above does — the previous stage's `"Stage N green"` commit — and naming the agent by a type dispatch can actually take. `goal-evaluator` is a **role**, not a registered agent: no `agents/goal-evaluator.md` ships in this marketplace, so a report naming it records a dispatch nobody can reproduce. Write the type that ran, then the role:
 
@@ -570,9 +399,7 @@ When every task in the stage is green, run the stage gate:
   evaluator: general-purpose in the goal-evaluator role, briefed on the stage goal + gate criteria — PASS, 2 Material
   ```
 
-  Naming the **agent** is what distinguishes a dispatched review from the executor reading its own diff, which both tiers forbid — Step 3.3 rule 6 says it outright ("never the executor self-reviewing"), and Step 3.5 dispatches its own reviewer for the same reason. Nothing else in the artifact tells the two apart — the same invisibility the executor trailer closes for dispatch, one axis over. Naming the **diff** is what makes the review's coverage checkable: a reviewer briefed on the wrong range returns a clean verdict over code nobody looked at, and "reviewed" reads identically either way. A gate that reports green with no reviewer named is incomplete on its face, so the omission stops being invisible.
-
-  The counts are the point, not the prose: an **uncounted** thing is how a run reaches close-out with nobody noticing, which is the same reason the remediation rounds below are counted. The prior incident ran five `Parallel: YES` tasks inline and no gate said so, because no gate was asked to. A stated reason is also not a licence — `Parallel: YES` is a directive (`../planning-projects/SKILL.md` § Stage structure), so an inlined YES task is a **deviation being disclosed**, not a choice being ratified, and a gate report that keeps producing them is evidence the plan's `Parallel` fields are wrong and belong back in `planning-projects`.
+  Naming the **agent** distinguishes a dispatched review from the executor reading its own diff, which both tiers forbid; naming the **diff** makes its coverage checkable, since a reviewer briefed on the wrong range returns a clean verdict over code nobody looked at and "reviewed" reads identically either way. An inlined `Parallel: YES` task is a **deviation being disclosed**, not one being ratified — a gate report that keeps producing them is evidence the plan's `Parallel` fields belong back in `planning-projects`.
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, if the
 project's platform ships a stage-verify skill, invoke it as the final gate step
@@ -600,24 +427,18 @@ stage-verify hook proves a platform stage. A below-threshold verdict that doesn'
 recover within the loop is a gate failure. This is the design analogue of the
 stage-verify hook: a green build is not a reproduced design.
 
-**Independent evaluator for non-command checks.** Command checks are
-deterministic — run them yourself. But when a gate contains any check that
-requires judgment ("manual verification", "reads coherently", "flow works
-end-to-end"), dispatch a fresh evaluator agent for those checks, briefed ONLY
-with the stage goal and the gate's pass criteria — never the implementation
-transcript or your own summary of the work. The session that wrote the code
-grades its own work too generously; external judgment catches what
-self-assessment misses. Skip the evaluator only on an **evidenced** user opt-out
-(§ Review opt-out — the gate report quotes the user's words; executor judgment is
-not one), or when every check in the gate is a command — a gate with nothing to
-judge is the evaluator's analogue of a trivial diff. There is no third reason: an
-evaluator that cannot be dispatched is a Stop condition (§ Stop conditions), not a
-skip.
+**Independent evaluator for non-command checks.** Run command checks yourself. When a gate
+carries any check needing judgment ("manual verification", "reads coherently", "flow works
+end-to-end"), dispatch a fresh evaluator for those checks, briefed ONLY with the stage goal
+and the gate's pass criteria — never the implementation transcript or your own summary. The
+session that wrote the code grades its own work too generously. Skip only on an **evidenced**
+user opt-out (§ Review scope), or when every check is a command. There is no third reason: an
+evaluator that cannot be dispatched is a Stop condition, not a skip.
 
-**Brief it to grade by severity, not just pass/fail.** A bare per-criterion
-pass/fail gives the loop nothing to terminate on, because a fresh judgment agent
-reading a real artifact essentially always finds *something*. So require, for each
-finding, exactly one of:
+**Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
+nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
+always finds *something*, so "no adverse findings" is not a reachable state. Require, for
+each finding, exactly one of:
 
 | Severity | Meaning | Consequence |
 |----------|---------|-------------|
@@ -625,33 +446,23 @@ finding, exactly one of:
 | **Material** | real defect, goal still met | fixed, or recorded to the `backlog` with the user told |
 | **Minor** | nit, polish, taste | recorded; never blocks |
 
-This is the same three-tier shape as the reviewer's Critical / Important /
-Suggestion and resolves to the same **exit criterion** below — Blocking maps to
-Critical, Material to Important, Minor to Suggestion. Two scales, one gate: an
-evaluator FAIL that carries no Blocking finding is a **pass with recorded
-residuals**, not a failure. Tell the evaluator that a report listing only Material
-and Minor findings is a legitimate PASS verdict, or it will withhold PASS to seem
-rigorous and hand the loop back an unsatisfiable condition.
+Blocking maps to Critical, Material to Important, Minor to Suggestion, so both scales
+resolve to the one **exit criterion** below. An evaluator FAIL carrying no Blocking finding
+is a **pass with recorded residuals**, not a failure — tell the evaluator so explicitly, or
+it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition.
 
-**Deep code review (Tier 2).** Runs per stage gate at `standard` and `high`; at `light` it is the single pre-close-out pass over the plan diff, and at `none` it does not run (§ Review scope). The evaluator above verifies *goals* (black-box,
-briefed only on criteria). Add a complementary *white-box* pass: dispatch
-`git-github:code-reviewer` (read-only) over the **full stage diff** (`git diff`
-across the stage's commits) **plus the collected Tier-1 advisory notes**
-(`**Review notes (Task N.M):**` lines accumulated during the stage). This is a
-gate criterion, not advisory — a **Critical** finding here is a **gate failure**
-(handle it via the "If the gate fails" steps below). Important findings are not
-auto-fixed, but they are **not free either**: they are surfaced for the user's
-triage and each one leaves the gate either fixed or recorded to the `backlog`,
-per the **exit criterion** below, which applies to *every* gate pass and not only
-to one reached through the failure branch. Suggestions are recorded. This is the only
-point where findings are reviewed against the *coherent stage*, so cross-task
-issues the per-task Tier-1 pass couldn't see (duplication across tasks, an
-abstraction that should have been shared) surface here. **Brief it to audit the
-stage's behavioral claims** as a set — every assertion the stage's diff makes about
-what the code does, checked against the source, per `honest-gates` § *A behavioral
-claim is a gate too*. The stage view is where a claim that was true when written
-and false after a later task shows up; the per-task pass cannot see that. Skip only
-on the same opt-out as Tier 1.
+**Deep code review (Tier 2).** Whether it runs, and at what shape, comes from § Review
+scope. The evaluator above verifies *goals* black-box; this is the complementary *white-box*
+pass: dispatch `git-github:code-reviewer` (read-only) over the **full stage diff** plus the
+stage's collected `**Review notes (Task N.M):**` lines. It is a gate criterion, not advisory
+— a **Critical** here is a **gate failure**. Important findings are not auto-fixed but are
+**not free either**: each leaves the gate either fixed or recorded to the `backlog`, per the
+**exit criterion** below, which governs every gate pass and not only one reached through the
+failure branch. Suggestions are recorded. This is the only point where findings are judged against the *coherent
+stage*, so cross-task issues Tier-1 could not see (duplication across tasks, an abstraction
+that should have been shared) surface here. **Brief it to audit the stage's behavioral claims
+as a set**, per `honest-gates` § *A behavioral claim is a gate too* — the stage view is where
+a claim that was true when written and false after a later task shows up.
 
 **Decisions-conformance check (gate criterion, not advisory).** Check the stage's
 cumulative diff against the decisions in force.
@@ -666,15 +477,12 @@ Two legal resolutions, and only two:
 "The decision seems outdated" is not a third option — that judgment is exactly what
 `supersede` exists to record, and skipping it is how a register decays into fiction.
 
-**Disclose the check's limits (honest-gates).** Unlike a test command, this is a judgment
-call over a diff: it can miss a subtle contradiction, and a green result is not proof of
-conformance. So the gate report states **what was actually examined** — which IDs were
-checked against which parts of the diff — rather than asserting blanket conformance. A
-check that overstates its coverage is worse than one that admits its scope, because the
-next reader trusts it.
-
-Skip only when the stage's diff is genuinely non-code (docs-only, version-bump-only) and
-no decision in force bears on documentation.
+**Disclose the check's limits (honest-gates).** This is a judgment call over a diff, not a
+test command: it can miss a subtle contradiction, and green is not proof of conformance. The
+gate report states **which IDs were checked against which parts of the diff** rather than
+asserting blanket conformance — a check that overstates its coverage is worse than one that
+admits its scope, because the next reader trusts it. Skip only when the diff is genuinely
+non-code and no decision in force bears on documentation.
 
 **Exit criterion — what "the gate passed" means.** This governs **every** gate pass,
 not only one reached by repairing a failure, and it is the single definition the
@@ -684,83 +492,41 @@ checks above and the procedure below both resolve to:
 > is either fixed or recorded to the `backlog` with the user told**. Suggestions are
 > recorded, never blocking.
 
-The criterion is deliberately *not* "the detector returned silent". A fresh judgment
-agent essentially never reports zero adverse findings, so "no findings" is not a
-reachable state, and a gate whose exit condition cannot be satisfied is not a gate —
-it is a loop. Recording is not dropping: an Important that is not fixed leaves the
-gate as a backlog ID, never as silence. An Important-only result is therefore a
-**pass with an obligation**, not a clean pass — if nothing was recorded and the user
+It is deliberately *not* "the detector returned silent" — a fresh judgment agent never
+reports zero findings, so a gate with that exit condition is not a gate but a loop. Recording
+is not dropping: an unfixed Important leaves the gate as a backlog ID, never as silence. An
+Important-only result is a **pass with an obligation** — if nothing was recorded and the user
 was not told, the gate has not passed yet.
 
-**If the gate fails:**
+**If the gate fails:** treat it as a **defect class sampled once**, not a point defect.
+Detection at a gate is goal-scoped while repair defaults to instance-scoped, so a class with
+N instances costs about N rounds, each looking like fresh news.
 
-Treat the failure as a **defect class sampled once**, not a point defect. Detection
-at a gate is goal-scoped (the evaluator re-reads the whole artifact every round)
-while repair defaults to instance-scoped — so a class with N instances costs ≈N
-rounds, each one looking like fresh news. Triage before repairing, and bound the
-loop.
+1. **Classify every finding** as **Critical**, **Important**, or **Suggestion** — the same
+   scale the review tiers use, so a gate finding and a review finding are graded once.
+2. **Diagnose evidence-first, then name the set.** Invoke `no-fafo-debugging` **first** — this
+   is the most fix-prone moment in the workflow, and the order is not decorative: a set
+   derived from a wrong root cause is a *wrong set*, so the sweep would then run confidently
+   over the wrong population and report green. Only then name the set the finding quantifies
+   over. **Derive it** from the failing task's `Scope:` field where it declares one — a
+   starting point, not an authority. **When no `Scope:` exists,
+   or the finding escapes it, enumerate the set now**: run the sweep the check should have
+   been (grep the defect's distinguishing string, list every sibling of the failing
+   artifact's kind, list every caller of the changed symbol) and **write the command down in
+   the gate report**, so the next round argues with a command rather than a recollection. If
+   that sweep finds members the `Scope:` did not, the plan's `Scope:` line is wrong — fix it
+   as part of the repair.
+3. **Add a test covering the set**, not the one file that failed, and fix **every member the
+   sweep returns in this round**.
+4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
-1. **Classify every finding by severity** — the same **Critical / Important /
-   Suggestion** taxonomy the review tiers already use (Step 3.3 rule 6), so a gate
-   finding and a review finding are graded on one scale rather than two.
-2. **Diagnose evidence-first, then name the set it belongs to.** Invoke
-   `no-fafo-debugging` here — this is the most fix-prone moment in the whole
-   workflow (a failed gate, under a bounded round budget), which is exactly where
-   "Fix And Forget" produces a plausible-looking repair for a misdiagnosed cause.
-   The order matters and is not decorative: a set derived from a wrong root cause is
-   a *wrong set*, so the class sweep in step 3 would then sweep confidently over the
-   wrong population and report green. Evidence first, then generalize.
+**Remediation budget — default 2 rounds per gate.** A plan may override it. Count the rounds
+and report the count; an uncounted loop is how a gate reaches its fourth round with nobody
+noticing the third. On exhaustion, escalate with the residual list — a documented Stop
+condition, not a licence to keep looping.
 
-   Then name the set the finding quantifies over — the other files, callers,
-   examples or docs that could carry the same defect. **Derive it, in this order:**
-
-   a. **The failing task's `Scope:` field**, if it declares one — that is what the
-      field is for (`../planning-projects/SKILL.md` § Scope marking). It is a
-      starting point, not an authority: a `Scope:` is only as good as the sweep
-      behind it, and a truncated authoring command is a documented way for one to
-      arrive short.
-   b. **When no `Scope:` exists, or the finding escapes it, enumerate one now** —
-      run the sweep the check should have been: grep the defect's distinguishing
-      string across the repo, list every sibling of the failing artifact's kind
-      (`ls <plugin>/commands/*.md`), or list every caller of the changed symbol.
-      **Write the command down in the gate report**, so the next round argues with
-      a command rather than a recollection.
-   c. **Reconcile the two.** If (b) found members (a) did not, the task's `Scope:`
-      was wrong — fix the plan's `Scope:` line as part of the repair, or the same
-      gap recurs on the next task that trusts it.
-
-   A gate failure is usually an integration problem rather than one task's bug.
-   Repairing the instance and leaving its siblings is what converts one class into
-   N rounds.
-3. **Add a test covering that interaction** to the relevant task. Where the finding
-   is set-valued, that test is the **sweep over the set derived in step 2** (the
-   class-predicate rule in `../planning-projects/SKILL.md`), not a check on the
-   single file that failed — an instance-shaped check cannot fail on the siblings
-   that make the class. Fix **every member the sweep returns in this round**, not
-   just the one the gate happened to report: a class repaired one instance per round
-   is the oscillation the budget exists to bound, and bounding it is not the same as
-   converging.
-4. **Run that task through its Red-Green loop again.**
-5. **Re-verify narrowly, plus the sweep.** Re-run the failed check(s), any check
-   whose inputs the fix touched, and the step-3 class sweep — not every gate check
-   from scratch.
-
-**Remediation budget — default 2 rounds per gate.** One round is classify →
-repair → re-verify. It is a default, and a plan may override it by stating a
-different number of remediation rounds on the stage; **count the rounds and report
-the count** in the gate report ("gate green — remediation round 2 of 2"). An
-uncounted loop is how a gate reaches its fourth round with nobody noticing the
-third.
-
-**Stop repairing when the exit criterion above is met** — no Critical remaining,
-every Important fixed or recorded. Do not spend a round chasing Suggestions, and do
-not spend one trying to make a judgment agent go quiet.
-
-**On budget exhaustion, escalate with the residual list.** Report the findings
-that remain, their severities, and how the rounds were spent. This is a documented
-**Stop condition** (below) — not a failure to hide, and not a licence to keep
-looping. The user decides between another round, returning to
-`planning-projects`, and shipping with the residual recorded.
+The full procedure — how to derive the set, when the task's `Scope:` field is the authority
+and when it is wrong, and what each severity obliges: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/gate-failure-procedure.md`.
 
 **If the gate passes** (per the exit criterion above — including its obligation to have
 recorded every unfixed Important and told the user): mark the stage complete, append the
@@ -789,23 +555,14 @@ the handoff artifact.
   citation raised in this stage and not yet recorded>
   ```
 
-  The decisions line is not redundant with the plan's `## Decisions in force`
-  section: a fresh session reads the handoff notes to learn *the current state*,
-  and a constraint that surfaced mid-stage (a supersede raised at Stage 2, a new
-  entry the Preflight re-check caught) exists nowhere else. A constraint absent
-  from the handoff is one the next session will not know about.
-
-  **The dispatch and review lines are carried here for the same reason**, and
-  they earn the space: this section tells the executor to *discard the context*
-  that holds them. The dispatch counts can be rebuilt from the executor trailers
-  (`git log`), but **the review ledger cannot** — which agent saw which diff
-  exists only in the gate report, so a reset without it turns "the stage was
-  reviewed" into a claim with no artifact behind it. Copy the two lines the gate
-  already produced; do not re-derive them.
-
-  Committed with the `"Stage N green"` commit. Keep it to a few lines — it is
-  a briefing, not a log. The two ledger lines are the exception that proves it:
-  they are one line each because they are quoted, not narrated.
+  The decisions line is not redundant with the plan's `## Decisions in force`: a constraint
+  that surfaced mid-stage exists nowhere else, and one absent from the handoff is one the
+  next session will not know about. **The dispatch and review lines are carried here for the same reason**, and they earn the
+  space: this section tells the executor to discard the context that holds them. The dispatch
+  counts can be rebuilt from the trailers, but **the review ledger cannot** — which agent saw which diff exists only in the gate
+  report, so a reset without it turns "the stage was reviewed" into a claim with no artifact
+  behind it. Copy the two lines the gate already produced; do not re-derive them. Committed
+  with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a log.
 - **Resuming fresh:** a new session (or a post-compaction continuation) picks
   up the plan by reading the Research Summary, the `Status:` flips, and the
   handoff notes — never by needing the prior transcript. If you find yourself
@@ -819,54 +576,14 @@ the handoff artifact.
 
 ## Progress state file (live statusline bar)
 
-Mirror execution state to `<repo-root>/.claude/plan-progress.json` so the
-shipped statusline renderer (`scripts/plan-progress.py`) can draw a live
-progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). Maintain the
-file on every run — it is cheap, and the renderer simply never fires for
-users who haven't wired it.
+Mirror execution state to `<repo-root>/.claude/plan-progress.json` at **every** transition —
+Preflight, each task start, each gate run, close-out — and **delete it when close-out
+finishes**. Write the whole file each time; never patch it. It is ephemeral session state:
+never commit it, and ensure `.claude/plan-progress.json` is gitignored during the git
+bootstrap.
 
-Write the full file (overwrite, don't patch) at each transition:
-
-| When | Write |
-|------|-------|
-| Preflight starts | `phase: "preflight"` |
-| A task starts (incl. re-entering its Red-Green loop) | `phase: "task"`, `stage`, `task` ("2.3"), `task_desc` |
-| A stage gate runs | `phase: "gate"`, `stage`, and on a re-run `remediation_round` (+ `remediation_budget` if the plan overrode the default 2) |
-| Close-out starts | `phase: "closeout"` |
-| A Stop condition halts execution | `phase: "blocked"`, `stage`/`task` if known, `note` (one line, e.g. "cycle budget exhausted") |
-| Close-out finishes (last step) | **delete the file** |
-
-Schema (all on one line is fine):
-
-```json
-{"plan": "plans/foo-plan.md", "phase": "task", "stage": 2,
- "task": "2.3", "task_desc": "parse config entries",
- "updated": "<ISO-8601 UTC now>"}
-```
-
-`plan` is the plan file's path — absolute, or relative to the repo root.
-Always refresh `updated` (the renderer marks state older than 12h as stale).
-
-`remediation_round` is optional and only meaningful with `phase: "gate"` — set it
-when a gate is being re-run after a failure, so the bar reads
-`◆ S2 gate ↻2/2` and a loop that is quietly on its third round is visible rather
-than inferred. Omit it on a gate's first run. `remediation_budget` is likewise
-optional and only changes the denominator; with neither field the gate renders
-exactly as before.
-Done/total counts are **not** in the file — the renderer derives them from the
-plan's authoritative `Status:` fields, so a forgotten update can never show
-wrong progress, only a wrong current-task label. The file is ephemeral session
-state: never commit it — during the git bootstrap, ensure
-`.claude/plan-progress.json` is gitignored (append it if the repo doesn't
-already ignore it). For a master plan, the state file always points at the
-**sub-plan** currently executing.
-
-**One-time user setup** (only if asked to wire it): point `statusLine` in
-`~/.claude/settings.json` at a wrapper that feeds the same stdin JSON to the
-user's existing statusline command first, then to
-`<planning-plugin>/skills/executing-plans/scripts/plan-progress.py`, appending
-its output as an extra line when non-empty. The renderer prints nothing when
-no plan is executing, so it never disturbs the normal statusline.
+Schema, the per-phase field table, `remediation_round`, and the one-time statusline wiring:
+`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/progress-state-file.md`.
 
 ---
 
@@ -899,42 +616,26 @@ When every stage is green:
 
 1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
-3. **Independent evaluator pass (default).** Dispatch a fresh evaluator agent briefed ONLY with the plan's stated goals, the per-stage Goal lines, and the gate criteria — not the implementation transcript. It verifies the plan's overall goal against the artifact itself (run the app / drive the flows where runnable; read the final state where not) and reports per-criterion pass/fail **plus a severity for every finding** (Blocking / Material / Minor — same vocabulary as the gate evaluator in Step 3.5). **A Blocking finding is the stop condition** — surface it to the user before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on an **evidenced** user opt-out — the close-out report quotes the user's own words (§ Review opt-out); executor judgment does not constitute one.
-4. **Bump versions for what changed.** A completed plan almost always shifts a
-   shippable version somewhere — bump it as part of close-out, don't leave it for
-   later. Walk the artifacts the plan touched and apply a SemVer bump to each
-   versioned manifest:
-   - **breaking / removed behavior** → major; **new feature / capability** →
-     minor; **fix / docs / internal only** → patch.
-   - Bump the version field wherever the project records it — and **every place
-     that mirrors it.** Common pairs: a package/plugin manifest *and* a registry
-     or marketplace entry that restates its version; a workspace member *and* the
-     lockfile; a `CHANGELOG.md` *and* the manifest. Grep for the old version
-     string to catch mirrors. (For this repo: a plugin's
-     `.claude-plugin/plugin.json` **and** the root `.claude-plugin/marketplace.json`
-     entry; bump the marketplace `metadata.version` when the marketplace set
-     itself changed.)
-   - If the project keeps a `CHANGELOG.md`, add an entry for the new version.
-   - Commit the bumps (`"chore: bump <component> to <version>"`); they ride with
-     the close-out, not a follow-up.
-   - When the correct bump is genuinely ambiguous (e.g. unclear if a change is
-     breaking), state your call and let the user override — don't silently skip.
+3. **Independent evaluator pass (default).** Dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on an **evidenced** user opt-out (§ Review scope).
+4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
+   Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
+   wherever the project records it **and every place that mirrors it** — grep the old version
+   string to find them. In this repo that is a plugin's `.claude-plugin/plugin.json` **and**
+   its root `.claude-plugin/marketplace.json` entry, plus `metadata.version` when the
+   marketplace set itself changed. Add a `CHANGELOG.md` entry if the project keeps one, and
+   commit the bumps (`"chore: bump <component> to <version>"`). When the right bump is
+   genuinely ambiguous, state your call and let the user override — don't silently skip.
 5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-7. **Reconcile the decisions register.** Two directions, both easy to forget and both
-   corrosive when skipped:
-   - **Supersedes citations → record them.** Scan the plan for `Supersedes DEC-NNN` /
-     `Supersedes GDEC-…` on any task. For each, call the `decisions` skill (`supersede`)
-     with the replacement entry. Until this runs, the register still asserts a constraint
-     the code no longer honors — and the *next* plan will be written against it.
-     `planning-projects` promises this step on the planner's behalf ("the executor records
-     the supersede at close-out"); this is where that promise is kept.
-   - **New constraints created → record them.** Execution discovers things planning
-     couldn't: an approach that turned out to be blocked, a platform limit hit at Stage 3,
-     a cost knowingly accepted to get a stage green. Each is a decision whether or not
-     anyone called it one. Call `decisions add` with the reason — the constraint, the
-     evidence, the alternative rejected, the cost accepted. If you cannot name a rejected
-     alternative or a cost, it probably wasn't a decision; don't pad the register.
+7. **Reconcile the decisions register**, in both directions:
+   - **Supersedes citations → record them.** For each `Supersedes DEC-NNN` on a task, call
+     `decisions supersede`. Until this runs the register still asserts a constraint the code
+     no longer honors, and the *next* plan will be written against it.
+   - **New constraints created → record them.** Execution discovers what planning couldn't:
+     an approach that turned out blocked, a platform limit, a cost knowingly accepted to get
+     a stage green. Call `decisions add` with the reason — constraint, evidence, rejected
+     alternative, accepted cost. If you cannot name a rejected alternative or a cost, it
+     probably wasn't a decision; don't pad the register.
    - Reference the recorded IDs in the close-out report and commit message.
 
 8. **Audit workflow specs.** If `docs/workflows/` exists, call the `workflow-spec` skill (`audit`) against the plan's cumulative diff. For every WF-ID the plan declared (`Changes WF-NNN`, `Removes WF-NNN`), verify the corresponding block was updated or deleted in this branch. **Any `Removed` finding the audit reports that the plan did not declare is a regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for explicit user review.
@@ -944,7 +645,7 @@ When every stage is green:
    - Version bumps applied (component → old → new)
    - Plan location for future reference
    - Reviews that ran: each tier, the agent that ran it, and the diff range it saw — or, for a tier that did not run, the evidenced opt-out that excused it. Same requirement as the stage gate's, at plan scope: a close-out that says the work was reviewed without saying by what, over what, is the claim this list exists to stop being unfalsifiable.
-   - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)' <plan-base>..HEAD`) and state the total: `dispatch: <n> of <total> rostered tasks dispatched`, naming every inlined `Parallel: YES` task with its reason. The per-stage gates each reconcile their own slice, so aggregate coverage holds **only if every stage gate ran and reported** — a stage that was skipped, or one whose gate report omitted the line, leaves a hole no per-stage check can see. The roster is declared once for the whole plan; this is where it is finally answered.
+   - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)' <plan-base>..HEAD`) and state `dispatch: <n> of <total> rostered tasks dispatched`, naming every inlined `Parallel: YES` task with its reason. Per-stage gates each reconcile their own slice, so aggregate coverage holds **only if every stage gate ran and reported**. The roster is declared once for the whole plan; this is where it is answered.
    - Backlog items closed (by ID) and any new ones opened during execution
    - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any survived escalation)
@@ -980,14 +681,10 @@ When every stage is green:
 
 ## Sources and rationale
 
-- **Red-Green loop** — Kent Beck, *Test-Driven Development: By Example* (2002); the "test first, then make it pass" cycle adapted for task-level discipline
-- **Stage gates** — Robert Cooper, *Winning at New Products* (1986); phase gates with specific pass/fail criteria
-- **Max 3 failure cycles** — heuristic from debugging literature; after three targeted fixes without resolution, the hypothesis (not the implementation) is wrong. See Feynman on "the first principle is that you must not fool yourself"
-- **Preflight as hard gate** — aviation checklist tradition; Atul Gawande, *The Checklist Manifesto* (2009)
-- **Commit per green task** — frequent, small commits; *The Pragmatic Programmer* Ch. 7; Linus Torvalds on "each commit should be a single logical change"
-- **Never skip the test** — Beck (TDD), Fowler ("Continuous Integration"); the test is the only signal that says "done"
-- **Independent evaluator, context resets** — Anthropic Engineering, "Harness design for long-running application development" (https://www.anthropic.com/engineering/harness-design-long-running-apps); generators grade their own work too generously, and structured handoffs into fresh context outperform one degrading context
-
+Beck (TDD's red-green cycle), Cooper (phase gates), Gawande (preflight as a hard gate),
+Torvalds and *The Pragmatic Programmer* (commit per logical change), and Anthropic's
+harness-design work (independent evaluators, structured context handoffs). Full list with
+what each one is load-bearing for: `${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/sources.md`.
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
@@ -1010,33 +707,27 @@ When every stage is green:
 - **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
 - **test-scope-tiers reference** (`../planning-projects/references/test-scope-tiers.md`) — the shared scope policy Step 3.3 (fix-scope), Step 3.5 (stage-scope), and Close-out (plan-scope) follow
 
-**Review opt-out.** Both review tiers are default-on. Disable them per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped at Tier 1 without needing an annotation. **Two reasons excuse a review, and the list is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A `git-github:code-reviewer` that cannot be dispatched is not a third one: it is the Stop condition for a mandated review that cannot be run (§ Stop conditions), on the same ground as an unrunnable test. An unrun review is not a passed review, and it leaves an artifact indistinguishable from a reviewed one — which is why the resolution is the user's to choose and not the executor's to assume.
+**Review opt-out.** Both tiers are default-on. **Two reasons excuse a review, and the list
+is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A reviewer that
+cannot be dispatched is not a third — that is a Stop condition, on the same ground as an
+unrunnable test.
 
-**An opt-out is evidenced, not asserted.** The two reasons differ in who authors them, so
-they carry their evidence differently. A **trivial/non-code diff** carries its own evidence:
-it is a property of the diff, and any later reader can check it against the diff itself. A
-**user opt-out** is a claim about something that happened outside the artifact, and the only
-person who can author it is the user — so recording it means **quoting the user's own
-words**, with where they were said. For example:
+**An opt-out is evidenced, not asserted.** A trivial/non-code diff carries its own evidence,
+checkable against the diff. A user opt-out is a claim about something outside the artifact,
+so recording it means **quoting the user's own words**, with where they were said:
 
 ```
 Review skipped — user opt-out, Preflight: "don't bother with the reviewer on this one"
 ```
 
-**A `Review: skip` annotation counts as an opt-out when Preflight's snapshot lists it**
-(§ Dispatch roster and capability probe, step 3), and the snapshot is what makes it
-evidence. The executor writes to the plan file throughout the run, so an annotation read
-at skip time proves nothing about who put it there; one recorded against the run's base
-commit was demonstrably there before the run began. An annotation missing from that
-snapshot is an executor-authored note, worth exactly what the executor's own judgment is
-worth here — nothing. Cite the snapshot line rather than the task line.
+A `Review: skip` annotation counts **only when Preflight's snapshot lists it** — the executor
+writes to the plan file throughout the run, so an annotation read at skip time proves nothing
+about who put it there. Cite the snapshot line, not the task line.
 
 **Executor judgment is not an opt-out.** *"I judged the review unnecessary"*, *"the diff
-looked small to me"*, *"there was nothing a reviewer would have caught"* are the executor
-deciding on the user's behalf and then recording the decision as though the user had made
-it. That is the same substitution the executor trailer exists to expose (Step 3.3 rule 7),
-one axis over. A skip reported without a quote or a cited annotation is an **unevidenced
-skip**: it reads downstream as a review that did not happen, because that is what it is.
-The point is not to make opting out hard — it is to keep the legitimate path open and
-auditable, so that "the user asked me to skip this" and "I decided to skip this" stop
-producing the same record.
+looked small"* are the executor deciding on the user's behalf and recording it as though the
+user had. A skip reported without a quote or a cited snapshot is an **unevidenced skip**: it
+reads downstream as a review that did not happen, because that is what it is.
+
+Why the snapshot rather than the task line is the evidence, and the full tier table:
+`${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/references/review-scope.md`.
