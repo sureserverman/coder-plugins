@@ -27,7 +27,7 @@ loop.
    examples or docs that could carry the same defect. **Derive it, in this order:**
 
    a. **The failing task's `Scope:` field**, if it declares one — that is what the
-      field is for (`../../planning-projects/SKILL.md` § Scope marking). It is a
+      field is for (`../../planning-projects/references/task-fields.md` § Scope marking). It is a
       starting point, not an authority: a `Scope:` is only as good as the sweep
       behind it, and a truncated authoring command is a documented way for one to
       arrive short.

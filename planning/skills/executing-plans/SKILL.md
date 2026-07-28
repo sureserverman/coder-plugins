@@ -47,7 +47,7 @@ one you need rather than working from memory:
 | `references/master-plans.md` | the plan file is a `*-master-plan.md` |
 | `references/light-plans.md` | the plan file is a `*-light-plan.md` |
 | `references/review-scope.md` | declaring the tier at Preflight, or resolving how format and tier compose — **the authority on both, and on the opt-out rules** |
-| `references/dispatch-fidelity.md` | the roster, probe or executor trailer needs justifying rather than just following |
+| `references/dispatch-fidelity.md` | the roster, probe or `Review: skip` snapshot needs justifying rather than just following |
 | `references/gate-failure-procedure.md` | a stage gate has failed |
 | `references/progress-state-file.md` | writing `.claude/plan-progress.json`, or wiring the statusline |
 | `references/sources.md` | citing why a rule here exists |
@@ -80,8 +80,9 @@ A `*-light-plan.md` (or `# Light Plan:` heading) is a single stage of 2–5 task
 gate. It deliberately has **no Research Summary, no Preflight section, and no Risk /
 Rollback / Blocks / Parallel fields** — do not reject it for those. Execute it through the
 normal flow with four deltas: Preflight is git-bootstrap plus a green baseline only; every
-task runs **inline** (no fan-out); **one** whole-diff review replaces per-task Tier-1; and
-close-out applies a single stated version bump.
+task runs **inline** (no fan-out); **one** whole-diff review replaces per-task Tier-1 — **that single pre-gate review IS the
+light plan's Tier-2, so do not also run a separate Step 3.5 Tier-2 pass**; and close-out
+applies a single stated version bump.
 
 Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
 Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.
@@ -388,7 +389,7 @@ When every task in the stage is green, run the stage gate:
 - **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
 - **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass (see Phase Close-out).
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while the Tier-2 review below is dispatched — the two are independent.
-- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory — `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) — and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A **Light plan** has no `Parallel` field and never fans out (§ Light plans, rule 2), so its single gate carries no dispatch line — the requirement is scoped to plans that can have a roster, not waived where one would be vacuous.
+- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory — `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) — and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A **Light plan** has no `Parallel` field and never fans out (§ Light plans — a Light plan never fans out), so its single gate carries no dispatch line — the requirement is scoped to plans that can have a roster, not waived where one would be vacuous.
 
   **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`.
 

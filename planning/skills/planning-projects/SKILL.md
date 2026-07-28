@@ -517,8 +517,8 @@ them at all — which is the class-predicate rule above.
 ## Phase 5 — Parallel Execution
 
 Mark a task `Parallel: YES` when its `Depends on` are satisfiable independently and it
-shares no file with a sibling. `Parallel: YES` is a directive to dispatch (§ Stage structure), so the plan owes accurate
-fields rather than a restatement of what they mean.
+shares no file with a sibling. What the plan owes the dispatch path is accurate `Depends on` / `Blocks` / `Parallel` fields
+and a file-conflict-free set — the fields' meaning is § Stage structure's to state.
 
 The dispatch procedure itself — how tasks are selected, briefed, routed to a stack-matched
 subagent, and integrated — belongs to `../dispatching-parallel-agents/SKILL.md` and

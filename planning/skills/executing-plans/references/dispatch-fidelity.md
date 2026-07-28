@@ -1,10 +1,11 @@
-# Dispatch fidelity — why the roster, the probe and the executor trailer exist
+# Dispatch fidelity — why the roster, the probe and the snapshot exist
 
 An inlined task and a dispatched one produce byte-identical artifacts: the same diff, the
 same `Status: [x]`, the same commit subject. So a run that ignores its `Parallel: YES`
 directives leaves nothing for a later reader to notice. Everything in this file exists to
 make that specific omission visible. `executing-plans` keeps the mechanics — the roster
-format, the probe, the snapshot, the trailer shapes; this is the reasoning behind them.
+format, the probe, the snapshot; this is the reasoning behind them. The executor trailer's
+rationale stays in the trunk beside the trailer shapes themselves (Step 3.3 rule 7).
 
 ### Dispatch roster and capability probe
 

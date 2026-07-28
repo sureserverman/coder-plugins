@@ -37,7 +37,7 @@ classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PR
 you present it:
 
 ```bash
-python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>
+python3 ../scripts/validate-gate-checks.py <plan>
 ```
 
 **A newly authored plan must come back clean** — zero INSTANCE-SHAPED. Existing plans predate
