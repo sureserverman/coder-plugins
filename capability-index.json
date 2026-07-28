@@ -11,7 +11,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when preparing an Android app for publication on F-Droid \u2014 scaffolding fastlane metadata, drafting the fdroiddata build recipe, and choosing the RFP or direct merge-request path. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fdroiddata YAML\", \"AllowedAPKSigningKeys\".",
+      "description": "Use when preparing an already-signed Android app for publication on F-Droid, or maintaining an existing F-Droid listing after a new release. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fdroiddata YAML\", \"AllowedAPKSigningKeys\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -41,7 +41,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when preparing an Android app for publication on Google Play \u2014 building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on \"publish to Google Play\", \"submit to play store\", \"Play Console setup\", \"Data safety form\".",
+      "description": "Use when preparing an already-signed Android app for publication on Google Play, or navigating Play Console setup, store listing, or policy forms for an existing listing. Trigger on \"publish to Google Play\", \"submit to play store\", \"Play Console setup\", \"Data safety form\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -51,7 +51,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when setting up Android release signing \u2014 creating an upload keystore, wiring keystore.properties, configuring signingConfigs.release in Gradle, or wiring a GitHub Actions release workflow. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
+      "description": "Use when an Android app needs a release signing setup \u2014 a build falling back to the debug key, or prep before publishing to F-Droid or Google Play. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -161,7 +161,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Compose a full, detailed business plan for ONE portfolio project \u2014 executive summary, market analysis, competitive landscape, financials, risks, milestones \u2014 into business/plan.md. Triggers on \"write a business plan\", \"full business plan for this\", \"business plan document\".",
+      "description": "Compose a full, detailed business plan for ONE portfolio project into business/plan.md. Triggers on \"write a business plan\", \"full business plan for this\", \"business plan document\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -281,7 +281,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Dispatches a Haiku subagent to draft and create it. Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -291,7 +291,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Dispatches a Haiku subagent to draft the PR and call it after confirmation. Does NOT trigger on its own \u2014 only on an explicit user request.",
+      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Does NOT trigger on its own \u2014 only on an explicit user request.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -381,7 +381,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when auditing a project for i18n readiness \u2014 detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
+      "description": "Use when auditing a project for i18n readiness. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -551,7 +551,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android UI, game design, i18n, testing, packaging). Finds it in capability-index.json and loads it from disk. Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
+      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -781,7 +781,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\". Opinionated: test pyramid, mutation-score-over-line-coverage, OWASP baseline.",
+      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\".",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "sonnet",
