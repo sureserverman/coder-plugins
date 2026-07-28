@@ -108,7 +108,7 @@ A scoped gate report always discloses what actually ran. Policy lives in `skills
 
 ### `applying-design-handoff`
 
-Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the spec bundle from claude.ai/design — tokens, components, layout, assets), reshaping functionality to fit the design where they conflict. Auto-detects the input (a local exported bundle or a live claude.ai design-system project via the `DesignSync` tool), inventories the app and its `workflow-spec` contracts, builds a design→app fidelity map, and writes a **reconciliation report** — the design wins, but every behavior change is declared via `workflow-spec` (`Changes`/`Removes WF-*`) and destructive changes require user sign-off. Implementation is cross-platform: it delegates to the matching `ui-*` agent for platform idiom and to the **`design-handoff-reproducer`** subagent for precise per-slice reproduction, then runs a fidelity verify loop (separate evaluator, rubric-graded, max 3 iterations). `executing-plans` drives it for a design-handoff/redesign task and fires the fidelity loop as a stage-gate hook.
+Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the spec bundle from claude.ai/design — tokens, components, layout, assets), reshaping functionality to fit the design where they conflict. Auto-detects the input (a local exported bundle or a live claude.ai design-system project via the `DesignSync` tool), inventories the app and its `workflow-spec` contracts, builds a design→app fidelity map, and writes a **reconciliation report** — the design wins, but every behavior change is declared via `workflow-spec` (`Changes`/`Removes WF-*`) and destructive changes require user sign-off. Implementation is cross-platform: it delegates to the **`design-handoff-reproducer`** subagent for precise per-slice reproduction, briefed with whatever stack skill the routing table names for the surface, then runs a fidelity verify loop (separate evaluator, rubric-graded, max 3 iterations). `executing-plans` drives it for a design-handoff/redesign task and fires the fidelity loop as a stage-gate hook.
 
 **Triggers:** "reproduce this design", "apply the handoff pack", "redesign to match the design", "implement the Claude Design spec".
 
@@ -118,7 +118,7 @@ Used by `executing-plans` (or directly) when a task is marked `Parallel YES` and
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 
-Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `ui-android`, `testing-expert`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
+Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `testing-expert`, `design-handoff-reproducer`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
 
 ### `honest-gates`
 
