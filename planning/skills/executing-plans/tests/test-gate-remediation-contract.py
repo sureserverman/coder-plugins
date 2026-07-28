@@ -266,7 +266,18 @@ def main():
     if not SKILL.is_file():
         print(f"FAIL: {SKILL} not found", file=sys.stderr)
         return 1
-    text = SKILL.read_text(encoding="utf-8")
+    # The skill is the trunk PLUS the reference files it loads on demand. When
+    # progressive disclosure moved Master plans, Light plans and the review/opt-out
+    # rules into references/, the rules did not go away — they moved, and these
+    # assertions exist to catch DELETION (see the module docstring), not relocation.
+    # Reading only SKILL.md would fail on a change that removed nothing, and would
+    # push authors to keep content in the trunk to satisfy the guard rather than
+    # because it belongs there.
+    refs = sorted((SKILL.parent / "references").glob("*.md"))
+    text = "\n\n".join(
+        [SKILL.read_text(encoding="utf-8")]
+        + [r.read_text(encoding="utf-8") for r in refs]
+    )
 
     gate_fail = section(text, r"\*\*If the gate fails", r"\*\*If the gate passes")
     check("gate-failure section present", bool(gate_fail),
