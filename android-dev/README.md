@@ -205,7 +205,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` fires for the module/dependency wiring; `android-ui-design-figma` drives the Compose screen against Material 3, then `android-ui-layout-patterns` informs the adaptive layout.
+`android-gradle-build` fires for the module/dependency wiring; the screen itself is authored against `android-ui-layout-patterns` for Compose spacing and Material 3 decision rules. For a full redesign rather than one screen, `android-ui-design-figma` runs the longer app-analysis → spec → apply workflow.
 
 ```text
 "verify this stage on device"

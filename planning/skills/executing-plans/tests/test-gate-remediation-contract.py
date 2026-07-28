@@ -266,13 +266,14 @@ def main():
     if not SKILL.is_file():
         print(f"FAIL: {SKILL} not found", file=sys.stderr)
         return 1
-    # The skill is the trunk PLUS the reference files it loads on demand. When
-    # progressive disclosure moved Master plans, Light plans and the review/opt-out
-    # rules into references/, the rules did not go away — they moved, and these
-    # assertions exist to catch DELETION (see the module docstring), not relocation.
-    # Reading only SKILL.md would fail on a change that removed nothing, and would
-    # push authors to keep content in the trunk to satisfy the guard rather than
-    # because it belongs there.
+    # The skill is the trunk PLUS any reference files it loads on demand. If
+    # progressive disclosure moves a rule out of SKILL.md into references/, the rule
+    # has not gone away — it has moved, and these assertions exist to catch DELETION
+    # (see the module docstring), not relocation. Reading only SKILL.md would fail on
+    # a change that removed nothing, and would push authors to keep content in the
+    # trunk to satisfy the guard rather than because it belongs there. As of this
+    # writing executing-plans/ has no references/ dir, so the glob is empty and this
+    # is forward-compatibility, not a description of the current tree.
     refs = sorted((SKILL.parent / "references").glob("*.md"))
     text = "\n\n".join(
         [SKILL.read_text(encoding="utf-8")]
