@@ -1,16 +1,6 @@
 {
   "components": [
     {
-      "description": "Use this agent to design, review, or facelift Android apps per Material 3 and Jetpack Compose \u2014 dynamic color, adaptive layouts, accessibility. Trigger phrases: \"design Android UI\", \"Material 3 facelift\", \"Compose screen\", \"WindowSizeClass\", \"predictive back\", \"edge-to-edge\", \"TalkBack audit\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-android",
-      "path": "android-dev/agents/ui-android.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Capture Play Store screenshots across all emulators (phone + tablets)",
       "disable_model_invocation": false,
       "kind": "command",
@@ -798,56 +788,6 @@
       "name": "testing-expert",
       "path": "testing/agents/testing-expert.md",
       "plugin": "testing",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift Garmin Connect IQ apps in Monkey C \u2014 watch faces, data fields, widgets, and device apps. Trigger phrases include \"design a watch face\", \"Connect IQ\", \"Monkey C UI\", or \"always-on AMOLED\". Opinionated: power budget and device-matrix design.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-garmin",
-      "path": "ui-design/agents/ui-garmin.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift GNOME/Ubuntu desktop apps (GTK4 + libadwaita). Trigger phrases include \"design GNOME app\", \"facelift GTK\", \"libadwaita migration\", or \"GNOME HIG review\". Opinionated: libadwaita over hand-rolled GTK, adaptive by default, HIG is the law.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-gnome",
-      "path": "ui-design/agents/ui-gnome.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift macOS apps per Apple HIG with SwiftUI/AppKit. Trigger phrases include \"design Mac app\", \"macOS HIG review\", \"SwiftUI facelift\", or \"AppKit modernize\". Opinionated: menu bar first, semantic colors, no iPad idioms on Mac, VoiceOver required.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-macos",
-      "path": "ui-design/agents/ui-macos.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift web UIs per WCAG 2.2 AA, WAI-ARIA APG, and Nielsen Norman heuristics. Trigger phrases include \"web UI facelift\", \"accessibility audit\", \"a11y review\", or \"WCAG compliance\". Opinionated: semantic HTML first, ARIA only when needed, mobile-first.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-web",
-      "path": "ui-design/agents/ui-web.md",
-      "plugin": "ui-design",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to design, review, or facelift Windows 10/11 desktop apps per Fluent 2 using WinUI 3, WPF, or WinForms. Trigger phrases include \"design Windows app\", \"Fluent 2 facelift\", or \"WinUI 3\". Opinionated: WinUI 3 first, theme resources always, Segoe Fluent Icons on Win11.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "ui-windows",
-      "path": "ui-design/agents/ui-windows.md",
-      "plugin": "ui-design",
       "requires_enablement": false
     }
   ],
