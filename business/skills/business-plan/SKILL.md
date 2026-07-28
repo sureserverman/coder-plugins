@@ -1,7 +1,7 @@
 ---
 name: business-plan
 description: >
-  Compose a full, detailed business plan for ONE portfolio project — executive summary, market analysis, competitive landscape, financials, risks, milestones — into business/plan.md. Triggers on "write a business plan", "full business plan for this", "business plan document".
+  Compose a full, detailed business plan for ONE portfolio project into business/plan.md. Triggers on "write a business plan", "full business plan for this", "business plan document".
 ---
 
 # business-plan — compose the full plan

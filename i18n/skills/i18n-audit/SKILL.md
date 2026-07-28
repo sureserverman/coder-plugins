@@ -1,6 +1,6 @@
 ---
 name: i18n-audit
-description: Use when auditing a project for i18n readiness — detecting the i18n framework in use, finding hardcoded strings, and diffing catalogs across locales for missing or stale keys. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings".
+description: Use when auditing a project for i18n readiness. Trigger on "audit i18n", "is this app translation-ready", "check translation coverage", "find hardcoded strings".
 ---
 
 # i18n Audit
