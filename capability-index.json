@@ -11,7 +11,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when preparing an already-signed Android app for publication on F-Droid, or maintaining an existing F-Droid listing after a new release. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fdroiddata YAML\", \"AllowedAPKSigningKeys\".",
+      "description": "Use when preparing an already-signed Android app for publication on F-Droid, scaffolding or repairing its fastlane metadata, or maintaining an existing listing after a new release. Trigger on \"publish to F-Droid\", \"submit to fdroid\", \"fastlane metadata\", \"fdroiddata YAML\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
@@ -51,7 +51,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when an Android app needs a release signing setup \u2014 a build falling back to the debug key, or prep before publishing to F-Droid or Google Play. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
+      "description": "Use when an Android app needs a release signing setup \u2014 a build falling back to the debug key, a release CI workflow failing because keystore secrets aren't wired, or prep before publishing. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
