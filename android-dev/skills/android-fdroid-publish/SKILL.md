@@ -1,6 +1,6 @@
 ---
 name: android-fdroid-publish
-description: Use when preparing an Android app for publication on F-Droid — scaffolding fastlane metadata, drafting the fdroiddata build recipe, and choosing the RFP or direct merge-request path. Trigger on "publish to F-Droid", "submit to fdroid", "fdroiddata YAML", "AllowedAPKSigningKeys".
+description: Use when preparing an already-signed Android app for publication on F-Droid, or maintaining an existing F-Droid listing after a new release. Trigger on "publish to F-Droid", "submit to fdroid", "fdroiddata YAML", "AllowedAPKSigningKeys".
 ---
 
 # Android F-Droid Publish

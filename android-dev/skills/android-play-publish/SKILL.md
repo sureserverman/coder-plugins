@@ -1,6 +1,6 @@
 ---
 name: android-play-publish
-description: Use when preparing an Android app for publication on Google Play — building a release AAB, creating the app in Play Console, and completing store listing and Data safety requirements. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "Data safety form".
+description: Use when preparing an already-signed Android app for publication on Google Play, or navigating Play Console setup, store listing, or policy forms for an existing listing. Trigger on "publish to Google Play", "submit to play store", "Play Console setup", "Data safety form".
 ---
 
 # Android Google Play Publish
