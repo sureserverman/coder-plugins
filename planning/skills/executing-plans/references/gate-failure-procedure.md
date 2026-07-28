@@ -27,7 +27,7 @@ loop.
    examples or docs that could carry the same defect. **Derive it, in this order:**
 
    a. **The failing task's `Scope:` field**, if it declares one — that is what the
-      field is for (`../planning-projects/SKILL.md` § Scope marking). It is a
+      field is for (`../../planning-projects/SKILL.md` § Scope marking). It is a
       starting point, not an authority: a `Scope:` is only as good as the sweep
       behind it, and a truncated authoring command is a documented way for one to
       arrive short.
@@ -46,7 +46,7 @@ loop.
    N rounds.
 3. **Add a test covering that interaction** to the relevant task. Where the finding
    is set-valued, that test is the **sweep over the set derived in step 2** (the
-   class-predicate rule in `../planning-projects/SKILL.md`), not a check on the
+   class-predicate rule in `../../planning-projects/SKILL.md`), not a check on the
    single file that failed — an instance-shaped check cannot fail on the siblings
    that make the class. Fix **every member the sweep returns in this round**, not
    just the one the gate happened to report: a class repaired one instance per round

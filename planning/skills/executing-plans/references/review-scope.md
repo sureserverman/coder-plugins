@@ -7,7 +7,7 @@ restates it in every gate report.
 ### Review scope — the machinery scales to the change
 
 Declare this at Preflight, next to the test-scope commands, and state it in every gate
-report. Test scope is already tiered (`../planning-projects/references/test-scope-tiers.md`)
+report. Test scope is already tiered (`../../planning-projects/references/test-scope-tiers.md`)
 so a gate does not run the full suite to prove a one-line fix. **Review scope is the same
 idea applied to the review machinery**, which until now ran at one weight regardless of what
 it was reviewing.

@@ -15,7 +15,7 @@ auto-skips genuinely non-code diffs (docs-only, config-only, pure version bumps)
 any annotation, so the field is not needed for that case — its only job is to record a
 *user's* decision. An executor that adds it mid-run is recording its own decision as the
 user's, which is why `executing-plans` snapshots these annotations at Preflight and honors
-only the ones present at the run's base commit (`../executing-plans/SKILL.md` § Dispatch
+only the ones present at the run's base commit (`../../executing-plans/SKILL.md` § Dispatch
 roster and capability probe, and § Review opt-out).
 
 Omit the field entirely on every task the user did not name. An absent field is the
@@ -52,12 +52,12 @@ So: run the sweep, and prefer a `Scope:` that names the **command** (`Scope: eve
 matching grep -rl 'X' src/ — 7 files at authoring time`) over one that names a
 hand-copied list. A count is useful precisely because it is falsifiable later.
 
-**There is an automated backstop.** `scripts/validate-gate-checks.py` reports a stage that
+**There is an automated backstop.** `../scripts/validate-gate-checks.py` reports a stage that
 declares a `Scope:` whose gate contains neither an executable sweep nor a `(judgment)`
 marker — the set named but not swept. It is advisory (it never changes an exit code), so
 treat it as a reminder, not a gate.
 
-**Masters carry no `Scope:`.** A master plan has no tasks (`references/master-plan-format.md`),
+**Masters carry no `Scope:`.** A master plan has no tasks (`master-plan-format.md`),
 so the field never appears there and its parser-safety invariant is untouched.
 
 ### Dependency marking

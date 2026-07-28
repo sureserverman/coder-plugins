@@ -709,8 +709,10 @@ what each one is load-bearing for: `references/sources.md`.
 
 **Review opt-out.** Both tiers are default-on. **Two reasons excuse a review, and the list
 is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A reviewer that
-cannot be dispatched is not a third — that is a Stop condition, on the same ground as an
-unrunnable test.
+cannot be dispatched is not a third: that is the **Stop condition for a mandated review**
+that cannot be run, on the same ground as an unrunnable test. An unrun review is not a
+passed review, and it leaves an artifact indistinguishable from a reviewed one — which is
+why the resolution is the user's to choose, not the executor's to assume.
 
 **An opt-out is evidenced, not asserted.** A trivial/non-code diff carries its own evidence,
 checkable against the diff. A user opt-out is a claim about something outside the artifact,
@@ -720,9 +722,10 @@ so recording it means **quoting the user's own words**, with where they were sai
 Review skipped — user opt-out, Preflight: "don't bother with the reviewer on this one"
 ```
 
-A `Review: skip` annotation counts **only when Preflight's snapshot lists it** — the executor
-writes to the plan file throughout the run, so an annotation read at skip time proves nothing
-about who put it there. Cite the snapshot line, not the task line.
+A `Review: skip` annotation **counts as an opt-out when Preflight's snapshot lists it** — the
+snapshot is what makes it evidence, because the executor writes to the plan file throughout the run, so an annotation
+read at skip time proves nothing about who put it there. An annotation missing from that
+snapshot is an executor-authored note. Cite the snapshot line, not the task line.
 
 **Executor judgment is not an opt-out.** *"I judged the review unnecessary"*, *"the diff
 looked small"* are the executor deciding on the user's behalf and recording it as though the

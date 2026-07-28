@@ -271,9 +271,9 @@ def main():
     # has not gone away — it has moved, and these assertions exist to catch DELETION
     # (see the module docstring), not relocation. Reading only SKILL.md would fail on
     # a change that removed nothing, and would push authors to keep content in the
-    # trunk to satisfy the guard rather than because it belongs there. As of this
-    # writing executing-plans/ has no references/ dir, so the glob is empty and this
-    # is forward-compatibility, not a description of the current tree.
+    # trunk to satisfy the guard rather than because it belongs there. Slices that must
+    # stay scoped to the trunk read SKILL.md directly rather than this concatenation —
+    # see review_optout below for why an unbounded end anchor is unsafe here.
     refs = sorted((SKILL.parent / "references").glob("*.md"))
     text = "\n\n".join(
         [SKILL.read_text(encoding="utf-8")]
@@ -646,11 +646,14 @@ def main():
     # rewrite (BL-031): naming the probe's agent type ("Dispatch one throwaway
     # `general-purpose` subagent") and widening the sweep's scope ("sweep **every task
     # in the plan, across all stages**") each broke a pin while strengthening the prose.
-    # Loosened to tolerate an inserted qualifier and the leading case, and no further —
-    # deleting either sentence still fails, which is what these assert.
+    # Loosened to tolerate an inserted qualifier and the leading case, and no further.
+    # The sweep pattern KEEPS a right boundary ([,*]): without it "sweep **every task in
+    # the plan's first stage**" would match, which is the very defect the rule forbids
+    # ("A roster covering only the first stage is not a roster") and which no other
+    # assertion pins. Deleting either sentence still fails, which is what these assert.
     check("Preflight probes dispatch and declares a roster",
           affirms_claim(roster, r"[Dd]ispatch one throwaway[^.]{0,40}subagent")
-          and affirms_claim(roster, r"[Ss]weep \*\*every task in the plan"),
+          and affirms_claim(roster, r"[Ss]weep \*\*every task in the plan[,*]"),
           "Preflight no longer probes dispatch or sweeps the plan for YES tasks, so an "
           "unavailable dispatch is discovered at close-out instead of before Stage 1")
     check("the probe is conditioned on a non-empty roster",
@@ -708,7 +711,13 @@ def main():
                     r"resolution", stops) is not None,
           "the Stop entry does not refuse the substitution, so it reads as advice")
 
-    review_optout = section(text, r"\*\*Review opt-out\.\*\*", r"\Z")
+    # Bound this to the TRUNK's own opt-out block. Reading trunk+references means a
+    # \Z end anchor runs past the end of SKILL.md and swallows every reference file —
+    # review-scope.md carries its own "**Review opt-out.**" heading and the pre-
+    # compression wording, so an unbounded slice would let these four assertions pass
+    # on the archived copy even if the trunk's block were deleted outright.
+    review_optout = section(SKILL.read_text(encoding="utf-8"),
+                            r"\*\*Review opt-out\.\*\*", r"\Z")
     check("review skips are closed to two reasons",
           affirms_claim(review_optout, r"the list is closed at two"),
           "the review opt-out no longer states its reasons as an exhaustive pair, so a "

@@ -156,7 +156,7 @@ flow.
 ## Keeping this table honest
 
 Every agent and skill named above must resolve to a built-in, a marketplace-shipped
-agent/skill, or an agent tagged `*(if installed)*`. `scripts/validate-stack-routing.py`
+agent/skill, or an agent tagged `*(if installed)*`. `../scripts/validate-stack-routing.py`
 checks this and fails on drift (renamed/removed agent, typo, undeclared external dep).
 It runs in CI (`.github/workflows/validate-stack-routing.yml`) on any edit to this
 file, the script, or any plugin agent/skill; run it locally with:

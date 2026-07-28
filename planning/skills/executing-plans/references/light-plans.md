@@ -3,7 +3,7 @@
 How `executing-plans` runs a `*-light-plan.md`. Format: `../../planning-projects/references/light-plan-format.md`.
 
 A **light plan** (`*-light-plan.md`, format:
-`../planning-projects/references/light-plan-format.md`) is a single stage of 2–5
+`../../planning-projects/references/light-plan-format.md`) is a single stage of 2–5
 Status-carrying tasks with one gate. Execute it through the normal single-plan flow
 below, with these deltas — the machinery **scales to the size of the job** rather than
 running at full weight:

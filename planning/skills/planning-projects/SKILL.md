@@ -342,7 +342,6 @@ Stage N: [Name]
     - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
 ```
 
-
 ### Status marking (per-task done-state)
 
 Every task carries a **Status** checkbox as its first field: `- **Status:** [ ]` when planned, flipped to `- **Status:** [x]` by `executing-plans` the moment the task's test goes green (and committed in the same commit). This is the **single source of truth for task completion** — it removes the ambiguity that arises when done-ness is inferred only from stage gates or git archaeology. A downstream tool (e.g. `portfolio unify`) can read `Status: [x]` vs `[ ]` to know exactly what was executed, with no guessing.
@@ -483,54 +482,20 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 
 ### Write a set-valued check as the sweep that proves it
 
-A check asserting a property of a **set** — "no file still claims X", "every example sets
-Y", "all callers handle Z" — is written as the **command that sweeps the set**, never as
-prose about one member of it:
+**A gate check over a set is an executable sweep, not a spot check** (DEC-005). A check that
+names one artifact where the goal is a property of many cannot fail on the siblings that make
+the defect class — they survive the gate, and each survivor costs another remediation round.
+So a check whose goal quantifies over a set is written as the command that sweeps it:
+`! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y".
 
-- **BAD** — `- [ ] the README no longer claims the stack is not project-agnostic`
-- **ALSO BAD** — `` - [ ] `grep -q 'not yet project-agnostic' <plugin>/README.md` exits 1 ``
-- **ALSO BAD** — `` - [ ] `grep -c 'x' <plugin>/README.md` = 1 and no stale claims remain`` — bolting plural-sounding prose onto a narrow command does not widen its scope; the sweep still never runs
-- **GOOD** — `` - [ ] `! grep -rl 'not yet project-agnostic' <plugin>/` `` — no file in the plugin still carries the claim
+A check that genuinely needs a reader carries the **(judgment)** marker and routes to the
+gate's evaluator — the sanctioned escape hatch, not a loophole.
 
-The first form is not merely vaguer. **An instance-shaped check cannot fail on the siblings
-that make the class**, so it passes while the other members of the defect class survive — and
-each survivor costs another remediation round at the gate. Naming one file where the goal is a
-property of many is how a single defect gets discovered three times.
+Verify before presenting: `python3 scripts/validate-gate-checks.py <plan>` (in this skill's
+directory). **A newly authored plan may not be presented while it reports INSTANCE-SHAPED.**
 
-The second form is the trap worth naming explicitly: **being a shell command is not the
-point — scope is.** A command that inspects exactly one path is every bit as instance-shaped
-as the prose, and it will pass a mechanical classifier that can only read syntax. Scope the
-command to the set (a directory, a glob, a file list you generate), not merely to something
-that looks executable.
-
-So when writing a gate check, ask what set the claim is really over. If the answer is more
-than one artifact, the check is a command **over that set**. If the claim genuinely needs a
-reader — "reads coherently", "the flow works end-to-end", a conformance judgment over a diff
-— mark it **`(judgment)`** and name why a sweep cannot prove it, so the executor routes it to
-the evaluator instead of trying to make prose executable. Those two shapes cover every
-legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
-
-This is enforced mechanically rather than left to discipline. `scripts/validate-gate-checks.py`
-classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PROSE, and
-`executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before
-you present it:
-
-```bash
-python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.py <plan>
-```
-
-**A newly authored plan must come back clean** — zero INSTANCE-SHAPED. Existing plans predate
-the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
-deliberate, because a check executors learn to route around protects nothing.
-
-Be honest about where the "mandatory" half lives: it is **this checklist**, and nothing else.
-No plan-file marker records that a plan was validated, so `executing-plans` cannot tell a
-post-rule plan that skipped the check from a legacy one — it reports either identically. A plan
-authored outside this skill, or hand-edited after authoring, reaches execution unenforced. If
-that becomes a real leak, the fix is a marker the authoring check writes and the executor looks
-for; today it is discipline with a mechanical *reporter*, not a mechanical *gate*. Calibrated
-against 374 real gate checks across 41 plans; its known limits, including the one escape hatch
-left open, are stated in the script's own docstring.
+Worked examples, the predicate-vs-instance test, and the validator's classification rules:
+`references/set-valued-checks.md`.
 
 ### When a stage gate fails
 
@@ -552,9 +517,8 @@ them at all — which is the class-predicate rule above.
 ## Phase 5 — Parallel Execution
 
 Mark a task `Parallel: YES` when its `Depends on` are satisfiable independently and it
-shares no file with a sibling. **The field is a directive to dispatch, not a note about
-concurrency** — a single ready task is dispatched too; "simultaneously" describes the
-schedule when there are several, not a precondition for dispatching any.
+shares no file with a sibling. `Parallel: YES` is a directive to dispatch (§ Stage structure), so the plan owes accurate
+fields rather than a restatement of what they mean.
 
 The dispatch procedure itself — how tasks are selected, briefed, routed to a stack-matched
 subagent, and integrated — belongs to `../dispatching-parallel-agents/SKILL.md` and
@@ -611,22 +575,3 @@ apply:
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
-
----
-### Write a set-valued check as the sweep that proves it
-
-**A gate check over a set is an executable sweep, not a spot check** (DEC-005). A check that
-names one artifact where the goal is a property of many cannot fail on the siblings that make
-the defect class — they survive the gate, and each survivor costs another remediation round.
-So a check whose goal quantifies over a set is written as the command that sweeps that set:
-`! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y".
-
-A check that genuinely needs a reader carries the **(judgment)** marker and routes to the
-gate's evaluator — the sanctioned escape hatch, not a loophole.
-
-Verify before presenting the plan:
-`python3 {plugin}/skills/planning-projects/scripts/validate-gate-checks.py <plan>` —
-**a newly authored plan may not be presented while it reports INSTANCE-SHAPED.**
-
-Worked examples, the predicate-vs-instance test, and the validator's classification rules:
-`references/set-valued-checks.md`.

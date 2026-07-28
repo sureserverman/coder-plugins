@@ -1,7 +1,7 @@
 # Progress state file (live statusline bar)
 
 Mirror execution state to `<repo-root>/.claude/plan-progress.json` so the
-shipped statusline renderer (`scripts/plan-progress.py`) can draw a live
+shipped statusline renderer (`../scripts/plan-progress.py`) can draw a live
 progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). Maintain the
 file on every run — it is cheap, and the renderer simply never fires for
 users who haven't wired it.

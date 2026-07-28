@@ -31,7 +31,7 @@ reader — "reads coherently", "the flow works end-to-end", a conformance judgme
 the evaluator instead of trying to make prose executable. Those two shapes cover every
 legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
 
-This is enforced mechanically rather than left to discipline. `scripts/validate-gate-checks.py`
+This is enforced mechanically rather than left to discipline. `../scripts/validate-gate-checks.py`
 classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PROSE, and
 `executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before
 you present it:

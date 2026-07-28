@@ -9,7 +9,7 @@ format, the probe, the snapshot, the trailer shapes; this is the reasoning behin
 ### Dispatch roster and capability probe
 
 A `Parallel: YES` task is a directive to dispatch, not a note about concurrency
-(`../planning-projects/SKILL.md` § Stage structure) — and an inlined task and a
+(`../../planning-projects/SKILL.md` § Stage structure) — and an inlined task and a
 dispatched one produce byte-identical artifacts. So a run that ignores the field leaves
 no trace in the diff, the commits, or the gate: there is nothing for a later reader to
 notice. The omission becomes visible only if the run wrote down what it was going to do
@@ -19,7 +19,7 @@ hard stop.
 1. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
    list in the Preflight report each task whose `Parallel:` field reads `YES`, with the
    `subagent_type` it routes to per
-   `../dispatching-parallel-agents/references/stack-routing.md`:
+   `../../dispatching-parallel-agents/references/stack-routing.md`:
 
    ```
    Dispatch roster (Parallel: YES) — <n> of <total> tasks
