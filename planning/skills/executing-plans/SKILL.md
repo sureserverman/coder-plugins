@@ -499,6 +499,32 @@ is not dropping: an unfixed Important leaves the gate as a backlog ID, never as 
 Important-only result is a **pass with an obligation** — if nothing was recorded and the user
 was not told, the gate has not passed yet.
 
+**"Fixed or recorded" is not a free choice — the finding's kind decides which.**
+
+| Kind of finding | Disposition |
+|---|---|
+| **A defect in code this plan touched** | **Fix it.** The context is already loaded; this is the cheapest it will ever be. |
+| **A decision** — new capability, a change needing sign-off, a trade-off with no obviously right answer | **Record it.** It is the user's call, not the executor's. |
+| **A defect outside the plan's blast radius** | Record it, and say why it was out of reach. |
+
+The asymmetry this closes: recording is frictionless and always available, while fixing risks
+the gate you are trying to pass. So an executor under gate pressure drifts toward the backlog
+for *everything*, and each deferral reads as scope discipline rather than as the avoidance it
+is. A backlog that grows by half a dozen entries per plan is the symptom, not a sign of
+thoroughness.
+
+**A plan's scope guardrails bound that plan's subject matter. They are not a licence to defer
+unrelated defects.** A guardrail like *"change only the values, never which fields are
+written"* governs exactly that axis. An overflow, a crash, a parser that rejects valid input,
+a false claim in a doc comment — none of those are the axis the guardrail names, so it does
+not authorise deferring them. Read a guardrail for what it actually constrains, and be
+suspicious when your reading of one turns out to be the reading that avoids work: **a defect
+found in a file you are already editing is in scope by default.** A plan that genuinely means
+"report defects, do not fix them" has to say that about *defects*, not about coverage.
+
+One question settles most cases: *would fixing this change what the gate measures?* If not,
+fixing it is not scope creep, and the guardrail is not about it.
+
 **If the gate fails:** treat it as a **defect class sampled once**, not a point defect.
 Detection at a gate is goal-scoped while repair defaults to instance-scoped, so a class with
 N instances costs about N rounds, each looking like fresh news.
