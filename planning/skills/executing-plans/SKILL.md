@@ -332,17 +332,20 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 If you genuinely need a `Parallel: YES` task inline, that is a deviation: run it, say so in
 the gate report's dispatch line with a reason, and let the trailer record `Executor: inline`.
 
-**Delegate sequential tasks for context hygiene.** A `Parallel: NO` task defaults to the main
-session, but when it is **independent**, **output-heavy** (builds, broad greps, long test
-logs) and not latency-critical, hand it to one stack-matched subagent instead. This keeps the
-orchestrator's window on plan state rather than churn it will never reference again — it is
-context hygiene, **not** a token saving, since the subagent's tokens still burn. Brief it
-with the decisions bearing on the task and **require the same executor trailer**
-(`Executor: dispatched — <type>`): this path doesn't go through `dispatching-parallel-agents`,
-so nothing else asks for it, and the task would otherwise land indistinguishable from one the
-orchestrator ran. Keep a task inline when it is coupled to session context, needs
-back-and-forth, or is a quick targeted edit. Pick the type and its stack skill from
-`../dispatching-parallel-agents/references/stack-routing.md`.
+**A `Parallel: NO` task runs in the main session.** The plan's `Parallel` field is the whole
+decision: `YES` obligates a dispatch, `NO` means inline. There is no executor discretion to
+hand a sequential task to a subagent anyway.
+
+This retires a "delegate output-heavy sequential tasks for context hygiene" nudge that stood
+here through 0.36.0. It was optional, discretionary, and conceded in its own text that it
+saved no tokens — the subagent's burn simply moved. What it actually produced was a third
+execution mode nobody could predict from the plan, since a reader of `Parallel: NO` could not
+tell whether a task would run inline or dispatched, and the choice turned on the executor's
+judgment about its own context window. A plan that wants a task dispatched says `Parallel:
+YES` and gets the roster, the reconciliation and the file-conflict rules with it. **If an
+inline task really would flood the orchestrator's context, that is a planning bug** — mark it
+`Parallel: YES` in `planning-projects` and it becomes a visible, reconciled dispatch instead
+of an invisible one.
 
 **If the matched capability's plugin isn't enabled**, don't fall through to `general-purpose`
 with no domain knowledge — resolve it from disk per that same reference's § *Resolving a
@@ -721,6 +724,19 @@ When every stage is green:
 
 1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
+
+2a. **The tier's Tier-2 pass, if it lands here rather than at a gate.** At `light` the deep
+   review is **one `git-github:code-reviewer` (read-only) pass over the whole plan diff**
+   (`<plan-base>..HEAD`), and this is where it runs — the stage gates deliberately ran none.
+   At `standard` and `high` the Tier-2 passes already ran per stage gate, so nothing is owed
+   here except `high`'s second independent pass. At `none`, nothing. Handle the verdict by the
+   same rules a gate uses: a **Critical blocks the merge** (fix, re-run at fix-scope,
+   re-dispatch — and that re-dispatch counts a remediation round), and every **Important**
+   leaves close-out fixed or recorded to the `backlog` per the exit criterion. Report it in
+   the close-out list with the agent and the diff range, exactly as a gate report would.
+   This step exists because `light`'s single review is the whole plan's only white-box pass;
+   a close-out that forgot it would ship a tier that reads as reviewed and was not.
+
 3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
 4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
    Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
@@ -793,7 +809,7 @@ what each one is load-bearing for: `references/sources.md`.
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
-- **dispatching-parallel-agents** — invoked for every `Parallel: YES` task; a file conflict serializes the dispatches rather than cancelling one (Step 3.2). Its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `testing-expert`) instead of running them inline
+- **dispatching-parallel-agents** — invoked for every `Parallel: YES` task; a file conflict serializes the dispatches rather than cancelling one (Step 3.2). Its `references/stack-routing.md` is the shared table that routes each `Parallel: YES` task to a stack-matched subagent (e.g. `rust-expert`, `testing-expert`). It routes nothing else: a `Parallel: NO` task runs inline, and Step 3.2's old rule sending independent, output-heavy sequential tasks to a subagent is retired
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at the **final** stage gate and close-out (a contradiction without a `Supersedes` citation is a gate failure wherever it is found — what is scoped to the final gate is the *sweep*, not the rule), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge

@@ -67,10 +67,9 @@ at every tier including `none`. The distinction is cost: **a *verification* mand
 an agent dispatch is tiered; one that costs a line of text is not.**
 
 "Verification" is load-bearing in that sentence. The run's **execution** dispatches — the
-rostered `Parallel: YES` tasks, and the context-hygiene delegation of an output-heavy
-sequential task — also cost an agent, and are deliberately **not** tiered: they are how the
-work gets done, not how it gets checked, and a `light` run dispatches them exactly as a
-`standard` one does. Tiering those would not reduce the cost of verification, it would
+rostered `Parallel: YES` tasks — also cost an agent, and are deliberately **not** tiered:
+they are how the work gets done, not how it gets checked, and a `light` run dispatches them
+exactly as a `standard` one does. Tiering those would not reduce the cost of verification, it would
 reduce the plan.
 
 **The tier is declared, not assumed.** Write it in the Preflight report
