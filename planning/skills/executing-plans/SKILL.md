@@ -619,6 +619,17 @@ and report the count; an uncounted loop is how a gate reaches its fourth round w
 noticing the third. On exhaustion, escalate with the residual list — a documented Stop
 condition, not a licence to keep looping.
 
+**A re-dispatched review or evaluator is a round.** Fixing a finding and asking the same
+reviewer again is the loop the budget exists to bound, so it is counted like any other round
+rather than treated as verification of a round already spent. Without this the gate has two
+counters and only one limit: repairs are bounded at 2, while fix → re-review → new findings →
+fix can run indefinitely because each pass is "just confirming the fix". The failure mode is
+not hypothetical — a fresh judgment agent reading a real artifact essentially always returns
+*something*, so a loop that re-dispatches until the reviewer goes quiet has no reachable exit.
+The exit is the **exit criterion** (no Critical remains, every Important fixed or recorded),
+evaluated after each round; the budget is what stops the loop when that criterion is not
+converging.
+
 The full procedure — how to derive the set, when the task's `Scope:` field is the authority
 and when it is wrong, and what each severity obliges: `references/gate-failure-procedure.md`.
 
