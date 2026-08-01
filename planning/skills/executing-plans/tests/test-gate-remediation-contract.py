@@ -563,6 +563,36 @@ def main():
                   f"tier — the summary table can say the tier gates it while this site "
                   f"runs it unconditionally, which is the 0.37.0 defect class")
 
+    # 9c — (0.37.0) the three rules that made the defaults lean. Check 9b asserts each
+    # dispatch site MENTIONS a tier, which is deliberately weak — it catches a mandate
+    # nobody tiered. It does NOT catch a rule reverting to the unconditional default while
+    # still naming the tier, which is how these three would actually erode. A gate
+    # evaluator mutation-tested all three against 9b alone and found every one reverts
+    # green, so each gets its own claim-level anchor here.
+    check("Tier-1 is scoped to high and Review: required",
+          affirms_claim(text,
+                        r"there is no per-task review|"
+                        r"Tier 1\)[^.]{0,60}`high` tier and `Review: required` tasks only"),
+          "Step 3.3 rule 6 no longer scopes the per-task review to `high` and "
+          "`Review: required` — per-task review has reverted to a default")
+    check("a re-dispatched review counts against the remediation budget",
+          affirms_claim(text, r"re-dispatched review or evaluator is a round"),
+          "the fix -> re-review loop is unbounded again: the budget counts repairs but "
+          "not re-dispatches, so a gate can loop until the reviewer goes quiet — which "
+          "is not a reachable state")
+    # Negative assertion, so affirms_claim is wrong here (its negation screen would
+    # reject the very absence being asserted). A literal-absence sweep is the honest
+    # shape: the retired nudge is gone from every .md under planning/, or it is not.
+    revived = []
+    for path in sorted(SKILLS_ROOT.parent.rglob("*.md")):
+        if "Delegate sequential tasks for context hygiene" in path.read_text(
+                encoding="utf-8", errors="replace"):
+            revived.append(str(path.relative_to(SKILLS_ROOT.parent.parent)))
+    check("the discretionary sequential-delegation nudge stays retired",
+          not revived,
+          "a `Parallel: NO` task may again be delegated at the executor's discretion, "
+          f"reintroducing a third execution mode no plan reader can predict: {revived}")
+
     # 10 — (Task 2.3 / P7) the behavioral-claim rule and its wiring, as a SET of sites.
     hg = SKILLS_ROOT / "honest-gates" / "SKILL.md"
     check("honest-gates present", hg.is_file(), f"{hg} not found")

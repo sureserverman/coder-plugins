@@ -58,7 +58,11 @@ loop.
    from scratch.
 
 **Remediation budget — default 2 rounds per gate.** One round is classify →
-repair → re-verify. It is a default, and a plan may override it by stating a
+repair → re-verify — and **a re-dispatched review or evaluator is itself a round**
+(trunk, § Remediation budget), never a free confirmation of a round already spent.
+Without that, a gate has two counters and one limit: repairs bounded at 2, while
+fix → re-review → new findings → fix runs until the reviewer goes quiet, which for a
+fresh judgment agent is not a reachable state. It is a default, and a plan may override it by stating a
 different number of remediation rounds on the stage; **count the rounds and report
 the count** in the gate report ("gate green — remediation round 2 of 2"). An
 uncounted loop is how a gate reaches its fourth round with nobody noticing the

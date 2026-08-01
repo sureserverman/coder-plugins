@@ -37,7 +37,8 @@ hard stop.
    roster buys is contradiction: a run whose Preflight declared five dispatches and whose
    execution shows none now disagrees with a written list instead of disappearing.
 
-2. **Probe the capability — only if the roster is non-empty.** Dispatch one throwaway
+2. **Probe the capability — only if the roster is non-empty and the declared tier is
+   `standard` or `high`.** Dispatch one throwaway
    subagent — `general-purpose`, whose entire task is to reply with a fixed string
    (`DISPATCH-OK`) — and confirm the string came back. One trivial dispatch proves the
    mechanism works in *this* session, while the finding can still change what happens
@@ -50,6 +51,15 @@ hard stop.
    — empty roster` and move on. This is also why the failure rule below is conditioned on
    a non-empty roster; ordering the steps the other way made that condition read as an
    afterthought.
+
+   **The tier is the second conjunct**, and it works the same way: the probe also runs
+   only when the declared tier is `standard` or `high` (§ Review scope, which is the rule
+   — this file is its rationale). At `none` and `light` nothing is dispatched but the
+   rostered tasks themselves, and the first of those delivers the same news almost as
+   early, so the probe is buying a shorter warning than it costs. Record `probe: skipped
+   — tier <name>`. The accepted cost, stated because it is real: a `light` run with a
+   non-empty roster learns about a dead dispatch path one task later than a `standard`
+   run would.
 
 3. **Snapshot the `Review: skip` annotations.** In the same sweep, list every task
    already carrying `Review: skip`, and record it in the Preflight report against the

@@ -173,9 +173,9 @@ Run every check in the Preflight section and report pass/fail:
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
-- **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
+- **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
 
 ### Decisions re-check (the plan's snapshot can be stale)
 
@@ -325,7 +325,7 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 
 - Tasks with `Parallel: YES` and no file conflicts with another ready task → hand to `dispatching-parallel-agents`, concurrently
 - Tasks with `Parallel: YES` that modify files another ready task modifies → still dispatched, one after another (see the file-conflict check)
-- Tasks with `Parallel: NO` → work in the main session, unless the delegation rule below applies
+- Tasks with `Parallel: NO` → work in the main session, always (see below — there is no discretionary delegation)
 
 **File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, **serialize the dispatches — do not inline either one.** A file conflict is a fact about *scheduling*: it says these two cannot run at the same moment, which is a different claim from "this task need not go to a subagent". `Parallel: YES` is a delegation directive (`../planning-projects/SKILL.md` § Stage structure), and nothing about a sibling touching the same file withdraws it. So the conflicting task is dispatched on its own once the first returns, and its commit carries `Executor: dispatched — <type>` like any other.
 
@@ -748,7 +748,19 @@ When every stage is green:
    genuinely ambiguous, state your call and let the user override — don't silently skip.
 5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits: <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]` task was not executed — either finish it or note it as deferred). The close-out line + all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list. Reference each removed ID in the close-out commit message.
-7. **Reconcile the decisions register**, in both directions:
+6a. **Run the decisions-conformance check over the plan's whole diff.** This is the second
+   of its two runs (the other is the final stage gate, Step 3.5) and it is a **close-out
+   criterion, not a formality**: a contradiction found here without a `Supersedes` citation
+   blocks the merge exactly as it fails a gate (DEC-003), with the same two legal
+   resolutions — re-scope the change, or record a deliberate supersede and cite it. It runs
+   here rather than only at the gate because close-out itself lands commits the final gate
+   never saw: version bumps, the `**Completed:**` line, backlog and register reconciliation.
+   State which IDs were checked against which parts of the diff rather than asserting
+   blanket conformance. Skip only when the diff is genuinely non-code and no decision in
+   force bears on documentation.
+
+7. **Reconcile the decisions register**, in both directions — this is the *recording* half
+   and does not substitute for the sweep above:
    - **Supersedes citations → record them.** For each `Supersedes DEC-NNN` on a task, call
      `decisions supersede`. Until this runs the register still asserts a constraint the code
      no longer honors, and the *next* plan will be written against it.
