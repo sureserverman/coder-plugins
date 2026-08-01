@@ -10,7 +10,7 @@ Declare this at Preflight, next to the test-scope commands, and state it in ever
 report. Test scope is already tiered (`../../planning-projects/references/test-scope-tiers.md`)
 so a gate does not run the full suite to prove a one-line fix. **Review scope is the same
 idea applied to the verification machinery**, which until 0.33.0 ran at one weight regardless
-of what it was reviewing — and which, until 0.37.0, this table only half-corrected, because
+of what it was reviewing — and which this table, in its first version, only half-corrected, because
 it gated the two review passes and left the probe, the evaluator and the conformance check
 running unconditionally underneath.
 
@@ -63,8 +63,15 @@ complete is the one over the finished diff.
 What the tier does **not** gate — because each costs a line of text and its absence is
 invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
 reconciliation, honest-gates disclosure, and the plan's own tests and gate checks. Those run
-at every tier including `none`. The distinction is cost: **a mandate that costs an agent
-dispatch is tiered; a mandate that costs a line of text is not.**
+at every tier including `none`. The distinction is cost: **a *verification* mandate that costs
+an agent dispatch is tiered; one that costs a line of text is not.**
+
+"Verification" is load-bearing in that sentence. The run's **execution** dispatches — the
+rostered `Parallel: YES` tasks, and the context-hygiene delegation of an output-heavy
+sequential task — also cost an agent, and are deliberately **not** tiered: they are how the
+work gets done, not how it gets checked, and a `light` run dispatches them exactly as a
+`standard` one does. Tiering those would not reduce the cost of verification, it would
+reduce the plan.
 
 **The tier is declared, not assumed.** Write it in the Preflight report
 (`review-scope: light — prose edits to 3 skill files`) and repeat it in each gate report.
@@ -155,7 +162,12 @@ protection, which is the asymmetry the risk floor replaces.
 
 Master plans declare a tier **per sub-plan**, from that sub-plan's own diff — sub-plans are
 independently executable, so a `high` sub-plan must not be diluted by a cheap sibling, and a
-cheap sibling must not inherit the `high` one's cost.
+cheap sibling must not inherit the `high` one's cost. **The master's own close-out takes the
+highest tier any sub-plan declared**, since per-sub-plan tiers leave the master itself
+ungoverned and its close-out is the only pass that sees the integrated result — a `high`
+sub-plan's risk does not stop being the master's because a cheap sibling landed after it.
+(`references/master-plans.md` applies this at step 5; the rule is stated here because this
+file is the authority on tier selection.)
 
 **Why this is written down at all.** Before it existed, the two axes were each internally
 consistent and silent about the other, so an executor meeting a Light plan that declared

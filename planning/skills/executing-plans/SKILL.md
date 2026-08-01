@@ -80,9 +80,12 @@ A `*-light-plan.md` (or `# Light Plan:` heading) is a single stage of 2–5 task
 gate. It deliberately has **no Research Summary, no Preflight section, and no Risk /
 Rollback / Blocks / Parallel fields** — do not reject it for those. Execute it through the
 normal flow with four deltas: Preflight is git-bootstrap plus a green baseline only; every
-task runs **inline** (no fan-out); **one** whole-diff review replaces per-task Tier-1 — **that single pre-gate review IS the
-light plan's Tier-2, so do not also run a separate Step 3.5 Tier-2 pass**; and close-out
-applies a single stated version bump.
+task runs **inline** (no fan-out); the format sets a **whole-diff** review shape in place of
+per-task passes — **that single pre-gate review IS the light plan's Tier-2, so do not also
+run a separate Step 3.5 Tier-2 pass**; and close-out applies a single stated version bump.
+**How many passes actually run is the declared tier's call, not the format's** (§ Review
+scope): `none` runs none, `light` and `standard` run that one, `high` adds a second pass and
+per-task Tier-1 even here.
 
 Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
 Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.
@@ -280,9 +283,9 @@ declaration is what makes the choice reviewable**.
 | Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
 | **none** | docs/config/version-bump/comment-only across the whole plan | skip | skip | skip | skip |
-| **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | one, over the whole plan diff before close-out | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
-| **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | per stage gate | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
-| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | per stage gate, plus a second independent pass | **always** | **always** |
+| **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff before close-out, whatever the format | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
+| **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | one per unit the format names — per stage gate for Standard/Master, once over the whole diff for Direct/Light | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
+| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, plus a second independent pass | **always** | **always** |
 
 Read it top-down — the first row the diff satisfies wins (`none` and `light` deliberately
 overlap), with the risk floor below overriding that order upward.
@@ -413,12 +416,12 @@ When every task in the stage is green, run the stage gate:
 - Run them in order; stop at the first failure
 - **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
 - **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass (see Phase Close-out).
-- A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while the Tier-2 review below is dispatched — the two are independent.
+- A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`." An expensive stage-scope suite may run in the background while a Tier-2 review, where the tier calls for one, is dispatched — the two are independent.
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory — `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) — and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A **Light plan** has no `Parallel` field and never fans out (§ Light plans — a Light plan never fans out), so its single gate carries no dispatch line — the requirement is scoped to plans that can have a roster, not waived where one would be vacuous.
 
   **An empty trailer value is `unknown`, never `inline`.** Git drops a whole trailer block at a line it cannot parse, so a wrapped or malformed trailer returns blank with exit 0 — indistinguishable, to the query, from a task nobody dispatched. Counting blanks as inline invents a deviation; counting them as dispatched hides one. So resolve each blank against the commit body, count it as `unknown` if it says nothing either, and report the unknowns: `dispatch: 1 of 1 dispatched; 2 commits predate the trailer convention (resolved from their bodies)`.
 
-- **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for a tier that did not run, the evidenced opt-out (§ Review opt-out) or the trivial/non-code diff that excused it. One line per tier, resolving `<base>` the same way the dispatch line above does — the previous stage's `"Stage N green"` commit — and naming the agent by a type dispatch can actually take. `goal-evaluator` is a **role**, not a registered agent: no `agents/goal-evaluator.md` ships in this marketplace, so a report naming it records a dispatch nobody can reproduce. Write the type that ran, then the role:
+- **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (state the tier — this is a *scope* statement and needs no excuse), or, where the tier did mandate it, an evidenced opt-out (§ Review opt-out) or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. One line per tier, resolving `<base>` the same way the dispatch line above does — the previous stage's `"Stage N green"` commit — and naming the agent by a type dispatch can actually take. `goal-evaluator` is a **role**, not a registered agent: no `agents/goal-evaluator.md` ships in this marketplace, so a report naming it records a dispatch nobody can reproduce. Write the type that ran, then the role:
 
   ```
   review: Tier-2 git-github:code-reviewer over <base>..HEAD — APPROVE, 0 Critical
@@ -455,9 +458,17 @@ stage-verify hook: a green build is not a reproduced design.
 
 Its separate evaluator is a dispatch, so **whether it runs comes from § Review scope** like
 any other: never at `none`, at `light`/`standard` when the stage's fidelity is a `(judgment)`
-gate check, always at `high`. A stage reproducing a handoff pack is essentially always at
-least `standard`, so in practice the loop runs — the rule is stated so the hook is not the
-one dispatch mandate nobody tiered.
+gate check, always at `high`.
+
+**If the hook fires and the tier does not fund its evaluator, the hook does not run —
+and the gate report says so.** A fidelity loop with no independent grader is the executor
+grading its own reproduction, which is the one thing this hook exists to prevent, so running
+it ungraded is worse than not running it. Two ways out, both the plan's to choose ahead of
+time: mark the stage's fidelity check `(judgment)`, which funds the evaluator at `light` and
+`standard` and is the right answer whenever fidelity actually matters; or accept that the
+stage is verified by its ordinary gate checks alone and record `design-fidelity: not run —
+tier <name>, fidelity not marked (judgment)`. What you may not do is dispatch the loop and
+let the executor score it.
 
 **Independent evaluator for non-command checks.** **Whether it runs comes from § Review scope
 — do not re-derive it**: never at `none`, at `light` and `standard` when the gate carries a
@@ -723,7 +734,7 @@ When every stage is green:
    - Total commits
    - Version bumps applied (component → old → new)
    - Plan location for future reference
-   - Reviews that ran: each tier, the agent that ran it, and the diff range it saw — or, for a tier that did not run, the evidenced opt-out that excused it. Same requirement as the stage gate's, at plan scope: a close-out that says the work was reviewed without saying by what, over what, is the claim this list exists to stop being unfalsifiable.
+   - Reviews that ran: each tier, the agent that ran it, and the diff range it saw — or, for one that did not, the same three reasons the gate report uses: the declared tier did not mandate it (named as scope, not as an excuse), or an evidenced opt-out or trivial diff where it did. Same requirement as the stage gate's, at plan scope: a close-out that says the work was reviewed without saying by what, over what, is the claim this list exists to stop being unfalsifiable.
    - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)' <plan-base>..HEAD`) and state `dispatch: <n> of <total> rostered tasks dispatched`, naming every inlined `Parallel: YES` task with its reason. Per-stage gates each reconcile their own slice, so aggregate coverage holds **only if every stage gate ran and reported**. The roster is declared once for the whole plan; this is where it is answered.
    - Backlog items closed (by ID) and any new ones opened during execution
    - Decisions recorded or superseded during close-out (by ID)
@@ -772,7 +783,7 @@ what each one is load-bearing for: `references/sources.md`.
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at the **final** stage gate and close-out (a contradiction without a `Supersedes` citation is a gate failure wherever it is found — what is scoped to the final gate is the *sweep*, not the rule), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. **When it runs is the declared review scope's call** (§ Review scope): never at `none`, at `light`/`standard` wherever a gate carries a `(judgment)` check, always at `high` and at that tier's Phase Close-out. Where the tier mandates it, skip only on an evidenced user opt-out (quoted, per § Review opt-out) or — below `high` only — when every check is a command.
-- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** at `light` once over the whole plan diff, at `standard`/`high` per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
+- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** never at `none`, at `light` once over the whole plan diff whatever the format, and at `standard`/`high` once per unit the format names — per stage gate for a Standard or Master plan, once over the whole diff for a Direct or Light one (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
   reshapes functionality to fit (behavior changes gated through `workflow-spec` with
