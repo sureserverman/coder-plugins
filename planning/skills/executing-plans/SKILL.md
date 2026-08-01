@@ -265,19 +265,29 @@ plan's **cumulative diff**, not per task. This is the honest-gates disclosure ru
 review effort: downgrading silently and downgrading openly produce the same diff, so **the
 declaration is what makes the choice reviewable**.
 
-| Tier | When | Passes | Evaluator |
-|---|---|---|---|
-| **none** | docs/config/version-bump/comment-only across the whole plan | none | no |
-| **light** | prose or config edits, one file, or no new executable behavior | one | only if a gate check carries `(judgment)` |
-| **standard** | multi-file code with new behavior — the default when unsure | one, at the shape the format sets | yes, at any gate with a `(judgment)` check |
-| **high** | security-sensitive, data-destructive, public API, schema/migration, auth | that, plus a second independent pass | yes, always |
+| Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (per gate) | Evaluator |
+|---|---|---|---|---|
+| **none** | docs/config/version-bump/comment-only across the whole plan | skip | skip | skip |
+| **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | one, over the whole plan diff before close-out | only at a gate carrying `(judgment)` |
+| **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | per stage gate | only at a gate carrying `(judgment)` |
+| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | per stage gate, plus a second independent pass | **always** |
+
+**What the tier gates** is everything in the row — both review tiers, the gate evaluator, the
+close-out evaluator, the second pass. What it does **not** gate is the dispatch roster, the
+executor trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, and the
+plan's own tests and gate checks: those run at every tier including `none`. The line is cost —
+a mandate costing an agent dispatch is tiered, a mandate costing a line of text is not.
 
 **The format decides the review's SHAPE. The tier decides its DEPTH.** Direct and Light plans
-review the **whole plan diff once** before close-out; Standard and Master review **per task
-(Tier-1) and per stage gate (Tier-2)**. The two axes are independent, so resolve a
-disagreement by applying both — never by taking the lighter option. A Light plan touching an
-auth path is a small plan doing a dangerous thing: it gets whole-diff shape *and* `high`'s
-second pass and mandatory evaluator.
+review the **whole plan diff once** before close-out; Standard and Master review **per stage
+gate**, and per task only at `high`.
+
+**Resolve a disagreement by the risk floor** — not by taking the lighter option, and not by
+taking the heavier; both are instincts standing in for a rule. Touching a risk-listed area
+sets `high` whatever the size; **size alone never escalates**, so a large prose or
+mechanical-rename diff is a big `light` change rather than a `standard` one. A Light plan
+touching an auth path is a small plan doing a dangerous thing: whole-diff shape *and*
+`high`'s second pass and mandatory evaluator.
 
 A tier is a floor, not a ceiling: escalate mid-plan when the diff turns out riskier than it
 looked and say so in the gate report; never quietly de-escalate.

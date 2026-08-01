@@ -40,12 +40,14 @@ running at full weight:
    still gets the second independent pass; it just gets it over the whole diff.
 4. **The evaluator follows the tier, not the format.** Whether the independent
    goal-evaluator runs — at the gate (Step 3.5) and at close-out (Phase Close-out step 3) —
-   is decided by the review-scope table, not by this plan being Light: off at `none` and
-   `light`, on at `standard` wherever a gate check carries `(judgment)`, always on at
-   `high`. A Light plan's gate is usually all commands, which is why it *usually* runs no
+   is decided by the review-scope table, not by this plan being Light: off at `none`, on at
+   `light` and `standard` wherever a gate check carries `(judgment)`, always on at `high`.
+   A Light plan's gate is usually all commands, which is why it *usually* runs no
    evaluator — but that is a consequence of what its gate contains, not an exemption the
    format grants. A `(judgment)` check is a check that needs a reader; being in a small
-   plan does not make it need one less.
+   plan does not make it need one less. (This item previously read "off at `none` and
+   `light`", which contradicted the table it claims to defer to — the tier decides, and at
+   `light` the tier's answer has always been "only where a check carries `(judgment)`".)
 5. **Close-out is one stated bump.** Run the full suite one final time — unless the
    single gate's full-suite run was the last thing to execute with no commits landed
    after it, in which case that run counts as the close-out run (one full pass, not
