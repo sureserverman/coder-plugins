@@ -583,10 +583,14 @@ def main():
     # Negative assertion, so affirms_claim is wrong here (its negation screen would
     # reject the very absence being asserted). A literal-absence sweep is the honest
     # shape: the retired nudge is gone from every .md under planning/, or it is not.
+    # Assembled, not written literally — same reason as BANNED_PHRASE above. This file
+    # lives under planning/, which the final stage gate greps for the retired phrase, so
+    # a literal here turns that gate permanently red against its own guard.
+    retired_nudge = " ".join(
+        ("Delegate", "sequential", "tasks", "for", "context", "hygiene"))
     revived = []
     for path in sorted(SKILLS_ROOT.parent.rglob("*.md")):
-        if "Delegate sequential tasks for context hygiene" in path.read_text(
-                encoding="utf-8", errors="replace"):
+        if retired_nudge in path.read_text(encoding="utf-8", errors="replace"):
             revived.append(str(path.relative_to(SKILLS_ROOT.parent.parent)))
     check("the discretionary sequential-delegation nudge stays retired",
           not revived,
