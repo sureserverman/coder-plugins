@@ -16,9 +16,10 @@ running at full weight:
    order, through the normal Red-Green loop. A light plan has no `Parallel` field and no
    fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
    `Depends on`; honor it as ordering.)
-3. **One review, not per-task.** **Skip the Tier-1 per-task review** (unless the declared
-   tier is `high`, which runs Tier-1 per task in every format — see the note at the end of
-   this item). Instead, after the
+3. **One review, not per-task.** **Skip the Tier-1 per-task review** — unless the declared
+   tier is `high`, which runs Tier-1 per task in every format (see the note at the end of
+   this item), or a task carries `Review: required`, the per-task opt-in that buys one
+   task a review without raising the whole plan's tier. Instead, after the
    last task goes green and **before** the gate (this is a pre-gate check, not the gate
    itself — a light plan still has exactly one gate, its Stage 1 Gate), run **one**
    `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`

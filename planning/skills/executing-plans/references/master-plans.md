@@ -48,8 +48,8 @@ gate and surfaces only at the master close-out — the most expensive place to f
    sub-plan's close-out.
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
    the deferred version bumps once across everything the sub-plans touched (all mirrors),
-   run the full suite, run the independent evaluator pass against the *master's* overall
-   goal, then append to the master:
+   run the full suite, run the independent evaluator pass **that the master's tier calls
+   for** (below), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
 
    **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*

@@ -517,6 +517,52 @@ def main():
               f"renderer falls back to "
               f"{m_fallback.group(1) if m_fallback else '<not found>'}")
 
+    # 9b — (0.37.0) every agent-dispatching mandate defers to the declared review tier at
+    # the site that DISPATCHES it, not only in the summary table.
+    #
+    # Written as a set for the reason the rest of this file writes sets: this defect has
+    # now recurred twice in one stage. Round 1 fixed the five sites a `grep` for the old
+    # unconditional phrasings returned; the fix itself introduced two NEW mandates (the
+    # Preflight probe, the design-fidelity evaluator) stated in review-scope.md and wired
+    # nowhere — the same defect, one mandate over, invisible to the same grep because the
+    # new sites never carried the old phrasing. An instance sweep cannot catch that; a
+    # roster of sites can, because a mandate added later either joins the roster or is
+    # absent from it.
+    #
+    # MEASURED LIMIT, stated rather than implied (honest-gates; DEC-008's disclosure
+    # half): this asserts the site MENTIONS the tier, not that it defers correctly. A site
+    # saying "the tier is irrelevant here" would pass. It catches the failure that has
+    # actually happened twice — a dispatch mandate written with no tier term at all — and
+    # does not pretend to grade the wording. No negation screen is used for the same
+    # reason: there is no single claim clause to screen, only a topic that must be present.
+    tier_gated_dispatch_sites = [
+        ("Tier-1 per-task review",
+         section(text, r"6\. \*\*Quick review gate \(Tier 1\)", r"7\. \*\*Commit after each")),
+        ("Tier-2 deep review",
+         section(text, r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance check")),
+        ("gate evaluator",
+         section(text, r"\*\*Independent evaluator for non-command checks",
+                 r"\*\*Deep code review")),
+        ("close-out evaluator",
+         section(text, r"\*\*Independent evaluator pass", r"\n4\. \*\*Bump")),
+        ("Preflight dispatch probe",
+         section(text, r"2\. \*\*Probe the capability", r"3\. \*\*Snapshot the")),
+        ("design-fidelity verify hook",
+         section(text, r"\*\*Design-fidelity verify hook",
+                 r"\*\*Independent evaluator for non-command checks")),
+    ]
+    for label, block in tier_gated_dispatch_sites:
+        check(f"dispatch site present: {label}", bool(block),
+              f"could not locate the {label} block — if it moved, re-anchor it here; a "
+              f"site this suite cannot find is a site it is not guarding")
+        if block:
+            check(f"tier-gated at the dispatch site: {label}",
+                  re.search(r"§ Review scope|review scope|\btier\b", block, re.I)
+                  is not None,
+                  f"{label} dispatches an agent without referring to the declared review "
+                  f"tier — the summary table can say the tier gates it while this site "
+                  f"runs it unconditionally, which is the 0.37.0 defect class")
+
     # 10 — (Task 2.3 / P7) the behavioral-claim rule and its wiring, as a SET of sites.
     hg = SKILLS_ROOT / "honest-gates" / "SKILL.md"
     check("honest-gates present", hg.is_file(), f"{hg} not found")

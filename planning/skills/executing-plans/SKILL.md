@@ -170,7 +170,7 @@ Run every check in the Preflight section and report pass/fail:
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
-- **Dispatch works in this session** — probed, not assumed, and only when the roster is non-empty; see below
+- **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
 
@@ -235,9 +235,21 @@ record. Only an un-initializable repo (e.g. read-only filesystem) blocks here.
    result — write `0 tasks`, so the absence is recorded as observed rather than as never
    examined.
 
-2. **Probe the capability — only if the roster is non-empty.** Dispatch one throwaway
+2. **Probe the capability — only if the roster is non-empty and the tier is `standard` or
+   `high`** (§ Review scope gates this like any other dispatch). Dispatch one throwaway
    `general-purpose` subagent whose whole task is to reply `DISPATCH-OK`, and confirm it came
-   back. With an empty roster, record `probe: skipped — empty roster`.
+   back. Record the skip with its reason — `probe: skipped — empty roster`, or
+   `probe: skipped — tier light`.
+
+   **Why the tier and not just the roster.** A probe buys one thing: learning that dispatch
+   is unavailable *at Preflight*, while that finding can still change the plan, rather than
+   at Stage 3 after every decision it should have informed. That value scales with how much
+   the run depends on dispatch. At `none` and `light` no review or evaluator is dispatched by
+   default, so the only dispatches left are the rostered tasks themselves — and those fail
+   loudly at the first one, early, with the same information. The trade is deliberate: a
+   `light` run with a non-empty roster learns about a dead dispatch path one task later than
+   a `standard` run would. That is the cost, and it is the reason the condition is a
+   conjunction rather than a replacement.
 
 3. **Snapshot the `Review: skip` annotations** against the commit the run starts from:
 
@@ -265,12 +277,15 @@ plan's **cumulative diff**, not per task. This is the honest-gates disclosure ru
 review effort: downgrading silently and downgrading openly produce the same diff, so **the
 declaration is what makes the choice reviewable**.
 
-| Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (per gate) | Evaluator |
-|---|---|---|---|---|
-| **none** | docs/config/version-bump/comment-only across the whole plan | skip | skip | skip |
-| **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | one, over the whole plan diff before close-out | only at a gate carrying `(judgment)` |
-| **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | per stage gate | only at a gate carrying `(judgment)` |
-| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | per stage gate, plus a second independent pass | **always** |
+| Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (deep review) | Gate evaluator | Close-out evaluator |
+|---|---|---|---|---|---|
+| **none** | docs/config/version-bump/comment-only across the whole plan | skip | skip | skip | skip |
+| **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | one, over the whole plan diff before close-out | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
+| **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | per stage gate | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
+| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | per stage gate, plus a second independent pass | **always** | **always** |
+
+Read it top-down — the first row the diff satisfies wins (`none` and `light` deliberately
+overlap), with the risk floor below overriding that order upward.
 
 **What the tier gates** is everything in the row — both review tiers, the gate evaluator, the
 close-out evaluator, the second pass. What it does **not** gate is the dispatch roster, the
@@ -438,6 +453,12 @@ stage-verify hook proves a platform stage. A below-threshold verdict that doesn'
 recover within the loop is a gate failure. This is the design analogue of the
 stage-verify hook: a green build is not a reproduced design.
 
+Its separate evaluator is a dispatch, so **whether it runs comes from § Review scope** like
+any other: never at `none`, at `light`/`standard` when the stage's fidelity is a `(judgment)`
+gate check, always at `high`. A stage reproducing a handoff pack is essentially always at
+least `standard`, so in practice the loop runs — the rule is stated so the hook is not the
+one dispatch mandate nobody tiered.
+
 **Independent evaluator for non-command checks.** **Whether it runs comes from § Review scope
 — do not re-derive it**: never at `none`, at `light` and `standard` when the gate carries a
 `(judgment)` check, always at `high`. Run command checks yourself. When the tier mandates an
@@ -446,11 +467,19 @@ and the gate's pass criteria — never the implementation transcript or your own
 session that wrote the code grades its own work too generously.
 
 **Once the tier mandates it, the list of excuses is closed at two** — an **evidenced** user
-opt-out (§ Review scope) or a gate whose every check is a command. There is no third reason:
-an evaluator that cannot be dispatched is a Stop condition, not a skip. A tier that does not
-mandate one is not an excuse at all but the machinery scaling as designed, and it is reported
-as scope (`evaluator: not run — tier is light, no (judgment) check at this gate`) rather than
-as an opt-out.
+opt-out (§ Review scope), or, **below `high` only**, a gate whose every check is a command.
+There is no third reason: an evaluator that cannot be dispatched is a Stop condition, not a
+skip. A tier that does not mandate one is not an excuse at all but the machinery scaling as
+designed, and it is reported as scope (`evaluator: not run — tier is light, no (judgment)
+check at this gate`) rather than as an opt-out.
+
+**Why the command-only excuse stops at `high`.** Below `high` it is not really an excuse: the
+tier already says "only at a gate carrying a `(judgment)` check", and an all-command gate has
+none, so the two conditions name the same gates and the excuse is a restatement. At `high`
+the tier says **always**, and there the excuse would contradict it — collapsing `high` into
+`standard` for the one column where they were meant to differ. The evaluator grades whether
+the *goal* was met, which a green command check does not establish; at `high` that question
+is exactly the one worth paying an agent for.
 
 **Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
 nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
@@ -481,8 +510,15 @@ that should have been shared) surface here. **Brief it to audit the stage's beha
 as a set**, per `honest-gates` § *A behavioral claim is a gate too* — the stage view is where
 a claim that was true when written and false after a later task shows up.
 
-**Decisions-conformance check (gate criterion, not advisory).** Check the stage's
-cumulative diff against the decisions in force.
+**Decisions-conformance check (gate criterion, not advisory).** **Run it at the final stage
+gate and at close-out, over the plan's cumulative diff — not at every intermediate gate.**
+A contradiction is a **gate failure wherever it is found** (DEC-003), and finding one at an
+intermediate gate still fails that gate; what moved is how often the sweep is *repeated* over
+a diff that is still growing. Re-running it at every gate re-reads mostly the same diff and
+re-reaches mostly the same verdict, and the one reading that can be complete is the one over
+the finished diff. An intermediate stage that knowingly lands a contradiction does not wait
+for the final gate to say so — raise it when you see it.
+
 A change that contradicts a decision in force, without a `Supersedes` citation on its
 task, is a **gate failure** — handle it via the "If the gate fails" steps below.
 Two legal resolutions, and only two:
@@ -733,9 +769,9 @@ what each one is load-bearing for: `references/sources.md`.
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
 - **dispatching-parallel-agents** — invoked for every `Parallel: YES` task; a file conflict serializes the dispatches rather than cancelling one (Step 3.2). Its `references/stack-routing.md` is the shared table Step 3.2 also consults to delegate independent, output-heavy `Parallel: NO` tasks to a stack-matched subagent (e.g. `rust-expert`, `testing-expert`) instead of running them inline
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
-- **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
+- **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at the **final** stage gate and close-out (a contradiction without a `Supersedes` citation is a gate failure wherever it is found — what is scoped to the final gate is the *sweep*, not the rule), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
-- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. **When it runs is the declared review scope's call** (§ Review scope): never at `none`, at `light`/`standard` wherever a gate carries a `(judgment)` check, always at `high` and at that tier's Phase Close-out. Where the tier mandates it, skip only on an evidenced user opt-out (quoted, per § Review opt-out) or when every check is a command.
+- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. **When it runs is the declared review scope's call** (§ Review scope): never at `none`, at `light`/`standard` wherever a gate carries a `(judgment)` check, always at `high` and at that tier's Phase Close-out. Where the tier mandates it, skip only on an evidenced user opt-out (quoted, per § Review opt-out) or — below `high` only — when every check is a command.
 - **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** at `light` once over the whole plan diff, at `standard`/`high` per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,

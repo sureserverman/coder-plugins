@@ -38,12 +38,27 @@ gated by it, and are named here because leaving them off this list is what made 
 version of this table a half-measure:
 
 - **The Preflight dispatch probe** runs only when the roster is non-empty **and** the tier is
-  `standard` or `high`. Below that, a run that dispatches nothing gains nothing from proving
-  it could. Record `probe: skipped — tier <name>` alongside the roster line.
-- **The decisions-conformance check** runs at the **final** stage gate and at close-out, at
-  every tier where the diff is code — not at every intermediate gate. A contradiction is
-  still a **gate failure** wherever it is found (DEC-003); what the tier changes is how often
-  the sweep is repeated over a diff that is still growing, not whether it binds.
+  `standard` or `high`. Record `probe: skipped — tier <name>` alongside the roster line. What
+  a probe buys is learning that dispatch is dead *at Preflight*, while the finding can still
+  change the plan. That value scales with how many dispatches the run depends on: at `none`
+  and `light` nothing is dispatched but the rostered tasks themselves, and the first of those
+  delivers the same news almost as early. The accepted cost, stated because it is real: a
+  `light` run with a non-empty roster learns one task later than a `standard` run would.
+- **The design-fidelity verify loop's evaluator** (Step 3.5's redesign hook) is a dispatch
+  like any other and follows the same rule as the gate evaluator: never at `none`, at
+  `light`/`standard` when the stage carries a design-handoff task whose fidelity is a
+  `(judgment)` gate check, always at `high`. A redesign stage that reproduces a handoff pack
+  is essentially always at least `standard`, so in practice this loop runs — but it is listed
+  here because a mandate costing an agent dispatch that appears on neither list is exactly
+  the gap this section exists to close.
+
+**Not tier-gated, but relocated: the decisions-conformance check.** It runs at the **final**
+stage gate and at close-out rather than at every intermediate gate — at every tier where the
+diff is code. This is a **position** rule, not a tier rule, and it is stated here rather than
+in the list above because putting it there would imply a tier term it does not have. A
+contradiction is a **gate failure wherever it is found** (DEC-003); what changed is only how
+often the sweep is repeated over a diff that is still growing, and the one reading that can be
+complete is the one over the finished diff.
 
 What the tier does **not** gate — because each costs a line of text and its absence is
 invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
@@ -105,15 +120,23 @@ questions**, and a plan carries both at once. Resolve them this way, always:
 | `standard` | one **per** unit the format's shape names | no | only at a gate carrying `(judgment)` |
 | `high` | that, plus a second independent pass | **yes** | **yes, always** — every gate and close-out |
 
-**How to read the two together without them fighting.** The format's row names the *unit* a
-Tier-2 pass covers (whole plan diff, or one stage). The tier's row names *how many passes and
-how deep*. So `light` means **one pass total** over whatever unit the format named — for a
-Standard-format plan that is one pass over the whole plan diff before close-out, not one per
-stage. The earlier version of this table stated a shape in the `light` row ("over the whole
-plan diff") and a shape in the format row ("per stage gate"), which left a Standard plan at
-`light` reading as either 1 review or N — and resolving it the format's way would have made
-`light` and `standard` identical for every multi-stage plan, retiring the damping term for
-the exact case it was built for.
+**How to read the two together without them fighting.** The format's row names the unit a
+Tier-2 pass *would* cover if the tier bought one pass per unit: the whole plan diff for
+Direct/Light, one stage for Standard/Master. The tier then says **how many passes you get**.
+
+- `light` buys **exactly one pass, always over the whole plan diff, before close-out** —
+  whatever the format. One pass cannot be "per stage" in a multi-stage plan; there is only
+  one of it, so the only unit it can cover is the whole diff. The format's unit is what
+  `light` overrides, and this is the single place the two axes genuinely cross.
+- `standard` buys **one pass per unit the format names** — per stage for a Standard or Master
+  plan, once over the whole diff for a Direct or Light one.
+- `high` buys that plus a second independent pass, and adds per-task Tier-1.
+
+The earlier version stated a shape in the `light` row ("over the whole plan diff") and a
+shape in the format row ("per stage gate") with no rule for which won, so a Standard plan at
+`light` read as either 1 review or N. Resolving it the format's way would have made `light`
+and `standard` identical for every multi-stage plan, retiring the damping term for the exact
+case it was built for — so `light` overriding the unit is not a wrinkle, it is the point.
 
 **Tier-1 is the tier's alone.** The format never sets it: `high` runs it per task in any
 format, including Light, and no other tier runs it at all without a task's `Review:
