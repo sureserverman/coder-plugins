@@ -448,8 +448,15 @@ def main():
         ("gate evaluator (Step 3.5)",
          section(text, r"\*\*Independent evaluator for non-command checks",
                  r"\*\*Deep code review")),
+        # Anchored on the step's NAME, not on the parenthetical that used to follow it.
+        # The heading read "Independent evaluator pass (default)" until the pass stopped
+        # being an unconditional default and became tier-gated; pinning "(default)" meant
+        # the anchor asserted a policy word inside a *locator*, so a legitimate policy
+        # change silently unanchored eight downstream assertions at once (they reported
+        # as eight independent failures, which is how an over-fit anchor disguises itself
+        # as a real regression). BL-031's class: pin the rule, locate by the stable name.
         ("close-out evaluator",
-         section(text, r"\*\*Independent evaluator pass \(default\)", r"\n4\. \*\*Bump")),
+         section(text, r"\*\*Independent evaluator pass", r"\n4\. \*\*Bump")),
     ]
     for label, block in evaluator_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")

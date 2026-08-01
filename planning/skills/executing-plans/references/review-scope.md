@@ -14,23 +14,42 @@ of what it was reviewing — and which, until 0.37.0, this table only half-corre
 it gated the two review passes and left the probe, the evaluator and the conformance check
 running unconditionally underneath.
 
-| Tier | When (judged on the plan's **cumulative diff**) | Tier-1 (per task) | Tier-2 (per stage gate) | Evaluator | Close-out |
+| Tier | When (judged on the plan's **cumulative diff**) | Tier-1 (per task) | Tier-2 (the deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
-| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan | skip | skip | skip | plan-scope tests only |
-| **light** | No new executable behavior, **or** a diff under roughly 200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one** review over the whole plan diff, before close-out | only at a gate carrying a `(judgment)` check | that one review |
-| **standard** | Multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | per stage gate | only at a gate carrying a `(judgment)` check | evaluator if the final gate carries `(judgment)` |
-| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | per stage gate, **plus** a second independent pass | **every gate, always** | evaluator, always |
+| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan | skip | skip | skip | skip |
+| **light** | No new executable behavior, **or** a diff under roughly 200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff, before close-out | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
+| **standard** | Multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | at the shape the format sets | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
+| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, **plus** a second independent pass | **every gate, always** | **always** |
+
+**Read the table top-down: the first row whose criteria the diff satisfies wins.** `none` and
+`light` deliberately overlap (a docs-only plan also has "no new executable behavior"), and
+without a precedence rule the "default when unsure" line would push the cheapest plan in the
+ladder to the middle of it. Top-down is also why `high`'s risk list is checked first in
+practice — see the risk floor below, which overrides the row order in the one direction that
+matters.
 
 Pick the tier from the **plan's cumulative diff**, not per task, and pick it once. A plan
 that edits three markdown files is `light` even if it has four stages; a plan touching an
 auth path is `high` even if it is small.
 
 **What the tier gates.** Everything in the row: the two review tiers, the gate evaluator, the
-close-out evaluator, and the second independent pass. What it does **not** gate — because
-each is one line of cost and its absence is invisible — is the dispatch roster, the executor
-trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, and the plan's own
-tests and gate checks. Those run at every tier including `none`. The distinction is cost:
-a mandate that costs an agent dispatch is tiered; a mandate that costs a line of text is not.
+close-out evaluator, and the second independent pass. Two more agent-dispatching mandates are
+gated by it, and are named here because leaving them off this list is what made the 0.33.0
+version of this table a half-measure:
+
+- **The Preflight dispatch probe** runs only when the roster is non-empty **and** the tier is
+  `standard` or `high`. Below that, a run that dispatches nothing gains nothing from proving
+  it could. Record `probe: skipped — tier <name>` alongside the roster line.
+- **The decisions-conformance check** runs at the **final** stage gate and at close-out, at
+  every tier where the diff is code — not at every intermediate gate. A contradiction is
+  still a **gate failure** wherever it is found (DEC-003); what the tier changes is how often
+  the sweep is repeated over a diff that is still growing, not whether it binds.
+
+What the tier does **not** gate — because each costs a line of text and its absence is
+invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
+reconciliation, honest-gates disclosure, and the plan's own tests and gate checks. Those run
+at every tier including `none`. The distinction is cost: **a mandate that costs an agent
+dispatch is tiered; a mandate that costs a line of text is not.**
 
 **The tier is declared, not assumed.** Write it in the Preflight report
 (`review-scope: light — prose edits to 3 skill files`) and repeat it in each gate report.
@@ -76,15 +95,31 @@ questions**, and a plan carries both at once. Resolve them this way, always:
 
 | From the **format** — shape | |
 |---|---|
-| Direct, Light | reviews run over the **whole plan diff**, once, before close-out — never per task |
-| Standard, Master | Tier-2 **per stage gate**; Tier-1 per task only at `high` |
+| Direct, Light | Tier-2 runs over the **whole plan diff**, once, before close-out |
+| Standard, Master | Tier-2 runs **per stage gate** |
 
-| From the **tier** — depth | Review passes | Evaluator |
-|---|---|---|
-| `none` | none | no |
-| `light` | one, over the whole plan diff | only at a gate carrying `(judgment)` |
-| `standard` | one per stage gate, at the shape the format sets | only at a gate carrying `(judgment)` |
-| `high` | that, plus per-task Tier-1 and a second independent pass | **yes, always** — every gate and close-out |
+| From the **tier** — depth | Tier-2 passes | Tier-1 (per task) | Evaluator |
+|---|---|---|---|
+| `none` | none | no | no |
+| `light` | **one**, whatever shape the format sets | no | only at a gate carrying `(judgment)` |
+| `standard` | one **per** unit the format's shape names | no | only at a gate carrying `(judgment)` |
+| `high` | that, plus a second independent pass | **yes** | **yes, always** — every gate and close-out |
+
+**How to read the two together without them fighting.** The format's row names the *unit* a
+Tier-2 pass covers (whole plan diff, or one stage). The tier's row names *how many passes and
+how deep*. So `light` means **one pass total** over whatever unit the format named — for a
+Standard-format plan that is one pass over the whole plan diff before close-out, not one per
+stage. The earlier version of this table stated a shape in the `light` row ("over the whole
+plan diff") and a shape in the format row ("per stage gate"), which left a Standard plan at
+`light` reading as either 1 review or N — and resolving it the format's way would have made
+`light` and `standard` identical for every multi-stage plan, retiring the damping term for
+the exact case it was built for.
+
+**Tier-1 is the tier's alone.** The format never sets it: `high` runs it per task in any
+format, including Light, and no other tier runs it at all without a task's `Review:
+required`. The Direct/Light row used to say "never per task", which contradicted `high`'s
+"plus per-task Tier-1" for precisely the Light-plan-touching-auth case the risk floor exists
+to settle.
 
 **Resolve a disagreement by the risk floor, not by "take the lighter option" and not by
 "take the heavier".** Both of those are instincts standing in for a rule. The rule is: apply

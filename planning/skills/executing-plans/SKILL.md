@@ -438,13 +438,19 @@ stage-verify hook proves a platform stage. A below-threshold verdict that doesn'
 recover within the loop is a gate failure. This is the design analogue of the
 stage-verify hook: a green build is not a reproduced design.
 
-**Independent evaluator for non-command checks.** Run command checks yourself. When a gate
-carries any check needing judgment ("manual verification", "reads coherently", "flow works
-end-to-end"), dispatch a fresh evaluator for those checks, briefed ONLY with the stage goal
+**Independent evaluator for non-command checks.** **Whether it runs comes from § Review scope
+— do not re-derive it**: never at `none`, at `light` and `standard` when the gate carries a
+`(judgment)` check, always at `high`. Run command checks yourself. When the tier mandates an
+evaluator, dispatch a fresh one for the judgment checks, briefed ONLY with the stage goal
 and the gate's pass criteria — never the implementation transcript or your own summary. The
-session that wrote the code grades its own work too generously. Skip only on an **evidenced**
-user opt-out (§ Review scope), or when every check is a command. There is no third reason: an
-evaluator that cannot be dispatched is a Stop condition, not a skip.
+session that wrote the code grades its own work too generously.
+
+**Once the tier mandates it, the list of excuses is closed at two** — an **evidenced** user
+opt-out (§ Review scope) or a gate whose every check is a command. There is no third reason:
+an evaluator that cannot be dispatched is a Stop condition, not a skip. A tier that does not
+mandate one is not an excuse at all but the machinery scaling as designed, and it is reported
+as scope (`evaluator: not run — tier is light, no (judgment) check at this gate`) rather than
+as an opt-out.
 
 **Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
 nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
@@ -653,7 +659,7 @@ When every stage is green:
 
 1. Run the plan's **sole plan-scope pass** — the only `clean` and the only full expensive-suite run in the whole execution (intermediate gates ran stage-scope), including any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If the final stage gate already ran this exact plan-scope pass and no commits landed after it, that pass counts — don't run it twice.
 2. Run any integration / e2e tests the plan flagged
-3. **Independent evaluator pass (default).** Dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Skip only on an **evidenced** user opt-out (§ Review scope).
+3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
 4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
    Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
    wherever the project records it **and every place that mirrors it** — grep the old version
@@ -729,8 +735,8 @@ what each one is load-bearing for: `references/sources.md`.
 - **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at every stage gate (a contradiction without a `Supersedes` citation is a gate failure), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
-- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. Default at any gate with non-command checks and at Phase Close-out; skip only on an evidenced user opt-out (quoted, per § Review opt-out) or when every check is a command.
-- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers — **Tier 1** per green task (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget) and **Tier 2** per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
+- **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. **When it runs is the declared review scope's call** (§ Review scope): never at `none`, at `light`/`standard` wherever a gate carries a `(judgment)` check, always at `high` and at that tier's Phase Close-out. Where the tier mandates it, skip only on an evidenced user opt-out (quoted, per § Review opt-out) or when every check is a command.
+- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** at `light` once over the whole plan diff, at `standard`/`high` per stage gate (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
   reshapes functionality to fit (behavior changes gated through `workflow-spec` with
@@ -744,7 +750,9 @@ what each one is load-bearing for: `references/sources.md`.
 - **platform stage-verify skills** — invoked at each stage gate to prove the stage on the real artifact when the project type matches. Android: `android-stage-verify` (android-dev plugin). Absence of a match is not a gate failure
 - **test-scope-tiers reference** (`../planning-projects/references/test-scope-tiers.md`) — the shared scope policy Step 3.3 (fix-scope), Step 3.5 (stage-scope), and Close-out (plan-scope) follow
 
-**Review opt-out.** Both tiers are default-on. **Two reasons excuse a review, and the list
+**Review opt-out.** A review **the declared tier mandates** is default-on; a tier that does
+not mandate one is the machinery scaling as designed, reported as scope and never as an
+opt-out (§ Review scope). **Two reasons excuse a mandated review, and the list
 is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A reviewer that
 cannot be dispatched is not a third: that is the **Stop condition for a mandated review**
 that cannot be run, on the same ground as an unrunnable test. An unrun review is not a
