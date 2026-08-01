@@ -36,7 +36,8 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 
 - [ ] [Check 1]: [how to verify]
 - [ ] [Check 2]: [how to verify]
-- [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session
+- [ ] Review scope declared — `review-scope: <none|light|standard|high> — [why, in one clause]`. Emit it in exactly that form: it is the string the executor restates in every gate report, so a plan and its gates read the same. Undeclared means `standard`; a risk-listed area (security/auth, data-destructive, public API, schema/migration) sets `high` whatever the size (`planning/skills/executing-plans/references/review-scope.md`)
+- [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session; skipped when the roster is `0 tasks` or the tier is below `standard`
 - [ ] Dispatch roster — `<n> of <total> tasks`: every `Parallel: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
 
 **Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
