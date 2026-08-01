@@ -16,10 +16,20 @@ running unconditionally underneath.
 
 | Tier | When (judged on the plan's **cumulative diff**) | Tier-1 (per task) | Tier-2 (the deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
-| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan | skip | skip | skip | skip |
+| **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan — **and none of that prose asserting executable behavior** (see below) | skip | skip | skip | skip |
 | **light** | No new executable behavior, **or** a diff under roughly 200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff, before close-out | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
 | **standard** | Multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | at the shape the format sets | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
 | **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, **plus** a second independent pass | **every gate, always** | **always** |
+
+**`none` excludes prose that asserts executable behavior.** A docs-only diff qualifies for
+`none` only when its prose *mentions* things; the moment it **asserts** a fact about a
+command, flag, env var, exit code, default, path or invocation example, the plan is `light`,
+not `none` — and `light`'s one whole-diff review is what checks the assertion against the
+source. This is the same test Step 3.3 rule 6 applies to a task-level docs diff, lifted to
+the tier where it actually binds: prose is where behavioral claims go unchecked longest (no
+compiler, no test), so a tier that skips every review is exactly the wrong home for it. The
+distinction is *asserting* versus *mentioning* — naming a flag in a heading, or an unchanged
+sample, claims nothing and still lands at `none`.
 
 **Read the table top-down: the first row whose criteria the diff satisfies wins.** `none` and
 `light` deliberately overlap (a docs-only plan also has "no new executable behavior"), and
@@ -81,7 +91,7 @@ declaration is what makes the choice reviewable.
 **Why this exists.** A review pass is not free and does not have a fixed value: dispatching
 four agents over a 160-line prose change costs more than the change and returns findings
 about the reviewing apparatus rather than the product — measured at ~800k tokens for a
-160-line prose plan. Running the same four over an auth rewrite is cheap insurance. The
+160-line prose plan, and recorded at the time in commit `224f9fb`. Running the same four over an auth rewrite is cheap insurance. The
 failure this table prevents is the one that is invisible without it — machinery whose cost
 nobody compares to what it is protecting, because no rule ever asked.
 

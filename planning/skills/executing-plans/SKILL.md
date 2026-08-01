@@ -282,7 +282,7 @@ declaration is what makes the choice reviewable**.
 
 | Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
-| **none** | docs/config/version-bump/comment-only across the whole plan | skip | skip | skip | skip |
+| **none** | docs/config/version-bump/comment-only across the whole plan, **none of it asserting executable behavior** (prose that asserts a command, flag, exit code, default or path is `light`, not `none`) | skip | skip | skip | skip |
 | **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff before close-out, whatever the format | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
 | **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | one per unit the format names — per stage gate for Standard/Master, once over the whole diff for Direct/Light | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
 | **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, plus a second independent pass | **always** | **always** |

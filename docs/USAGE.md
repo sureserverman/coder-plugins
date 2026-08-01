@@ -52,7 +52,10 @@ ceremony. Then it researches, and writes a staged plan where structure-creating 
 `executing-plans` drives it: Red-Green loop per task, a commit per green task, tiered test
 gates, and independent tasks fanned out via `dispatching-parallel-agents` to stack-matched
 subagents. Its two review tiers are not its own — both dispatch `code-reviewer` from the
-`git-github` plugin, per task and again over each stage diff. At close-out it bumps versions
+`git-github` plugin, and how much of either runs comes from the plan's declared
+**review scope**: at the default *standard* tier that is one deep review per stage gate
+and no per-task pass, with per-task review reserved for the *high* tier or a task the plan
+annotated Review: required. At close-out it bumps versions
 across every mirror, reconciles the backlog, and records any decision the work created.
 
 ```text
