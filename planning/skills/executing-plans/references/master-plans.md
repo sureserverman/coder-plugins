@@ -42,14 +42,22 @@ gate and surfaces only at the master close-out — the most expensive place to f
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
-   their usual steps (full suite, evaluator, backlog reconcile, workflow audit) EXCEPT
-   step 4 (version bumps) — one feature landing across five sub-plans is one release
-   event, not five. Note the deferral in each sub-plan's close-out.
+   their usual steps (full suite, the evaluator **its own declared tier calls for**,
+   backlog reconcile, workflow audit) EXCEPT step 4 (version bumps) — one feature landing
+   across five sub-plans is one release event, not five. Note the deferral in each
+   sub-plan's close-out.
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
    the deferred version bumps once across everything the sub-plans touched (all mirrors),
-   run the full suite and the independent evaluator pass against the *master's* overall
-   goal, then append to the master:
+   run the full suite, run the independent evaluator pass **that the master's tier calls
+   for** (below), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
+
+   **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*
+   (§ Review scope), so none of them governs the master itself. The master takes the
+   **highest tier any sub-plan declared** — its close-out is the only pass that sees the
+   integrated result, and a `high` sub-plan's risk does not stop being the master's
+   because a cheap sibling landed after it. Declare that tier in the master close-out
+   report the same way a stage gate restates its own.
 
 **Stop conditions are unchanged** and apply inside whichever sub-plan is executing; a
 stopped sub-plan blocks its register dependents exactly as a failed task blocks its

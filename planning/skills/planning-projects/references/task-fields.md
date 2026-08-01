@@ -3,23 +3,38 @@
 The per-field rules a plan's tasks carry. `planning-projects` Phase 2 sets the
 structure; this is the reference for each field's exact semantics.
 
-### `Review: skip` — an authored field, never an executor's
+### `Review:` — an authored field, never an executor's
 
-Both review tiers are default-on in `executing-plans`. A task may carry `Review: skip` to
-turn them off for that task — but **only when the user has said so**, and the field exists
-in this template precisely so the annotation has a provenance: it lands in the plan the
-user reads and approves, before execution starts.
+**What the plan's declared review tier already decides, this field does not.**
+`executing-plans` scales its review machinery to the plan's cumulative diff
+(`../../executing-plans/references/review-scope.md`): at `none`, `light` and `standard`
+there is **no per-task review at all**, and at `high` every task gets one. So the common
+case needs no annotation in either direction — the tier has already answered.
 
-Do not add it on your own judgment that a task looks trivial. `executing-plans` already
-auto-skips genuinely non-code diffs (docs-only, config-only, pure version bumps) without
-any annotation, so the field is not needed for that case — its only job is to record a
-*user's* decision. An executor that adds it mid-run is recording its own decision as the
-user's, which is why `executing-plans` snapshots these annotations at Preflight and honors
-only the ones present at the run's base commit (`../../executing-plans/SKILL.md` § Dispatch
+The field exists for the two exceptions, and it takes two values:
+
+| Value | Means | Use when |
+|---|---|---|
+| `Review: skip` | do not review this task even though the tier would | the tier is `high` and this one task is non-code or throwaway |
+| `Review: required` | review this task even though the tier would not | the plan is `light`/`standard` overall but *this* task touches something risky |
+
+`Review: required` is what keeps a single dangerous task from dragging a whole plan up a
+tier — the cheaper and more honest move than declaring `high` for nine tasks because one
+of them touches auth.
+
+**Both values are the user's to author, never the executor's.** The field exists in this
+template precisely so the annotation has a provenance: it lands in the plan the user reads
+and approves, before execution starts. Do not add `skip` on your own judgment that a task
+looks trivial — `executing-plans` already auto-skips genuinely non-code diffs (docs-only,
+config-only, pure version bumps) without any annotation, so the field is not needed for
+that case. An executor that adds it mid-run is recording its own decision as the user's,
+which is why `executing-plans` snapshots these annotations at Preflight and honors only
+the ones present at the run's base commit (`../../executing-plans/SKILL.md` § Dispatch
 roster and capability probe, and § Review opt-out).
 
-Omit the field entirely on every task the user did not name. An absent field is the
-default; `Review: run` is not a thing.
+Omit the field entirely on every task the user did not name. An absent field means "let
+the tier decide", which is the right answer for almost every task; `Review: run` is not a
+thing.
 
 ### Scope marking (the set a task changes)
 

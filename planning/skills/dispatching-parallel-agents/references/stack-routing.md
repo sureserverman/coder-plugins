@@ -41,11 +41,13 @@ Keep it **inline in the main session** when any of these hold:
   already-invoked skills. Brief them completely (see the Phase 3 prompt template).
 - Subagents can't talk to each other — only the orchestrator integrates their results.
 
-`Parallel: YES` tasks are *already* delegated (that's what this skill does). The
-decision rule matters most for `Parallel: NO` tasks in `executing-plans` Step 3.2:
-a sequential task that is independent + output-heavy should still be delegated to a
-stack-matched subagent rather than run inline — it just runs as a single dispatch,
-not a fan-out.
+`Parallel: YES` tasks are *already* delegated (that's what this skill does), and they
+are the only tasks this table routes. **A `Parallel: NO` task runs inline** —
+`executing-plans` Step 3.2 retired the rule that sent independent, output-heavy
+sequential tasks here, because it was a discretionary third execution mode that no
+reader of the plan could predict and that saved nothing (the subagent's tokens burn
+either way). A task that should be dispatched is marked `Parallel: YES` in the plan,
+where the roster and the gate's reconciliation can see it.
 
 ---
 

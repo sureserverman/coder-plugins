@@ -247,7 +247,12 @@ lives. Delegate:
 ## Integration
 
 - **executing-plans** — drives this skill for a design-handoff / redesign task and fires
-  the fidelity verify loop as a stage-verify-style gate hook.
+  the fidelity verify loop as a stage-verify-style gate hook. That hook's separate
+  evaluator is gated by the plan's declared **review scope** like any other dispatch, so
+  mark the stage's fidelity check `(judgment)` when fidelity matters — it is what funds the
+  evaluator at `light` and `standard`. If the tier funds no evaluator, the loop does not run
+  and the gate report says so; it is never run with the executor grading its own
+  reproduction, which is the one thing the loop exists to prevent.
 - **planning-projects** — a redesign-from-handoff plan declares behavior changes as
   `Changes/Removes WF-*` and includes a reconciliation/sign-off task; this skill
   reconciles against those declarations.

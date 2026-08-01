@@ -294,12 +294,15 @@ Verify each of these and report the result:
 - [ ] **Access**: Required permissions exist (repo write, service accounts, deploy targets)
 - [ ] **Environment**: The dev environment can build the project and run the test suite
 - [ ] **Baseline**: Existing tests pass before any changes begin (don't build on a broken foundation)
-- [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session
+- [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size (`../executing-plans/references/review-scope.md`)
+- [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session (skipped on an empty roster, or below tier `standard`)
 - [ ] **Dispatch roster**: Every `Parallel: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding. Starting Stage 1 with a broken preflight is how you end up debugging environment issues instead of building features.
 
-The last two checks exist because `Parallel: YES` is a directive (see § Stage structure) whose breach is otherwise invisible. They are the *executor's* rules; the author's job is to carry them into the plan's Preflight so a run cannot skip them by never being asked. Note the roster must cover **every stage, not the first** — a partial roster is the instance-shaped check this skill rejects everywhere else. The rest of the reasoning lives at `../executing-plans/SKILL.md` § Dispatch roster and capability probe and is deliberately not repeated here.
+The review-scope line is what lets the executor's machinery scale to the job: it gates both review tiers, both evaluators and the dispatch probe, so an undeclared plan silently pays `standard` for work that may warrant `light`. Declare it from the plan's **cumulative** diff, once, not per task.
+
+The dispatch checks exist because `Parallel: YES` is a directive (see § Stage structure) whose breach is otherwise invisible. They are the *executor's* rules; the author's job is to carry them into the plan's Preflight so a run cannot skip them by never being asked. Note the roster must cover **every stage, not the first** — a partial roster is the instance-shaped check this skill rejects everywhere else. The rest of the reasoning lives at `../executing-plans/SKILL.md` § Dispatch roster and capability probe and is deliberately not repeated here.
 
 For a project whose full test suite is expensive (see references/test-scope-tiers.md), the plan declares its stage-scope and plan-scope test commands here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution.
 
