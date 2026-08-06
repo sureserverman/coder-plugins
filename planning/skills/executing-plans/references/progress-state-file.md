@@ -62,6 +62,15 @@ deliberately even though it parses — a base script that itself runs `plan-prog
 i.e. a hand-written wrapper from before this command existed, because chaining it would
 print the bar twice. `--remove` restores a preserved base rather than clearing the key.
 
+**Both subprocesses are time-bounded**, so a base that blocks cannot freeze every redraw.
+The bounds differ deliberately: the base defaults to 15s and the renderer to 5s, because a
+base legitimately does slow work and bounds *itself* — the widely installed
+ClaudeCodeStatusLine makes a `curl --max-time 10` call, so a snug wrapper bound would
+truncate a base working exactly as designed. The wrapper exists to catch an *unbounded*
+hang, not to second-guess a self-bounded base. Override with
+`PLAN_STATUSLINE_BASE_TIMEOUT` / `PLAN_STATUSLINE_BAR_TIMEOUT`. Where neither `timeout`
+nor `gtimeout` exists (a stock macOS), both run unbounded rather than not running at all.
+
 **The written pointer resolves the newest installed version at render time**, rather than
 freezing today's path. A plugin installs to a version-pinned directory that changes on
 every bump, and `statusLine` is not a plugin contribution point — so `/reload-plugins`,

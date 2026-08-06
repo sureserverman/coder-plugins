@@ -40,13 +40,14 @@ fail=0
 
 # --- stub siblings ------------------------------------------------------
 
-stub_plan() { # stub_plan <bar|empty|nonzero|traceback|missing|unreadable>
+stub_plan() { # stub_plan <bar|empty|nonzero|traceback|missing|unreadable|hang>
   rm -f "$WORK/plan-progress.py"
   case "$1" in
     bar)        printf 'import sys\nsys.stdin.read()\nprint("PLANBAR", end="")\n' > "$WORK/plan-progress.py" ;;
     empty)      printf 'import sys\nsys.stdin.read()\n' > "$WORK/plan-progress.py" ;;
     nonzero)    printf 'import sys\nsys.stdin.read()\nsys.exit(1)\n' > "$WORK/plan-progress.py" ;;
     traceback)  printf 'import sys\nsys.stdin.read()\nraise RuntimeError("boom")\n' > "$WORK/plan-progress.py" ;;
+    hang)       printf 'import sys,time\nsys.stdin.read()\ntime.sleep(30)\nprint("NEVER", end="")\n' > "$WORK/plan-progress.py" ;;
     missing)    : ;; # already removed above
     unreadable) printf 'print("PLANBAR")\n' > "$WORK/plan-progress.py"; chmod 000 "$WORK/plan-progress.py" ;;
   esac
@@ -188,21 +189,23 @@ fi
 echo "case 9 — a HANGING base statusline does not hang the redraw"
 # A statusline is redrawn constantly, so an unbounded base that blocks freezes
 # every redraw indefinitely with nothing to explain it — worse than a missing
-# line. Both subprocesses are wrapped in `timeout 2` (gtimeout, else unbounded
-# on a host with neither). Skipped rather than silently passing where no
-# timeout binary exists, so the skip is visible instead of looking like a pass.
+# line. Both subprocesses are bounded; the test overrides the bounds so it can
+# assert the behavior in ~2s rather than sitting through the shipped default.
+# Skipped rather than silently passing where no timeout binary exists, so the
+# skip is visible instead of looking like a pass.
 if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
   HANG_BASE="$TMP/hang-base.sh"
   printf '#!/bin/bash\ncat >/dev/null\nsleep 30\nprintf "NEVER"\n' > "$HANG_BASE"
   chmod +x "$HANG_BASE"
   stub_plan bar
   start=$(date +%s)
-  out="$(cd "$WORK" && PLAN_STATUSLINE_BASE="$HANG_BASE" bash "$WORK/statusline-chain.sh" \
+  out="$(cd "$WORK" && PLAN_STATUSLINE_BASE="$HANG_BASE" \
+        PLAN_STATUSLINE_BASE_TIMEOUT=2 bash "$WORK/statusline-chain.sh" \
         <<<'{}' 2>"$TMP/hang-err.log")"
   rc=$?
   elapsed=$(( $(date +%s) - start ))
   if [ "$elapsed" -ge 10 ]; then
-    echo "FAIL: hanging base — took ${elapsed}s, wanted a bounded (~2s) return"; fail=1
+    echo "FAIL: hanging base — took ${elapsed}s, wanted a bounded return"; fail=1
   elif [ "$rc" != 0 ]; then
     echo "FAIL: hanging base — exit $rc, wanted 0"; fail=1
   elif [ "$out" != "PLANBAR" ]; then
@@ -212,8 +215,43 @@ if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; th
   else
     echo "  ok: a hanging base is cut off (${elapsed}s) and the plan bar still renders"
   fi
+
+  # A hanging RENDERER must not take the base down with it — the base is the
+  # user's own status line and matters more than our bar.
+  printf '#!/bin/bash\ncat >/dev/null\nprintf "OKBASE"\n' > "$TMP/ok-base.sh"
+  chmod +x "$TMP/ok-base.sh"
+  stub_plan hang
+  start=$(date +%s)
+  out="$(cd "$WORK" && PLAN_STATUSLINE_BASE="$TMP/ok-base.sh" \
+        PLAN_STATUSLINE_BAR_TIMEOUT=2 bash "$WORK/statusline-chain.sh" \
+        <<<'{}' 2>"$TMP/hang2-err.log")"
+  elapsed=$(( $(date +%s) - start ))
+  if [ "$elapsed" -ge 10 ]; then
+    echo "FAIL: hanging renderer — took ${elapsed}s, wanted a bounded return"; fail=1
+  elif [ "$out" != "OKBASE" ]; then
+    echo "FAIL: hanging renderer — stdout '$out', wanted the base alone ('OKBASE')"; fail=1
+  elif [ -s "$TMP/hang2-err.log" ]; then
+    echo "FAIL: hanging renderer — stderr not empty: $(cat "$TMP/hang2-err.log")"; fail=1
+  else
+    echo "  ok: a hanging plan-progress.py is cut off (${elapsed}s), base survives"
+  fi
 else
   echo "  SKIP: neither timeout nor gtimeout on this host — nothing bounds the base here"
+fi
+
+echo "case 10 — the shipped default bound does not truncate a self-bounding base"
+# BL-042's deferral note is the source of this check: a base that legitimately
+# does slow work already bounds ITSELF (the installed ClaudeCodeStatusLine uses
+# `curl -s --max-time 10`), so a snug wrapper bound would cut off a base working
+# exactly as designed. The wrapper's default must sit ABOVE any such self-bound,
+# and this asserts that relationship rather than the literal number.
+DEFAULT_BASE_TO=$(sed -n 's/^BASE_TIMEOUT="${PLAN_STATUSLINE_BASE_TIMEOUT:-\([0-9]*\)}"/\1/p' "$CHAIN_SRC")
+if [ -z "$DEFAULT_BASE_TO" ]; then
+  echo "FAIL: could not read the default base timeout out of the shipped script"; fail=1
+elif [ "$DEFAULT_BASE_TO" -le 10 ]; then
+  echo "FAIL: default base timeout ${DEFAULT_BASE_TO}s would truncate a base self-bounded at 10s"; fail=1
+else
+  echo "  ok: default base bound (${DEFAULT_BASE_TO}s) clears a 10s self-bounded base"
 fi
 
 [ "$fail" -eq 0 ] || { echo; echo "FAILED"; exit 1; }

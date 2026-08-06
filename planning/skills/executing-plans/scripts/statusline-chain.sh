@@ -16,28 +16,48 @@
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STDIN_JSON="$(cat)"
 
-# A statusline is redrawn constantly, so a base that blocks (a network-backed
-# prompt, a stuck filesystem call) would freeze the redraw indefinitely — worse
-# than a missing line, and with nothing to explain it. Bound both subprocesses.
+# A statusline is redrawn constantly, so a subprocess that blocks (a dead
+# network mount, a stuck filesystem call, an infinite loop) would freeze the
+# redraw indefinitely — worse than a missing line, and with nothing to explain
+# it. Bound both subprocesses.
+#
+# The two bounds differ ON PURPOSE, and the base's is deliberately generous.
+# A base statusline legitimately does slow work and bounds itself: the widely
+# installed ClaudeCodeStatusLine makes `curl -s --max-time 10` and
+# `--max-time 5` calls, so a snug wrapper bound would cut off a base that is
+# working exactly as designed and silently truncate the user's own status line.
+# This wrapper's job is to catch an UNBOUNDED hang, not to second-guess a base
+# that already bounds itself — so the default sits above any such self-bound.
+# plan-progress.py is ours and only reads local files, so it gets a tight one.
+#
 # `timeout` is GNU coreutils and absent from a stock macOS, a platform this repo
 # supports; fall back to gtimeout, then to running unbounded rather than losing
 # the statusline entirely. Unquoted on purpose: empty must expand to no words.
+BASE_TIMEOUT="${PLAN_STATUSLINE_BASE_TIMEOUT:-15}"
+BAR_TIMEOUT="${PLAN_STATUSLINE_BAR_TIMEOUT:-5}"
 if command -v timeout >/dev/null 2>&1; then
-  TO="timeout 2"
+  TO_CMD=timeout
 elif command -v gtimeout >/dev/null 2>&1; then
-  TO="gtimeout 2"
+  TO_CMD=gtimeout
 else
-  TO=""
+  TO_CMD=""
+fi
+if [ -n "$TO_CMD" ]; then
+  TO_BASE="$TO_CMD $BASE_TIMEOUT"
+  TO_BAR="$TO_CMD $BAR_TIMEOUT"
+else
+  TO_BASE=""
+  TO_BAR=""
 fi
 
 BASE="${PLAN_STATUSLINE_BASE:-$HOME/.claude/statusline.sh}"
 BASE_OUT=""
 if [ -f "$BASE" ] && [ -r "$BASE" ]; then
-  BASE_OUT="$(printf '%s' "$STDIN_JSON" | $TO bash "$BASE" 2>/dev/null)"
+  BASE_OUT="$(printf '%s' "$STDIN_JSON" | $TO_BASE bash "$BASE" 2>/dev/null)"
 fi
 printf '%s' "$BASE_OUT"
 
-PLAN_OUT="$(printf '%s' "$STDIN_JSON" | $TO python3 "$HERE/plan-progress.py" 2>/dev/null)"
+PLAN_OUT="$(printf '%s' "$STDIN_JSON" | $TO_BAR python3 "$HERE/plan-progress.py" 2>/dev/null)"
 if [ -n "$PLAN_OUT" ]; then
   [ -n "$BASE_OUT" ] && printf '\n'
   printf '%s' "$PLAN_OUT"
