@@ -23,6 +23,7 @@ import argparse
 import json
 import re
 import os
+import shlex
 import sys
 import tempfile
 from datetime import datetime
@@ -44,8 +45,9 @@ TARGET = str(TARGET_PATH)
 #
 # So when this script is running from inside a version-pinned install, the
 # command written to settings.json resolves the newest installed version at
-# render time instead of freezing today's. `sort -V` orders versions naturally
-# (0.9.0 before 0.37.0, which a lexical sort gets wrong). The `[ -n "$p" ]` guard
+# render time instead of freezing today's. Versions are ordered by a numeric
+# field sort (0.9.0 before 0.37.0, which a lexical sort gets backwards). The
+# `[ -n "$p" ]` guard
 # means a cache with no match prints nothing rather than a "command not found"
 # line, preserving the never-noisy contract the chain script itself keeps.
 VERSION_PINNED_RE = re.compile(
@@ -59,16 +61,37 @@ def resolve_command(target=TARGET):
     Returns (command, mode) where mode is "versioned" or "literal". A literal
     path is correct for a dev checkout — it is stable there — and is the honest
     fallback anywhere the version-pinned layout is not recognised.
+
+    Every literal path component is shell-quoted and only the version `*` is
+    left to expand. Interpolating the glob bare meant a HOME containing a space
+    word-split it, `ls` matched nothing, and the guard below then exec'd
+    nothing — losing the user's BASE statusline too, since the chain script is
+    what invokes it, with empty stdout and empty stderr to explain it. That is
+    the loudest possible failure rendered completely invisible.
+
+    Version selection sorts the version component numerically field by field
+    rather than with `sort -V`, which is a GNU extension absent from the BSD
+    sort on macOS — a platform this repo explicitly supports. A missing `-V`
+    would have failed the same silent way.
     """
     m = VERSION_PINNED_RE.match(target)
     if not m:
+        # Double quotes already handle a space here — the literal form was never
+        # the defect; only the glob below was. Escape properly in the one case
+        # double-quoting cannot survive, a `"` in the path itself.
+        if '"' in target:
+            return f"bash {shlex.quote(target)}", "literal"
         return f'bash "{target}"', "literal"
-    glob = f"{m.group('prefix')}/*/{m.group('suffix')}"
-    return (
-        f'sh -c \'p=$(ls -d {glob} 2>/dev/null | sort -V | tail -1); '
-        f'[ -n "$p" ] && exec bash "$p"\'',
-        "versioned",
-    )
+    script = (
+        "d=%s; s=%s; "
+        'p=$(for f in "$d"/*/"$s"; do '
+        '[ -f "$f" ] || continue; '
+        'v=${f#"$d"/}; v=${v%%%%/*}; '
+        'printf "%%s\t%%s\n" "$v" "$f"; '
+        "done | sort -t. -k1,1n -k2,2n -k3,3n | tail -1 | cut -f2-); "
+        '[ -n "$p" ] && exec bash "$p"'
+    ) % (shlex.quote(m.group("prefix")), shlex.quote(m.group("suffix")))
+    return f"sh -c {shlex.quote(script)}", "versioned"
 
 
 def get_settings_path():
@@ -284,7 +307,7 @@ def cmd_install(force):
     return 0
 
 
-def cmd_remove():
+def cmd_remove(force):
     path = get_settings_path()
     if not path.exists():
         print(f"Nothing to remove: {path} does not exist.")
@@ -293,6 +316,20 @@ def cmd_remove():
     if "statusLine" not in data:
         print(f"statusLine not present in {path}; nothing to do.")
         return 0
+    # --remove is a destructive action on a key this tool may not own, so it
+    # takes the SAME ownership gate as --install. Without it, a user with a
+    # hand-configured statusLine who ran `/planning:statusline remove` to tidy
+    # up lost their own configuration silently — while planning/README.md
+    # promises this installer "refuses to clobber a third-party statusLine
+    # without --force", a promise a reader reasonably reads as covering remove.
+    if not is_ours(data["statusLine"]) and not force:
+        print(
+            "statusline-install: statusLine was not installed by this tool: "
+            f"{data['statusLine']!r}\n"
+            "statusline-install: refusing to remove it without --force.",
+            file=sys.stderr,
+        )
+        return 1
     del data["statusLine"]
     write_settings(path, data, existed)
     print(f"Removed statusLine from {path}.")
@@ -316,7 +353,7 @@ def main():
     if args.status:
         return cmd_status()
     if args.remove:
-        return cmd_remove()
+        return cmd_remove(args.force)
     return cmd_install(args.force)
 
 

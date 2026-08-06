@@ -308,7 +308,7 @@ def main():
     check(data15.get("statusLine", {}).get("padding") == 2,
           "user-added padding key survives the repair")
 
-    print("16. resolve_command(): versioned vs literal mode, and sort -V correctness:")
+    print("16. resolve_command(): versioned vs literal mode, and version-ordering correctness:")
     spec = importlib.util.spec_from_file_location("statusline_install", str(SCRIPT))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -321,7 +321,7 @@ def main():
     check(mode16 == "versioned",
           "path under plugins/cache/<marketplace>/<plugin>/<version>/... resolves to versioned mode")
     check("*" in cmd16, "versioned command contains a glob wildcard")
-    check("sort -V" in cmd16, "versioned command uses sort -V")
+    check("sort -t." in cmd16 and "-k1,1n" in cmd16, "versioned command sorts versions numerically, not lexically")
     check("0.37.0" not in cmd16, "versioned command does not hardcode the literal version number")
 
     literal_target = "/home/u/dev/checkout/planning/skills/executing-plans/scripts/statusline-chain.sh"
@@ -329,7 +329,7 @@ def main():
     check(mode16b == "literal", "path outside the plugins/cache layout resolves to literal mode")
     check(cmd16b == f'bash "{literal_target}"', 'literal command is exactly bash "<path>"')
 
-    # sort -V, not lexical sort: 0.37.0 must be picked over 0.9.0 (lexically
+    # numeric field sort, not lexical sort: 0.37.0 must be picked over 0.9.0 (lexically
     # "0.37.0" < "0.9.0" since '3' < '9', which would wrongly pick 0.9.0).
     vtmp = Path(tempfile.mkdtemp(prefix="statusline-resolve-version-test-"))
     vbase = vtmp / "plugins" / "cache" / "mkt" / "planning"
@@ -345,7 +345,7 @@ def main():
     proc16 = subprocess.run(cmd16c, shell=True, capture_output=True, text=True)
     check(proc16.returncode == 0, "versioned command exits 0")
     check(proc16.stdout == "V0.37.0",
-          f"sort -V picks the highest version 0.37.0 over 0.9.0, not the lexical max (got {proc16.stdout!r})")
+          f"version sort picks the highest version 0.37.0 over 0.9.0, not the lexical max (got {proc16.stdout!r})")
 
     print()
     if FAILURES:
