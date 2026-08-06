@@ -90,6 +90,20 @@ def desired_entry():
     return {"type": "command", "command": resolve_command()[0]}
 
 
+def is_ours(entry):
+    """Whether a statusLine entry is one this installer wrote.
+
+    Structural, never string equality against today's absolute path: the path
+    changes when the plugin moves (dev checkout to marketplace, one version to
+    the next), and that relocation is exactly what this tooling exists to
+    survive. Shared by --status and --install so the two cannot disagree about
+    the same file.
+    """
+    return isinstance(entry, dict) and "statusline-chain.sh" in str(
+        entry.get("command", "")
+    )
+
+
 def detect_indent(text):
     """The original file's indent string, so a rewrite preserves its formatting.
 
@@ -220,8 +234,12 @@ def cmd_status():
     if entry is None:
         print(f"statusLine: not wired in {path}")
         return 0
-    if entry == desired_entry():
-        print(f"statusLine: wired to this installer's chain script ({TARGET})")
+    if is_ours(entry):
+        current = entry.get("command", "")
+        print(f"statusLine: wired to this installer's chain script\n  {current}")
+        if current != desired_entry()["command"]:
+            print("  (differs from what a fresh install would write — "
+                  "run `--install` to repair)")
         return 0
     print(f"statusLine: wired to something else: {entry!r}")
     return 0
@@ -234,7 +252,7 @@ def cmd_install(force):
     current = data.get("statusLine")
 
     if current == desired:
-        print(f"statusLine already wired to {TARGET}; nothing to do.")
+        print(f"statusLine already wired; nothing to do.\n  {desired['command']}")
         return 0
 
     # "Is this entry ours?" must be a STRUCTURAL question, not string equality
@@ -244,9 +262,7 @@ def cmd_install(force):
     # turned a routine repair into a refusal demanding --force. It also
     # misclassified an entry the user had merely added a supported `padding` key
     # to. Anything invoking a script named statusline-chain.sh is ours to repair.
-    ours = isinstance(current, dict) and "statusline-chain.sh" in str(
-        current.get("command", "")
-    )
+    ours = is_ours(current)
 
     if current is not None and not ours and not force:
         print(
