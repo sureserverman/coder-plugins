@@ -8,8 +8,11 @@ JSON, and asserts: silence when idle/broken (never a traceback), the Status
 counts via the shared portfolio-unify regexes, the bar geometry, the per-phase
 glyphs, walk-up discovery from a subdirectory, and staleness marking.
 """
+import importlib.util
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -83,6 +86,142 @@ def write_state(root, **kw):
     state.update(kw)
     (root / ".claude").mkdir(exist_ok=True)
     (root / ".claude" / "plan-progress.json").write_text(json.dumps(state))
+
+
+def load_module():
+    """Import plan-progress.py directly (hyphenated filename -> importlib)."""
+    spec = importlib.util.spec_from_file_location("plan_progress", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def write_yaml(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def case_portfolio_resolver():
+    """Task 2.1 — portfolio_plans_dir() resolves, or degrades to None.
+
+    Every negative case here would, in the portfolio CLI scripts, be a
+    sys.exit() with a message. In the renderer it must be None: this runs on
+    every statusline redraw in every project, including on machines with no
+    vault, no registry, and no `yaml` module at all.
+    """
+    print("Task 2.1 — portfolio home resolution:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-resolver-"))
+    repo = tmp / "dev" / "area1" / "proj1"
+    repo.mkdir(parents=True)
+    vault = tmp / "vault"
+    plans = vault / "Portfolio" / "area1" / "proj1" / "plans"
+    plans.mkdir(parents=True)
+
+    cfg, reg = tmp / "portfolio-config.yaml", tmp / "projects-registry.yaml"
+    mod.CONFIG_PATH, mod.REGISTRY_PATH = cfg, reg
+    write_yaml(cfg, f"version: 1\nvault_dir: {vault}\n")
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: proj1\n    area: area1\n    enabled: true\n")
+
+    check(mod.portfolio_plans_dir(repo) == plans, "registered project resolves to its vault plans/ dir")
+
+    # a nested cwd must resolve the same as the repo root
+    nested = repo / "a" / "b"
+    nested.mkdir(parents=True)
+    check(mod.portfolio_plans_dir(repo) == plans, "resolution is stable for the repo root")
+
+    print("  degradation cases (each must be None, never a raise):")
+    local = repo / "docs" / "plans"
+    local.mkdir(parents=True)
+    mod.CONFIG_PATH = tmp / "nope-config.yaml"
+    check(mod.portfolio_plans_dir(repo) is None,
+          "missing portfolio-config.yaml -> None EVEN THOUGH docs/plans exists "
+          "(absent config is not the same claim as an in-tree project)")
+    mod.CONFIG_PATH = cfg
+    write_yaml(cfg, "version: 1\n")
+    check(mod.portfolio_plans_dir(repo) == local,
+          "intact config with vault_dir unset falls back to <repo>/docs/plans")
+    write_yaml(cfg, f"version: 1\nvault_dir: {vault}\n")
+
+    mod.REGISTRY_PATH = tmp / "nope-registry.yaml"
+    check(mod.portfolio_plans_dir(repo) is None, "missing registry -> None")
+    mod.REGISTRY_PATH = reg
+
+    unregistered = tmp / "dev" / "area1" / "other"
+    unregistered.mkdir(parents=True)
+    check(mod.portfolio_plans_dir(unregistered) is None,
+          "unregistered project -> None (never another project's plans)")
+
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: proj1\n    area: area1\n    enabled: false\n")
+    check(mod.portfolio_plans_dir(repo) is None, "registered but disabled -> None")
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: proj1\n    area: area1\n    enabled: true\n")
+
+    write_yaml(cfg, f"version: 1\nvault_dir: {tmp / 'no-such-vault'}\n")
+    check(mod.portfolio_plans_dir(repo) is None, "vault_dir pointing nowhere -> None")
+
+    unreadable = tmp / "locked"
+    (unreadable / "Portfolio" / "area1" / "proj1" / "plans").mkdir(parents=True)
+    os.chmod(unreadable, 0o000)
+    try:
+        write_yaml(cfg, f"version: 1\nvault_dir: {unreadable}\n")
+        check(mod.portfolio_plans_dir(repo) is None, "unreadable vault path -> None, no raise")
+    finally:
+        os.chmod(unreadable, 0o700)
+    write_yaml(cfg, f"version: 1\nvault_dir: {vault}\n")
+
+    write_yaml(cfg, "version: 1\nvault_dir: [this, is, not, a, string]\n")
+    check(mod.portfolio_plans_dir(repo) is None, "non-string vault_dir -> None")
+    write_yaml(cfg, "vault_dir: {{{ not valid yaml\n")
+    check(mod.portfolio_plans_dir(repo) is None, "malformed YAML -> None")
+    write_yaml(cfg, f"version: 1\nvault_dir: {vault}\n")
+    write_yaml(reg, "version: 1\nprojects: not-a-list\n")
+    check(mod.portfolio_plans_dir(repo) is None, "registry `projects` not a list -> None")
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: proj1\n    area: area1\n    enabled: true\n")
+
+    # `yaml` absent entirely: sys.modules[name] = None makes `import yaml` raise
+    # ImportError, which is what a machine without PyYAML actually presents.
+    saved = sys.modules.get("yaml", "__absent__")
+    sys.modules["yaml"] = None
+    try:
+        check(mod.portfolio_plans_dir(repo) is None, "yaml not importable -> None, no raise")
+    finally:
+        if saved == "__absent__":
+            sys.modules.pop("yaml", None)
+        else:
+            sys.modules["yaml"] = saved
+
+    check(mod.portfolio_plans_dir(repo) == plans, "resolution recovers once yaml is back")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def case_resolver_never_breaks_the_bar():
+    """The state-file bar must still render when discovery is unavailable.
+
+    Subprocess-level, with HOME pointed at a directory holding neither config
+    nor registry -- the shape of a machine that never ran `portfolio scan`.
+    """
+    print("Task 2.1 — a broken portfolio does not break the existing bar:")
+    tmp = Path(tempfile.mkdtemp(prefix="pp-nohome-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "demo-plan.md"
+    plan.write_text(PLAN)
+    write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2",
+                task_desc="render output")
+    env = dict(os.environ, HOME=str(tmp / "empty-home"))
+    (tmp / "empty-home").mkdir()
+    r = subprocess.run([sys.executable, str(SCRIPT)],
+                       input=json.dumps({"cwd": str(repo)}),
+                       capture_output=True, text=True, env=env)
+    out = ANSI_RE.sub("", r.stdout)
+    check(r.returncode == 0, "rc 0 with no portfolio config on the machine")
+    check(r.stderr == "", "stderr stays clean")
+    check("3/5" in out, "the state-file bar still renders")
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main():
@@ -187,6 +326,10 @@ def main():
     check(r.returncode == 0 and out.strip() == "" and r.stderr == "", "corrupt state → silence")
     r, out = run(repo, extra_stdin="")
     check(r.returncode == 0 and r.stderr == "", "empty stdin → rc 0, no traceback")
+
+    print()
+    case_portfolio_resolver()
+    case_resolver_never_breaks_the_bar()
 
     print()
     if FAILURES:

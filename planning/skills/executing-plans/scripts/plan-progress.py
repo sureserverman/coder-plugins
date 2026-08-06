@@ -51,6 +51,99 @@ def find_state(start):
     return None
 
 
+# --- portfolio discovery ---------------------------------------------------
+# Everything below returns None rather than raising or printing. The portfolio
+# scripts under ../../portfolio/scripts/ sys.exit() with a message when the
+# config is missing, which is right for a CLI a user invoked on purpose and
+# wrong here: this code runs on EVERY statusline redraw, in every project, on
+# machines this repo does not control, where the only acceptable failure is a
+# missing bar. `yaml` in particular is a third-party import that a user's
+# python3 may simply not have.
+
+CONFIG_PATH = Path.home() / ".claude" / "portfolio-config.yaml"
+REGISTRY_PATH = Path.home() / ".claude" / "projects-registry.yaml"
+
+
+def _load_yaml(path):
+    """A mapping from a YAML file, or None on ANY failure."""
+    try:
+        import yaml
+    except ImportError:
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except Exception:
+        # OSError, yaml.YAMLError, UnicodeDecodeError — all the same answer.
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def repo_root_of(state_file):
+    """The repo root implied by a state file at <root>/.claude/plan-progress.json."""
+    return state_file.parent.parent
+
+
+def portfolio_plans_dir(repo_root):
+    """The vault `plans/` directory for this repo, or None.
+
+    Falls back to `<repo>/docs/plans` when the portfolio is not configured at
+    all, so a project that keeps plans in-tree still gets discovery. Returns
+    None — never a guess — when the project is not registered: showing bars
+    from some OTHER project's plans would be worse than showing none.
+    """
+    repo_root = Path(repo_root).resolve()
+
+    # "Could not load the config" and "config loaded but names no vault" are
+    # DIFFERENT answers, and collapsing them is a real defect: a machine with
+    # no portfolio config, an unreadable one, a malformed one, or no `yaml`
+    # module would otherwise all silently fall through to <repo>/docs/plans and
+    # render bars from whatever happened to be there. Only an intact config
+    # that simply omits vault_dir means "this project keeps plans in-tree".
+    cfg = _load_yaml(CONFIG_PATH)
+    if cfg is None:
+        return None
+    vault = cfg.get("vault_dir")
+    if vault is None:
+        local = repo_root / "docs" / "plans"
+        return local if local.is_dir() else None
+    if not isinstance(vault, str) or not vault:
+        return None
+
+    reg = _load_yaml(REGISTRY_PATH)
+    if not reg:
+        return None
+    projects = reg.get("projects")
+    if not isinstance(projects, list):
+        return None
+
+    entry = None
+    for proj in projects:
+        if not isinstance(proj, dict):
+            continue
+        raw = proj.get("path")
+        if not isinstance(raw, str):
+            continue
+        try:
+            if Path(raw).expanduser().resolve() == repo_root:
+                entry = proj
+                break
+        except OSError:
+            continue
+    if entry is None or entry.get("enabled") is False:
+        return None
+
+    area, name = entry.get("area"), entry.get("name")
+    if not isinstance(area, str) or not isinstance(name, str):
+        return None
+    plans = Path(vault).expanduser() / "Portfolio" / area / name / "plans"
+    try:
+        return plans if plans.is_dir() else None
+    except OSError:
+        # an unreadable or unmounted vault path raises rather than returning False
+        return None
+
+
 def parse_plan(text):
     """(done, total, stage_count) via the portfolio-unify Status contract.
 
