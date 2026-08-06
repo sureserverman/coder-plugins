@@ -42,9 +42,34 @@ state: never commit it — during the git bootstrap, ensure
 already ignore it). For a master plan, the state file always points at the
 **sub-plan** currently executing.
 
-**One-time user setup** (only if asked to wire it): point `statusLine` in
-`~/.claude/settings.json` at a wrapper that feeds the same stdin JSON to the
-user's existing statusline command first, then to
-`<planning-plugin>/skills/executing-plans/scripts/plan-progress.py`, appending
-its output as an extra line when non-empty. The renderer prints nothing when
-no plan is executing, so it never disturbs the normal statusline.
+**One-time user setup** (only if asked to wire it): run `/planning:statusline install`.
+That command is the invocation — do not hand a user a relative `../scripts/…` path, which
+resolves only when the shell's cwd happens to be this file's own directory and fails
+everywhere else. The command runs
+`python3 ${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/scripts/statusline-install.py`,
+which writes the single `statusLine` entry in `~/.claude/settings.json` pointing at the
+shipped `statusline-chain.sh`; that script runs the user's existing statusline first and
+appends this renderer's output on the next line when non-empty, both from the same stdin
+JSON. `--status` reports what is wired; `--remove` takes it back out.
+
+**The written pointer resolves the newest installed version at render time**, rather than
+freezing today's path. A plugin installs to a version-pinned directory that changes on
+every bump, and `statusLine` is not a plugin contribution point — so `/reload-plugins`,
+which re-points hooks, MCP and LSP servers, cannot re-point it, and the stale directory is
+removed after roughly two weeks. A frozen path would then take the user's *base* statusline
+down with it, since the chain script is what invokes the base.
+
+The wiring is **global and one-time** — it applies in every project, not per repo — and it
+is the one piece that cannot ship with the plugin: `statusLine` is not a plugin
+contribution point (a plugin's `settings.json` supports only `agent` and
+`subagentStatusLine`), so exactly one entry must live in the user's global settings. The
+installer exists so that entry is generated rather than hand-authored.
+
+Do **not** tell a user to write their own wrapper script. That was the previous
+instruction here, and it produced exactly one defect worth remembering: a hand-written
+wrapper hard-codes an absolute path to a dev checkout, so it keeps executing that copy
+after the plugin is installed somewhere else, and the shipped renderer and the running one
+silently diverge. `statusline-chain.sh` resolves the renderer as its own sibling for that
+reason, so it carries no hard-coded checkout path. (It does default the *base* statusline
+to `$HOME/.claude/statusline.sh` — an absolute path, but an overridable default rather
+than a baked-in location.)

@@ -115,6 +115,8 @@ The prior version of this table was reachable only in theory — `light` require
 
 **Live progress.** Execution state is mirrored to `.claude/plan-progress.json` at every transition, and `skills/executing-plans/scripts/plan-progress.py` renders it as a statusline progress bar (`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`). It chains after any existing statusline and prints nothing when no plan is executing; done/total are derived from the plan's authoritative `Status:` fields, so a missed update can never show wrong progress.
 
+**Wiring it — `/planning:statusline`.** The bar needs one entry in your global `~/.claude/settings.json`, and that entry is the one piece a plugin cannot ship: `statusLine` is not a plugin contribution point (a plugin's `settings.json` supports only `agent` and `subagentStatusLine`). So the plugin ships the parts — `scripts/statusline-chain.sh`, which runs your existing statusline first and appends the bar as a second line, resolving the renderer as its own sibling so it carries no absolute path — and `/planning:statusline install` generates the pointer. `status` reports what is wired, `remove` takes it back out, and the installer refuses to clobber a third-party `statusLine` without `--force`. Wiring is **global and one-time**, not per project. Hand-authoring a wrapper instead is what this replaces: a hand-written one hard-codes a checkout path and keeps running that copy after the plugin moves, so the shipped renderer and the running one drift apart with nothing to catch it.
+
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
 ### `applying-design-handoff`

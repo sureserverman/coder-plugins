@@ -690,8 +690,10 @@ finishes**. Write the whole file each time; never patch it. It is ephemeral sess
 never commit it, and ensure `.claude/plan-progress.json` is gitignored during the git
 bootstrap.
 
-Schema, the per-phase field table, `remediation_round`, and the one-time statusline wiring:
-`references/progress-state-file.md`.
+Schema, the per-phase field table, and `remediation_round`:
+`references/progress-state-file.md`. Wiring the bar is one command —
+`/planning:statusline install` — and is the user's to run, never something to hand-author a
+wrapper for.
 
 ---
 
