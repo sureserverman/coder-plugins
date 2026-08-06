@@ -511,6 +511,16 @@
       "requires_enablement": false
     },
     {
+      "description": "Wire, check, or remove the plan-execution progress bar in the Claude Code status line. Triggers on \"install the progress bar\", \"wire the plan statusline\", \"is the progress bar set up\", \"remove the statusline bar\".",
+      "disable_model_invocation": false,
+      "kind": "command",
+      "model": "inherit",
+      "name": "statusline",
+      "path": "planning/commands/statusline.md",
+      "plugin": "planning",
+      "requires_enablement": false
+    },
+    {
       "description": "Use when redesigning an app to reproduce a Claude Design handoff pack (tokens, components, layout, assets) precisely, reshaping functionality to fit the design where they conflict. Triggers on \"reproduce this design\", \"apply the handoff pack\", \"redesign to match the design\".",
       "disable_model_invocation": false,
       "kind": "skill",
