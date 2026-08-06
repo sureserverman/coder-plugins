@@ -13,6 +13,7 @@ file-mode preservation, symlinked settings.json handling, structural
 "is this ours?" relocation/repair detection, extra-key preservation on
 repair, and resolve_command()'s versioned/literal resolution.
 """
+import atexit
 import glob
 import importlib.util
 import json
@@ -29,6 +30,22 @@ CHAIN = SCRIPT.parent / "statusline-chain.sh"
 EXPECTED_COMMAND = f'bash "{CHAIN}"'
 
 FAILURES = []
+
+# Every mkdtemp() here used to leak: ~20 directories per run accumulated under
+# the OS temp dir on a dev machine running the suite repeatedly.
+_TMPDIRS = []
+
+
+def mkdtemp(**kw):
+    d = tempfile.mkdtemp(**kw)
+    _TMPDIRS.append(d)
+    return d
+
+
+@atexit.register
+def _cleanup_tmpdirs():
+    for d in _TMPDIRS:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def check(cond, label):
@@ -84,7 +101,7 @@ def case_space_in_path():
     stdout and empty stderr to explain it.
     """
     print("17. end-to-end through the generated command, path containing a space:")
-    home = tempfile.mkdtemp(prefix="sl space ")
+    home = mkdtemp(prefix="sl space ")
     base = os.path.join(home, ".claude", "plugins", "cache", "mkt", "planning")
     for v in ("0.9.0", "0.37.0"):
         d = os.path.join(base, v, "skills", "executing-plans", "scripts")
@@ -121,7 +138,7 @@ def case_remove_ownership_gate():
     remediation and nothing asserted it, which is how it would regress again.
     """
     print("18. --remove honours the same ownership gate as --install:")
-    home = tempfile.mkdtemp()
+    home = mkdtemp()
     os.makedirs(os.path.join(home, ".claude"))
     settings = os.path.join(home, ".claude", "settings.json")
     third_party = {"type": "command", "command": 'node /home/u/my-statusline.js'}
@@ -144,8 +161,197 @@ def case_remove_ownership_gate():
     check(after.get("theme") == "dark", "unrelated keys survive the forced removal")
 
 
+def _base_home(tag, script_body='#!/bin/bash\ncat >/dev/null\nprintf "MYBASE"\n'):
+    """A HOME whose settings.json wires a plain `bash <script>` statusline."""
+    home = Path(mkdtemp(prefix=f"sl-{tag}-"))
+    (home / ".claude").mkdir()
+    base = home / ".claude" / "mybase.sh"
+    base.write_text(script_body)
+    os.chmod(base, 0o755)
+    write_canonical(home / ".claude" / "settings.json",
+                    {"statusLine": {"type": "command", "command": f'bash "{base}"'},
+                     "theme": "dark"})
+    return home, base
+
+
+def _command(home):
+    return json.loads((home / ".claude" / "settings.json").read_text()).get(
+        "statusLine", {}).get("command", "")
+
+
+def case_repair_preserves_base():
+    """A repair install must CARRY a preserved base, and --status must not
+    advise the repair that would drop it.
+
+    Reproduced defect: --force preserved the user's statusline as a
+    PLAN_STATUSLINE_BASE prefix, then cmd_install's `merged.update(desired)`
+    overwrote `command` with the unprefixed form, so the very next plain
+    --install destroyed it. --status made it worse by comparing the whole
+    prefixed string against a fresh install's command -- never equal -- so it
+    permanently printed "run `--install` to repair", steering the user into
+    exactly the call that lost their config.
+    """
+    print("19. a repair install carries a preserved base forward:")
+    home, base = _base_home("repair")
+    r = run(home, ["--install", "--force"])
+    check(r.returncode == 0, "force-install over a third-party bash statusline succeeds")
+    check("PLAN_STATUSLINE_BASE=" in _command(home), "the base is preserved as a prefix")
+
+    st = run(home, ["--status"])
+    check("differs from what a fresh install would write" not in st.stdout,
+          "--status does NOT advise repairing a correctly-chained entry")
+    check(str(base) in st.stdout, "--status names the chained base")
+
+    r2 = run(home, ["--install"])
+    check(r2.returncode == 0, "a subsequent plain --install succeeds")
+    check("PLAN_STATUSLINE_BASE=" in _command(home),
+          "the preserved base SURVIVES the repair (was silently dropped)")
+    check(str(base) in _command(home), "and still points at the user's own script")
+
+
+def case_remove_restores_base():
+    """--remove is the inverse of whatever install it undoes.
+
+    It used to `del data["statusLine"]` unconditionally, so a user whose own
+    statusline had been preserved as the base lost it entirely -- recoverable
+    only from a .bak they had no reason to know existed -- while README.md
+    describes remove as merely taking the bar back out.
+    """
+    print("20. --remove restores a preserved base instead of clearing the key:")
+    home, base = _base_home("removebase")
+    run(home, ["--install", "--force"])
+    r = run(home, ["--remove"])
+    check(r.returncode == 0, "--remove on our own chained entry succeeds")
+    data = json.loads((home / ".claude" / "settings.json").read_text())
+    check("statusLine" in data, "statusLine key is NOT deleted when a base was chained")
+    check(data["statusLine"]["command"] == f'bash "{base}"',
+          f"the user's original command is restored (got {data['statusLine'].get('command')!r})")
+    check(data.get("theme") == "dark", "unrelated keys survive")
+
+    print("20b. --remove still clears the key when no base was chained:")
+    home2 = Path(mkdtemp(prefix="sl-nobase-"))
+    (home2 / ".claude").mkdir()
+    write_canonical(home2 / ".claude" / "settings.json", {"theme": "dark"})
+    run(home2, ["--install"])
+    run(home2, ["--remove"])
+    data2 = json.loads((home2 / ".claude" / "settings.json").read_text())
+    check("statusLine" not in data2, "plain install/remove round trip still clears the key")
+
+
+def case_doubled_bar_refused():
+    """A base that runs plan-progress.py itself must NOT be chained.
+
+    This repo's own live wiring is exactly that shape -- a hand-written
+    statusline-with-plan.sh that calls plan-progress.py on a hard-coded path --
+    so `--install --force` chained it in and the progress bar rendered TWICE,
+    with nothing at install or render time to say so. The upgrade path hit this,
+    not a hypothetical user.
+    """
+    print("21. a base that already prints the plan bar is refused, not chained:")
+    home, base = _base_home(
+        "double",
+        '#!/bin/bash\ncat >/dev/null\nprintf "OLDBASE"\n'
+        'python3 "$HOME/dev/x/plan-progress.py" 2>/dev/null\n',
+    )
+    r = run(home, ["--install", "--force"])
+    check(r.returncode == 0, "force-install still succeeds")
+    check("PLAN_STATUSLINE_BASE=" not in _command(home),
+          "the doubling wrapper is NOT chained in as the base")
+    check("NOT chained in" in r.stderr, "the refusal is explained on stderr")
+    check("twice" in r.stderr, "and says why -- the bar would print twice")
+
+
+def case_is_ours_is_structural():
+    """is_ours() matches a path COMPONENT, not a substring of the command.
+
+    A raw `"statusline-chain.sh" in command` test claimed ownership of any
+    third-party entry that merely mentioned the name, and a bare --install then
+    "repaired" it -- bypassing the --force gate README.md promises.
+    """
+    print("22. is_ours() does not claim a look-alike third-party script:")
+    home = Path(mkdtemp(prefix="sl-ours-"))
+    (home / ".claude").mkdir()
+    imposter = home / ".claude" / "my-statusline-chain.sh"
+    imposter.write_text('#!/bin/bash\nprintf "MINE"\n')
+    os.chmod(imposter, 0o755)
+    settings = home / ".claude" / "settings.json"
+    write_canonical(settings, {"statusLine": {"type": "command",
+                                             "command": f'bash "{imposter}"'}})
+    before = settings.read_bytes()
+    r = run(home, ["--install"])
+    check(r.returncode != 0,
+          "a bash my-statusline-chain.sh entry is treated as third-party, not ours")
+    check("refusing to overwrite" in r.stderr, "and the refusal names the --force gate")
+    check(settings.read_bytes() == before, "the look-alike entry is left byte-identical")
+
+
+def case_non_dict_statusline():
+    """A bare-string statusLine must not crash --force.
+
+    chain_through() returned "" for a non-dict and the caller then called
+    .get() on it anyway, so --force -- the documented escape hatch -- died with
+    an unactionable "'str' object has no attribute 'get'".
+    """
+    print("23. a bare-string statusLine is handled, not crashed on:")
+    home = Path(mkdtemp(prefix="sl-str-"))
+    (home / ".claude").mkdir()
+    settings = home / ".claude" / "settings.json"
+    write_canonical(settings, {"statusLine": "bash /opt/mine.sh", "theme": "dark"})
+    r = run(home, ["--install"])
+    check(r.returncode != 0, "bare --install still refuses a third-party entry")
+
+    r2 = run(home, ["--install", "--force"])
+    check("Traceback" not in r2.stderr, "no traceback on --force")
+    check("object has no attribute" not in r2.stderr,
+          f"no AttributeError leaks to the user (stderr={r2.stderr!r})")
+    check(r2.returncode == 0, "--force actually completes")
+    data = json.loads(settings.read_text())
+    check(data.get("statusLine", {}).get("command") == EXPECTED_COMMAND,
+          "the entry is replaced with ours")
+    check(data.get("theme") == "dark", "unrelated keys survive")
+
+    st = run(home, ["--status"])
+    check(st.returncode == 0, "--status handles the same shape without dying")
+
+
+def case_non_utf8_settings():
+    """A settings.json that is not valid UTF-8 gets a clear refusal.
+
+    Both read paths used read_text() with no encoding, so they fell back to the
+    locale codec: under LC_ALL=C any non-ASCII byte died with "'ascii' codec
+    can't decode". write_settings() already passed encoding="utf-8".
+    """
+    print("24. non-UTF-8 settings.json refuses cleanly under a C locale:")
+    home = Path(mkdtemp(prefix="sl-enc-"))
+    (home / ".claude").mkdir()
+    settings = home / ".claude" / "settings.json"
+    settings.write_bytes(b'{"name": "caf\xe9"}\n')  # latin-1, not UTF-8
+    before = settings.read_bytes()
+    env = dict(os.environ, HOME=str(home), LC_ALL="C", LANG="C",
+               PYTHONCOERCECLOCALE="0", PYTHONUTF8="0")
+    r = subprocess.run([sys.executable, str(SCRIPT), "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode != 0, "install refuses")
+    check("Traceback" not in r.stderr, "no traceback")
+    check("codec" not in r.stderr.lower() or "not valid UTF-8" in r.stderr,
+          f"the message is actionable, not a raw codec error (stderr={r.stderr!r})")
+    check(settings.read_bytes() == before, "the file is left byte-identical")
+
+    print("24b. a UTF-8 settings.json still works under the same C locale:")
+    home2 = Path(mkdtemp(prefix="sl-enc2-"))
+    (home2 / ".claude").mkdir()
+    s2 = home2 / ".claude" / "settings.json"
+    s2.write_text('{\n  "name": "café"\n}\n', encoding="utf-8")
+    env2 = dict(env, HOME=str(home2))
+    r2 = subprocess.run([sys.executable, str(SCRIPT), "--install"],
+                        env=env2, capture_output=True, text=True)
+    check(r2.returncode == 0, "install succeeds on valid UTF-8 under LC_ALL=C")
+    check(json.loads(s2.read_text(encoding="utf-8")).get("name") == "café",
+          "the non-ASCII value survives verbatim")
+
+
 def main():
-    tmp = Path(tempfile.mkdtemp(prefix="statusline-install-test-"))
+    tmp = Path(mkdtemp(prefix="statusline-install-test-"))
 
     print("1. install into settings.json with no statusLine:")
     home1 = fresh_home(tmp, "home1")
@@ -240,10 +446,11 @@ def main():
     check(backups7 == [], "no backup taken when the write never happens")
 
     print("8. atomicity:")
-    src = SCRIPT.read_text()
-    check("os.replace(" in src, "source uses os.replace() for the swap")
-    check("tempfile.mkstemp(" in src and "dir=" in src,
-          "source creates its temp file with an explicit same-directory dir=")
+    # The two source-greps that used to stand here ("os.replace(" in src,
+    # "tempfile.mkstemp(" in src) were the shape this plan learned to distrust:
+    # they assert the implementation's tokens rather than its behavior, so they
+    # would keep passing across a rewrite that lost atomicity while retaining
+    # the words. The fault injection below is the real assertion.
     # Strongest practical check: make ~/.claude read-only (as the real owning,
     # non-root user) so the write cannot land at all, and confirm the
     # settings file survives untouched with no partial/temp file left behind
@@ -406,7 +613,7 @@ def main():
 
     # numeric field sort, not lexical sort: 0.37.0 must be picked over 0.9.0 (lexically
     # "0.37.0" < "0.9.0" since '3' < '9', which would wrongly pick 0.9.0).
-    vtmp = Path(tempfile.mkdtemp(prefix="statusline-resolve-version-test-"))
+    vtmp = Path(mkdtemp(prefix="statusline-resolve-version-test-"))
     vbase = vtmp / "plugins" / "cache" / "mkt" / "planning"
     for v, tag in [("0.9.0", "V0.9.0"), ("0.37.0", "V0.37.0")]:
         d = vbase / v / "scripts"
@@ -425,6 +632,12 @@ def main():
     print()
     case_space_in_path()
     case_remove_ownership_gate()
+    case_repair_preserves_base()
+    case_remove_restores_base()
+    case_doubled_bar_refused()
+    case_is_ours_is_structural()
+    case_non_dict_statusline()
+    case_non_utf8_settings()
 
     if FAILURES:
         print(f"{len(FAILURES)} failure(s):")

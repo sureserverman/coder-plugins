@@ -185,9 +185,41 @@ else
   echo "  ok: default base path (\$HOME/.claude/statusline.sh) fires when PLAN_STATUSLINE_BASE is unset"
 fi
 
+echo "case 9 — a HANGING base statusline does not hang the redraw"
+# A statusline is redrawn constantly, so an unbounded base that blocks freezes
+# every redraw indefinitely with nothing to explain it — worse than a missing
+# line. Both subprocesses are wrapped in `timeout 2` (gtimeout, else unbounded
+# on a host with neither). Skipped rather than silently passing where no
+# timeout binary exists, so the skip is visible instead of looking like a pass.
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
+  HANG_BASE="$TMP/hang-base.sh"
+  printf '#!/bin/bash\ncat >/dev/null\nsleep 30\nprintf "NEVER"\n' > "$HANG_BASE"
+  chmod +x "$HANG_BASE"
+  stub_plan bar
+  start=$(date +%s)
+  out="$(cd "$WORK" && PLAN_STATUSLINE_BASE="$HANG_BASE" bash "$WORK/statusline-chain.sh" \
+        <<<'{}' 2>"$TMP/hang-err.log")"
+  rc=$?
+  elapsed=$(( $(date +%s) - start ))
+  if [ "$elapsed" -ge 10 ]; then
+    echo "FAIL: hanging base — took ${elapsed}s, wanted a bounded (~2s) return"; fail=1
+  elif [ "$rc" != 0 ]; then
+    echo "FAIL: hanging base — exit $rc, wanted 0"; fail=1
+  elif [ "$out" != "PLANBAR" ]; then
+    echo "FAIL: hanging base — stdout '$out', wanted the plan bar alone ('PLANBAR')"; fail=1
+  elif [ -s "$TMP/hang-err.log" ]; then
+    echo "FAIL: hanging base — stderr not empty: $(cat "$TMP/hang-err.log")"; fail=1
+  else
+    echo "  ok: a hanging base is cut off (${elapsed}s) and the plan bar still renders"
+  fi
+else
+  echo "  SKIP: neither timeout nor gtimeout on this host — nothing bounds the base here"
+fi
+
 [ "$fail" -eq 0 ] || { echo; echo "FAILED"; exit 1; }
 echo
 echo "OK — sibling resolution is cwd-independent, PLAN_STATUSLINE_BASE is honored,"
 echo "     the default \$HOME/.claude/statusline.sh path fires when unset,"
-echo "     missing/failing base or plan-progress.py never breaks the chain, and the"
+echo "     missing/failing base or plan-progress.py never breaks the chain, a"
+echo "     hanging base is bounded rather than freezing the redraw, and the"
 echo "     shipped script carries no hardcoded developer checkout path."

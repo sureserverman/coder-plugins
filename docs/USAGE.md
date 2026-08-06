@@ -58,6 +58,20 @@ and no per-task pass, with per-task review reserved for the *high* tier or a tas
 annotated Review: required. At close-out it bumps versions
 across every mirror, reconciles the backlog, and records any decision the work created.
 
+While it runs, execution state is mirrored to `<repo>/.claude/plan-progress.json` and can be
+rendered as a live status-line bar
+(`⚙ plan ▐██████░░░░▌ 3/6 (50%) · S2/3 ▶ T2.2 …`), which disappears at close-out.
+
+```text
+/planning:statusline install     # one-time and global; also takes status, remove
+```
+
+That one entry has to live in your own `~/.claude/settings.json` because `statusLine` is
+not a plugin contribution point — so the plugin ships the scripts and this command
+generates the pointer, rather than asking you to hand-author a wrapper. An existing
+status line invoked as a plain `bash <script>` is preserved and runs first; anything else
+is left alone unless you pass `--force`.
+
 ```text
 "review this, then open a PR"
 ```

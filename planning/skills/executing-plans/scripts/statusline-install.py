@@ -57,6 +57,54 @@ VERSION_PINNED_RE = re.compile(
 
 BASH_INVOCATION_RE = re.compile(r'^bash\s+"?([^"]+)"?\s*$')
 
+# The `PLAN_STATUSLINE_BASE=<path> ` prefix chain_through() writes, so a later
+# repair can recognise and carry it rather than silently dropping it. Parsed
+# with shlex so a quoted path containing spaces round-trips.
+BASE_PREFIX_RE = re.compile(r"^PLAN_STATUSLINE_BASE=(?P<base>('[^']*'|\"[^\"]*\"|\S+))\s+")
+
+# The chain script's own name, matched as a PATH COMPONENT rather than as a
+# substring anywhere in the command (see is_ours).
+CHAIN_NAME = "statusline-chain.sh"
+CHAIN_PATH_RE = re.compile(r"[^\s\"';|&]*" + re.escape(CHAIN_NAME))
+
+
+def split_base_prefix(command):
+    """(base_path_or_None, remainder) for a command chain_through() may have written.
+
+    A repair install must carry a preserved base forward instead of rebuilding
+    the command from scratch: cmd_install() used to `merged.update(desired)`,
+    which overwrote `command` with the unprefixed form, so a --force install
+    that carefully preserved the user's statusline was undone by the very next
+    plain --install. And --status compared against the unprefixed command, so a
+    preserved entry always reported "differs — run `--install` to repair",
+    steering the user into exactly the call that destroyed it.
+    """
+    m = BASE_PREFIX_RE.match(str(command or ""))
+    if not m:
+        return None, str(command or "")
+    base = m.group("base")
+    if base[:1] in ("'", '"') and base[-1:] == base[:1]:
+        base = base[1:-1]
+    return base, str(command)[m.end():]
+
+
+def base_emits_own_bar(base_path):
+    """Whether a candidate base statusline already renders a plan-progress bar.
+
+    The hand-written ~/.claude/statusline-with-plan.sh this plan retires IS a
+    `bash <script>` invocation that itself runs plan-progress.py. Chaining it in
+    as the base therefore produces the bar TWICE — once from the old wrapper,
+    once from the chain script — and nothing at install or render time says so.
+    That is the exact shape of the wiring this repo ships against today, so the
+    upgrade path hits it rather than some hypothetical user.
+    """
+    try:
+        return "plan-progress.py" in Path(base_path).read_text(
+            encoding="utf-8", errors="ignore"
+        )
+    except OSError:
+        return False
+
 
 def chain_through(displaced):
     """A `PLAN_STATUSLINE_BASE=<path> ` prefix that preserves a displaced statusline.
@@ -68,19 +116,28 @@ def chain_through(displaced):
     plan was executing. Where the displaced entry is a plain `bash <script>`, we
     can keep it as the base instead of destroying it.
 
-    Returns "" when the displaced command is not a shape we can safely chain
-    (node/deno/bun, a pipeline, anything with its own arguments) — better to
-    hand the user their old command back in a message than to guess wrong.
+    Returns (prefix, reason). `prefix` is "" when the displaced command is not a
+    shape we can safely chain — better to hand the user their old command back
+    in a message than to guess wrong — and `reason` says which case applied so
+    the caller can explain it:
+
+        "ok"          chained
+        "not-a-dict"  the entry is a bare string, not a {type, command} object
+        "unchainable" node/deno/bun, a pipeline, anything with its own arguments
+        "missing"     the script named no longer exists on disk
+        "doubles-bar" the script already prints a plan-progress bar of its own
     """
     if not isinstance(displaced, dict):
-        return ""
+        return "", "not-a-dict"
     m = BASH_INVOCATION_RE.match(str(displaced.get("command", "")).strip())
     if not m:
-        return ""
+        return "", "unchainable"
     base = m.group(1)
     if not os.path.isfile(base):
-        return ""
-    return f"PLAN_STATUSLINE_BASE={shlex.quote(base)} "
+        return "", "missing"
+    if base_emits_own_bar(base):
+        return "", "doubles-bar"
+    return f"PLAN_STATUSLINE_BASE={shlex.quote(base)} ", "ok"
 
 
 def resolve_command(target=TARGET):
@@ -149,9 +206,19 @@ def is_ours(entry):
     the next), and that relocation is exactly what this tooling exists to
     survive. Shared by --status and --install so the two cannot disagree about
     the same file.
+
+    Matched as a whole PATH COMPONENT, not as a substring of the command. A raw
+    `"statusline-chain.sh" in command` test also claimed ownership of a
+    third-party entry that merely mentioned the name — `bash
+    ~/bin/my-statusline-chain.sh`, a comment, an argument, a path to an old
+    backup — and a bare --install would then "repair" it, bypassing the very
+    --force gate README.md promises for a statusLine this tool did not write.
     """
-    return isinstance(entry, dict) and "statusline-chain.sh" in str(
-        entry.get("command", "")
+    if not isinstance(entry, dict):
+        return False
+    command = str(entry.get("command", ""))
+    return any(
+        os.path.basename(hit) == CHAIN_NAME for hit in CHAIN_PATH_RE.findall(command)
     )
 
 
@@ -184,9 +251,15 @@ def load_settings_for_write(path):
     if not path.exists():
         return {}, False
     try:
-        raw = path.read_text()
+        # Explicit encoding: read_text() defaults to the locale encoding, so
+        # under LC_ALL=C a settings.json holding any non-ASCII byte died with an
+        # unactionable "'ascii' codec can't decode". write_settings() already
+        # got this right; both read paths did not.
+        raw = path.read_text(encoding="utf-8")
     except OSError as e:
         die(f"cannot read {path}: {e}")
+    except UnicodeDecodeError as e:
+        die(f"refusing to modify {path}: it is not valid UTF-8 ({e}).")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -274,9 +347,12 @@ def cmd_status():
         print(f"statusLine: not wired ({path} does not exist)")
         return 0
     try:
-        raw = path.read_text()
+        raw = path.read_text(encoding="utf-8")
     except OSError as e:
         print(f"statusline-install: cannot read {path}: {e}", file=sys.stderr)
+        return 1
+    except UnicodeDecodeError as e:
+        print(f"statusline-install: {path} is not valid UTF-8: {e}", file=sys.stderr)
         return 1
     try:
         data = json.loads(raw)
@@ -293,7 +369,15 @@ def cmd_status():
     if is_ours(entry):
         current = entry.get("command", "")
         print(f"statusLine: wired to this installer's chain script\n  {current}")
-        if current != desired_entry()["command"]:
+        # Compare only the part AFTER any preserved-base prefix. Comparing the
+        # whole string meant a chained entry never equalled a fresh install's
+        # command, so --status permanently advised `--install` to "repair" it —
+        # and that install then dropped the base. The tool recommended the one
+        # action that destroyed the config it had just preserved.
+        base, rest = split_base_prefix(current)
+        if base:
+            print(f"  (chained after your own statusline: {base})")
+        if rest != desired_entry()["command"]:
             print("  (differs from what a fresh install would write — "
                   "run `--install` to repair)")
         return 0
@@ -333,15 +417,36 @@ def cmd_install(force):
     # own by discarding their tuning is not.
     merged = dict(current) if ours and isinstance(current, dict) else {}
     merged.update(desired)
+    if ours and isinstance(current, dict):
+        # Carry a previously preserved base forward. Without this, repairing our
+        # own entry rebuilt `command` from desired_entry() alone and silently
+        # dropped the PLAN_STATUSLINE_BASE prefix a --force install had added —
+        # so the user's own statusline survived the install that displaced it
+        # and was destroyed by the next routine repair.
+        base, _rest = split_base_prefix(current.get("command", ""))
+        if base:
+            merged["command"] = (
+                f"PLAN_STATUSLINE_BASE={shlex.quote(base)} " + merged["command"]
+            )
     if current is not None and not ours:
-        prefix = chain_through(current)
+        prefix, reason = chain_through(current)
+        # `current` may be a bare string rather than a {type, command} object;
+        # .get() on it raised AttributeError and turned --force, the documented
+        # escape hatch, into an unactionable crash.
+        shown = current.get("command") if isinstance(current, dict) else current
         if prefix:
             merged["command"] = prefix + merged["command"]
-            print(f"Preserved your previous statusline as the base: "
-                  f"{current.get('command')}")
+            print(f"Preserved your previous statusline as the base: {shown}")
+        elif reason == "doubles-bar":
+            print(f"NOTE: your previous statusline was NOT chained in:\n"
+                  f"  {shown}\n"
+                  f"  It runs plan-progress.py itself, so chaining it would print the\n"
+                  f"  plan progress bar twice. It is preserved in the backup beside\n"
+                  f"  settings.json; delete it once this install renders correctly.",
+                  file=sys.stderr)
         else:
             print(f"NOTE: replaced a statusline this tool cannot chain through:\n"
-                  f"  {current.get('command')}\n"
+                  f"  {shown}\n"
                   f"  It is preserved in the backup beside settings.json. To keep it "
                   f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.",
                   file=sys.stderr)
@@ -375,6 +480,27 @@ def cmd_remove(force):
             file=sys.stderr,
         )
         return 1
+    # If our entry chained a base the user already had, --remove restores THAT
+    # rather than deleting the key. Deleting outright made remove the inverse of
+    # a fresh install but not of a --force install: a user whose own statusline
+    # had been preserved as the base lost it entirely on remove, recoverable
+    # only from a .bak they had no reason to know about — while README.md says
+    # remove merely "takes it back out".
+    base, _rest = split_base_prefix(
+        data["statusLine"].get("command", "")
+        if isinstance(data["statusLine"], dict)
+        else ""
+    )
+    if base:
+        restored = {"type": "command", "command": f'bash "{base}"'}
+        for k, v in data["statusLine"].items():
+            if k not in ("type", "command"):
+                restored[k] = v
+        data["statusLine"] = restored
+        write_settings(path, data, existed)
+        print(f"Removed the plan bar and restored your previous statusline in {path}.\n"
+              f"  {restored['command']}")
+        return 0
     del data["statusLine"]
     write_settings(path, data, existed)
     print(f"Removed statusLine from {path}.")

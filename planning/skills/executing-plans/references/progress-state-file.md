@@ -46,11 +46,21 @@ already ignore it). For a master plan, the state file always points at the
 That command is the invocation — do not hand a user a relative `../scripts/…` path, which
 resolves only when the shell's cwd happens to be this file's own directory and fails
 everywhere else. The command runs
-`python3 ${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/scripts/statusline-install.py`,
+`python3 "${CLAUDE_PLUGIN_ROOT}/skills/executing-plans/scripts/statusline-install.py"`,
 which writes the single `statusLine` entry in `~/.claude/settings.json` pointing at the
 shipped `statusline-chain.sh`; that script runs the user's existing statusline first and
 appends this renderer's output on the next line when non-empty, both from the same stdin
 JSON. `--status` reports what is wired; `--remove` takes it back out.
+
+**What "existing statusline" covers.** The installer preserves a displaced entry as the
+chain's base only when it is a plain `bash <script>` invocation, which it records as a
+`PLAN_STATUSLINE_BASE=<path>` prefix on the written command. A `node`/`deno`/`bun`
+command, a pipeline, or a `bash` call carrying its own arguments cannot be chained
+safely: without `--force` the install refuses, and with `--force` the old command is
+replaced, echoed to stderr, and left in the timestamped backup. One shape is refused
+deliberately even though it parses — a base script that itself runs `plan-progress.py`,
+i.e. a hand-written wrapper from before this command existed, because chaining it would
+print the bar twice. `--remove` restores a preserved base rather than clearing the key.
 
 **The written pointer resolves the newest installed version at render time**, rather than
 freezing today's path. A plugin installs to a version-pinned directory that changes on
