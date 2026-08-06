@@ -17,6 +17,7 @@ import glob
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,48 @@ def write_raw(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
+
+
+def case_space_in_path():
+    """The seam both Tier-2 Criticals lived in: a full --install into a cache
+    tree whose path contains a space, then executing the command recovered from
+    the written JSON end to end.
+
+    Each suite was airtight for its own file and blind to the join: the install
+    suite only ever built resolve_command() on clean synthetic paths, and the
+    chain suite invoked statusline-chain.sh directly rather than through the
+    generated `sh -c` wrapper. An unquoted glob therefore shipped, and a HOME
+    with a space in it lost the ENTIRE statusline -- base included -- with empty
+    stdout and empty stderr to explain it.
+    """
+    print("17. end-to-end through the generated command, path containing a space:")
+    home = tempfile.mkdtemp(prefix="sl space ")
+    base = os.path.join(home, ".claude", "plugins", "cache", "mkt", "planning")
+    for v in ("0.9.0", "0.37.0"):
+        d = os.path.join(base, v, "skills", "executing-plans", "scripts")
+        os.makedirs(d, exist_ok=True)
+        chain = os.path.join(d, "statusline-chain.sh")
+        with open(chain, "w") as f:
+            f.write('#!/bin/bash\ncat >/dev/null\nprintf "CHAIN-%s"\n' % v)
+        os.chmod(chain, 0o755)
+    installer = os.path.join(base, "0.37.0", "skills", "executing-plans",
+                             "scripts", "statusline-install.py")
+    shutil.copy(SCRIPT, installer)
+    os.makedirs(os.path.join(home, ".claude"), exist_ok=True)
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, installer, "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode == 0, "install rc 0 from a cache path containing a space")
+    with open(os.path.join(home, ".claude", "settings.json")) as f:
+        written = json.load(f)["statusLine"]["command"]
+    run = subprocess.run(written, shell=True, input="{}",
+                         capture_output=True, text=True)
+    check(run.returncode == 0,
+          "the command written to settings.json exits 0 (was rc=1, silent, before)")
+    check(run.stdout == "CHAIN-0.37.0",
+          "it execs the newest chain script (got %r)" % run.stdout)
+    check(run.stderr == "",
+          "and stays silent on stderr")
 
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="statusline-install-test-"))
@@ -348,6 +391,8 @@ def main():
           f"version sort picks the highest version 0.37.0 over 0.9.0, not the lexical max (got {proc16.stdout!r})")
 
     print()
+    case_space_in_path()
+
     if FAILURES:
         print(f"{len(FAILURES)} failure(s):")
         for f in FAILURES:
