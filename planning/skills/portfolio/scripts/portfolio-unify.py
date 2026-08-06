@@ -175,6 +175,13 @@ STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX~])\]")
 # ABANDON_HINT_RE is advisory only (see the contract note above) and is
 # deliberately NOT consulted by any suppression decision.
 ABANDONED_RE = re.compile(r"^\*\*Abandoned:\*\*\s*(.+)$", re.M)
+# The close-out line executing-plans appends ("**Completed:** YYYY-MM-DD —
+# commits: ..."). It lived only in the comments above until consumers needed to
+# ASK the question rather than describe it: plan-progress.py's eligibility
+# filter and the plan-status audit both need "is this plan closed out?", and the
+# contract's single-owner rule means they import it from here rather than each
+# restating a regex that would then drift.
+COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(.+)$", re.M)
 ABANDON_HINT_RE = re.compile(
     r"^[>#*_\s]{0,8}\b(OBSOLETE|SUPERSEDED|ABANDONED|DO NOT IMPLEMENT)\b", re.M)
 

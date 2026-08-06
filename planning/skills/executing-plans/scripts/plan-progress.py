@@ -169,6 +169,38 @@ def parse_plan(text):
     return done, total, len(stages)
 
 
+def plan_is_eligible(text):
+    """Whether a plan counts as 'in flight' and so earns a bar.
+
+    Eligible = STARTED but not CLOSED OUT:
+      started    -> at least one Status classified `done` or `partial`
+      closed out -> a **Completed:** or **Abandoned:** line
+
+    Classification goes through pu.status_state(), never a test on the captured
+    character: `!= " "` reads `[~]` as done, which is the exact defect BL-001
+    exists to prevent. Both terminal markers come from pu as well, so this file
+    restates no part of the plan-status contract.
+
+    Deliberately NOT eligible: an all-`[ ]` plan (authored, never started -- a
+    bar reading 0/13 is noise), a plan with no Status fields at all (the
+    checkbox-era legacy and *-design.md documents), and anything closed out.
+    """
+    started = False
+    in_task = False
+    for line in text.splitlines():
+        if pu.TASK_RE.match(line):
+            in_task = True
+            continue
+        sm = pu.STATUS_RE.match(line)
+        if sm and in_task:
+            in_task = False
+            if pu.status_state(sm.group(1)) in ("done", "partial"):
+                started = True
+    if not started:
+        return False
+    return not (pu.COMPLETED_RE.search(text) or pu.ABANDONED_RE.search(text))
+
+
 def bar(done, total):
     filled = round(BAR_WIDTH * done / total) if total else 0
     return (

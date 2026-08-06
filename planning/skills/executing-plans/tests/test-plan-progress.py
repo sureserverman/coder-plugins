@@ -224,6 +224,49 @@ def case_resolver_never_breaks_the_bar():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def case_eligibility_filter():
+    """Task 2.2 — eligible = started AND not closed out."""
+    print("Task 2.2 — started-but-unfinished eligibility:")
+    mod = load_module()
+
+    started = "### Task 1.1: a\n- **Status:** [x]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    check(mod.plan_is_eligible(started), "started and open -> eligible")
+
+    only_partial = "### Task 1.1: a\n- **Status:** [~]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    check(mod.plan_is_eligible(only_partial),
+          "a plan whose ONLY progress is `[~]` counts as started")
+
+    never = "### Task 1.1: a\n- **Status:** [ ]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    check(not mod.plan_is_eligible(never), "authored but never started -> ineligible")
+
+    check(not mod.plan_is_eligible(started + "\n**Completed:** 2026-08-01 — commits: abc123\n"),
+          "carries **Completed:** -> ineligible")
+    check(not mod.plan_is_eligible(started + "\n**Abandoned:** 2026-08-01 — superseded\n"),
+          "carries **Abandoned:** -> ineligible")
+
+    check(not mod.plan_is_eligible("# Design: a thing\n\nSome prose, no Status fields.\n"),
+          "no Status fields at all (legacy / *-design.md) -> ineligible")
+    check(not mod.plan_is_eligible(""), "empty document -> ineligible")
+
+    # A Status line outside a task heading is not a task status.
+    check(not mod.plan_is_eligible("- **Status:** [x]\n"),
+          "a bare Status line with no Task heading above it does not start a plan")
+
+    # The prose hint must NOT suppress: only the structured marker is
+    # authoritative (plan-status contract -- a heuristic false positive hides
+    # live work, which is BL-001 inverted and silent).
+    check(mod.plan_is_eligible("OBSOLETE — DO NOT IMPLEMENT\n\n" + started),
+          "banner prose alone does NOT suppress; only the **Abandoned:** marker does")
+
+    # The plan-status contract is owned in exactly one place. Assert that
+    # structurally: the renderer must reach through `pu`, not carry its own copy.
+    check(hasattr(mod.pu, "COMPLETED_RE"), "portfolio-unify owns COMPLETED_RE")
+    check(not hasattr(mod, "COMPLETED_RE"),
+          "the renderer does NOT define its own COMPLETED_RE")
+    check(not hasattr(mod, "ABANDONED_RE") and not hasattr(mod, "STATUS_RE"),
+          "nor its own ABANDONED_RE / STATUS_RE")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -330,6 +373,7 @@ def main():
     print()
     case_portfolio_resolver()
     case_resolver_never_breaks_the_bar()
+    case_eligibility_filter()
 
     print()
     if FAILURES:
