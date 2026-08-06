@@ -55,6 +55,34 @@ VERSION_PINNED_RE = re.compile(
 )
 
 
+BASH_INVOCATION_RE = re.compile(r'^bash\s+"?([^"]+)"?\s*$')
+
+
+def chain_through(displaced):
+    """A `PLAN_STATUSLINE_BASE=<path> ` prefix that preserves a displaced statusline.
+
+    --force used to discard whatever it replaced. The chain script only ever
+    runs $HOME/.claude/statusline.sh as its base, and settings.json has no way
+    to supply PLAN_STATUSLINE_BASE — so a user whose statusline was a script at
+    any other path lost it in every project, and got a blank line whenever no
+    plan was executing. Where the displaced entry is a plain `bash <script>`, we
+    can keep it as the base instead of destroying it.
+
+    Returns "" when the displaced command is not a shape we can safely chain
+    (node/deno/bun, a pipeline, anything with its own arguments) — better to
+    hand the user their old command back in a message than to guess wrong.
+    """
+    if not isinstance(displaced, dict):
+        return ""
+    m = BASH_INVOCATION_RE.match(str(displaced.get("command", "")).strip())
+    if not m:
+        return ""
+    base = m.group(1)
+    if not os.path.isfile(base):
+        return ""
+    return f"PLAN_STATUSLINE_BASE={shlex.quote(base)} "
+
+
 def resolve_command(target=TARGET):
     """The shell command to write into settings.json, plus how it was derived.
 
@@ -177,6 +205,11 @@ def backup(path):
     backup_path = path.with_name(path.name + f".bak.{ts}")
     try:
         backup_path.write_bytes(path.read_bytes())
+        # Inherit the source's mode rather than the umask. write_bytes() creates
+        # at 0666 & ~umask — typically 0644 — so a settings.json deliberately
+        # chmod'd 0600 because it carries `env` API keys or an apiKeyHelper left
+        # a world-readable copy of those secrets sitting in ~/.claude forever.
+        os.chmod(backup_path, path.stat().st_mode & 0o7777)
     except OSError as e:
         die(f"could not create backup at {backup_path}: {e}")
     return backup_path
@@ -300,6 +333,18 @@ def cmd_install(force):
     # own by discarding their tuning is not.
     merged = dict(current) if ours and isinstance(current, dict) else {}
     merged.update(desired)
+    if current is not None and not ours:
+        prefix = chain_through(current)
+        if prefix:
+            merged["command"] = prefix + merged["command"]
+            print(f"Preserved your previous statusline as the base: "
+                  f"{current.get('command')}")
+        else:
+            print(f"NOTE: replaced a statusline this tool cannot chain through:\n"
+                  f"  {current.get('command')}\n"
+                  f"  It is preserved in the backup beside settings.json. To keep it "
+                  f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.",
+                  file=sys.stderr)
     data["statusLine"] = merged
     write_settings(path, data, existed)
     action = "Repaired" if current is not None else "Installed"

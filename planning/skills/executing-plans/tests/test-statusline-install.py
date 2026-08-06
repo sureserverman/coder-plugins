@@ -112,6 +112,38 @@ def case_space_in_path():
     check(run.stderr == "",
           "and stays silent on stderr")
 
+def case_remove_ownership_gate():
+    """--remove must refuse a statusLine this tool did not write.
+
+    This gate exists because it already regressed once: --remove deleted any
+    entry unconditionally, so a user with a hand-configured statusline lost it
+    by running `/planning:statusline remove` to tidy up. It was implemented in
+    remediation and nothing asserted it, which is how it would regress again.
+    """
+    print("18. --remove honours the same ownership gate as --install:")
+    home = tempfile.mkdtemp()
+    os.makedirs(os.path.join(home, ".claude"))
+    settings = os.path.join(home, ".claude", "settings.json")
+    third_party = {"type": "command", "command": 'node /home/u/my-statusline.js'}
+    with open(settings, "w") as f:
+        json.dump({"statusLine": third_party, "theme": "dark"}, f, indent=2)
+    before = open(settings, "rb").read()
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, SCRIPT, "--remove"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode != 0, "--remove on a third-party entry exits non-zero")
+    check("refusing to remove" in r.stderr, "refusal names what it will not do")
+    check(open(settings, "rb").read() == before,
+          "the third-party entry is left byte-identical")
+    r2 = subprocess.run([sys.executable, SCRIPT, "--remove", "--force"],
+                        env=env, capture_output=True, text=True)
+    check(r2.returncode == 0, "--remove --force succeeds")
+    with open(settings) as f:
+        after = json.load(f)
+    check("statusLine" not in after, "--force actually removes it")
+    check(after.get("theme") == "dark", "unrelated keys survive the forced removal")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="statusline-install-test-"))
 
@@ -392,6 +424,7 @@ def main():
 
     print()
     case_space_in_path()
+    case_remove_ownership_gate()
 
     if FAILURES:
         print(f"{len(FAILURES)} failure(s):")
