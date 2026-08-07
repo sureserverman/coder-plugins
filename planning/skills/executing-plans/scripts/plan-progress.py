@@ -15,6 +15,7 @@ extra line only appears mid-execution and disappears at close-out.
 import datetime
 import importlib.util
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -224,12 +225,91 @@ def date_stamp(path):
     return m.group(1) if m else ""
 
 
+def _same_file(a, b):
+    try:
+        return Path(a).resolve() == Path(b).resolve()
+    except OSError:
+        return False
+
+
 def _rank(path):
     # name as tiebreaker so same-day plans have a stable, reproducible order
     return (date_stamp(path), path.name)
 
 
-def discover_plans(plans_dir, pinned=None):
+CACHE_NAME = "plan-progress-cache.json"
+
+# Instrumentation for the cache test. Counting actual plan-file READS is the
+# only honest way to assert "the cache was used": a timing assertion passes on
+# a fast machine whether or not the cache works, which is the test-that-cannot-
+# fail shape this plan keeps producing.
+PLAN_READS = 0
+
+
+def _read_plan(path):
+    global PLAN_READS
+    PLAN_READS += 1
+    return path.read_text(errors="ignore")
+
+
+def scan_signature(plans_dir):
+    """A fingerprint of the plans directory, or None if it cannot be read.
+
+    Per-file (name, modification time, size) — NOT the directory's own
+    timestamp, which the task originally specified. Verified on this platform:
+    a directory's timestamp moves when an entry is added, removed or renamed,
+    and does NOT move when a file's CONTENT changes. A cache keyed on it would
+    therefore go stale on exactly the edit that matters most here — a Status
+    flip during execution — so the bar would show yesterday's eligibility for
+    the entire run the bar exists to narrate.
+
+    Size alone does not rescue it either: `- **Status:** [ ]` and
+    `- **Status:** [x]` are the same number of bytes.
+
+    Cheap by design: a stat per file, no reads. The reads are what this caches.
+    """
+    try:
+        out = []
+        for f in sorted(Path(plans_dir).glob("*.md")):
+            st = f.stat()
+            out.append([f.name, st.st_mtime_ns, st.st_size])
+        return out
+    except OSError:
+        return None
+
+
+def _read_cache(cache_file):
+    if cache_file is None:
+        return None
+    try:
+        data = json.loads(Path(cache_file).read_text(encoding="utf-8"))
+    except Exception:
+        # Missing, truncated, corrupt, not JSON, wrong encoding — every one of
+        # them means "rebuild", never "raise". A cache that can break the
+        # statusline is worse than no cache.
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _write_cache(cache_file, plans_dir, signature, names):
+    if cache_file is None:
+        return
+    try:
+        p = Path(cache_file)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_name(p.name + ".tmp")
+        tmp.write_text(json.dumps({
+            "version": 1,
+            "plans_dir": str(plans_dir),
+            "signature": signature,
+            "eligible": names,
+        }), encoding="utf-8")
+        os.replace(tmp, p)
+    except OSError:
+        pass  # an unwritable cache is a missed optimisation, not a failure
+
+
+def discover_plans(plans_dir, pinned=None, cache_file=None):
     """Up to MAX_BARS plans to render, newest first by filename date stamp.
 
     `pinned` is the plan the state file names. It is included UNCONDITIONALLY
@@ -249,18 +329,29 @@ def discover_plans(plans_dir, pinned=None):
 
     eligible = []
     if plans_dir is not None:
-        try:
-            candidates = list(Path(plans_dir).glob("*.md"))
-        except OSError:
-            candidates = []
-        for f in candidates:
-            try:
-                if f.resolve() == pinned_r:
-                    continue  # added below regardless of eligibility
-                if plan_is_eligible(f.read_text(errors="ignore")):
-                    eligible.append(f)
-            except OSError:
-                continue  # deleted or unreadable mid-scan — skip, never raise
+        plans_dir = Path(plans_dir)
+        sig = scan_signature(plans_dir)
+        cached = _read_cache(cache_file) if sig is not None else None
+        if (cached is not None
+                and cached.get("plans_dir") == str(plans_dir)
+                and cached.get("signature") == sig
+                and isinstance(cached.get("eligible"), list)):
+            for name in cached["eligible"]:
+                if isinstance(name, str):
+                    eligible.append(plans_dir / name)
+        elif sig is not None:
+            for f in sorted(plans_dir.glob("*.md")):
+                try:
+                    if plan_is_eligible(_read_plan(f)):
+                        eligible.append(f)
+                except OSError:
+                    continue  # deleted or unreadable mid-scan — never raise
+            _write_cache(cache_file, plans_dir, sig, [f.name for f in eligible])
+
+        # The pinned plan is added below on its own terms, so it must not also
+        # arrive through the eligible list.
+        if pinned_r is not None:
+            eligible = [f for f in eligible if not _same_file(f, pinned_r)]
 
     eligible.sort(key=_rank, reverse=True)
 

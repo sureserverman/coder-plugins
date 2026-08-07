@@ -348,6 +348,173 @@ def case_ordering_and_cap():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def case_scan_cache():
+    """Task 2.4 — the scan is cached, and invalidated by what actually changes.
+
+    Every "was the cache used?" assertion counts real plan-file READS rather
+    than measuring elapsed time. A timing assertion passes on a fast machine
+    whether or not the cache works, which is the test-that-cannot-fail shape
+    this plan keeps producing.
+    """
+    print("Task 2.4 — scan cache:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-cache-"))
+    plans = tmp / "plans"
+    plans.mkdir()
+    cache = tmp / ".claude" / "plan-progress-cache.json"
+    started = "### Task 1.1: a\n- **Status:** [x]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    for i in range(5):
+        (plans / f"2026-0{i+1}-01-p{i}-plan.md").write_text(started)
+
+    mod.PLAN_READS = 0
+    first = [p.name for p in mod.discover_plans(plans, cache_file=cache)]
+    reads_cold = mod.PLAN_READS
+    check(reads_cold == 5, f"cold scan reads every plan file (got {reads_cold})")
+    check(cache.is_file(), "the cache file is written")
+
+    mod.PLAN_READS = 0
+    second = [p.name for p in mod.discover_plans(plans, cache_file=cache)]
+    check(mod.PLAN_READS == 0,
+          f"a second scan with nothing changed reads ZERO plan files (got {mod.PLAN_READS})")
+    check(second == first, "and returns the same result")
+
+    print("  invalidation:")
+    # The case directory mtime CANNOT catch: same size, same entry count.
+    # `- **Status:** [ ]` -> `- **Status:** [x]` is a byte-for-byte-length edit.
+    target = plans / "2026-01-01-p0-plan.md"
+    before_size = target.stat().st_size
+    target.write_text(started.replace("- **Status:** [x]", "- **Status:** [~]"))
+    check(target.stat().st_size == before_size,
+          "precondition: the edit changed no byte count (size cannot detect it)")
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0,
+          f"a same-size content edit invalidates the cache (reads={mod.PLAN_READS})")
+
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS == 0, "and the rebuilt cache is used on the next call")
+
+    (plans / "2026-09-09-added-plan.md").write_text(started)
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0, "adding a plan invalidates the cache")
+
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    (plans / "2026-09-09-added-plan.md").unlink()
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0, "removing a plan invalidates the cache")
+
+    print("  a broken cache is discarded, never raised on:")
+    for label, blob in [("truncated JSON", '{"version": 1, "signa'),
+                        ("not JSON at all", "\x00\x01 binary junk"),
+                        ("valid JSON, wrong type", "[1, 2, 3]"),
+                        ("valid dict, junk fields", '{"signature": "nope", "eligible": 7}')]:
+        cache.write_text(blob, encoding="utf-8", errors="ignore")
+        mod.PLAN_READS = 0
+        got = mod.discover_plans(plans, cache_file=cache)
+        check(len(got) > 0 and mod.PLAN_READS > 0,
+              f"{label}: discarded and rebuilt from a real scan")
+
+    # A cache belonging to a DIFFERENT plans directory must not be honoured.
+    other = tmp / "other-plans"
+    other.mkdir()
+    (other / "2026-01-01-elsewhere-plan.md").write_text(started)
+    mod.discover_plans(plans, cache_file=cache)      # cache now describes `plans`
+    mod.PLAN_READS = 0
+    got = mod.discover_plans(other, cache_file=cache)
+    check(mod.PLAN_READS > 0 and [p.name for p in got] == ["2026-01-01-elsewhere-plan.md"],
+          "a cache written for another directory is not reused")
+
+    print("  an unwritable cache degrades to no caching, not to a failure:")
+    ro = tmp / "ro"
+    ro.mkdir()
+    os.chmod(ro, 0o500)
+    try:
+        got = mod.discover_plans(plans, cache_file=ro / "sub" / "c.json")
+        check(len(got) == 3, "discovery still returns results with an unwritable cache path")
+    finally:
+        os.chmod(ro, 0o700)
+
+    check(mod.discover_plans(plans, cache_file=None) is not None,
+          "cache_file=None (caching disabled) still works")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def case_render_budget():
+    """Task 2.4 — a 40-plan directory renders inside the 150ms budget.
+
+    End-to-end subprocess, because that is what a statusline redraw actually
+    pays: python startup plus the portfolio-unify import dominate, and both are
+    invisible to an in-process measurement.
+
+    Asserts the MEDIAN of 20 runs, not the max. A single outlier on a loaded CI
+    box says nothing about the code, and a max-based assertion would make this
+    the flakiest check in the suite. Measured headroom on the development
+    machine is ~4.5x, so the median has room to be meaningful rather than
+    merely permissive.
+    """
+    print("Task 2.4 — render budget (40 plans, 20 runs, median):")
+    tmp = Path(tempfile.mkdtemp(prefix="pp-budget-"))
+    repo = tmp / "repo"
+    plans = repo / "docs" / "plans"
+    plans.mkdir(parents=True)
+    body = ("\n".join(f"### Task {i//3+1}.{i%3+1}: item {i}\n"
+                      f"- **Status:** [{'x' if i % 2 else ' '}]\n" for i in range(40))
+            + "\nfiller prose line\n" * 400)
+    for i in range(40):
+        (plans / f"2026-{(i % 12) + 1:02d}-{(i % 28) + 1:02d}-fixture-{i}-plan.md").write_text(body)
+
+    pinned = plans / "2026-01-01-fixture-0-plan.md"
+    write_state(repo, plan=str(pinned), phase="task", stage=1, task="1.1", task_desc="x")
+
+    # An intact config naming no vault_dir routes the resolver to <repo>/docs/plans.
+    home = tmp / "home"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude" / "portfolio-config.yaml").write_text("version: 1\n")
+    env = dict(os.environ, HOME=str(home))
+
+    # main() does not call discover_plans yet -- wiring the multi-line render is
+    # Stage 3 Task 3.1. Timing the plain subprocess here would therefore measure
+    # the single-plan path while claiming to measure discovery, so this drives
+    # the FULL path Stage 3's main() will run: resolve, discover (with cache),
+    # render. Otherwise the budget check is green for the wrong reason.
+    driver = tmp / "driver.py"
+    driver.write_text(f'''
+import importlib.util, json, pathlib, sys
+spec = importlib.util.spec_from_file_location("pp", {str(SCRIPT)!r})
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+state_file = m.find_state({str(repo)!r})
+root = m.repo_root_of(state_file)
+d = m.portfolio_plans_dir(root)
+state = json.loads(state_file.read_text())
+found = m.discover_plans(d, pinned=pathlib.Path(state["plan"]),
+                         cache_file=root / ".claude" / m.CACHE_NAME)
+sys.stdout.write(m.render(state_file) + "\\n")
+sys.stderr.write("DISCOVERED=%d\\n" % len(found))
+''')
+
+    import time
+    samples = []
+    for _ in range(20):
+        t0 = time.perf_counter()
+        r = subprocess.run([sys.executable, str(driver)],
+                           capture_output=True, text=True, env=env)
+        samples.append((time.perf_counter() - t0) * 1000)
+    samples.sort()
+    median = samples[len(samples) // 2]
+    check(r.returncode == 0, f"the full discover+render path exits 0 (stderr={r.stderr[:200]!r})")
+    check("DISCOVERED=3" in r.stderr,
+          f"discovery actually ran and capped at 3 (stderr={r.stderr.strip()!r})")
+    check(median < 150,
+          f"median discover+render {median:.0f}ms < 150ms budget "
+          f"(min {samples[0]:.0f}ms, max {samples[-1]:.0f}ms)")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def date_stamped(p):
     return re.match(r"^\d{4}-\d{2}-\d{2}", p.name) is not None
 
@@ -460,6 +627,8 @@ def main():
     case_resolver_never_breaks_the_bar()
     case_eligibility_filter()
     case_ordering_and_cap()
+    case_scan_cache()
+    case_render_budget()
 
     print()
     if FAILURES:
