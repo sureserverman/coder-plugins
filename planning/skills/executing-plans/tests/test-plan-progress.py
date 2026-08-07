@@ -267,6 +267,91 @@ def case_eligibility_filter():
           "nor its own ABANDONED_RE / STATUS_RE")
 
 
+def case_ordering_and_cap():
+    """Task 2.3 — newest-first by FILENAME date stamp, capped at 3."""
+    print("Task 2.3 — ordering by filename date stamp, capped at 3:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-order-"))
+    plans = tmp / "plans"
+    plans.mkdir()
+    started = "### Task 1.1: a\n- **Status:** [x]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+
+    names = ["2026-01-01-oldest-plan.md", "2026-03-15-third-plan.md",
+             "2026-05-20-second-plan.md", "2026-07-04-newest-plan.md",
+             "2026-02-10-fourth-plan.md"]
+    for n in names:
+        (plans / n).write_text(started)
+
+    got = mod.discover_plans(plans)
+    check(len(got) == 3, f"exactly 3 of 5 eligible are returned (got {len(got)})")
+    check([p.name for p in got] == ["2026-07-04-newest-plan.md",
+                                    "2026-05-20-second-plan.md",
+                                    "2026-03-15-third-plan.md"],
+          f"newest first by date stamp (got {[p.name for p in got]})")
+
+    # mtime must be irrelevant: make the OLDEST file the most recently touched.
+    os.utime(plans / "2026-01-01-oldest-plan.md", (2**31 - 1, 2**31 - 1))
+    got2 = mod.discover_plans(plans)
+    check([p.name for p in got2] == [p.name for p in got],
+          "touching the oldest plan does not reorder anything (mtime is not consulted)")
+
+    print("  the state-file plan is always included:")
+    pinned = plans / "2026-01-01-oldest-plan.md"   # would rank 5th
+    got3 = mod.discover_plans(plans, pinned=pinned)
+    check(len(got3) == 3, "still capped at 3 with a pinned plan")
+    check(pinned.resolve() in [p.resolve() for p in got3],
+          "the pinned plan is present even though its stamp ranks it last")
+    check(got3[-1].name == "2026-01-01-oldest-plan.md",
+          "and it sorts into its correct rank position, not to the front")
+
+    # A pinned plan that is INELIGIBLE (never started) must still render: the
+    # single-plan behavior predates eligibility and must not regress.
+    never = plans / "2026-08-01-never-started-plan.md"
+    never.write_text("### Task 1.1: a\n- **Status:** [ ]\n")
+    check(not mod.plan_is_eligible(never.read_text()), "precondition: it is ineligible")
+    got4 = mod.discover_plans(plans, pinned=never)
+    check(never.resolve() in [p.resolve() for p in got4],
+          "an ineligible pinned plan still renders (0/13 mid-execution case)")
+    check(never.resolve() not in [p.resolve() for p in mod.discover_plans(plans)],
+          "but it is NOT picked up when it is not the pinned plan")
+
+    print("  unstamped and adversarial filenames:")
+    for n in ("no-stamp-plan.md", "2026-13-99-bad-date-plan.md"):
+        (plans / n).write_text(started)
+    got5 = mod.discover_plans(plans)
+    check(len(got5) == 3 and all(date_stamped(p) for p in got5),
+          "unstamped names sort last and do not displace real stamps")
+
+    same = tmp / "sameday"
+    same.mkdir()
+    for n in ("2026-06-01-b-plan.md", "2026-06-01-a-plan.md", "2026-06-01-c-plan.md"):
+        (same / n).write_text(started)
+    order1 = [p.name for p in mod.discover_plans(same)]
+    order2 = [p.name for p in mod.discover_plans(same)]
+    check(order1 == order2, "same-day plans have a stable, reproducible order")
+
+    print("  degradation:")
+    check(mod.discover_plans(None) == [], "None plans_dir -> []")
+    check(mod.discover_plans(tmp / "does-not-exist") == [], "missing plans dir -> []")
+    got6 = mod.discover_plans(plans, pinned=plans / "gone.md")
+    check(all(p.name != "gone.md" for p in got6), "a vanished pinned plan is simply absent")
+
+    unreadable = tmp / "locked-plans"
+    unreadable.mkdir()
+    (unreadable / "2026-07-01-x-plan.md").write_text(started)
+    os.chmod(unreadable, 0o000)
+    try:
+        check(mod.discover_plans(unreadable) == [], "unreadable plans dir -> [], no raise")
+    finally:
+        os.chmod(unreadable, 0o700)
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def date_stamped(p):
+    return re.match(r"^\d{4}-\d{2}-\d{2}", p.name) is not None
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -374,6 +459,7 @@ def main():
     case_portfolio_resolver()
     case_resolver_never_breaks_the_bar()
     case_eligibility_filter()
+    case_ordering_and_cap()
 
     print()
     if FAILURES:

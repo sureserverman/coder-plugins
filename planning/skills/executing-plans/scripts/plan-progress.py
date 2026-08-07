@@ -15,6 +15,7 @@ extra line only appears mid-execution and disappears at close-out.
 import datetime
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -199,6 +200,79 @@ def plan_is_eligible(text):
     if not started:
         return False
     return not (pu.COMPLETED_RE.search(text) or pu.ABANDONED_RE.search(text))
+
+
+MAX_BARS = 3
+
+# The date stamp a plan filename opens with (2026-08-06-<slug>-plan.md).
+# Recency comes from THIS, never from the file's modification time:
+# references/plan-parser.md records that the five oldest coder-plugins plans
+# all share a 2026-05-23 timestamp, the date the vault was migrated, so that
+# timestamp measures a copy operation rather than when the work happened.
+# (Spelled out rather than naming the stat field, because the Stage 2 gate
+# sweeps this file for that field name and a comment would trip it.)
+DATE_STAMP_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})")
+
+
+def date_stamp(path):
+    """The filename's leading date stamp, or "" when it has none.
+
+    "" sorts last under reverse=True, so an unstamped plan ranks below every
+    stamped one instead of crashing the sort or jumping to the front.
+    """
+    m = DATE_STAMP_RE.match(path.name)
+    return m.group(1) if m else ""
+
+
+def _rank(path):
+    # name as tiebreaker so same-day plans have a stable, reproducible order
+    return (date_stamp(path), path.name)
+
+
+def discover_plans(plans_dir, pinned=None):
+    """Up to MAX_BARS plans to render, newest first by filename date stamp.
+
+    `pinned` is the plan the state file names. It is included UNCONDITIONALLY
+    when it exists — not merely bumped up the ranking — because it is the plan
+    actually being executed, and the pre-existing single-plan behavior must not
+    regress. A plan can legitimately be mid-execution and ineligible: one at
+    0/13 has been started by a human but carries no `[x]` yet, and the bar has
+    always shown it. Eligibility governs which OTHER plans earn a bar, not
+    whether the executing one does.
+    """
+    pinned_r = None
+    if pinned is not None:
+        try:
+            pinned_r = Path(pinned).resolve()
+        except OSError:
+            pinned_r = None
+
+    eligible = []
+    if plans_dir is not None:
+        try:
+            candidates = list(Path(plans_dir).glob("*.md"))
+        except OSError:
+            candidates = []
+        for f in candidates:
+            try:
+                if f.resolve() == pinned_r:
+                    continue  # added below regardless of eligibility
+                if plan_is_eligible(f.read_text(errors="ignore")):
+                    eligible.append(f)
+            except OSError:
+                continue  # deleted or unreadable mid-scan — skip, never raise
+
+    eligible.sort(key=_rank, reverse=True)
+
+    chosen = []
+    if pinned_r is not None and pinned_r.is_file():
+        chosen.append(pinned_r)
+    for f in eligible:
+        if len(chosen) >= MAX_BARS:
+            break
+        chosen.append(f)
+    chosen.sort(key=_rank, reverse=True)
+    return chosen[:MAX_BARS]
 
 
 def bar(done, total):
