@@ -62,8 +62,28 @@ def find_state(start):
 # missing bar. `yaml` in particular is a third-party import that a user's
 # python3 may simply not have.
 
-CONFIG_PATH = Path.home() / ".claude" / "portfolio-config.yaml"
-REGISTRY_PATH = Path.home() / ".claude" / "projects-registry.yaml"
+def _home():
+    """A home directory, never an exception.
+
+    `Path.home()` raises RuntimeError when HOME is unset AND the uid has no
+    /etc/passwd entry — the arbitrary-uid container case (OpenShift restricted
+    SCC, distroless images). posixpath.expanduser swallows the KeyError and
+    returns "~" unchanged, and pathlib then raises on that leading tilde.
+
+    That matters far more than the odds suggest, because these paths are
+    computed at MODULE SCOPE: the raise happens at import, before
+    `if __name__ == "__main__"` installs the try/except below, so the guard
+    that makes this file safe never runs. The statusline prints a traceback and
+    exits 1 — the single outcome this script exists to never produce.
+    """
+    try:
+        return Path.home()
+    except Exception:
+        return Path(os.environ.get("HOME") or "/nonexistent")
+
+
+CONFIG_PATH = _home() / ".claude" / "portfolio-config.yaml"
+REGISTRY_PATH = _home() / ".claude" / "projects-registry.yaml"
 
 
 def _load_yaml(path):
@@ -210,8 +230,12 @@ MAX_BARS = 3
 # references/plan-parser.md records that the five oldest coder-plugins plans
 # all share a 2026-05-23 timestamp, the date the vault was migrated, so that
 # timestamp measures a copy operation rather than when the work happened.
-# (Spelled out rather than naming the stat field, because the Stage 2 gate
-# sweeps this file for that field name and a comment would trip it.)
+# (The Stage 2 gate proves this two ways: test_ordering_ignores_mtime reads the
+# source of date_stamp/_rank and asserts neither names a stat field, and the
+# ordering test utimes the oldest plan to 2038 and asserts the order does not
+# move. An earlier draft of that gate grepped the whole file for the field
+# name, which would have banned mtime for cache invalidation too — a different
+# and necessary use — and matched explanatory comments like this one.)
 DATE_STAMP_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 
 
@@ -278,6 +302,38 @@ def scan_signature(plans_dir):
         return None
 
 
+def _safe_cache_name(name):
+    """Whether a filename read back from the cache may be joined to plans_dir.
+
+    The cache is trusted to skip the reads, so nothing downstream re-validates
+    what it names. `Path(plans_dir) / "/etc/passwd"` DISCARDS plans_dir and
+    yields /etc/passwd, and "../../x" is preserved literally — so a planted
+    cache entry becomes an arbitrary file read whose name is then displayed in
+    the user's terminal chrome. Bare filenames only (CWE-22).
+    """
+    return (isinstance(name, str)
+            and name not in ("", ".", "..")
+            and not os.path.isabs(name)
+            and os.sep not in name
+            and (os.altsep is None or os.altsep not in name))
+
+
+def _is_file(path):
+    """`path.is_file()` that cannot raise.
+
+    pathlib swallows only ENOENT / ENOTDIR / EBADF / ELOOP; **EACCES is not in
+    that set**, so `is_file()` on a path inside an unreadable directory raises
+    PermissionError. Same platform detail as portfolio_plans_dir's `is_dir()`
+    guard above — it was handled there and missed here, and the pinned plan is
+    the common case, so this raised on every redraw whose vault directory had
+    become unreadable.
+    """
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
 def _read_cache(cache_file):
     if cache_file is None:
         return None
@@ -337,7 +393,7 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
                 and cached.get("signature") == sig
                 and isinstance(cached.get("eligible"), list)):
             for name in cached["eligible"]:
-                if isinstance(name, str):
+                if _safe_cache_name(name):
                     eligible.append(plans_dir / name)
         elif sig is not None:
             for f in sorted(plans_dir.glob("*.md")):
@@ -356,7 +412,7 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
     eligible.sort(key=_rank, reverse=True)
 
     chosen = []
-    if pinned_r is not None and pinned_r.is_file():
+    if pinned_r is not None and _is_file(pinned_r):
         chosen.append(pinned_r)
     for f in eligible:
         if len(chosen) >= MAX_BARS:

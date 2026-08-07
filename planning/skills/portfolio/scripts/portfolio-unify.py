@@ -36,8 +36,33 @@ See backlog/SKILL.md `### unify` + references/plan-parser.md for the spec.
 import argparse, re, subprocess, sys, yaml, datetime
 from pathlib import Path
 
-REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
-CONFIG = Path.home() / ".claude" / "portfolio-config.yaml"
+def _home():
+    """A home directory, never an exception.
+
+    `Path.home()` raises RuntimeError when HOME is unset AND the uid has no
+    /etc/passwd entry (arbitrary-uid containers), and this runs at import.
+
+    This file is a CLI script where a loud failure would be fine — but it is
+    also imported, at module scope, by plan-progress.py, the statusline
+    renderer whose one hard contract is to print a bar or print nothing and
+    always exit 0. An import-time raise here lands as a traceback in the user's
+    status line, before the renderer's own guard exists to catch it. So the
+    guard belongs on the importable module, not only on the importer.
+
+    The sibling CLI scripts (portfolio-migrate / -rebuild / -integrate,
+    security-scan) still call Path.home() directly and deliberately: nothing
+    imports them into a renderer, and for a tool the user invoked by hand a
+    loud failure at startup is the right behavior.
+    """
+    try:
+        return Path.home()
+    except Exception:
+        import os
+        return Path(os.environ.get("HOME") or "/nonexistent")
+
+
+REGISTRY = _home() / ".claude" / "projects-registry.yaml"
+CONFIG = _home() / ".claude" / "portfolio-config.yaml"
 TODAY = datetime.date.today().isoformat()
 
 

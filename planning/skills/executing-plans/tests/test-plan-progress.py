@@ -9,6 +9,7 @@ counts via the shared portfolio-unify regexes, the bar geometry, the per-phase
 glyphs, walk-up discovery from a subdirectory, and staleness marking.
 """
 import importlib.util
+import inspect
 import json
 import os
 import re
@@ -419,14 +420,32 @@ def case_scan_cache():
               f"{label}: discarded and rebuilt from a real scan")
 
     # A cache belonging to a DIFFERENT plans directory must not be honoured.
+    #
+    # `other` is built as a byte-for-byte SIGNATURE TWIN of `plans`: same
+    # filenames, same sizes, same mtimes. That is the whole point. An earlier
+    # version used one differently-named file, so the signatures could never
+    # match and the rebuild was forced by the signature check alone — the
+    # assertion passed identically with the plans_dir comparison deleted, and
+    # so proved nothing about the key it names. With a twin, only the
+    # plans_dir field can tell the two directories apart.
     other = tmp / "other-plans"
     other.mkdir()
-    (other / "2026-01-01-elsewhere-plan.md").write_text(started)
+    for src in sorted(plans.glob("*.md")):
+        twin = other / src.name
+        twin.write_bytes(src.read_bytes())
+        st = src.stat()
+        os.utime(twin, ns=(st.st_mtime_ns, st.st_mtime_ns))
+    check(mod.scan_signature(other) == mod.scan_signature(plans),
+          "the twin directory really does produce an identical signature")
+
     mod.discover_plans(plans, cache_file=cache)      # cache now describes `plans`
     mod.PLAN_READS = 0
     got = mod.discover_plans(other, cache_file=cache)
-    check(mod.PLAN_READS > 0 and [p.name for p in got] == ["2026-01-01-elsewhere-plan.md"],
-          "a cache written for another directory is not reused")
+    check(mod.PLAN_READS > 0,
+          "a cache written for another directory is not reused (plans_dir key, "
+          "not the signature, is what rejects it)")
+    check(all(p.parent == other for p in got),
+          "and the rebuilt result names files in the directory actually asked for")
 
     print("  an unwritable cache degrades to no caching, not to a failure:")
     ro = tmp / "ro"
@@ -438,10 +457,98 @@ def case_scan_cache():
     finally:
         os.chmod(ro, 0o700)
 
-    check(mod.discover_plans(plans, cache_file=None) is not None,
-          "cache_file=None (caching disabled) still works")
+    # `is not None` was the old assertion here and could not fail: every path
+    # through discover_plans returns a list. Assert the caching is actually OFF.
+    mod.PLAN_READS = 0
+    got = mod.discover_plans(plans, cache_file=None)
+    check(len(got) == 3 and mod.PLAN_READS > 0,
+          f"cache_file=None disables caching — every call rescans "
+          f"(reads={mod.PLAN_READS}, got {len(got)})")
+
+    print("  a poisoned cache cannot name a file outside the plans directory:")
+    # The cache is trusted to skip reads, so nothing downstream re-validates
+    # what it names, and `plans_dir / "/etc/passwd"` discards plans_dir entirely.
+    sig = mod.scan_signature(plans)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    for label, planted in (("absolute path", "/etc/passwd"),
+                           ("parent traversal", "../../../etc/passwd"),
+                           ("nested separator", "sub/evil.md")):
+        cache.write_text(json.dumps({"version": 1, "plans_dir": str(plans),
+                                     "signature": sig, "eligible": [planted]}),
+                         encoding="utf-8")
+        got = mod.discover_plans(plans, cache_file=cache)
+        escaped = [p for p in got if p.parent != plans]
+        check(not escaped, f"{label}: rejected, not joined ({escaped})")
 
     shutil.rmtree(tmp, ignore_errors=True)
+
+
+def case_degrades_without_raising():
+    """Round-1 gate remediation — failures the corpus sweep's new discovery lane
+    exposed, each of which used to escape as a traceback.
+
+    These are regressions for real bugs, not hypotheticals: every one was
+    reproduced before it was fixed.
+    """
+    print("gate remediation — the surface degrades internally, not via a catch-all:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-degrade-"))
+    plans = tmp / "plans"
+    plans.mkdir()
+    started = "### Task 1.1: a\n- **Status:** [x]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    pinned = plans / "2026-01-01-x-plan.md"
+    pinned.write_text(started)
+
+    # pathlib's is_file() swallows ENOENT/ENOTDIR/ELOOP but NOT EACCES, so the
+    # pinned plan inside an unreadable directory raised PermissionError out of
+    # discover_plans on every redraw.
+    os.chmod(plans, 0o000)
+    try:
+        got = mod.discover_plans(plans, pinned=pinned)
+        check(got == [], "an unreadable plans dir with a pinned plan returns [], never raises")
+    except Exception as e:                                  # noqa: BLE001
+        check(False, f"unreadable plans dir raised {type(e).__name__}: {e}")
+    finally:
+        os.chmod(plans, 0o755)
+
+    # Path.home() raises RuntimeError with HOME unset and no passwd entry, and
+    # it runs at MODULE SCOPE — before main()'s try/except exists.
+    src = SCRIPT.read_text(encoding="utf-8")
+    check("Path.home() /" not in src and "_home()" in src,
+          "module-scope config paths go through the guarded _home() helper")
+    probe = (
+        "import pwd, os, importlib.util\n"
+        "pwd.getpwuid = lambda uid: (_ for _ in ()).throw(KeyError('no passwd entry'))\n"
+        "spec = importlib.util.spec_from_file_location('pp', %r)\n"
+        "m = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(m)\n"
+        "print('IMPORTED')\n" % str(SCRIPT))
+    env = {k: v for k, v in os.environ.items() if k != "HOME"}
+    r = subprocess.run([sys.executable, "-c", probe],
+                       capture_output=True, text=True, env=env)
+    check(r.returncode == 0 and "IMPORTED" in r.stdout,
+          f"importing with no HOME and no passwd entry does not raise "
+          f"(exit {r.returncode}, stderr: {r.stderr.strip()[-120:]})")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def case_ordering_ignores_mtime():
+    """Stage 2 gate check 4 — the mechanism the amended check actually names.
+
+    The check was amended to promise a dynamic assertion "over date_stamp and
+    _rank via inspect.getsource". It was never implemented, while the check sat
+    marked [x]. This is that assertion. It is scoped to the two ordering
+    functions on purpose: the earlier whole-file grep would have banned mtime
+    for cache invalidation, a different and necessary use.
+    """
+    print("Stage 2 gate check 4 — the ordering path consults no stat field:")
+    mod = load_module()
+    for fn in (mod.date_stamp, mod._rank):
+        body = inspect.getsource(fn)
+        for field in ("st_mtime", "st_ctime", "st_atime", "getmtime", ".stat("):
+            check(field not in body,
+                  f"{fn.__name__}() does not reference {field}")
 
 
 def case_render_budget():
@@ -629,6 +736,8 @@ def main():
     case_ordering_and_cap()
     case_scan_cache()
     case_render_budget()
+    case_degrades_without_raising()
+    case_ordering_ignores_mtime()
 
     print()
     if FAILURES:

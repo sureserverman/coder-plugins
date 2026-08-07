@@ -11,6 +11,26 @@
 # runs EVERY member, so the claim "silence holds across the new surface" is an
 # executed sweep rather than an assertion about one input (DEC-005).
 #
+# EVERY CASE RUNS TWO LANES, and the second one is the point:
+#
+#   lane A — `python3 plan-progress.py`, the shipped entry point. Proves the
+#            live redraw path stays silent with garbage sitting nearby.
+#   lane B — a driver that calls portfolio_plans_dir() -> discover_plans()
+#            DIRECTLY, with no guard around them.
+#
+# Lane B exists because lane A alone made this sweep a test that cannot fail.
+# main() calls find_state() and render(); it does not call any Stage 2 function
+# (that wiring is Stage 3 Task 3.1). So the config/registry/vault/cache cases
+# were passing because the code they name was never reached — the artifact
+# certifying the stage was asserting coverage it did not have.
+#
+# Lane B is deliberately UNGUARDED, and that is not an oversight. main() ends in
+# `except Exception: sys.exit(0)`, so once Stage 3 wires discovery in, lane A
+# would go green whether these functions degrade gracefully or throw — the same
+# vacuity in a new costume. Calling them raw means an escaping exception lands on
+# stderr as a traceback and the assertion below fails. What is under test is that
+# the new surface degrades INTERNALLY, not that a catch-all hides it.
+#
 # Usage: bash test-plan-progress-corpus.sh    (exit 0 = pass)
 set -uo pipefail
 
@@ -23,6 +43,44 @@ trap 'chmod -R u+rwX "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
 fail=0
 cases=0
+
+# Lane B's driver. Only the stdin parsing is guarded — everything from
+# portfolio_plans_dir() onward is the surface under test and must degrade on its
+# own, so anything it raises escapes here as a traceback on stderr.
+DRIVER="$TMP/discovery-driver.py"
+cat > "$DRIVER" <<'PYEOF'
+import importlib.util, json, os, sys
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("pp", os.environ["PP_SCRIPT"])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)          # unguarded: import itself must not raise
+
+try:
+    data = json.loads(sys.stdin.read() or "{}")
+    if not isinstance(data, dict):
+        data = {}
+except Exception:
+    data = {}
+cwd = data.get("cwd") or "."
+
+root = Path(cwd)
+state = m.find_state(cwd)
+pinned = None
+if state is not None:
+    try:
+        pinned = Path(json.loads(state.read_text())["plan"])
+    except Exception:
+        pinned = None                # a corrupt state file pins nothing
+
+plans = m.portfolio_plans_dir(root)
+if plans is None:
+    print("RESOLVED=none")           # a degraded resolve, reached without raising
+else:
+    found = m.discover_plans(plans, pinned=pinned,
+                             cache_file=root / ".claude" / m.CACHE_NAME)
+    print("DISCOVERED=%d" % len(found))
+PYEOF
 
 PLAN_BODY='### Task 1.1: a
 - **Status:** [x]
@@ -55,37 +113,66 @@ EOF
   echo "$root"
 }
 
-# expect_quiet <label> <repo-root> <home> [<allow-output>]
+# run_lane <label> <lane-name> <repo-root> <home> <python-target>
 # Asserts exit 0 and EMPTY stderr. stdout may be empty or a bar, but must never
-# contain a traceback — a rendered bar is fine, a Python traceback never is.
+# carry a traceback — a rendered bar is fine, a Python traceback never is.
+# Only `Traceback` is matched: the earlier `*"Error"*` pattern would have failed
+# on a legitimate task description containing the word (e.g. "Handle Error
+# case"), and stderr being empty already catches the real thing.
+run_lane() {
+  local label="$1" lane="$2" repo="$3" home="$4" target="$5"
+  local out err rc bad=0
+  err="$TMP/err.$cases.$lane"
+  out="$(printf '{"cwd": "%s"}' "$repo" | HOME="$home" PP_SCRIPT="$SCRIPT" \
+         python3 "$target" 2>"$err")"
+  rc=$?
+  [ "$rc" != 0 ] && { echo "FAIL: $label [$lane] — exit $rc, wanted 0"; bad=1; }
+  [ -s "$err" ] && { echo "FAIL: $label [$lane] — stderr not empty: $(head -c 300 "$err")"; bad=1; }
+  case "$out" in
+    *Traceback*) echo "FAIL: $label [$lane] — traceback on stdout: $out"; bad=1 ;;
+  esac
+  return $bad
+}
+
+# expect_quiet <label> <repo-root> <home>
+# Both lanes must be silent. Lane B is what makes this a claim about the Stage 2
+# surface rather than about code the entry point never reaches.
 expect_quiet() {
   local label="$1" repo="$2" home="$3"
   cases=$((cases + 1))
-  local out err rc
-  err="$TMP/err.$cases"
-  out="$(printf '{"cwd": "%s"}' "$repo" | HOME="$home" python3 "$SCRIPT" 2>"$err")"
-  rc=$?
   local bad=0
-  [ "$rc" != 0 ] && { echo "FAIL: $label — exit $rc, wanted 0"; bad=1; }
-  [ -s "$err" ] && { echo "FAIL: $label — stderr not empty: $(head -c 200 "$err")"; bad=1; }
-  case "$out" in
-    *Traceback*|*"Error"*) echo "FAIL: $label — traceback/error leaked to stdout: $out"; bad=1 ;;
-  esac
+  run_lane "$label" "entry" "$repo" "$home" "$SCRIPT"  || bad=1
+  run_lane "$label" "discovery" "$repo" "$home" "$DRIVER" || bad=1
   if [ "$bad" = 1 ]; then fail=1; else echo "  ok: $label"; fi
 }
 
 echo "silence-when-broken corpus:"
 
-# 0. the healthy baseline — proves the harness can actually produce a bar, so a
-#    green sweep is not just "everything is broken everywhere".
+# 0. the healthy baseline — proves each lane can actually reach its subject, so a
+#    green sweep is not just "everything is broken everywhere". One guard per
+#    lane: a lane that silently no-ops would otherwise report every case as a
+#    pass, which is the exact failure this whole file was rewritten to close.
 R="$(build_env healthy)"
 out="$(printf '{"cwd": "%s"}' "$R/repo" | HOME="$R/home" python3 "$SCRIPT" 2>/dev/null)"
 if [ -z "$out" ]; then
-  echo "FAIL: baseline — expected a rendered bar, got nothing (the corpus would be vacuous)"
+  echo "FAIL: baseline [entry] — expected a rendered bar, got nothing (lane A would be vacuous)"
   fail=1
 else
-  echo "  ok: baseline renders a bar (sweep is not vacuously green)"
+  echo "  ok: baseline renders a bar (lane A is not vacuously green)"
 fi
+cases=$((cases + 1))
+
+drv="$(printf '{"cwd": "%s"}' "$R/repo" | HOME="$R/home" PP_SCRIPT="$SCRIPT" \
+       python3 "$DRIVER" 2>/dev/null)"
+case "$drv" in
+  DISCOVERED=[1-9]*)
+    echo "  ok: baseline reaches discovery — $drv (lane B is not vacuously green)" ;;
+  *)
+    echo "FAIL: baseline [discovery] — expected DISCOVERED=<n>=1, got '${drv:-<nothing>}'."
+    echo "      Lane B is not reaching discover_plans, so every silence claim it"
+    echo "      makes below is about code it never ran."
+    fail=1 ;;
+esac
 cases=$((cases + 1))
 
 # 1. absent portfolio config
