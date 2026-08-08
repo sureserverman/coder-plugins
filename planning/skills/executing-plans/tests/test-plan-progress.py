@@ -709,8 +709,32 @@ def case_render_returns_lines():
                     f"  - path: {repo}\n    name: p\n    area: a\n    enabled: true\n")
     lines = mod.render(str(repo))
     check(len(lines) == 3, f"pinned + 2 discovered = 3 lines (got {len(lines)})")
-    check(lines[0] == GOLDEN_SINGLE_PLAN,
-          "the pinned plan is still first and still byte-identical")
+    # Byte-identity is asserted above for the ONE-plan case and still holds
+    # there. It deliberately stops holding here: Task 3.4 pads the name column
+    # so stacked bars share a start column, and the widest of these three names
+    # is 2 chars longer than the pinned one. Weakening the check to "starts
+    # with" would hide a real regression, so it is re-stated as identity MODULO
+    # that padding — every byte but the run of alignment spaces must still match.
+    # Stated as an EXACT expectation rather than a fuzzy normalisation: the only
+    # licensed difference is the name field widening to the longest of the three
+    # names, so build that string and demand byte equality. A `squash the
+    # whitespace` comparison would also have accepted padding in the wrong place.
+    # The width is derived from the names that actually rendered, not from a
+    # hardcoded guess: the pinned plan here lives OUTSIDE the discovered dir and
+    # shares a filename with one inside it, so the three lines are not the three
+    # files the fixture wrote. Not circular — the names are read with their
+    # padding stripped, so a wrong pad width still fails the equality below.
+    rendered_names = [ANSI_RE.sub("", ln).split("⚙ ", 1)[1].split(" ▐", 1)[0].rstrip()
+                      for ln in lines]
+    pad_to = max(len(n) for n in rendered_names)
+    expected = GOLDEN_SINGLE_PLAN.replace(
+        "2026-08-06-demo", "2026-08-06-demo".ljust(pad_to), 1)
+    check(lines[0] == expected,
+          f"the pinned plan is still first, and differs from the one-plan golden "
+          f"ONLY by the name field widening to {pad_to}")
+    if lines[0] != expected:
+        print(f"      got:    {lines[0]!r}")
+        print(f"      golden: {GOLDEN_SINGLE_PLAN!r}")
     check(all("\n" not in ln for ln in lines), "no element contains an embedded newline")
 
     print("  a RELATIVE pinned path is still recognised as itself:")
@@ -1289,6 +1313,154 @@ def case_phase_indicator():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+# The full three-line master/sub composition, ANSI included — captured from the
+# implementation and then read by eye before being pinned. The names are padded
+# to a shared 36-column field: the master carries no tree prefix and the two
+# children carry a 3-column one, so their NAMES are padded 3 shorter and every
+# ▐ still lands on the same column. That relationship is the whole point of the
+# golden; a diff here that keeps the bars aligned is a rendering change, one
+# that moves them apart is a regression.
+COMPOSED_GOLDEN = [
+    '\x1b[2m⚙ 2026-08-01-alpha-master              \x1b[0m \x1b[2m▐\x1b[0m'
+    '\x1b[38;2;0;160;0m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
+    '\x1b[2m├─ \x1b[0m\x1b[2m⚙ 2026-08-02-alpha-sub-01-foundation\x1b[0m \x1b[2m▐\x1b[0m'
+    '\x1b[38;2;0;160;0m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
+    '\x1b[2m└─ \x1b[0m\x1b[2m⚙ 2026-08-03-alpha-sub-02-second    \x1b[0m \x1b[2m▐\x1b[0m'
+    '\x1b[38;2;0;160;0m\x1b[0m\x1b[2m░░░░░░░░░░░░░░░░░░░░▌\x1b[0m 0/2 \x1b[2m(0%)\x1b[0m',
+]
+
+
+def case_alignment_and_composition():
+    """Task 3.4 — stacked bars share a start column, long names are cut rather
+    than pushing the bar off-screen, and the composed master/sub output is
+    pinned including its ANSI codes."""
+    print("Task 3.4 — alignment, truncation, and the composed golden:")
+    mod = load_module()
+
+    print("  bars start at the same column, coloured and uncoloured alike:")
+    tmp, repo, vplans = group_fixture(mod, FULL_GROUP)
+    (repo / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans / SUB1_NAME), "phase": "task", "stage": 1, "task": "1.1",
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    raw = mod.render(str(repo))
+    # The pinned line opens CYAN and the others DIM — different escape LENGTHS.
+    # Measuring with len() instead of visible width lines up the escape bytes
+    # rather than the glyphs, so this pair is exactly what catches it.
+    cols = [ANSI_RE.sub("", ln).index("▐") for ln in raw]
+    check(len(set(cols)) == 1,
+          f"every bar starts at one column, across CYAN and DIM lines (got {cols})")
+    # NOTE: a FIXTURE-VALIDITY check, not a regression guard — it asserts the
+    # CYAN and DIM constants differ in length, so no mutation of the alignment
+    # code can fail it. Kept because it is what makes the assertion above
+    # meaningful (aligning on len() would visibly diverge here), but it must not
+    # be counted as coverage. Flagged as such in review.
+    check(len(set(len(ln) for ln in raw)) > 1,
+          "[fixture check] the raw byte lengths differ, so len() would NOT have aligned them")
+
+    print("  a long name is truncated, never allowed to push the bar out:")
+    long_name = ("2026-08-04-writer-pad-external-import-audio-transcription"
+                 "-sub-02-text-import-entry-points-plan.md")
+    tmp2, repo2, vplans2 = group_fixture(mod, {long_name: GROUP_SUB_1,
+                                               "2026-08-03-short-plan.md": GROUP_SUB_2})
+    plain = [ANSI_RE.sub("", ln) for ln in mod.render(str(repo2))]
+    check(all(mod.ELLIPSIS in ln for ln in plain if "audio" in ln),
+          f"the 90-char name is elided ({plain})")
+    check(all(ln.index("▐") <= mod.NAME_WIDTH + 3 for ln in plain),
+          f"and every bar still starts within the name column ({[ln.index('▐') for ln in plain]})")
+    check(len(set(ln.index("▐") for ln in plain)) == 1,
+          "a truncated name and a short one still align")
+
+    print("  free text is bounded — the `blocked` note that ran to 200 chars:")
+    # Real value from multitor-gui's live state file. Before Task 3.4 it was
+    # interpolated whole; the plan assigned bounding here rather than to 3.3.
+    note = ("Sub-plans 1+2 green; Sub-plan 3 (native chains, BL-002) awaits a "
+            "fresh session, then master close-out")
+    (repo2 / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans2 / "2026-08-03-short-plan.md"), "phase": "blocked",
+        "note": note, "updated": datetime.now(timezone.utc).isoformat()}))
+    plain = [ANSI_RE.sub("", ln) for ln in mod.render(str(repo2))]
+    blocked = [ln for ln in plain if "✘" in ln][0]
+    check(mod.ELLIPSIS in blocked and len(blocked) < 140,
+          f"the note is clipped and the line stays a line ({len(blocked)} chars)")
+    check(note[:20] in blocked,
+          f"...but keeps its informative head ({blocked!r})")
+
+    print("  task_desc is bounded too — note's sibling, same clip, no coverage:")
+    # Review found this by mutation: reverting the task_desc clip left the whole
+    # suite GREEN, because every task_desc anywhere in this file ("z", "b", "d",
+    # "parse config entries"…) is comfortably under NOTE_WIDTH. The motivating
+    # case was a long `note`, and its sibling field went along for the ride
+    # untested — the bounding was verified for one of the two fields that need it.
+    long_desc = ("version catalog, convention plugins, module graph, and the "
+                 "instrumented device suite wiring")
+    (repo2 / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans2 / "2026-08-03-short-plan.md"), "phase": "task",
+        "stage": 1, "task": "1.2", "task_desc": long_desc,
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    plain2 = [ANSI_RE.sub("", ln) for ln in mod.render(str(repo2))]
+    pinned2 = [ln for ln in plain2 if "▶" in ln][0]
+    check(mod.ELLIPSIS in pinned2 and long_desc not in pinned2,
+          f"a long task_desc is clipped like a note ({pinned2!r})")
+    check(long_desc[:20] in pinned2, "...keeping its head")
+
+    print("  clip() at its boundaries — the widths nothing else drives it to:")
+    # Q1 of the review brief was whether `s[:width-1] + ELLIPSIS if width > 1
+    # else ELLIPSIS` binds as intended. It does. But no fixture drives a computed
+    # width down to 0/1/2, so nothing pinned it and a later "simplification"
+    # could reintroduce the ambiguity. Direct unit assertions instead.
+    s = "abcdef"
+    for width, want in ((0, ""), (1, mod.ELLIPSIS), (2, "a" + mod.ELLIPSIS),
+                        (3, "ab" + mod.ELLIPSIS), (6, s), (7, s), (-1, "")):
+        got = mod.clip(s, width)
+        check(got == want, f"clip({s!r}, {width}) == {want!r} (got {got!r})")
+        check(len(got) <= max(width, 0),
+              f"...and never exceeds its width (len {len(got)} vs {width})")
+
+    print("  control characters are stripped before anything is measured or cut:")
+    # CWE-150, reproduced in review: clip("\x1b[35mHELLO", 3) -> "\x1b[…", an
+    # UNTERMINATED escape that eats the bytes after it, including this file's own
+    # RESET, and recolours the user's terminal past the end of the status line.
+    check(mod.plain("\x1b[35mred") == "[35mred",
+          f"plain() removes the ESC ({mod.plain(chr(27) + '[35mred')!r})")
+    check("\x1b" not in mod.clip(mod.plain("\x1b[35mHELLO there"), 3),
+          "so clip() can no longer bisect an escape sequence")
+    # The escape is positioned to STRADDLE the NOTE_WIDTH cut, which is the only
+    # place bisection can happen. A first version put it at offset 0, where the
+    # clip lands far past it and the sequence survives whole — the assertion
+    # below then passed with plain() disabled, i.e. proved nothing.
+    straddle = "x" * (mod.NOTE_WIDTH - 2) + "\x1b[35m" + "y" * 40
+    (repo2 / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans2 / "2026-08-03-short-plan.md"), "phase": "blocked",
+        "note": straddle,
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    rendered = mod.render(str(repo2))
+    blocked2 = [ln for ln in rendered if "✘" in ANSI_RE.sub("", ln)][0]
+    check(blocked2.count("\x1b") == blocked2.count("\x1b[") ==
+          len(ANSI_RE.findall(blocked2)),
+          "every ESC in a rendered line is part of a COMPLETE, matched sequence")
+    check(blocked2.endswith(mod.RESET),
+          f"and the line still closes with RESET, so nothing leaks past it")
+
+    print("  the composed three-line master/sub output is pinned, ANSI included:")
+    tmp3, repo3, _ = group_fixture(mod, FULL_GROUP)
+    composed = mod.render(str(repo3))
+    check(composed == COMPOSED_GOLDEN,
+          "the full master + 2 sub composition is byte-for-byte as recorded")
+    if composed != COMPOSED_GOLDEN:
+        for ln in composed:
+            print(f"      got:    {ln!r}")
+    # A golden nobody has watched fail is not evidence. Perturb one Status and
+    # the composition must move.
+    tmp4, repo4, vplans4 = group_fixture(mod, dict(
+        FULL_GROUP, **{SUB1_NAME: GROUP_SUB_1.replace("- **Status:** [x]",
+                                                      "- **Status:** [~]")}))
+    check(mod.render(str(repo4)) != COMPOSED_GOLDEN,
+          "the composed golden is sensitive — one Status flip moves it")
+
+    for d in (tmp, tmp2, tmp3, tmp4):
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def case_ordering_ignores_mtime():
     """Stage 2 gate check 4 — the mechanism the amended check actually names.
 
@@ -1500,6 +1672,7 @@ def main():
     case_master_plans_are_countable()
     case_master_grouping()
     case_phase_indicator()
+    case_alignment_and_composition()
 
     print()
     if FAILURES:

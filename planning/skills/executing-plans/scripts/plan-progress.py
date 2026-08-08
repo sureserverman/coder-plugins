@@ -661,6 +661,101 @@ def group_plans(paths, pinned=None):
     return out
 
 
+# Task 3.4 — width. Bars only read as a stack if they start at the same column,
+# and plan names in the live vault run to 90 characters
+# ("2026-08-04-writer-pad-external-import-audio-transcription-sub-02-text-import
+# -entry-points"), which alone would push a bar off any terminal.
+NAME_WIDTH = 46     # visible chars for the name column, tree prefix included
+                    # Measured in CHARACTERS, which is correct for the vault's
+                    # date-stamped ASCII filenames and is the assumption this
+                    # column's alignment rests on -- see clip()'s note on CJK.
+NOTE_WIDTH = 44     # visible chars for free-text task_desc / blocked note
+ELLIPSIS = "…"
+
+# Visible width is NOT len(): every line here carries SGR escapes, and a colour
+# change is zero columns wide. Aligning on len() lines up the escape bytes
+# instead of the glyphs, so a coloured line and an uncoloured one drift apart by
+# exactly the length of their colour codes -- which is why the pinned bar (CYAN)
+# and a discovered bar (DIM) are the pair that exposes it.
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def visible_len(s):
+    return len(ANSI_RE.sub("", s))
+
+
+# Control characters are STRIPPED before anything is measured or cut, and ESC is
+# the one that matters. Everything this renderer emits goes straight to a
+# terminal, and three of its inputs are text somebody else wrote: a plan's
+# FILENAME, and the state file's `task_desc` and `note`. A literal ESC in any of
+# them is at best a colour nobody authorised; at worst clip() cuts through the
+# middle of the CSI sequence and emits an UNTERMINATED one, which then consumes
+# the bytes that follow as its own parameters -- including this file's RESET,
+# leaving the user's terminal recoloured after the status line ends (CWE-150).
+# Review reproduced exactly that: clip("\x1b[35mHELLO", 3) -> "\x1b[…".
+#
+# Stripping rather than escaping, because there is no legitimate control
+# character in a plan name or a one-line task description, and a status line has
+# no way to display one usefully.
+CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def plain(s):
+    """`s` with control characters removed. Not optional — see CONTROL_RE."""
+    return CONTROL_RE.sub("", s) if isinstance(s, str) else ""
+
+
+def clip(s, width):
+    """`s` cut to `width` VISIBLE columns, ending in … when anything was lost.
+
+    Takes PLAIN text only — pass it through plain() first if it came from a
+    filename or the state file. It counts columns with len(), so an escape
+    sequence would be measured as its bytes and could be cut in half; plain()
+    is what makes that unreachable rather than merely discouraged. An earlier
+    version of this docstring asserted the safety instead of establishing it,
+    which review correctly read as a guarantee this function does not provide.
+
+    Width is measured in CHARACTERS. Fine for the aligned column, whose input
+    is a date-stamped ASCII filename by vault convention; a CJK-heavy `note`
+    would clip a little short of NOTE_WIDTH's intent, which costs a few columns
+    on one line and never misaligns anything, since notes are clipped but never
+    padded against a sibling.
+    """
+    if width <= 0:
+        return ""
+    if len(s) <= width:
+        return s
+    # No `if width > 1 else ELLIPSIS` branch: at width 1 this is s[:0] + ELLIPSIS,
+    # which already IS ELLIPSIS. The guard was dead code — kept honest by a
+    # mutation that deleted it and changed nothing, after review had to
+    # hand-verify its operator precedence. One expression, no precedence question.
+    return s[: width - 1] + ELLIPSIS
+
+
+def plan_name(path):
+    """The display name: the filename minus its plan suffix."""
+    name = plain(Path(path).name)
+    for suffix in ("-light-plan.md", "-plan.md", ".md"):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
+def name_column(paths, prefixes):
+    """The shared visible width the name column should take.
+
+    The widest name that fits, so a single bar is padded to its own width and
+    therefore not padded at all -- which is what keeps the one-plan golden
+    byte-identical while three plans align. The tree prefix counts toward the
+    width, so a child's name gets less room and its bar still lands on the same
+    column as its master's.
+    """
+    widest = 0
+    for path, prefix in zip(paths, prefixes):
+        widest = max(widest, visible_len(prefix) + len(plan_name(path)))
+    return min(widest, NAME_WIDTH)
+
+
 def bar(done, total):
     filled = round(BAR_WIDTH * done / total) if total else 0
     return (
@@ -763,10 +858,11 @@ def phase_part(state):
         return f"{GREEN}✔ close-out{RESET}"
     if phase == "blocked":
         note = state.get("note") or state.get("task_desc") or ""
+        note = clip(plain(note), NOTE_WIDTH)
         return f"{RED}✘ blocked{RESET}" + (f" {DIM}{note}{RESET}" if note else "")
     task = state.get("task")
     desc = state.get("task_desc")
-    desc = desc if isinstance(desc, str) else ""
+    desc = clip(plain(desc), NOTE_WIDTH)
     if isinstance(task, str) and TASK_ID_RE.match(task):
         label = f"T{task} "
     else:
@@ -821,7 +917,7 @@ def pinned_plan_path(state, state_file):
     return plan
 
 
-def render_pinned(state_file, state=None):
+def render_pinned(state_file, state=None, width=0):
     """The one line for the plan the state file names.
 
     Kept as its own function, taking the state file rather than a plan path,
@@ -833,11 +929,9 @@ def render_pinned(state_file, state=None):
     plan = pinned_plan_path(state, state_file)
     text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
-    name = plan.name
-    for suffix in ("-light-plan.md", "-plan.md", ".md"):
-        if name.endswith(suffix):
-            name = name[: -len(suffix)]
-            break
+    name = plan_name(plan)
+    if width:
+        name = clip(name, width).ljust(width)
     out = f"{CYAN}⚙ {name}{RESET} "
     if total:
         pct = done * 100 // total
@@ -862,7 +956,7 @@ def render_pinned(state_file, state=None):
     return out
 
 
-def render_other(plan_path):
+def render_other(plan_path, width=0):
     """A bar line for a discovered plan that is NOT the one being executed.
 
     No phase part and no staleness marker: those describe an execution this
@@ -871,11 +965,9 @@ def render_other(plan_path):
     """
     text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
-    name = plan_path.name
-    for suffix in ("-light-plan.md", "-plan.md", ".md"):
-        if name.endswith(suffix):
-            name = name[: -len(suffix)]
-            break
+    name = plan_name(plan_path)
+    if width:
+        name = clip(name, width).ljust(width)
     out = f"{DIM}⚙ {name}{RESET} "
     if total:
         pct = done * 100 // total
@@ -943,15 +1035,25 @@ def render(cwd):
     except Exception:
         grouped = [(p, "") for p in chosen]
 
+    # ONE width for every line, computed from the paths before anything is
+    # rendered -- so a child's bar lands on the same column as its master's.
+    # Cheap: plan_name() reads the filename, never the file.
+    try:
+        width = name_column([p for p, _ in grouped], [pre for _, pre in grouped])
+    except Exception:
+        width = 0       # unaligned bars beat no bars -- see group_plans() above
+
     lines = []
     for path, prefix in grouped:
         # Per line, not per block: an unreadable plan costs its own bar and
         # leaves its siblings standing.
         try:
             if state is not None and pinned is not None and _same_file(path, pinned):
-                lines.append(prefix + render_pinned(state_file, state))
+                lines.append(prefix + render_pinned(
+                    state_file, state, width=width - visible_len(prefix)))
             else:
-                lines.append(prefix + render_other(path))
+                lines.append(prefix + render_other(
+                    path, width=width - visible_len(prefix)))
         except Exception:
             continue
     return lines
