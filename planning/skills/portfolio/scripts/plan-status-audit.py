@@ -329,6 +329,28 @@ def register_evidence(plan_path, sibling_plans):
     return None, []
 
 
+def _names_plan(line, needle):
+    """Whether `line` names `needle` as a whole token rather than as a fragment.
+
+    Neighbour characters that would make it a fragment are the ones a filename
+    can legitimately continue with: word characters, `-`, and `.`. So
+    `…-refactor-plan.md` does not match inside `…-refactor-plan.md.orig`, while
+    `(2026-08-01-refactor-plan.md)` and a bare trailing mention both do.
+    """
+    cont = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.")
+    start = 0
+    while True:
+        i = line.find(needle, start)
+        if i < 0:
+            return False
+        before = line[i - 1] if i > 0 else ""
+        j = i + len(needle)
+        after = line[j] if j < len(line) else ""
+        if before not in cont and after not in cont:
+            return True
+        start = i + 1
+
+
 def _git_log(repo, args):
     try:
         r = subprocess.run(
@@ -422,8 +444,19 @@ def git_evidence(repo_path, plan_path, vault):
         found, err = _git_log(repo, ["--fixed-strings", "--grep", needle])
         if err:
             return [], "none", err
-        if found:
-            return found, "names-the-plan", None
+        # ANCHORED, because `git log --fixed-strings --grep` is a plain
+        # SUBSTRING search over the whole message and this grade is displayed to
+        # a human as "STRONG — names this plan by file". Unanchored, a commit
+        # saying "delete stray 2026-08-01-refactor-plan.md.orig" or "revert
+        # 2026-08-01-refactor-plan-notes.md" would be promoted to strong
+        # evidence that 2026-08-01-refactor-plan.md was completed. That is the
+        # same overclaim Correction 6 fixed for the correlative grade; the fix
+        # stopped there and left this one unexamined, which the adversarial
+        # review pass caught. A match now counts only where the needle is not
+        # glued to a longer identifier on either side.
+        hits = [ln for ln in found if _names_plan(ln, needle)]
+        if hits:
+            return hits, "names-the-plan", None
 
     # Correlative fallback. Bounded by the plan's own date stamp so a plan from
     # January does not collect a stage commit from December of the year before.
@@ -689,10 +722,37 @@ def record_completion(plan_path, evidence, run_id, today, strength="none"):
     control behind it; this is the only undo that exists.
     """
     p = Path(plan_path)
-    original = p.read_text(encoding="utf-8")
+    if p.is_symlink():
+        # os.replace() renames the DIRECTORY ENTRY, so it would swap the symlink
+        # itself for a regular file and leave the real target untouched — the
+        # tool would report a successful write while the file everything else
+        # follows never changed. Refuse rather than silently diverge.
+        raise OSError(f"{p} is a symlink; refusing to replace the link itself")
+
+    # errors="replace" matches how audit() read this same file. Strict decoding
+    # here meant a candidate containing one invalid byte was classified fine,
+    # offered fine, and then raised UnicodeDecodeError on confirmation — killing
+    # the whole --fix loop so every later candidate went un-offered, with no
+    # indication why. Found by the adversarial review pass.
+    original = p.read_text(encoding="utf-8", errors="replace")
     bdir = backup_dir(p, run_id)
     bdir.mkdir(parents=True, exist_ok=True)
-    (bdir / p.name).write_text(original, encoding="utf-8")
+
+    # EXCLUSIVE create, never a plain overwrite. run_id has one-second
+    # resolution, so two --fix runs in the same second share it; the second
+    # run's record_completion() would then read the ALREADY-MODIFIED file as
+    # "original" and write that over the first run's backup of the pristine
+    # bytes, destroying the only copy that existed. Reproduced before fixing.
+    # With "x", the second write raises instead, and the pristine backup stands.
+    backup = bdir / p.name
+    try:
+        with open(backup, "x", encoding="utf-8") as fh:
+            fh.write(original)
+    except FileExistsError:
+        raise OSError(
+            f"a backup for this plan already exists at {backup} — another "
+            f"--fix run is using run id {run_id}. Refusing to overwrite the "
+            f"only copy of the original.") from None
 
     line = completion_line(today, evidence, strength)
     body = original if original.endswith("\n") else original + "\n"
@@ -712,17 +772,51 @@ def record_completion(plan_path, evidence, run_id, today, strength="none"):
 
 
 def cmd_restore(run_id, vault, projects):
+    """Revert a --fix run wholesale, across the SAME corpus --fix can write to.
+
+    THE CORPUS HERE MUST MATCH enumerate_plans(), and getting that wrong was a
+    Critical found by the adversarial review pass and reproduced before being
+    touched. This function used to iterate the REGISTRY, while `--fix` offers
+    candidates from the whole-vault glob — so a confirmed write to a plan in one
+    of the seven unregistered projects took its backup correctly and then
+    `--restore` reported `0 file(s) restored` and exited, with the write
+    standing and the backup sitting in a directory nothing would ever look in.
+
+    That is Correction 5's defect exactly, one path over: the READ side was
+    fixed to take the vault as its corpus and the UNDO side was left on the
+    registry. Worse than the read version, because the docstring at the top of
+    this file promises "the backup IS the undo" for a vault with no version
+    control behind it — an undo that silently covers 92.5% of what it can write
+    to is the kind of claim this whole plan exists to stop making.
+
+    So: glob the vault for backup directories, exactly as enumerate_plans globs
+    it for plans. A backup is restored to its own `plans/` parent, which is
+    where it came from, so no path derived from the registry is involved at all.
+    """
     restored = 0
-    for project in projects:
-        d = plans_dir_for(vault, project) / ".audit-backups" / run_id
+    missing = []
+    try:
+        dirs = sorted(Path(vault).glob(f"Portfolio/*/*/plans/.audit-backups/{run_id}"))
+    except OSError as exc:
+        print(f"vault unreadable ({vault}): {exc}", file=sys.stderr)
+        return 1
+    for d in dirs:
         if not d.is_dir():
             continue
         for b in sorted(d.glob("*.md")):
             target = d.parent.parent / b.name
-            target.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+            try:
+                target.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+            except OSError as exc:
+                missing.append(f"{target}: {exc}")
+                continue
             print(f"restored {target}")
             restored += 1
+    for m in missing:
+        print(f"FAILED to restore {m}", file=sys.stderr)
     print(f"{restored} file(s) restored from run {run_id}")
+    if missing:
+        return 1
     return 0 if restored else 1
 
 
@@ -759,8 +853,15 @@ def main():
     report = audit(vault, projects, with_evidence=True)
 
     if args.json:
+        # --json returns here, so --fix would be silently dropped. It fails
+        # toward not writing, which is the safe direction, but a flag that is
+        # accepted and ignored is how someone believes a run happened.
+        if args.fix:
+            print("--fix is ignored with --json (the confirmation prompts and a "
+                  "machine-readable report cannot share stdout); re-run without "
+                  "--json to write", file=sys.stderr)
         print(json.dumps(report, indent=2, sort_keys=True))
-        return 0
+        return 2 if args.fix else 0
 
     print_report(report, verbose=args.verbose)
 
@@ -783,7 +884,11 @@ def main():
         print("\nall invariants hold")
 
     if args.fix:
-        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        # The pid suffix is what makes two runs in the same wall-clock second
+        # distinguishable. The exclusive-create in record_completion() is the
+        # real guard; this keeps the common case from tripping it needlessly.
+        run_id = (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                  + f"-{os.getpid()}")
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         print(f"\n--fix run {run_id} — nothing is written without a per-plan yes\n")
         written = 0

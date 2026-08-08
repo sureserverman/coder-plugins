@@ -472,6 +472,116 @@ def case_evidence_is_graded():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def case_undo_covers_everything_fix_can_write():
+    """Gate remediation r1 — the two Criticals from the adversarial review pass.
+
+    Both lived in the write/undo path, and the suite could not see either:
+    `case_fix_and_restore` only ever exercised a REGISTERED project, and nothing
+    forced two writes to share a run id.
+    """
+    print("the undo path covers the same corpus --fix can write to:")
+    tmp = Path(tempfile.mkdtemp(prefix="psa-undo-"))
+    vault = tmp / "vault"
+    # An UNREGISTERED project — the live shape is 7 of them, 39 plan files.
+    plans = vault / "Portfolio" / "area" / "orphan" / "plans"
+    plans.mkdir(parents=True)
+    p = plans / "2026-01-01-orphan-plan.md"
+    p.write_text(task("1.1", "x"), encoding="utf-8")
+    pristine = p.read_bytes()
+    reg = tmp / "reg.yaml"
+    reg.write_text("version: 1\nprojects: []\n", encoding="utf-8")
+    projects = mod.load_registry(reg)
+
+    report = mod.audit(vault, projects)
+    cands = [c["path"] for c in report["candidates"]]
+    check(len(cands) == 1, f"precondition: --fix WOULD offer this plan ({cands})")
+
+    mod.record_completion(cands[0], [], "RUNID-X", "2026-01-02", "none")
+    check(p.read_bytes() != pristine, "precondition: the confirmed write landed")
+
+    rc = mod.cmd_restore("RUNID-X", vault, projects)
+    check(rc == 0 and p.read_bytes() == pristine,
+          f"--restore reverts a write to an UNREGISTERED project's plan (rc={rc}) "
+          f"— it used to report '0 files restored' and leave the write standing")
+
+    print("  a second write sharing a run id cannot clobber the pristine backup:")
+    tmp2 = Path(tempfile.mkdtemp(prefix="psa-runid-"))
+    d2 = tmp2 / "plans"
+    d2.mkdir(parents=True)
+    q = d2 / "y-plan.md"
+    q.write_text("PRISTINE ORIGINAL\n", encoding="utf-8")
+    mod.record_completion(q, [], "SHARED", "2026-01-01", "none")
+    raised = False
+    try:
+        mod.record_completion(q, [], "SHARED", "2026-01-01", "none")
+    except OSError as exc:
+        raised = "already exists" in str(exc)
+    check(raised, "the second write REFUSES rather than overwriting the backup")
+    backup = (d2 / ".audit-backups" / "SHARED" / q.name).read_text()
+    check(backup == "PRISTINE ORIGINAL\n",
+          f"and the backup still holds the pristine original ({backup!r})")
+
+    print("  a symlinked plan is refused, not silently de-symlinked:")
+    real = tmp2 / "real-plan.md"
+    real.write_text(task("1.1", "x"), encoding="utf-8")
+    link = d2 / "linked-plan.md"
+    link.symlink_to(real)
+    raised2 = False
+    try:
+        mod.record_completion(link, [], "S2", "2026-01-01", "none")
+    except OSError as exc:
+        raised2 = "symlink" in str(exc)
+    check(raised2, "os.replace would swap the LINK and leave the target unwritten")
+    check("**Completed:**" not in real.read_text(), "the link target is untouched")
+
+    print("  a plan with invalid UTF-8 does not crash the --fix loop:")
+    bad = d2 / "bad-plan.md"
+    bad.write_bytes(b"### Task 1.1: a\n- **Status:** [x]\n\xff\xfe bad bytes\n")
+    try:
+        mod.record_completion(bad, [], "S3", "2026-01-01", "none")
+        check("**Completed:**" in bad.read_text(errors="replace"),
+              "it is written with errors='replace', as audit() reads it")
+    except UnicodeDecodeError:
+        check(False, "strict decoding crashed the write path")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    shutil.rmtree(tmp2, ignore_errors=True)
+
+
+def case_strong_grade_is_anchored():
+    """Gate remediation r1 — "STRONG, names this plan" must mean what it says."""
+    print("the STRONG grade is an anchored match, not a substring:")
+    for line, needle, want, why in (
+        ("abc123\t2026-01-01\tStage 3 green (2026-08-01-refactor-plan.md)",
+         "2026-08-01-refactor-plan.md", True, "a genuine mention matches"),
+        ("abc123\t2026-01-01\tdelete stray 2026-08-01-refactor-plan.md.orig backup",
+         "2026-08-01-refactor-plan.md", False, "a .orig fragment does NOT"),
+        ("abc123\t2026-01-01\trevert 2026-08-01-refactor-plan-notes.md",
+         "2026-08-01-refactor-plan", False, "a longer sibling slug does NOT"),
+        ("abc123\t2026-01-01\tcloses 2026-08-01-refactor-plan",
+         "2026-08-01-refactor-plan", True, "a bare trailing mention matches"),
+    ):
+        got = mod._names_plan(line, needle)
+        check(got == want, f"{why} (got {got})")
+
+    # THE UNIT TEST ABOVE IS NOT ENOUGH, and the mutation run is how I know.
+    # Replacing git_evidence's `hits = [... if _names_plan(...)]` with
+    # `hits = list(found)` — i.e. removing the anchoring from the CALL SITE —
+    # left every assertion above green, because they exercise the helper
+    # directly and never prove it is wired in. Same shape as the disarmed
+    # cache test earlier in this plan: the function is right, the path is not
+    # asserted. This drives the real git_evidence() end to end.
+    print("  and the anchoring is actually WIRED INTO git_evidence:")
+    tmp = Path(tempfile.mkdtemp(prefix="psa-anchor-"))
+    vault, plans = build_vault(tmp)
+    target = plans / "2026-01-01-done-plan.md"
+    repo = make_repo(tmp, "delete stray 2026-01-01-done-plan.md.orig backup")
+    commits, strength, err = mod.git_evidence(str(repo), target, vault)
+    check(strength != "names-the-plan",
+          f"a .orig fragment must NOT be promoted to STRONG (got {strength})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_unregistered_projects_are_covered():
     print("the corpus is the VAULT, not the registry (Correction 5):")
     tmp = Path(tempfile.mkdtemp(prefix="psa-unreg-"))
@@ -517,6 +627,8 @@ def main():
     case_fix_and_restore()
     case_adversarial_writes()
     case_evidence_is_graded()
+    case_undo_covers_everything_fix_can_write()
+    case_strong_grade_is_anchored()
     case_unregistered_projects_are_covered()
 
     print()
