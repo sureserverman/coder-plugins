@@ -886,7 +886,19 @@ def cmd_restore(run_id, vault, projects):
     restored = 0
     missing = []
     try:
-        dirs = sorted(Path(vault).glob(f"Portfolio/*/*/plans/.audit-backups/{run_id}"))
+        # rglob, matching enumerate_plans' rglob EXACTLY — and the mismatch is
+        # how this defect survived its own fix. r1 corrected the corpus from
+        # "the registry" to "the vault glob"; r2 then made enumeration
+        # RECURSIVE to reach a nested plan set, and left this glob at fixed
+        # depth. So the same undo gap reopened one dimension over: a confirmed
+        # write to a plan in `plans/<subdir>/` backed up correctly and was then
+        # invisible to --restore, which reported success and exit 0 while the
+        # write stood. Found by the close-out evaluator, which reproduced it.
+        # The lesson the Stage 4 handoff already states, now with a second
+        # instance: when a correction changes what the corpus IS, sweep EVERY
+        # function that takes it — including the one you just fixed.
+        dirs = sorted(d for d in Path(vault).rglob(f".audit-backups/{run_id}")
+                      if d.is_dir() and "plans" in d.parts)
     except OSError as exc:
         print(f"vault unreadable ({vault}): {exc}", file=sys.stderr)
         return 1

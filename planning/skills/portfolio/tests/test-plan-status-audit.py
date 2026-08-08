@@ -469,6 +469,30 @@ def case_evidence_is_graded():
     check("user-confirmed; no commit evidence found" in line4,
           f"({line4.strip()})")
 
+    # Close-out evaluator M3: only the WRITTEN line was protected. Mutating
+    # describe_evidence's "WEAK, CORRELATIVE" to "STRONG" left the suite green,
+    # even though gate check 8 asserts no grade renders as a bare hash list —
+    # that was a reader's finding, never a regression test. The DISPLAY is what
+    # the human reads at the moment of confirmation, which is exactly where the
+    # plan argues the grade is load-bearing, so it needs the same pinning.
+    print("  the DISPLAYED grade is pinned too, not just the written line:")
+    weak = {"evidence_strength": "correlative",
+            "evidence": ["abc1234\t2026-01-01\tStage 1 green"]}
+    shown = mod.describe_evidence(weak)
+    check("WEAK" in shown and "CORRELATIVE" in shown,
+          f"a correlative match DISPLAYS as weak ({shown[:60]}…)")
+    check("nothing ties them to THIS plan" in shown,
+          "and says why, at the point of decision")
+    check("STRONG" not in shown.replace("STRONGEST", ""),
+          "and never borrows the word the strong grades use")
+    strong = {"evidence_strength": "register+commit", "register_note": "m.md marks it done",
+              "evidence": ["abc1234\t2026-01-01\tSub-plan 1 green"]}
+    check("STRONGEST" in mod.describe_evidence(strong),
+          "while the top grade is the only thing that reads as strongest")
+    # An unrecognised grade must fall to the WEAKEST wording, never the loudest.
+    check("NONE" in mod.describe_evidence({"evidence_strength": "brand-new-grade"}),
+          "an unknown grade degrades to 'no evidence', the safe direction")
+
     shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -503,6 +527,28 @@ def case_undo_covers_everything_fix_can_write():
     check(rc == 0 and p.read_bytes() == pristine,
           f"--restore reverts a write to an UNREGISTERED project's plan (rc={rc}) "
           f"— it used to report '0 files restored' and leave the write standing")
+
+    print("  a NESTED plan set is enumerated, written, and restorable:")
+    # Close-out evaluator M1+M2, both reproduced. The rglob that reaches a
+    # nested plan set had NO test — mutating it back to glob("*.md") left the
+    # whole suite green — and cmd_restore's own glob was still fixed-depth, so
+    # a confirmed write under plans/<subdir>/ backed up correctly and then
+    # --restore reported success while the write stood. Same undo gap as r1,
+    # one dimension over, in the function r1 had just fixed.
+    nested = plans / "nested-set"
+    nested.mkdir()
+    np = nested / "2026-01-02-nested-plan.md"
+    np.write_text(task("1.1", "x"), encoding="utf-8")
+    np_pristine = np.read_bytes()
+    report2 = mod.audit(vault, projects)
+    npaths = {Path(c["path"]).name for c in report2["candidates"]}
+    check(np.name in npaths, f"a nested plan IS enumerated and offered ({npaths})")
+    mod.record_completion(str(np), [], "RUNID-N", "2026-01-02", "none")
+    check(np.read_bytes() != np_pristine, "precondition: the nested write landed")
+    rc2 = mod.cmd_restore("RUNID-N", vault, projects)
+    check(rc2 == 0 and np.read_bytes() == np_pristine,
+          f"--restore reaches a NESTED backup dir too (rc={rc2}) — cmd_restore's "
+          f"glob must track enumerate_plans' rglob, not lag one fix behind")
 
     print("  a second write sharing a run id cannot clobber the pristine backup:")
     tmp2 = Path(tempfile.mkdtemp(prefix="psa-runid-"))
