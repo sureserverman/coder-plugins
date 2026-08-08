@@ -441,6 +441,26 @@ def case_scan_cache():
     check(mod.PLAN_READS > 0,
           f"a pre-existing v1 cache is discarded, not misread (reads={mod.PLAN_READS})")
 
+    # ...and the VERSION check in isolation. Tier-2 reproduced that the case
+    # above cannot fail on it: that fixture breaks BOTH `version` and `rule`, so
+    # the (separately tested) rule mismatch rejects it whether or not the version
+    # line exists — deleting `cached.get("version") == CACHE_VERSION` left the
+    # whole case green. The comment in the source claims the field is "checked
+    # now, so a future format change invalidates rather than misreads"; this is
+    # what makes that claim true. Everything else here is deliberately VALID.
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)          # rebuild a good cache
+    good = json.loads(cache.read_text())
+    check(good.get("rule") == mod.rule_signature() and good.get("version") == mod.CACHE_VERSION,
+          "precondition: the rebuilt cache is valid in every field")
+    good["version"] = mod.CACHE_VERSION + 1              # ONLY the version differs
+    cache.write_text(json.dumps(good))
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0,
+          f"a cache whose ONLY defect is its version is discarded "
+          f"(reads={mod.PLAN_READS})")
+
     print("  ...and rule_signature() reacts to a REAL edit of the rule's source:")
     # Review finding: everything above substitutes a rule VALUE by hand, which
     # proves the key is compared but not that it tracks anything. Confirmed by
@@ -1058,6 +1078,36 @@ def case_master_grouping():
               f"({got if not ok else str(len(got)) + ' lines, no glyphs'})")
     check(ok and not any("├─" in ln or "└─" in ln for ln in got),
           "and the fallback really is ungrouped (the glyphs are what was lost)")
+
+    # The sibling fault injection, for the width step — which had no test, and
+    # whose fallback was BROKEN when Tier-2 injected it. width=0 signals "skip
+    # alignment", but a tree-prefixed child is passed `width - visible_len(pre)`
+    # = -3, which is TRUTHY, so clip(name, -3) returned "" and ljust(-3) did
+    # nothing: a complete, correctly-numbered bar with an EMPTY NAME. A wrong
+    # bar, not a missing one — the one outcome render() exists to prevent.
+    tmpw, repow, _ = group_fixture(mod, FULL_GROUP)
+    real_nc = mod.name_column
+    mod.name_column = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    try:
+        got = mod.render(str(repow))
+        plainw = [ANSI_RE.sub("", ln) for ln in got]
+        ok = len(plainw) == 3
+    except Exception as e:
+        plainw, ok = [f"RAISED {type(e).__name__}: {e}"], False
+    finally:
+        mod.name_column = real_nc
+    check(ok, f"if the width step raises, every bar still renders ({plainw})")
+    check(ok and all(ln.split("⚙ ", 1)[1].split(" ▐", 1)[0].strip() for ln in plainw),
+          f"and NO line renders a blank name beside a full bar ({plainw})")
+    # The guard above is belt-and-braces with a max(0, …) clamp at the call
+    # site, so the end-to-end case passes on either one alone and pins neither.
+    # This pins the inner one directly: a negative width must mean "don't
+    # align", never "erase the name".
+    for w in (-3, -1, 0):
+        line = ANSI_RE.sub("", mod._bar_line("plan-name", 1, 2, mod.DIM, w))
+        check(line.startswith("⚙ plan-name"),
+              f"_bar_line(width={w}) keeps the name intact ({line!r})")
+    shutil.rmtree(tmpw, ignore_errors=True)
     shutil.rmtree(tmpg, ignore_errors=True)
 
     try:
@@ -1440,6 +1490,47 @@ def case_alignment_and_composition():
           "every ESC in a rendered line is part of a COMPLETE, matched sequence")
     check(blocked2.endswith(mod.RESET),
           f"and the line still closes with RESET, so nothing leaks past it")
+
+    print("  sibling children stay DISTINGUISHABLE, not just indented:")
+    # Stage 3 gate evaluator, Material. Names clip from the tail, but a
+    # sub-plan's distinguishing part -- `sub-NN-<slug>` -- IS the tail, while the
+    # shared date and topic eat the column ahead of it. Measured on the live
+    # vault, all three of anki-kit's children rendered the byte-identical string
+    # `2026-07-16-anki-compatible-flashcard-ecosy…`. The relationship read; the
+    # identity did not. A child now shows its name RELATIVE to its master.
+    #
+    # NOTE this is not covered by COMPOSED_GOLDEN: that fixture's master and
+    # children carry DIFFERENT date stamps (deliberately, to make the ordering
+    # adversarial), so they share too few tokens to strip and correctly keep
+    # their full names. Relative naming needs a same-date master, like the vault's.
+    shared = "2026-08-05-payments-platform-migration"
+    files = {f"{shared}-master-plan.md":
+             ("# Master Plan: payments\n\n## Sub-plans\n\n"
+              f"### Sub-plan 1: a\n- **Status:** [x]\n- **Plan:** ./{shared}-sub-01-card-rails-plan.md\n\n"
+              f"### Sub-plan 2: b\n- **Status:** [ ]\n- **Plan:** ./{shared}-sub-02-ledger-backfill-plan.md\n"),
+             f"{shared}-sub-01-card-rails-plan.md": GROUP_SUB_1.replace(
+                 "Master: ./2026-08-01-alpha-master-plan.md", f"Master: ./{shared}-master-plan.md"),
+             f"{shared}-sub-02-ledger-backfill-plan.md": GROUP_SUB_2}
+    tmpr, repor, _ = group_fixture(mod, files)
+    plainr = [ANSI_RE.sub("", ln) for ln in mod.render(str(repor))]
+    kids = [ln for ln in plainr if ln.startswith(("├─", "└─"))]
+    check(len(kids) == 2, f"master + 2 children render (got {len(plainr)} lines)")
+    names = [ln.split("⚙ ", 1)[1].split(" ▐", 1)[0].rstrip() for ln in kids]
+    check(len(set(names)) == 2,
+          f"the two children are DISTINGUISHABLE, not two identical strings ({names})")
+    check(all(n.startswith("sub-0") for n in names),
+          f"each shows what distinguishes it, the master's name having been dropped ({names})")
+    check(not any(mod.ELLIPSIS in n for n in names),
+          f"and neither needed truncating at all any more ({names})")
+    # The rule must not fire on a partial DATE — the bug that produced
+    # `02-alpha-sub-01-foundation`, a date fragment promoted to the front.
+    check(mod.relative_name(Path("2026-08-02-alpha-sub-01-foundation-plan.md"),
+                            Path("2026-08-01-alpha-master-plan.md"))
+          == "2026-08-02-alpha-sub-01-foundation",
+          "a master and child with DIFFERENT dates share too few tokens to strip")
+    check(len(set(ln.index("▐") for ln in plainr)) == 1,
+          "and the relabelled children still align with their master")
+    shutil.rmtree(tmpr, ignore_errors=True)
 
     print("  the composed three-line master/sub output is pinned, ANSI included:")
     tmp3, repo3, _ = group_fixture(mod, FULL_GROUP)

@@ -9,17 +9,22 @@ implementation), and prints a filled progress bar over the plan's Status
 fields plus the current stage / task / phase.
 
 Since Stage 3 it prints UP TO THREE lines, not one, and the state file is no
-longer the only source. The plan a session is executing comes first, carrying
-the phase indicator; below it come other in-flight plans for the same project,
-discovered from the portfolio vault. A consequence worth stating plainly,
+longer the only source. The GROUP containing the plan a session is executing
+leads -- which is that plan itself, unless it is a sub-plan, in which case its
+master prints above it and the phase indicator sits on the indented child.
+Below come other in-flight plans for the same project, discovered from the
+portfolio vault. A consequence worth stating plainly,
 because it changes the old contract: a project with in-flight plans renders
 bars even when NO execution is running there and no state file exists at all.
 What it prints is "this project has unfinished plans", not only "this session
 is executing one".
 
 Prints NOTHING when there is nothing to say — no state file AND no discoverable
-in-flight plan, or any degradation along the way. Safe to chain after any
-existing statusline command; a broken environment costs lines, never noise.
+in-flight plan. Degradation is GRANULAR rather than all-or-nothing: one
+unreadable plan costs its own line and leaves its siblings standing, and a
+vault that has gone away costs the discovered bars but not the pinned one.
+Safe to chain after any existing statusline command; a broken environment costs
+lines, never noise.
 """
 import datetime
 import hashlib
@@ -414,6 +419,20 @@ def scan_signature(plans_dir):
     `- **Status:** [x]` are the same number of bytes.
 
     Cheap by design: a stat per file, no reads. The reads are what this caches.
+
+    ACCEPTED RESIDUAL RISK, named because rule_signature() below rejects the
+    identical shortcut and silence here would read as oversight. (name, mtime,
+    size) misses a content change that preserves the timestamp -- `rsync -a`, a
+    restored backup, some Docker COPY layers -- exactly as it does for the rule.
+    Reproduced by review: flip `[ ]` to `[x]` (same byte length), restore the
+    mtime, and the cache serves the stale verdict forever with zero reads.
+    Not fixed the same way, deliberately: rule_signature hashes TWO files, while
+    this covers every plan in the directory (~50), and hashing them means
+    READING them all -- which is the precise cost this cache exists to avoid.
+    Content-addressing here would leave the cache saving only the parse, turning
+    a 4x saving into nearly none. The trade is a real edit going unseen only
+    when a tool deliberately preserves timestamps; ordinary edits, including the
+    Status flips this bar narrates, always move mtime.
     """
     try:
         out = []
@@ -652,12 +671,14 @@ def group_plans(paths, pinned=None):
 
     groups.sort(key=group_rank, reverse=True)
 
+    # The text is handed on rather than dropped: these files were just read to
+    # work out the structure, and render_*() would otherwise read them again.
     out = []
     for g in groups:
-        out.append((g[0], ""))
+        out.append((g[0], "", plan_name(g[0]), texts[g[0]]))
         for i, kid in enumerate(g[1:]):
             glyph = TREE_LAST if i == len(g) - 2 else TREE_MID
-            out.append((kid, f"{DIM}{glyph}{RESET}"))
+            out.append((kid, f"{DIM}{glyph}{RESET}", relative_name(kid, g[0]), texts[kid]))
     return out
 
 
@@ -715,11 +736,16 @@ def clip(s, width):
     version of this docstring asserted the safety instead of establishing it,
     which review correctly read as a guarantee this function does not provide.
 
-    Width is measured in CHARACTERS. Fine for the aligned column, whose input
-    is a date-stamped ASCII filename by vault convention; a CJK-heavy `note`
-    would clip a little short of NOTE_WIDTH's intent, which costs a few columns
-    on one line and never misaligns anything, since notes are clipped but never
-    padded against a sibling.
+    Width is measured in CHARACTERS, which is correct for the aligned column
+    (date-stamped ASCII filenames by vault convention) and WRONG for CJK text,
+    where each glyph occupies two terminal columns. The error is OVERSHOOT, not
+    undershoot: review measured a 44-character CJK clip at roughly 88 columns,
+    about double the intended budget -- an earlier version of this note claimed
+    it would "clip a little short", which had both the direction and the
+    magnitude backwards. It still never MISALIGNS anything, because notes are
+    clipped and never padded against a sibling; it just overruns. Accepted for
+    now: these fields are English in this vault, and the whole-line bound is
+    already open as BL-057, which is where a column-aware width belongs.
     """
     if width <= 0:
         return ""
@@ -741,18 +767,63 @@ def plan_name(path):
     return name
 
 
-def name_column(paths, prefixes):
+def relative_name(child, master):
+    """A sub-plan's name with the prefix it shares with its master removed.
+
+    A tree already says who the parent is, so repeating the parent's name on
+    every child spends the column on the one thing the indent has established
+    and truncates away the one thing it has not.
+
+    The Stage 3 gate evaluator found the consequence: names are clipped from the
+    TAIL, but a sub-plan's distinguishing part -- `sub-NN-<slug>` -- IS the tail,
+    while the shared date stamp and topic eat the column ahead of it. Measured on
+    the live vault, all three of anki-kit's children render the byte-identical
+    string `2026-07-16-anki-compatible-flashcard-ecosy…`. Three different plans,
+    three different bars, nothing to tell them apart. The relationship read; the
+    identity did not.
+
+    Matched on whole `-`-separated TOKENS, never on raw characters, and only
+    when at least four of them agree. Both halves of that rule were bought by a
+    bug: a character-wise common prefix of `2026-08-01-alpha-master` and
+    `2026-08-02-alpha-sub-01-foundation` is `2026-08-0`, which cut the child
+    down to `02-alpha-sub-01-foundation` — a fragment of the DATE promoted to
+    the front of the name, reading as a plan called "02-alpha…". Found by
+    looking at the golden instead of re-pasting it.
+
+    Four tokens means the whole date stamp (`2026`, `08`, `04`) plus at least
+    one shared topic word, i.e. evidence of a genuinely shared subject rather
+    than two plans that merely share a day. A child whose name diverges from its
+    master's earlier than that keeps its full name: there is nothing redundant
+    to remove, and the indent already says whose child it is.
+
+    Validated across all 24 masters in the live vault.
+    """
+    c, p = plan_name(child), plan_name(master)
+    ct, pt = c.split("-"), p.split("-")
+    shared = 0
+    for a, b in zip(ct, pt):
+        if a != b:
+            break
+        shared += 1
+    if shared >= 4 and len(ct) > shared:
+        return "-".join(ct[shared:])
+    return c
+
+
+def name_column(labels, prefixes):
     """The shared visible width the name column should take.
 
-    The widest name that fits, so a single bar is padded to its own width and
+    The widest label that fits, so a single bar is padded to its own width and
     therefore not padded at all -- which is what keeps the one-plan golden
     byte-identical while three plans align. The tree prefix counts toward the
     width, so a child's name gets less room and its bar still lands on the same
-    column as its master's.
+    column as its master's. Measures the LABEL that will be displayed, not the
+    filename: a child shows its name relative to its master, and measuring the
+    full filename here would reserve a column nothing ever fills.
     """
     widest = 0
-    for path, prefix in zip(paths, prefixes):
-        widest = max(widest, visible_len(prefix) + len(plan_name(path)))
+    for label, prefix in zip(labels, prefixes):
+        widest = max(widest, visible_len(prefix) + len(label))
     return min(widest, NAME_WIDTH)
 
 
@@ -917,25 +988,59 @@ def pinned_plan_path(state, state_file):
     return plan
 
 
-def render_pinned(state_file, state=None, width=0):
+def _bar_line(name, done, total, colour, width):
+    """`⚙ <name padded> <bar> <done>/<total> (<pct>%)` — the shared opening.
+
+    Extracted because render_pinned() and render_other() carried it verbatim,
+    differing only in the colour and in the tail one of them appends. Task 3.4
+    had to edit the same six lines twice, once per copy — the lockstep-drift
+    shape rule_signature()'s own docstring names as the class it exists to
+    prevent, recreated one layer up. Two callers, one definition.
+
+    `width > 0`, NOT `if width:` — a tree-prefixed child gets
+    `width - visible_len(prefix)`, which is NEGATIVE when the caller fell back
+    to width=0, and a negative width is truthy. clip() then returns "" and
+    ljust() does nothing, so the line rendered a complete, correctly-numbered
+    bar with an EMPTY NAME: a wrong bar rather than a missing one, which is the
+    single outcome render() says it exists to avoid. Reproduced by review via
+    fault injection.
+
+    THIS guard is the load-bearing one, and the suite pins it directly (revert
+    it to `if width:` and the -3/-1 cases fail). render()'s call site also
+    clamps, which is redundant given this line -- verified by mutation, removing
+    the clamp fails nothing -- and is kept only so the negative case is visible
+    where it arises rather than only where it is absorbed.
+    """
+    if width > 0:
+        name = clip(name, width).ljust(width)
+    out = f"{colour}⚙ {name}{RESET} "
+    if total:
+        pct = done * 100 // total
+        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET}"
+    return out
+
+
+def render_pinned(state_file, state=None, width=0, label=None, text=None):
     """The one line for the plan the state file names.
 
     Kept as its own function, taking the state file rather than a plan path,
     because its output is pinned byte-for-byte by a golden captured from the
     pre-Task-3.1 renderer. render() below composes it with the rest.
+
+    `text` lets the caller pass the plan's contents it has already read.
+    group_plans() reads every chosen plan to work out the master/child
+    structure and then threw it away, so each of the up-to-3 files was read
+    TWICE per redraw — free to remove, and it closes a (tiny) window where the
+    two reads could disagree about the same file.
     """
     if state is None:
         state = json.loads(state_file.read_text())
     plan = pinned_plan_path(state, state_file)
-    text = plan.read_text(errors="ignore")
+    if text is None:
+        text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
-    name = plan_name(plan)
-    if width:
-        name = clip(name, width).ljust(width)
-    out = f"{CYAN}⚙ {name}{RESET} "
-    if total:
-        pct = done * 100 // total
-        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET}"
+    out = _bar_line(label if label is not None else plan_name(plan),
+                    done, total, CYAN, width)
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -956,23 +1061,18 @@ def render_pinned(state_file, state=None, width=0):
     return out
 
 
-def render_other(plan_path, width=0):
+def render_other(plan_path, width=0, label=None, text=None):
     """A bar line for a discovered plan that is NOT the one being executed.
 
     No phase part and no staleness marker: those describe an execution this
     session is driving, and nothing is driving these. Task 3.3 makes that
     distinction explicit; here it falls out of not having a state to read.
     """
-    text = _read_plan(plan_path)
+    if text is None:
+        text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
-    name = plan_name(plan_path)
-    if width:
-        name = clip(name, width).ljust(width)
-    out = f"{DIM}⚙ {name}{RESET} "
-    if total:
-        pct = done * 100 // total
-        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET}"
-    return out
+    return _bar_line(label if label is not None else plan_name(plan_path),
+                     done, total, DIM, width)
 
 
 def render(cwd):
@@ -1033,27 +1133,33 @@ def render(cwd):
     try:
         grouped = group_plans(chosen, pinned=pinned)
     except Exception:
-        grouped = [(p, "") for p in chosen]
+        grouped = [(p, "", plan_name(p), None) for p in chosen]
 
     # ONE width for every line, computed from the paths before anything is
     # rendered -- so a child's bar lands on the same column as its master's.
     # Cheap: plan_name() reads the filename, never the file.
     try:
-        width = name_column([p for p, _ in grouped], [pre for _, pre in grouped])
+        width = name_column([lab for _, _, lab, _ in grouped],
+                            [pre for _, pre, _, _ in grouped])
     except Exception:
         width = 0       # unaligned bars beat no bars -- see group_plans() above
 
     lines = []
-    for path, prefix in grouped:
+    for path, prefix, label, text in grouped:
+        # `width - visible_len(prefix)` goes NEGATIVE when the width fallback
+        # above fired. _bar_line() is what actually handles that (and is what
+        # the suite pins); this clamp is redundant, kept so the negative case is
+        # named where it arises instead of only where it is absorbed.
+        avail = max(0, width - visible_len(prefix))
         # Per line, not per block: an unreadable plan costs its own bar and
         # leaves its siblings standing.
         try:
             if state is not None and pinned is not None and _same_file(path, pinned):
                 lines.append(prefix + render_pinned(
-                    state_file, state, width=width - visible_len(prefix)))
+                    state_file, state, width=avail, label=label, text=text))
             else:
                 lines.append(prefix + render_other(
-                    path, width=width - visible_len(prefix)))
+                    path, width=avail, label=label, text=text))
         except Exception:
             continue
     return lines
