@@ -533,6 +533,119 @@ def case_degrades_without_raising():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+# Captured by RUNNING the renderer at acbf3ae — the last commit before Task 3.1
+# touched it — against the fixture built in case_render_returns_lines below.
+# Provenance is the whole point: a golden captured from the code it is meant to
+# pin proves only that the code equals itself. This one was taken from the
+# earlier implementation, so it can fail.
+GOLDEN_SINGLE_PLAN = (
+    "\x1b[38;2;46;149;153m⚙ 2026-08-06-demo\x1b[0m "
+    "\x1b[2m▐\x1b[0m\x1b[38;2;0;160;0m██████████\x1b[0m"
+    "\x1b[2m░░░░░░░░░░▌\x1b[0m 2/4 \x1b[2m(50%)\x1b[0m \x1b[2m·\x1b[0m S2/2 "
+    "\x1b[38;2;0;160;0m▶ T2.1 \x1b[0mz"
+)
+
+GOLDEN_PLAN_BODY = """# Plan: demo
+
+## Stage 1 — a
+### Task 1.1: x
+- **Status:** [x]
+### Task 1.2: y
+- **Status:** [x]
+
+## Stage 2 — b
+### Task 2.1: z
+- **Status:** [~]
+### Task 2.2: w
+- **Status:** [ ]
+"""
+
+
+def case_render_returns_lines():
+    """Task 3.1 — render() returns a LIST, main() prints one element per line,
+    and the single-plan case is byte-identical to the pre-change output."""
+    print("Task 3.1 — render() returns a list of lines:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-lines-"))
+    repo = tmp / "repo"
+    (repo / ".claude").mkdir(parents=True)
+    plans = tmp / "plans"
+    plans.mkdir()
+    plan = plans / "2026-08-06-demo-plan.md"
+    plan.write_text(GOLDEN_PLAN_BODY)
+    (repo / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(plan), "phase": "task", "stage": 2, "task": "2.1",
+        "task_desc": "z", "remediation_round": 0,
+        "updated": datetime.now(timezone.utc).isoformat()}))
+
+    lines = mod.render(str(repo))
+    check(isinstance(lines, list), f"render() returns a list (got {type(lines).__name__})")
+    check(len(lines) == 1, f"one in-flight plan -> one line (got {len(lines)})")
+    check(lines and lines[0] == GOLDEN_SINGLE_PLAN,
+          "the single-plan line is BYTE-IDENTICAL to the pre-Task-3.1 renderer")
+    if lines and lines[0] != GOLDEN_SINGLE_PLAN:
+        print(f"      got:    {lines[0]!r}")
+        print(f"      golden: {GOLDEN_SINGLE_PLAN!r}")
+
+    # And the golden can actually fail: perturbing the plan must move it.
+    plan.write_text(GOLDEN_PLAN_BODY.replace("- **Status:** [~]", "- **Status:** [x]"))
+    check(mod.render(str(repo))[0] != GOLDEN_SINGLE_PLAN,
+          "the golden is sensitive — a Status flip changes it (it is not a tautology)")
+    plan.write_text(GOLDEN_PLAN_BODY)
+
+    r, plain = run(repo)
+    check(r.returncode == 0 and plain.count("\n") == 1,
+          f"main() prints one line per element (got {plain.count(chr(10))} newlines)")
+
+    print("  multiple discovered plans stack, one line each:")
+    for n in ("2026-07-01-older-plan.md", "2026-06-01-oldest-plan.md"):
+        (plans / n).write_text(GOLDEN_PLAN_BODY)
+    # point the resolver at this fixture's plans dir
+    cfg, reg = tmp / "cfg.yaml", tmp / "reg.yaml"
+    mod.CONFIG_PATH, mod.REGISTRY_PATH = cfg, reg
+    write_yaml(cfg, f"version: 1\nvault_dir: {tmp / 'vault'}\n")
+    vplans = tmp / "vault" / "Portfolio" / "a" / "p" / "plans"
+    vplans.mkdir(parents=True)
+    for src in plans.glob("*.md"):
+        (vplans / src.name).write_text(src.read_text())
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: p\n    area: a\n    enabled: true\n")
+    lines = mod.render(str(repo))
+    check(len(lines) == 3, f"pinned + 2 discovered = 3 lines (got {len(lines)})")
+    check(lines[0] == GOLDEN_SINGLE_PLAN,
+          "the pinned plan is still first and still byte-identical")
+    check(all("\n" not in ln for ln in lines), "no element contains an embedded newline")
+
+    print("  a RELATIVE pinned path is still recognised as itself:")
+    # The Tier-1 Critical. A relative `plan` is documented and supported, and
+    # `docs/plans` is where one naturally points -- the same directory discovery
+    # then scans. Both the relative path and discovery were tested, but never
+    # together, and apart they each pass. The pinned plan failed to match itself
+    # and rendered twice: once with its phase part, once as a stranger.
+    rel = Path(tempfile.mkdtemp(prefix="pp-rel-"))
+    relrepo = rel / "repo"
+    (relrepo / ".claude").mkdir(parents=True)
+    (relrepo / "docs" / "plans").mkdir(parents=True)
+    (relrepo / "docs" / "plans" / "2026-08-06-demo-plan.md").write_text(GOLDEN_PLAN_BODY)
+    (relrepo / "docs" / "plans" / "2026-01-01-other-plan.md").write_text(GOLDEN_PLAN_BODY)
+    (relrepo / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": "docs/plans/2026-08-06-demo-plan.md",      # relative, on purpose
+        "phase": "task", "stage": 1, "task": "1.1",
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    relcfg = rel / "cfg.yaml"
+    write_yaml(relcfg, "version: 1\n")     # intact, no vault_dir -> docs/plans fallback
+    mod.CONFIG_PATH = relcfg
+    rlines = mod.render(str(relrepo))
+    stems = [ANSI_RE.sub("", ln).split()[1] for ln in rlines]
+    check(len(stems) == len(set(stems)),
+          f"the pinned plan appears exactly once, not once per resolution form ({stems})")
+    check(len(rlines) == 2, f"pinned + 1 other = 2 lines, no duplicate slot burned "
+                            f"(got {len(rlines)})")
+    shutil.rmtree(rel, ignore_errors=True)
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_ordering_ignores_mtime():
     """Stage 2 gate check 4 — the mechanism the amended check actually names.
 
@@ -584,11 +697,13 @@ def case_render_budget():
     (home / ".claude" / "portfolio-config.yaml").write_text("version: 1\n")
     env = dict(os.environ, HOME=str(home))
 
-    # main() does not call discover_plans yet -- wiring the multi-line render is
-    # Stage 3 Task 3.1. Timing the plain subprocess here would therefore measure
-    # the single-plan path while claiming to measure discovery, so this drives
-    # the FULL path Stage 3's main() will run: resolve, discover (with cache),
-    # render. Otherwise the budget check is green for the wrong reason.
+    # Written when main() did NOT yet reach discover_plans: timing the plain
+    # subprocess would have measured the single-plan path while claiming to
+    # measure discovery, so this driver runs the full resolve -> discover (with
+    # cache) -> render path explicitly. Task 3.1 has since wired that path into
+    # main(), and the explicit driver still earns its place: it asserts
+    # DISCOVERED=3, so the measurement provably exercised the code it budgets
+    # rather than whatever main() happened to do that day.
     driver = tmp / "driver.py"
     driver.write_text(f'''
 import importlib.util, json, pathlib, sys
@@ -600,7 +715,7 @@ d = m.portfolio_plans_dir(root)
 state = json.loads(state_file.read_text())
 found = m.discover_plans(d, pinned=pathlib.Path(state["plan"]),
                          cache_file=root / ".claude" / m.CACHE_NAME)
-sys.stdout.write(m.render(state_file) + "\\n")
+sys.stdout.write("\\n".join(m.render(str(root))) + "\\n")
 sys.stderr.write("DISCOVERED=%d\\n" % len(found))
 ''')
 
@@ -738,6 +853,7 @@ def main():
     case_render_budget()
     case_degrades_without_raising()
     case_ordering_ignores_mtime()
+    case_render_returns_lines()
 
     print()
     if FAILURES:

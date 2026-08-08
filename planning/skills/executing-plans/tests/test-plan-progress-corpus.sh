@@ -19,10 +19,14 @@
 #            DIRECTLY, with no guard around them.
 #
 # Lane B exists because lane A alone made this sweep a test that cannot fail.
-# main() calls find_state() and render(); it does not call any Stage 2 function
-# (that wiring is Stage 3 Task 3.1). So the config/registry/vault/cache cases
-# were passing because the code they name was never reached — the artifact
-# certifying the stage was asserting coverage it did not have.
+# When it was written, main() called find_state() and render() and NO Stage 2
+# function, so the config/registry/vault/cache cases were passing because the
+# code they name was never reached — the artifact certifying the stage was
+# asserting coverage it did not have.
+#
+# Stage 3 Task 3.1 has since wired discovery into main(), so lane A now does
+# reach that code. Lane B is not thereby redundant — it is more necessary, for
+# the reason in the next paragraph.
 #
 # Lane B is deliberately UNGUARDED, and that is not an oversight. main() ends in
 # `except Exception: sys.exit(0)`, so once Stage 3 wires discovery in, lane A

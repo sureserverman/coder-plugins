@@ -5,12 +5,21 @@ Reads the Claude Code statusline JSON on stdin, walks up from cwd to find
 .claude/plan-progress.json (maintained by the executing-plans skill at each
 execution transition), parses the referenced plan file with the authoritative
 plan-parser regexes from portfolio-unify.py (one contract, one
-implementation), and prints ONE line: a filled progress bar over the plan's
-Status fields plus the current stage / task / phase.
+implementation), and prints a filled progress bar over the plan's Status
+fields plus the current stage / task / phase.
 
-Prints NOTHING when no plan is executing (no state file, unreadable state,
-missing plan) — safe to chain after any existing statusline command; the
-extra line only appears mid-execution and disappears at close-out.
+Since Stage 3 it prints UP TO THREE lines, not one, and the state file is no
+longer the only source. The plan a session is executing comes first, carrying
+the phase indicator; below it come other in-flight plans for the same project,
+discovered from the portfolio vault. A consequence worth stating plainly,
+because it changes the old contract: a project with in-flight plans renders
+bars even when NO execution is running there and no state file exists at all.
+What it prints is "this project has unfinished plans", not only "this session
+is executing one".
+
+Prints NOTHING when there is nothing to say — no state file AND no discoverable
+in-flight plan, or any degradation along the way. Safe to chain after any
+existing statusline command; a broken environment costs lines, never noise.
 """
 import datetime
 import importlib.util
@@ -477,12 +486,37 @@ def staleness(state):
     return ""
 
 
-def render(state_file):
-    state = json.loads(state_file.read_text())
+def pinned_plan_path(state, state_file):
+    """The absolute path of the plan a state file names.
+
+    A relative `plan` is anchored to the REPO ROOT (.claude's parent), never to
+    the process cwd — the statusline runs from wherever the user happens to be.
+    This is a shared helper rather than inline code because it had to agree in
+    two places and did not: render() re-parsed `state["plan"]` itself, kept it
+    relative, and then both discover_plans()'s exclusion and render()'s own
+    post-filter resolved it against the OS cwd. The pinned plan therefore
+    failed to match itself and was rendered twice — once with its phase part,
+    once as a discovered stranger — whenever a relative `plan` pointed inside
+    the discovered plans directory, which is exactly the shape of the
+    `docs/plans` fallback. It also burned a MAX_BARS slot that a genuinely
+    different plan should have had.
+    """
     plan = Path(state["plan"])
     if not plan.is_absolute():
-        # relative plan paths resolve against the repo root (.claude's parent)
         plan = state_file.parent.parent / plan
+    return plan
+
+
+def render_pinned(state_file, state=None):
+    """The one line for the plan the state file names.
+
+    Kept as its own function, taking the state file rather than a plan path,
+    because its output is pinned byte-for-byte by a golden captured from the
+    pre-Task-3.1 renderer. render() below composes it with the rest.
+    """
+    if state is None:
+        state = json.loads(state_file.read_text())
+    plan = pinned_plan_path(state, state_file)
     text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text)
     name = plan.name
@@ -501,14 +535,80 @@ def render(state_file):
     return out
 
 
+def render_other(plan_path):
+    """A bar line for a discovered plan that is NOT the one being executed.
+
+    No phase part and no staleness marker: those describe an execution this
+    session is driving, and nothing is driving these. Task 3.3 makes that
+    distinction explicit; here it falls out of not having a state to read.
+    """
+    text = _read_plan(plan_path)
+    done, total, _ = parse_plan(text)
+    name = plan_path.name
+    for suffix in ("-light-plan.md", "-plan.md", ".md"):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    out = f"{DIM}⚙ {name}{RESET} "
+    if total:
+        pct = done * 100 // total
+        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET}"
+    return out
+
+
+def render(cwd):
+    """Every line the status line should carry, in order — possibly none.
+
+    The pinned plan (the one the state file names) keeps render()'s exact
+    byte-for-byte output and comes first. Other in-flight plans for the same
+    project follow. Returning a LIST rather than a string is the whole of Task
+    3.1: main() prints each element on its own line, so a second bar costs a
+    line rather than a rewrite.
+
+    Every step degrades to "fewer lines", never to an exception — this is still
+    the statusline. Note which corpus lane proves what: lane A (`python3
+    plan-progress.py`) comes through main() into here and so exercises the
+    guards below; lane B deliberately BYPASSES this function to call the
+    discovery surface raw, precisely so those guards cannot mask a function
+    that fails to degrade on its own. Reading lane B as evidence about this
+    function's exception safety gets it exactly backwards.
+    """
+    lines = []
+    state_file = find_state(cwd)
+    pinned = None
+    if state_file is not None:
+        try:
+            # ONE read, one anchoring. Re-reading here to recompute `pinned`
+            # also raced executing-plans' overwrite-not-patch state writes: a
+            # rewrite landing between the two reads made the second one fail
+            # and silently disabled dedup for that redraw.
+            state = json.loads(state_file.read_text())
+            lines.append(render_pinned(state_file, state))
+            pinned = pinned_plan_path(state, state_file)
+        except Exception:
+            pinned = None           # an unreadable state file pins nothing
+
+    try:
+        root = repo_root_of(state_file) if state_file is not None else Path(cwd)
+        plans_dir = portfolio_plans_dir(root)
+        if plans_dir is not None:
+            cache = root / ".claude" / CACHE_NAME
+            for p in discover_plans(plans_dir, pinned=pinned, cache_file=cache):
+                if pinned is not None and _same_file(p, pinned):
+                    continue        # already rendered above, with its phase part
+                lines.append(render_other(p))
+    except Exception:
+        pass                        # discovery is additive: never costs the pinned bar
+
+    return lines
+
+
 def main():
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."
-    state_file = find_state(cwd)
-    if not state_file:
-        return
-    print(render(state_file))
+    for line in render(cwd):
+        print(line)
 
 
 if __name__ == "__main__":
