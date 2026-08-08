@@ -8,8 +8,11 @@ plan-parser regexes from portfolio-unify.py (one contract, one
 implementation), and prints a filled progress bar over the plan's Status
 fields plus the current stage / task / phase.
 
-Since Stage 3 it prints UP TO THREE lines, not one, and the state file is no
-longer the only source. The GROUP containing the plan a session is executing
+Since Stage 3 it prints SEVERAL lines, not one, and the state file is no
+longer the only source. How many: up to MAX_BARS (3) non-master plans, PLUS
+every in-flight master plan for the project — masters are exempt from the cap
+(BL-056), so the line count has no fixed ceiling and "three" has been wrong
+since that shipped. The GROUP containing the plan a session is executing
 leads -- which is that plan itself, unless it is a sub-plan, in which case its
 master prints above it and the phase indicator sits on the indented child.
 Below come other in-flight plans for the same project, discovered from the
@@ -280,21 +283,30 @@ def plan_is_eligible(text, path=None):
       started    -> at least one Status classified `done` or `partial`
       closed out -> a **Completed:** or **Abandoned:** line
 
+    A MASTER plan is exempt from the `started` half (BL-056, decided by the user
+    2026-08-08): it is visible whenever it is not closed out. A master with no
+    sub-plan yet begun is still work the project has committed to, and its bar
+    reads 0/N rather than being invisible. "Not closed out" means NEITHER
+    **Completed:** NOR **Abandoned:** -- abandonment is the other terminal
+    marker, and suppressing on it is the plan-status contract's existing rule,
+    so the exemption widens what counts as started and nothing else.
+
     Classification goes through pu.status_state(), never a test on the captured
     character: `!= " "` reads `[~]` as done, which is the exact defect BL-001
     exists to prevent. Both terminal markers come from pu as well, so this file
     restates no part of the plan-status contract.
 
-    Deliberately NOT eligible: an all-`[ ]` plan (authored, never started -- a
-    bar reading 0/13 is noise), a plan with no Status fields at all (the
-    checkbox-era legacy and *-design.md documents), and anything closed out.
+    Deliberately NOT eligible: an all-`[ ]` non-master plan (authored, never
+    started -- a bar reading 0/13 is noise), a plan with no Status fields at all
+    (the checkbox-era legacy and *-design.md documents), and anything closed out.
     """
     started = False
     in_entry = False
     # A master's progress lives in its `### Sub-plan N:` register, not in Task
     # headings it does not have. Counting only TASK_RE is why no master had ever
     # been eligible -- every one read as "authored, never started".
-    opener = pu.SUBPLAN_RE if pu.is_master_plan(text, path) else pu.TASK_RE
+    is_master = pu.is_master_plan(text, path)
+    opener = pu.SUBPLAN_RE if is_master else pu.TASK_RE
     for line in text.splitlines():
         if opener.match(line):
             in_entry = True
@@ -304,7 +316,7 @@ def plan_is_eligible(text, path=None):
             in_entry = False
             if pu.status_state(sm.group(1)) in ("done", "partial"):
                 started = True
-    if not started:
+    if not started and not is_master:
         return False
     return not (pu.COMPLETED_RE.search(text) or pu.ABANDONED_RE.search(text))
 
@@ -348,7 +360,7 @@ def _rank(path):
 
 
 CACHE_NAME = "plan-progress-cache.json"
-CACHE_VERSION = 2   # bumped by the rule-signature fix below; discards every v1 cache
+CACHE_VERSION = 3   # v2 -> v3: the cache gained a `masters` list (BL-056)
 
 
 def rule_signature():
@@ -489,7 +501,7 @@ def _read_cache(cache_file):
     return data if isinstance(data, dict) else None
 
 
-def _write_cache(cache_file, plans_dir, signature, names, rule):
+def _write_cache(cache_file, plans_dir, signature, names, rule, masters=()):
     if cache_file is None or rule is None:
         return              # an unkeyed cache is worse than none — see rule_signature()
     try:
@@ -502,6 +514,12 @@ def _write_cache(cache_file, plans_dir, signature, names, rule):
             "plans_dir": str(plans_dir),
             "signature": signature,
             "eligible": names,
+            # Masterhood is cached beside eligibility because the cap now needs
+            # it (BL-056) and only the FILENAME half of it can be recovered from
+            # a name: `# Master Plan:` in the first heading is equally valid, so
+            # recomputing on a cache hit would mean reading every plan file --
+            # the exact cost this cache exists to avoid.
+            "masters": list(masters),
         }), encoding="utf-8")
         os.replace(tmp, p)
     except BAD_PATH:
@@ -509,7 +527,7 @@ def _write_cache(cache_file, plans_dir, signature, names, rule):
 
 
 def discover_plans(plans_dir, pinned=None, cache_file=None):
-    """Up to MAX_BARS plans to render, newest first by filename date stamp.
+    """The plans to render, newest first by filename date stamp.
 
     `pinned` is the plan the state file names. It is included UNCONDITIONALLY
     when it exists — not merely bumped up the ranking — because it is the plan
@@ -518,6 +536,32 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
     0/13 has been started by a human but carries no `[x]` yet, and the bar has
     always shown it. Eligibility governs which OTHER plans earn a bar, not
     whether the executing one does.
+
+    MAX_BARS bounds NON-MASTER plans only; eligible masters are added on top of
+    that budget rather than competing for its slots (BL-056, decided by the user
+    2026-08-08). The cap selects by date stamp and knows nothing of the
+    master->sub-plan association that group_plans() then renders, so while they
+    shared one budget a 4th eligible plan newer than a master evicted the
+    MASTER — and, because `-master-plan.md` sorts below `-sub-NN-` within a
+    shared date stamp, the parent was dropped FIRST, leaving its children flat
+    and glyphless: a tree with no root. Exempting masters dissolves the question
+    "which plan gets dropped to make room for a master?" rather than answering
+    it, which is what made it a user's call and not an executor's.
+
+    THE NUMBER OF MASTERS IS UNBOUNDED BY THIS CODE, and that is a deliberate
+    consequence of the decision rather than an oversight. A project renders
+    `3 + (its open masters)` bars. The figures below are an OBSERVED MAXIMUM on
+    one vault at one moment — not a bound anything enforces, and not a number a
+    future maintainer may rely on. Stated this way because the first draft of
+    this docstring called 5 the "worst case", which reads as a guarantee the
+    code does not make.
+
+    Observed on the live vault when this shipped: 21 -> 25 bars total, with only
+    multitor (3 -> 5), writer-pad (3 -> 4) and health-alert (0 -> 1) changing at
+    all — so 5 was the most any single project rendered that day. If the count
+    ever does read as too many, the lever is a SEPARATE cap on masters, never
+    reinstating the shared one — the point of the decision is that a master must
+    not lose its slot to its own children.
     """
     pinned_r = None
     if pinned is not None:
@@ -526,7 +570,9 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
         except BAD_PATH:
             pinned_r = None
 
-    eligible = []
+    eligible = []       # eligible non-masters — these compete for MAX_BARS
+    masters = []        # eligible masters — exempt from the cap (BL-056)
+    pinned_is_master = False
     if plans_dir is not None:
         plans_dir = Path(plans_dir)
         sig = scan_signature(plans_dir)
@@ -540,35 +586,62 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
                 and cached.get("rule") == rule
                 and cached.get("plans_dir") == str(plans_dir)
                 and cached.get("signature") == sig
-                and isinstance(cached.get("eligible"), list)):
-            for name in cached["eligible"]:
+                and isinstance(cached.get("eligible"), list)
+                and isinstance(cached.get("masters"), list)):
+            cached_masters = {n for n in cached["masters"] if _safe_cache_name(n)}
+            # dict.fromkeys, not the raw list: _write_cache builds its names
+            # from a directory glob and so can never emit a duplicate, but a
+            # TAMPERED cache can — and that is the threat model _safe_cache_name
+            # already exists for. A repeated name would otherwise spend two of
+            # the three non-master slots on one plan and make group_plans()
+            # render the same master's group twice. Not a traversal; a way to
+            # spend the bar budget on nothing.
+            for name in dict.fromkeys(cached["eligible"]):
                 if _safe_cache_name(name):
-                    eligible.append(plans_dir / name)
+                    (masters if name in cached_masters else eligible).append(
+                        plans_dir / name)
         elif sig is not None:
             for f in sorted(plans_dir.glob("*.md")):
                 try:
-                    if plan_is_eligible(_read_plan(f), f):
-                        eligible.append(f)
+                    text = _read_plan(f)
+                    if plan_is_eligible(text, f):
+                        (masters if pu.is_master_plan(text, f) else eligible).append(f)
                 except BAD_PATH:
                     continue  # deleted or unreadable mid-scan — never raise
-            _write_cache(cache_file, plans_dir, sig, [f.name for f in eligible], rule)
+            _write_cache(cache_file, plans_dir, sig,
+                         [f.name for f in eligible + masters], rule,
+                         [f.name for f in masters])
 
         # The pinned plan is added below on its own terms, so it must not also
-        # arrive through the eligible list.
+        # arrive through either list.
         if pinned_r is not None:
             eligible = [f for f in eligible if not _same_file(f, pinned_r)]
+            before = len(masters)
+            masters = [f for f in masters if not _same_file(f, pinned_r)]
+            pinned_is_master = len(masters) < before
 
     eligible.sort(key=_rank, reverse=True)
+    masters.sort(key=_rank, reverse=True)
 
     chosen = []
+    capped = 0          # how many of the MAX_BARS non-master slots are taken
     if pinned_r is not None and _is_file(pinned_r):
         chosen.append(pinned_r)
+        # A pinned MASTER does not spend a capped slot, for the same reason no
+        # other master does. When the pinned plan is a master that is itself
+        # closed out it is absent from `masters` and so counted here — which is
+        # the conservative direction: it costs one non-master bar, never a
+        # master's slot.
+        if not pinned_is_master:
+            capped += 1
     for f in eligible:
-        if len(chosen) >= MAX_BARS:
+        if capped >= MAX_BARS:
             break
         chosen.append(f)
+        capped += 1
+    chosen.extend(masters)
     chosen.sort(key=_rank, reverse=True)
-    return chosen[:MAX_BARS]
+    return chosen
 
 
 # Tree glyphs for a master's sub-plans. Box-drawing rather than ASCII `|-`

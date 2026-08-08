@@ -585,9 +585,14 @@ def case_scan_cache():
     for label, planted in (("absolute path", "/etc/passwd"),
                            ("parent traversal", "../../../etc/passwd"),
                            ("nested separator", "sub/evil.md")):
+        # It happened AGAIN, exactly as predicted, when BL-056 added `masters`:
+        # the new key rejected the whole cache, reads went 0 -> 5, and this test
+        # went red instead of silently passing. That is the PLAN_READS == 0
+        # assertion above doing its job. Every future key belongs here too.
         cache.write_text(json.dumps({"version": mod.CACHE_VERSION, "rule": rule,
                                      "plans_dir": str(plans),
-                                     "signature": sig, "eligible": [planted]}),
+                                     "signature": sig, "eligible": [planted],
+                                     "masters": []}),
                          encoding="utf-8")
         mod.PLAN_READS = 0
         got = mod.discover_plans(plans, cache_file=cache)
@@ -596,6 +601,32 @@ def case_scan_cache():
               f"what must reject it (reads={mod.PLAN_READS})")
         escaped = [p for p in got if p.parent != plans]
         check(not escaped, f"{label}: rejected, not joined ({escaped})")
+
+    # A poisoned name present ONLY in `masters`, absent from `eligible`. Safe by
+    # inspection — `cached_masters` is used solely as a membership test against
+    # names already drawn from and re-validated out of `eligible` — but this
+    # file's history is mostly "the test that would have caught it wasn't
+    # written", so the inspection is now an assertion.
+    cache.write_text(json.dumps({"version": mod.CACHE_VERSION, "rule": rule,
+                                 "plans_dir": str(plans), "signature": sig,
+                                 "eligible": [], "masters": ["/etc/passwd"]}),
+                     encoding="utf-8")
+    mod.PLAN_READS = 0
+    got = mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS == 0, "masters-only poison: the cache is still USED")
+    check(all(p.parent == plans for p in got),
+          f"a name only in `masters` never reaches a path join ({got})")
+
+    # And a DUPLICATE name cannot spend two cap slots on one plan.
+    dupe = sorted(p.name for p in plans.glob("*.md"))[0]
+    cache.write_text(json.dumps({"version": mod.CACHE_VERSION, "rule": rule,
+                                 "plans_dir": str(plans), "signature": sig,
+                                 "eligible": [dupe, dupe, dupe], "masters": []}),
+                     encoding="utf-8")
+    mod.PLAN_READS = 0
+    got = mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS == 0 and len(got) == 1,
+          f"a tampered cache repeating one name yields ONE bar, not three ({got})")
 
     shutil.rmtree(tmp, ignore_errors=True)
 
@@ -840,9 +871,18 @@ def case_master_plans_are_countable():
     closed = MASTER_PLAN + "\n**Completed:** 2026-08-05 — all sub-plans green\n"
     check(not mod.plan_is_eligible(closed, by_heading),
           "a master carrying **Completed:** is not eligible")
+    # REVERSED DELIBERATELY by BL-056 change 2 (user decision, 2026-08-08). This
+    # assertion previously read "an all-[ ] master is 'authored, never started'
+    # and earns no bar" — the non-master rule applied to masters. A master with
+    # no sub-plan yet begun is work the project has committed to; its bar reads
+    # 0/N. Kept as an assertion of the NEW contract rather than deleted, so the
+    # boundary stays covered in whichever direction it is defined.
     never = MASTER_PLAN.replace("[x]", "[ ]").replace("[~]", "[ ]")
-    check(not mod.plan_is_eligible(never, by_heading),
-          "an all-[ ] master is 'authored, never started' and earns no bar")
+    check(mod.plan_is_eligible(never, by_heading),
+          "an all-[ ] master IS eligible — visible whenever not closed out")
+    check(not mod.plan_is_eligible(
+              never + "\n**Abandoned:** 2026-08-05 — superseded\n", by_heading),
+          "but an abandoned one is not — 'not closed out' means NEITHER marker")
 
     # An ordinary plan must not be re-read through the master parser.
     check(mod.parse_plan(PLAN, tmp / "2026-08-01-ordinary-plan.md")[1] == 5,
@@ -1167,12 +1207,16 @@ def case_master_grouping():
     # CHILD, so hoisting the plan rather than its group would put a sub-plan
     # above its own master and leave the glyphs pointing at nothing.
     #
-    # Two members, not three, and that is load-bearing rather than incidental:
-    # a 3-member group exactly fills MAX_BARS, so no unrelated plan can be
-    # chosen alongside it and the ordering rule under test would never be
-    # exercised. See BL-056 — the cap selects plans by rank with no knowledge of
-    # this association, so a 4th eligible plan CAN evict a master and leave its
-    # children ungrouped. That is a selection trade-off, not this function's.
+    # Two members here, so an unrelated plan can be chosen alongside the group
+    # and the ordering rule under test is actually exercised.
+    #
+    # BL-056 HAS SINCE SHIPPED, and this comment used to say the opposite —
+    # that a 4th eligible plan "CAN evict a master and leave its children
+    # ungrouped... a selection trade-off, not this function's". It no longer
+    # can: masters are exempt from the cap. Corrected rather than deleted
+    # because a reader who met the old text would take it for a still-open
+    # limitation. The affirmative case it described as impossible is now
+    # asserted directly, below.
     tmp6, repo6, vplans6 = group_fixture(mod, {
         MASTER_NAME: GROUP_MASTER, SUB1_NAME: GROUP_SUB_1,
         "2026-09-09-unrelated-plan.md": GROUP_SUB_1.replace("Master:", "NotMaster:")})
@@ -1184,6 +1228,31 @@ def case_master_grouping():
     check(lines6 and lines6[0].startswith("⚙ ") and "alpha-master" in lines6[0],
           f"the pinned plan's group leads, though a 2026-09-09 plan is newer "
           f"({lines6})")
+
+    # BL-056 end-to-end, through render() rather than discover_plans() alone.
+    # This is the exact configuration the old comment above called impossible:
+    # a FULL 3-member group plus a newer unrelated plan. Before the fix the cap
+    # dropped the master first (within a shared date stamp `-master-plan.md`
+    # sorts BELOW `-sub-NN-`), leaving two children flat and glyphless — a tree
+    # with no root — and the whole rendering path had no way to notice.
+    print("  BL-056: a full group survives a newer unrelated plan, end to end:")
+    tmp7, repo7, vplans7 = group_fixture(mod, dict(
+        FULL_GROUP, **{"2026-09-09-unrelated-plan.md":
+                       GROUP_SUB_1.replace("Master:", "NotMaster:")}))
+    (repo7 / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans7 / SUB1_NAME), "phase": "task", "stage": 1, "task": "1.1",
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    lines7 = plain_lines(mod, repo7)
+    check(any("alpha-master" in ln for ln in lines7),
+          f"the master is NOT evicted by the newer unrelated plan ({lines7})")
+    kids7 = [ln for ln in lines7 if ln.startswith(("├─", "└─"))]
+    check(len(kids7) == 2, f"and BOTH children still render under it ({lines7})")
+    check(kids7 and kids7[-1].startswith("└─"),
+          f"the last child still closes the tree ({kids7})")
+    check(any("unrelated" in ln for ln in lines7),
+          f"while the unrelated plan keeps its own bar — masters ride on top, "
+          f"they do not displace ({lines7})")
+    shutil.rmtree(tmp7, ignore_errors=True)
     check(len(lines6) > 2 and lines6[1].startswith("└─ ") and "sub-01" in lines6[1]
           and "▶ T1.1" in lines6[1],
           f"the pinned child keeps its phase indicator UNDER its master ({lines6})")
@@ -1643,6 +1712,86 @@ sys.stderr.write("DISCOVERED=%d\\n" % len(found))
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def case_masters_are_off_the_cap():
+    """BL-056 — MAX_BARS bounds non-masters; eligible masters ride on top.
+
+    The reproduction is the backlog entry's own, and it is built so the OLD code
+    fails it in the worst direction: within a shared date stamp
+    `-master-plan.md` sorts BELOW `-sub-NN-`, and the unrelated plan is newest,
+    so the one plan the shared cap evicted was the PARENT — leaving its children
+    rendered flat and glyphless, a tree with no root.
+    """
+    print("BL-056 — masters do not compete for the MAX_BARS slots:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-bl056-"))
+    plans = tmp / "plans"
+    plans.mkdir()
+    started = "### Task 1.1: a\n- **Status:** [x]\n\n### Task 1.2: b\n- **Status:** [ ]\n"
+    master = ("# Master Plan: alpha\n\n## Sub-plans\n\n"
+              "### Sub-plan 1: foundation\n- **Status:** [x]\n"
+              "- **Plan:** ./2026-08-02-alpha-sub-01-foundation-plan.md\n")
+
+    (plans / "2026-08-01-alpha-master-plan.md").write_text(master)
+    (plans / "2026-08-02-alpha-sub-01-foundation-plan.md").write_text(started)
+    (plans / "2026-08-03-alpha-sub-02-second-plan.md").write_text(started)
+    (plans / "2026-09-09-unrelated-plan.md").write_text(started)
+
+    got = mod.discover_plans(plans)
+    names = [p.name for p in got]
+    check("2026-08-01-alpha-master-plan.md" in names,
+          f"the master survives a full cap — it used to be the first evicted ({names})")
+    check(len(got) == 4, f"3 capped non-masters + 1 exempt master = 4 bars (got {len(got)})")
+    non_master = [n for n in names if not n.endswith("-master-plan.md")]
+    check(len(non_master) == 3,
+          f"non-masters are STILL capped at MAX_BARS=3, not uncapped ({non_master})")
+
+    print("  a second master rides on top too, and the cap does not move:")
+    (plans / "2026-08-04-beta-master-plan.md").write_text(master)
+    names2 = [p.name for p in mod.discover_plans(plans)]
+    check(sum(1 for n in names2 if n.endswith("-master-plan.md")) == 2,
+          f"both masters render ({names2})")
+    check(sum(1 for n in names2 if not n.endswith("-master-plan.md")) == 3,
+          f"and exactly 3 non-masters still (got {names2})")
+
+    print("  the exemption is 'not closed out', not 'unconditional':")
+    for marker in ("**Completed:** 2026-08-05 — done", "**Abandoned:** 2026-08-05 — dropped"):
+        (plans / "2026-08-04-beta-master-plan.md").write_text(master + "\n" + marker + "\n")
+        out = [p.name for p in mod.discover_plans(plans)]
+        check("2026-08-04-beta-master-plan.md" not in out,
+              f"a master carrying {marker.split(':')[0]} earns no bar ({out})")
+    (plans / "2026-08-04-beta-master-plan.md").unlink()
+
+    print("  masterhood survives a CACHE HIT with zero plan reads:")
+    # Load-bearing: only the FILENAME half of masterhood is recoverable from a
+    # cached name, so this master is detected by its `# Master Plan:` heading
+    # while carrying an ordinary filename. A cache that stored names alone would
+    # have to re-read every plan to classify it — the cost the cache exists to
+    # avoid — so anything that passes here without reads read the stored flag.
+    hidden = plans / "2026-08-05-heading-only-plan.md"
+    hidden.write_text(master)
+    cache = tmp / "cache.json"
+    first = [p.name for p in mod.discover_plans(plans, cache_file=cache)]
+    check(hidden.name in first, f"cold scan: the heading-only master renders ({first})")
+    mod.PLAN_READS = 0
+    warm = [p.name for p in mod.discover_plans(plans, cache_file=cache)]
+    check(mod.PLAN_READS == 0, f"warm run performed no plan reads (reads={mod.PLAN_READS})")
+    check(warm == first, f"and returned the same set ({warm} vs {first})")
+    check(sum(1 for n in warm if not n.endswith("-master-plan.md")
+              and n != hidden.name) == 3,
+          f"the heading-only master was NOT counted against the cap ({warm})")
+
+    print("  a pinned master does not spend a capped slot:")
+    pinned = plans / "2026-08-01-alpha-master-plan.md"
+    got3 = mod.discover_plans(plans, pinned=pinned)
+    n3 = [p.name for p in got3]
+    check(pinned.resolve() in [p.resolve() for p in got3], f"the pinned master renders ({n3})")
+    check(sum(1 for n in n3 if not n.endswith("-master-plan.md")
+              and n != hidden.name) == 3,
+          f"and 3 non-masters still fit beside it ({n3})")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def date_stamped(p):
     return re.match(r"^\d{4}-\d{2}-\d{2}", p.name) is not None
 
@@ -1755,6 +1904,7 @@ def main():
     case_resolver_never_breaks_the_bar()
     case_eligibility_filter()
     case_ordering_and_cap()
+    case_masters_are_off_the_cap()
     case_scan_cache()
     case_render_budget()
     case_degrades_without_raising()
