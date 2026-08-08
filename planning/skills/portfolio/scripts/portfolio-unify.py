@@ -195,6 +195,27 @@ GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
 # ---------------------------------------------------------------------------
 STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX~])\]")
 
+# Every bracketed Status marker, INCLUDING the ones the contract does not
+# recognise. STATUS_RE's class is `[ xX~]`; anything else matches nothing at
+# all, so its task counts toward neither `done` nor `total` and simply vanishes
+# — which makes its plan read MORE FINISHED than it is. That is the optimistic
+# direction, and the one that gets acted on.
+#
+# Three exist vault-wide today (BL-044, fully enumerated 2026-08-08): `[!]`
+# once, `[~ BLOCKED]` and `[~ N/A]` once each in one file. The `[!]` one is the
+# case that motivated this: its plan reads 10/10 instead of 10/11, so it
+# presents as finished work while the invisible task is blocked on an
+# irreversible confirmation nobody has given.
+#
+# Lives HERE rather than in the audit tool for the same single-owner reason
+# COMPLETED_RE does: consumers ask the contract what it cannot read, instead of
+# each maintaining its own list of known-bad markers that would drift apart.
+# Deliberately NOT a fixed alternation of those three — a consumer takes the
+# DIFFERENCE against STATUS_RE (see out_of_contract_markers in
+# plan-status-audit.py), so a fourth marker nobody has invented yet is caught
+# the day it appears rather than the day someone remembers to add it here.
+ANY_STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([^\]\n]*)\]")
+
 # Terminal-state markers, both anchored at column 0 like the `**Completed:**`
 # line executing-plans appends at close-out. ABANDONED_RE is authoritative;
 # ABANDON_HINT_RE is advisory only (see the contract note above) and is
