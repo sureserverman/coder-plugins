@@ -107,4 +107,7 @@ sec-review-report-*.md
 sec-review-findings-*.jsonl
 
 # Plan execution state (ephemeral session state, never committed)
+# Both are already covered by the blanket `.claude/` rule at the top; named
+# here so the intent is explicit rather than incidental to that rule.
 .claude/plan-progress.json
+.claude/plan-progress-cache.json

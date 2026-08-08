@@ -9,7 +9,7 @@ never a bare mv. The repo source is the LAST thing removed.
 See planning/skills/portfolio/SKILL.md `### migrate` for the authoritative spec.
 
 Usage:
-  portfolio-migrate.py --project /home/user/dev/<area>/<name> [--write]
+  portfolio-migrate.py --project <project-root> [--write]
   portfolio-migrate.py --all [--write]
 """
 import argparse, hashlib, shutil, subprocess, sys, yaml

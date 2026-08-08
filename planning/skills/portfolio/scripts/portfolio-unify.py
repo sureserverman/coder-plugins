@@ -36,8 +36,33 @@ See backlog/SKILL.md `### unify` + references/plan-parser.md for the spec.
 import argparse, re, subprocess, sys, yaml, datetime
 from pathlib import Path
 
-REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
-CONFIG = Path.home() / ".claude" / "portfolio-config.yaml"
+def _home():
+    """A home directory, never an exception.
+
+    `Path.home()` raises RuntimeError when HOME is unset AND the uid has no
+    /etc/passwd entry (arbitrary-uid containers), and this runs at import.
+
+    This file is a CLI script where a loud failure would be fine — but it is
+    also imported, at module scope, by plan-progress.py, the statusline
+    renderer whose one hard contract is to print a bar or print nothing and
+    always exit 0. An import-time raise here lands as a traceback in the user's
+    status line, before the renderer's own guard exists to catch it. So the
+    guard belongs on the importable module, not only on the importer.
+
+    The sibling CLI scripts (portfolio-migrate / -rebuild / -integrate,
+    security-scan) still call Path.home() directly and deliberately: nothing
+    imports them into a renderer, and for a tool the user invoked by hand a
+    loud failure at startup is the right behavior.
+    """
+    try:
+        return Path.home()
+    except Exception:
+        import os
+        return Path(os.environ.get("HOME") or "/nonexistent")
+
+
+REGISTRY = _home() / ".claude" / "projects-registry.yaml"
+CONFIG = _home() / ".claude" / "portfolio-config.yaml"
 TODAY = datetime.date.today().isoformat()
 
 
@@ -170,13 +195,147 @@ GATEHDR_RE = re.compile(r"^###\s+Stage\s+(\d+)\s+Gate", re.I)
 # ---------------------------------------------------------------------------
 STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([ xX~])\]")
 
+# Every bracketed Status marker, INCLUDING the ones the contract does not
+# recognise. STATUS_RE's class is `[ xX~]`; anything else matches nothing at
+# all, so its task counts toward neither `done` nor `total` and simply vanishes
+# — which makes its plan read MORE FINISHED than it is. That is the optimistic
+# direction, and the one that gets acted on.
+#
+# Three exist vault-wide today (BL-044, fully enumerated 2026-08-08): `[!]`
+# once, `[~ BLOCKED]` and `[~ N/A]` once each in one file. The `[!]` one is the
+# case that motivated this: its plan reads 10/10 instead of 10/11, so it
+# presents as finished work while the invisible task is blocked on an
+# irreversible confirmation nobody has given.
+#
+# Lives HERE rather than in the audit tool for the same single-owner reason
+# COMPLETED_RE does: consumers ask the contract what it cannot read, instead of
+# each maintaining its own list of known-bad markers that would drift apart.
+# Deliberately NOT a fixed alternation of those three — a consumer takes the
+# DIFFERENCE against STATUS_RE (see out_of_contract_markers in
+# plan-status-audit.py), so a fourth marker nobody has invented yet is caught
+# the day it appears rather than the day someone remembers to add it here.
+ANY_STATUS_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*\[([^\]\n]*)\]")
+
 # Terminal-state markers, both anchored at column 0 like the `**Completed:**`
 # line executing-plans appends at close-out. ABANDONED_RE is authoritative;
 # ABANDON_HINT_RE is advisory only (see the contract note above) and is
 # deliberately NOT consulted by any suppression decision.
 ABANDONED_RE = re.compile(r"^\*\*Abandoned:\*\*\s*(.+)$", re.M)
+# The close-out line executing-plans appends ("**Completed:** YYYY-MM-DD —
+# commits: ..."). It lived only in the comments above until consumers needed to
+# ASK the question rather than describe it: plan-progress.py's eligibility
+# filter and the plan-status audit both need "is this plan closed out?", and the
+# contract's single-owner rule means they import it from here rather than each
+# restating a regex that would then drift.
+# The `## ` alternative is BL-053's heading dialect, and leaving it out was a
+# measured false-positive generator rather than a theoretical gap: the two
+# plans that write their close-out as `## Completed: <date> — commits: …`
+# (both in appimage-control) were being offered by plan-status-audit as
+# "all tasks done, NO CLOSE-OUT LINE" — inviting a user to stamp them
+# 2026-08-08 over work that closed 2026-06-30, and with weaker provenance than
+# the line they already carried. 2 of 14 candidates, i.e. a 14% false-positive
+# rate on the tool's headline output, found by the Stage 4 gate evaluator.
+#
+# Measured across all 518 vault plans before widening: 215 use `**Completed:**`,
+# 4 use `## Completed:`, and NOTHING else parses as a close-out marker — so the
+# alternation below is the whole observed dialect, not a guess. Kept anchored
+# at the line start in both forms; a `Completed:` mid-sentence is still prose.
+COMPLETED_RE = re.compile(r"^(?:##\s*)?\*{0,2}Completed:\*{0,2}\s*(.+)$", re.M)
+
+# EVERY Status line, whatever follows the colon -- including the ones with no
+# bracket at all. ANY_STATUS_RE above catches a bracketed marker outside the
+# contract's class; this catches the wider set, and consumers take the
+# DIFFERENCE against STATUS_RE.
+#
+# Why both: a task written `- **Status:** done` matches neither STATUS_RE nor
+# ANY_STATUS_RE, so it counts toward neither `done` nor `total` and vanishes
+# entirely. A plan with one `[x]` task and one such line reads 1/1 -- "every
+# task done" -- while a whole task is invisible. Reproduced, and it is the
+# optimistic direction again: that plan becomes a completion candidate.
+STATUS_LINE_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*(.*)$")
 ABANDON_HINT_RE = re.compile(
     r"^[>#*_\s]{0,8}\b(OBSOLETE|SUPERSEDED|ABANDONED|DO NOT IMPLEMENT)\b", re.M)
+
+# A master plan's sub-plan register entry. The counterpart of TASK_RE: a master
+# has no `### Task N.N` headings at all, so every Status-counting consumer reads
+# a master as 0/0 -- "not started" -- no matter how many of its sub-plans are
+# done. That is why zero of the vault's masters have ever classified as in
+# flight. Consumers that want a master's real progress count these instead, and
+# they live here for the same single-owner reason COMPLETED_RE does.
+#
+# `### Sub-plan 2: Text import entry points` -> ("2", "Text import entry points")
+#
+# Authors zero-pad the number and separate with an em-dash as readily as they
+# use a bare digit and a colon (`### Sub-plan 01 — skill-curator maintenance
+# lane`), so both are matched. This is the same format-drift the close-out
+# marker shows (BL-053): a register form the regex cannot see makes its master
+# read 0/0, i.e. never started, which is the optimistic direction again.
+#
+# NOT matched, deliberately: the bare-ordinal form `### 01. Foundation and
+# domain contracts` (writer-pad's android-app master). Recognising it needs the
+# match scoped to the `## Sub-plans` section, because `### 01.` is too generic
+# to claim anywhere in a document — a Research Summary heading would qualify.
+# Left as a known false negative rather than a guessed-at true positive.
+SUBPLAN_RE = re.compile(r"^###\s+Sub-plan\s+0*(\d+)\s*[:—–-]\s*(.+)$")
+# Both recognised master forms, per planning-projects/references/master-plan-format.md:
+# the filename suffix and the first heading. Either alone is sufficient -- a
+# master saved under a different filename is still a master.
+MASTER_HEADING_RE = re.compile(r"^#\s+Master Plan:", re.M)
+
+# The two links that associate a master with its sub-plans -- one per direction.
+# Same format contract SUBPLAN_RE reads, so they live here for the same
+# single-owner reason, and consumers need BOTH: either side goes missing in real
+# files, and a sub-plan authored without its backlink is still a sub-plan when
+# the master's register names it.
+#
+#   Master: ./2026-08-06-topic-master-plan.md            (sub-plan, below Date:)
+#   - **Plan:** ./2026-08-06-topic-sub-01-x-plan.md      (master register entry)
+#
+# Both capture to end-of-line rather than one \S+ token, because the vault
+# carries a second written form on BOTH sides -- `[name.md](./name.md)`, used by
+# two of writer-pad's masters and their sub-plans. A token-shaped capture
+# swallows the whole `[...](...)` string, resolves to nothing, and silently
+# reads those masters as childless. Same format-drift as the close-out marker
+# (BL-053) and the register heading above: the dialect the regex cannot see
+# always fails in the direction that looks tidier.
+#
+# NOT scoped to a section, deliberately and with the same caveat SUBPLAN_RE
+# carries: `Master:` is matched anywhere in the document rather than only on the
+# line below `Date:`, and `- **Plan:**` anywhere rather than only inside a
+# register entry. Consistent with STATUS_RE and SUBPLAN_RE, which are unscoped
+# too, so this is the file's existing posture and not a new one -- but it means
+# a stray `Master:`-prefixed line in a Research Summary would group a plan under
+# the wrong master. Recorded here so whoever debugs a spurious grouping finds
+# the reason rather than rediscovering it.
+MASTER_BACKLINK_RE = re.compile(r"^Master:\s*(.+?)\s*$", re.M)
+SUBPLAN_LINK_RE = re.compile(r"^\s*-\s*\*\*Plan:\*\*\s*(.+?)\s*$", re.M)
+MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+
+
+def link_target(raw):
+    """The path a `Master:` / `- **Plan:**` line points at, or None.
+
+    Normalises the two written forms to one relative path. Returns None rather
+    than a guess for anything else -- an unresolvable link should leave a
+    sub-plan ungrouped, never grouped under the wrong master.
+    """
+    if not isinstance(raw, str):
+        return None
+    raw = raw.strip()
+    m = MD_LINK_RE.search(raw)
+    if m:
+        raw = m.group(1).strip()
+    else:
+        parts = raw.split()
+        raw = parts[0] if parts else ""
+    return raw.strip("`<>'\" ") or None
+
+
+def is_master_plan(text, path=None):
+    """Whether this document is a master plan (register of sub-plans)."""
+    if path is not None and str(path).endswith("-master-plan.md"):
+        return True
+    return bool(MASTER_HEADING_RE.search(text))
 
 
 def status_state(ch):
