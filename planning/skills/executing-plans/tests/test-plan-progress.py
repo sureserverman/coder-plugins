@@ -1120,6 +1120,175 @@ def case_master_grouping():
         shutil.rmtree(d, ignore_errors=True)
 
 
+PHASE_PLAN = """# Project Plan: p
+Date: 2026-08-01
+
+## Stage 1 — one
+
+### Task 1.1: a
+- **Status:** [x]
+
+### Task 1.2: b
+- **Status:** [ ]
+"""
+
+PHASE_FILES = {"2026-09-01-newest-plan.md": PHASE_PLAN,
+               "2026-08-15-middle-plan.md": PHASE_PLAN,
+               "2026-07-01-oldest-plan.md": PHASE_PLAN}
+GLYPHS = ("▶", "◆", "⚑", "✔", "✘")
+
+
+def case_phase_indicator():
+    """Task 3.3 — only the actively-executing plan carries a phase indicator,
+    and a state file written in the OTHER live dialect degrades to silence
+    rather than pasting a paragraph into the status line."""
+    print("Task 3.3 — the phase indicator belongs to one plan only:")
+    mod = load_module()
+    tmp, repo, vplans = group_fixture(mod, PHASE_FILES)
+    state = repo / ".claude" / "plan-progress.json"
+
+    def render_with(**kw):
+        s = {"plan": str(vplans / "2026-08-15-middle-plan.md"),
+             "updated": datetime.now(timezone.utc).isoformat()}
+        s.update(kw)
+        state.write_text(json.dumps(s))
+        return [ANSI_RE.sub("", ln) for ln in mod.render(str(repo))]
+
+    lines = render_with(phase="task", stage=1, task="1.2", task_desc="b")
+    check(len(lines) == 3, f"three in-flight plans -> three lines (got {len(lines)})")
+    carrying = [ln for ln in lines if any(g in ln for g in GLYPHS)]
+    check(len(carrying) == 1,
+          f"exactly ONE line carries a phase glyph (got {len(carrying)})")
+    check(carrying and "middle" in carrying[0],
+          f"and it is the plan the state file names, not the newest ({carrying})")
+    others = [ln for ln in lines if "middle" not in ln]
+    check(len(others) == 2 and all("1/2" in ln and "(50%)" in ln for ln in others),
+          f"the other two still render name + bar + counts ({others})")
+
+    # "...dimmed" is half this task's acceptance criterion, and every assertion
+    # above runs the output through ANSI_RE first — which strips exactly the
+    # escape codes that would prove it. Caught in review: nothing here could fail
+    # if render_other() stopped applying DIM entirely. So assert on the RAW lines.
+    raw = mod.render(str(repo))
+    raw_others = [ln for ln in raw if "middle" not in ln]
+    raw_pinned = [ln for ln in raw if "middle" in ln]
+    check(len(raw_others) == 2 and all(ln.startswith(mod.DIM) for ln in raw_others),
+          "the two non-executing plans are DIM-prefixed (checked before ANSI stripping)")
+    check(len(raw_pinned) == 1 and raw_pinned[0].startswith(mod.CYAN),
+          "and the executing one is not dimmed — it opens CYAN")
+
+    print("  the staleness marker is likewise the executing plan's alone:")
+    old = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+    lines = render_with(phase="task", stage=1, task="1.2", updated=old)
+    stale = [ln for ln in lines if "stale" in ln]
+    check(len(stale) == 1 and "middle" in stale[0],
+          f"only the pinned line is marked stale (got {stale})")
+
+    print("  with NO state file, every line renders and none carries a phase:")
+    state.unlink()
+    try:
+        lines = [ANSI_RE.sub("", ln) for ln in mod.render(str(repo))]
+        ok = len(lines) == 3 and not any(g in ln for ln in lines for g in GLYPHS)
+    except Exception as e:
+        lines, ok = f"RAISED {type(e).__name__}: {e}", False
+    check(ok, f"3 phase-free lines, nothing raised ({lines})")
+
+    print("  the OTHER live dialect — prose where the schema promises a scalar:")
+    # Every value below is copied from android/writer-pad's real state file,
+    # written by its own execution session. Interpolated raw, `phase` fell
+    # through every branch and rendered a bare "▶ " with a dangling separator
+    # before it; a prose `task` would have pasted a sentence where T3.1 goes.
+    prose_phase = "STOPPED — Stage 2 re-gate FAILED; awaiting user direction"
+    lines = render_with(phase=prose_phase, stage_index=2, stage_total=2)
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("S2/2" in pinned,
+          f"`stage_index`/`stage_total` are read even when `stage` is absent ({pinned!r})")
+
+    # These two carry the fixture shapes that make the assertions DISCRIMINATING,
+    # and both were added after a mutation run showed the obvious fixture proves
+    # nothing. With no `task` and no `task_desc`, an unrecognised phase falls
+    # through to the task branch and is caught by the empty-label guard anyway —
+    # so the KNOWN_PHASES check could be deleted and the test stayed green. The
+    # phase must be prose WHILE a valid task is present for the guard to be the
+    # thing under test.
+    lines = render_with(phase=prose_phase, stage_index=2, stage_total=2,
+                        task="1.1", task_desc="d")
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check(not any(g in pinned for g in GLYPHS) and "T1.1" not in pinned,
+          f"an unrecognised `phase` suppresses the task glyph even when a valid "
+          f"task IS present ({pinned!r})")
+
+    # Likewise the dangling separator: with stage_index present the tail is
+    # non-empty and the separator is legitimately emitted, so the earlier fixture
+    # could not tell a conditional separator from an unconditional one. Strip
+    # every tail source and the two diverge.
+    lines = render_with(phase=prose_phase)
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check(not pinned.rstrip().endswith("·"),
+          f"nothing to say -> no dangling ` · ` separator ({pinned!r})")
+    check(pinned.rstrip() == pinned.rstrip().rstrip("·").rstrip(),
+          f"...and the line ends at the counts ({pinned!r})")
+
+    prose_task = "close-out: owed review passes dispatched over Stage 2 and whole-plan diffs"
+    lines = render_with(phase="task", stage=1, task=prose_task)
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("close-out:" not in pinned and "▶" not in pinned,
+          f"a prose `task` is omitted, not pasted into the bar ({pinned!r})")
+    check(len(pinned) < 120, f"so the line stays a line ({len(pinned)} chars)")
+
+    # A malformed `task` costs the LABEL only — `task_desc` is free text by
+    # schema and is not implicated by its sibling. Review found the first version
+    # returning "" here, silently dropping a valid desc and contradicting the
+    # `task` absent case below; the mutation proving it was untested was that the
+    # only fixture exercising the branch never set task_desc, so both behaviors
+    # produced "". These two cases are what make the rule discriminating.
+    lines = render_with(phase="task", stage=1, task="T2.3", task_desc="parse config entries")
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("parse config entries" in pinned and "T2.3" not in pinned,
+          f"a malformed `task` drops the label but KEEPS task_desc ({pinned!r})")
+    lines = render_with(phase="task", stage=1, task_desc="parse config entries")
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("▶ parse config entries" in pinned,
+          f"...matching the `task` absent case exactly ({pinned!r})")
+
+    print("  the ints win over a prose `stage`, and bad types never crash:")
+    lines = render_with(phase="gate", stage="all stages green — S1 PASSED, S2 PASSED",
+                        stage_index=3, stage_total=4)
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("S3/4" in pinned and "all stages green" not in pinned,
+          f"prose `stage` ignored in favour of the ints ({pinned!r})")
+    check("◆ S3 gate" in pinned, f"and the gate glyph still renders ({pinned!r})")
+
+    # Stages are 1-indexed everywhere in the format, so 0 and negatives are
+    # malformed, not edge cases — both degrade rather than rendering `S0/3` or
+    # `S-1/3`. Review flagged the earlier truthy-`or` form for letting `stage`
+    # silently beat an explicit `stage_index`; the rule is now "among VALID
+    # values", which these pin.
+    for bad_stage in (0, -1, -99):
+        lines = render_with(phase="task", stage=bad_stage, task="1.1", task_desc="d")
+        pinned = [ln for ln in lines if "middle" in ln][0]
+        check(f"S{bad_stage}/" not in pinned and "▶ T1.1 d" in pinned,
+              f"stage={bad_stage} is not a stage position ({pinned!r})")
+    lines = render_with(phase="gate", stage=-1)
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("S-1" not in pinned and "◆ gate" in pinned,
+          f"and a negative stage never reaches the gate glyph either ({pinned!r})")
+
+    for bad in (True, 1.5, "2", None, [], {"a": 1}):
+        lines = render_with(phase="task", stage=bad, task="1.1", task_desc="d")
+        pinned = [ln for ln in lines if "middle" in ln][0]
+        check("▶ T1.1 d" in pinned and "S" + str(bad) not in pinned,
+              f"stage={bad!r} degrades to no stage position, task intact ({pinned!r})")
+
+    # A gate with no stage at all used to render the literal "SNone gate".
+    lines = render_with(phase="gate")
+    pinned = [ln for ln in lines if "middle" in ln][0]
+    check("None" not in pinned and "◆ gate" in pinned,
+          f"a gate with no stage recorded renders `◆ gate`, never `SNone` ({pinned!r})")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_ordering_ignores_mtime():
     """Stage 2 gate check 4 — the mechanism the amended check actually names.
 
@@ -1330,6 +1499,7 @@ def main():
     case_render_returns_lines()
     case_master_plans_are_countable()
     case_master_grouping()
+    case_phase_indicator()
 
     print()
     if FAILURES:

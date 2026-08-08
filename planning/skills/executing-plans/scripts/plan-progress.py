@@ -669,13 +669,82 @@ def bar(done, total):
     )
 
 
+# The state file has TWO dialects in the wild, and the renderer only knew one.
+# references/progress-state-file.md specifies `phase` as one of five keywords,
+# `stage` as an integer and `task` as "N.M". Real executions also write prose
+# into those same keys and put the integers in `stage_index`/`stage_total`
+# beside them -- android/writer-pad's live file carries
+#   "phase": "STOPPED — Stage 2 re-gate FAILED; awaiting user direction"
+#   "stage_index": 2, "stage_total": 2   (and no `stage` or `task` at all)
+# Neither side is simply wrong: the richer file is more useful to a human
+# reading it, which is why the fix is not "make writers comply". The renderer
+# reads the ints when they are there, interpolates `stage`/`task` only when they
+# are the shape the schema promises, and otherwise says NOTHING -- a status line
+# has one line's worth of room, so a paragraph pasted into it is worse than a
+# missing field. Verified against the live file, not a fixture.
+KNOWN_PHASES = ("preflight", "task", "gate", "closeout", "blocked")
+TASK_ID_RE = re.compile(r"^\d+\.\d+$")
+
+
+def _int(v):
+    """`v` when it is a real int, else None.
+
+    `type(v) is int`, not isinstance: bool subclasses int, so a stray
+    `"stage_index": true` would otherwise render as stage 1. Same discipline
+    the remediation_round field already uses below.
+    """
+    return v if type(v) is int else None
+
+
+def _stage_int(v):
+    """A POSITIVE int, else None.
+
+    Stages are 1-indexed everywhere in the format (`## Stage 1 — …`), so 0 and
+    negatives are malformed rather than edge cases, and both degrade to "no
+    stage position" instead of rendering `S0/3` or `S-1/3`. Stated as its own
+    predicate because the precedence below then has no falsy-but-valid value
+    left to trip over: review flagged the earlier `_int(a) or _int(b)` form for
+    silently letting `stage` win over an explicit `stage_index: 0`.
+    """
+    n = _int(v)
+    return n if n is not None and n > 0 else None
+
+
+def stage_position(state, stage_count):
+    """(index, total) for the `S2/4` part, or None when the file does not say.
+
+    Among VALID values, `stage_index`/`stage_total` win over `stage` — a file
+    carrying both is one where `stage` holds prose. `stage_total` in turn wins
+    over the count parsed from the plan: a sub-plan mid-master knows its own
+    stage total, and a master's parsed count is 0 by design.
+    """
+    idx = _stage_int(state.get("stage_index"))
+    if idx is None:
+        idx = _stage_int(state.get("stage"))
+    total = _stage_int(state.get("stage_total"))
+    if total is None:
+        total = _stage_int(stage_count)
+    return (idx, total) if idx is not None and total is not None else None
+
+
 def phase_part(state):
     phase = state.get("phase", "task")
-    stage = state.get("stage")
+    if phase not in KNOWN_PHASES:
+        # A prose phase used to fall through every branch into the task case and
+        # render a bare "▶ " with nothing after it -- seen live in writer-pad.
+        # An unrecognised phase means the file is telling us something this bar
+        # has no room for, so it says nothing at all.
+        return ""
+    stage = _stage_int(state.get("stage_index"))
+    if stage is None:
+        stage = _stage_int(state.get("stage"))
     if phase == "preflight":
         return f"{YELLOW}⚑ preflight{RESET}"
     if phase == "gate":
-        part = f"{PURPLE}◆ S{stage} gate{RESET}"
+        # `S{stage}` only when there IS one; the old form rendered "SNone gate"
+        # for a gate whose stage the file did not record.
+        part = (f"{PURPLE}◆ S{stage} gate{RESET}" if stage is not None
+                else f"{PURPLE}◆ gate{RESET}")
         # Only present when a gate is being re-run after a failure; a gate on its
         # first round renders exactly as it always did.
         rnd = state.get("remediation_round")
@@ -696,8 +765,23 @@ def phase_part(state):
         note = state.get("note") or state.get("task_desc") or ""
         return f"{RED}✘ blocked{RESET}" + (f" {DIM}{note}{RESET}" if note else "")
     task = state.get("task")
-    desc = state.get("task_desc") or ""
-    label = f"T{task} " if task else ""
+    desc = state.get("task_desc")
+    desc = desc if isinstance(desc, str) else ""
+    if isinstance(task, str) and TASK_ID_RE.match(task):
+        label = f"T{task} "
+    else:
+        # Everything that is not a schema-shaped "N.M" loses only the LABEL.
+        # `"task": "close-out: owed review passes dispatched over Stage 2 and
+        # whole-plan diffs"` is a real value from a real run; interpolated raw it
+        # puts a sentence where `T3.1` belongs and pushes every other bar off the
+        # line, so it is dropped. But `task_desc` is free text BY SCHEMA and is
+        # not implicated by a malformed sibling field — review caught an earlier
+        # version returning "" here, which discarded a perfectly good desc and
+        # contradicted the `task is None` case two lines up, where the same desc
+        # was kept. One rule now: a bad `task` costs the `T…` label, nothing else.
+        label = ""
+    if not label and not desc:
+        return ""       # nothing to say -- the bare glyph was noise, not data
     return f"{GREEN}▶ {label}{RESET}{desc}"
 
 
@@ -757,11 +841,24 @@ def render_pinned(state_file, state=None):
     out = f"{CYAN}⚙ {name}{RESET} "
     if total:
         pct = done * 100 // total
-        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET} {DIM}·{RESET} "
-    stage = state.get("stage")
-    if stage and stage_count:
-        out += f"S{stage}/{stage_count} "
-    out += phase_part(state) + staleness(state)
+        out += f"{bar(done, total)} {done}/{total} {DIM}({pct}%){RESET}"
+
+    # Built as a list so the ` · ` separator is emitted only when something
+    # actually follows it. The old form appended it unconditionally with the bar
+    # and then appended a possibly-empty phase, so a file this renderer could not
+    # read left a dangling "(100%) · " — verified live in writer-pad.
+    tail = []
+    pos = stage_position(state, stage_count)
+    if pos:
+        tail.append(f"S{pos[0]}/{pos[1]}")
+    part = phase_part(state)
+    if part:
+        tail.append(part)
+    if tail:
+        if total:
+            out += f" {DIM}·{RESET} "
+        out += " ".join(tail)
+    out += staleness(state)
     return out
 
 
