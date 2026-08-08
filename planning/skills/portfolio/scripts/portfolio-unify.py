@@ -227,7 +227,32 @@ ABANDONED_RE = re.compile(r"^\*\*Abandoned:\*\*\s*(.+)$", re.M)
 # filter and the plan-status audit both need "is this plan closed out?", and the
 # contract's single-owner rule means they import it from here rather than each
 # restating a regex that would then drift.
-COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(.+)$", re.M)
+# The `## ` alternative is BL-053's heading dialect, and leaving it out was a
+# measured false-positive generator rather than a theoretical gap: the two
+# plans that write their close-out as `## Completed: <date> — commits: …`
+# (both in appimage-control) were being offered by plan-status-audit as
+# "all tasks done, NO CLOSE-OUT LINE" — inviting a user to stamp them
+# 2026-08-08 over work that closed 2026-06-30, and with weaker provenance than
+# the line they already carried. 2 of 14 candidates, i.e. a 14% false-positive
+# rate on the tool's headline output, found by the Stage 4 gate evaluator.
+#
+# Measured across all 518 vault plans before widening: 215 use `**Completed:**`,
+# 4 use `## Completed:`, and NOTHING else parses as a close-out marker — so the
+# alternation below is the whole observed dialect, not a guess. Kept anchored
+# at the line start in both forms; a `Completed:` mid-sentence is still prose.
+COMPLETED_RE = re.compile(r"^(?:##\s*)?\*{0,2}Completed:\*{0,2}\s*(.+)$", re.M)
+
+# EVERY Status line, whatever follows the colon -- including the ones with no
+# bracket at all. ANY_STATUS_RE above catches a bracketed marker outside the
+# contract's class; this catches the wider set, and consumers take the
+# DIFFERENCE against STATUS_RE.
+#
+# Why both: a task written `- **Status:** done` matches neither STATUS_RE nor
+# ANY_STATUS_RE, so it counts toward neither `done` nor `total` and vanishes
+# entirely. A plan with one `[x]` task and one such line reads 1/1 -- "every
+# task done" -- while a whole task is invisible. Reproduced, and it is the
+# optimistic direction again: that plan becomes a completion candidate.
+STATUS_LINE_RE = re.compile(r"^\s*-\s*\*\*Status:\*\*\s*(.*)$")
 ABANDON_HINT_RE = re.compile(
     r"^[>#*_\s]{0,8}\b(OBSOLETE|SUPERSEDED|ABANDONED|DO NOT IMPLEMENT)\b", re.M)
 

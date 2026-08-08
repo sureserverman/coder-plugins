@@ -197,11 +197,22 @@ when this shipped: **15 plans at 100% of tasks done carrying no `**Completed:**`
    marker outside the contract's `[ xX~]` (`[!]`, `[~ BLOCKED]`, `[~ N/A]` — see
    `pu.ANY_STATUS_RE`) has a task invisible to the parser, so it reads **more finished than it
    is**. Those plans are **never offered as completion candidates, under any flag.**
-4. Gather **graded** evidence from the project repo's git — never the vault's, which is not
-   under version control and is refused outright. `names-the-plan` (a commit message contains
-   the plan's filename) is strong and currently unattested anywhere in the corpus;
-   `correlative` (stage-completion commits dated on or after the plan) identifies a repo and a
-   period, **never a plan** — the same commits get offered to every plan that repo ran.
+4. Gather **graded** evidence, strongest first. Grades, in the order they are tried:
+   - **`register+commit`** — a master's `## Sub-plans` register marks this exact plan `[x]`
+     *and* names a commit that resolves in the repo. A human, in another document, naming the
+     plan and the work. The strongest thing available, and it lives in the **vault**, not git.
+   - **`register`** — the register marks it done but names no commit, or the one it names does
+     not resolve. Still identifies *the plan*.
+   - **`names-the-plan`** — a commit message contains the plan's filename, matched **anchored**
+     so `<plan>.md.orig` does not count. Currently unattested anywhere in the corpus.
+   - **`correlative`** — stage-completion commits dated on or after the plan. Identifies a repo
+     and a period, **never a plan**: the same commits get offered to every plan that repo ran.
+   - **`none`** — searched, found nothing. Distinct from "no repo to search".
+
+   Git is never run against the vault, which is not under version control; a repo path pointing
+   inside it is refused outright rather than allowed to fail and read as "no evidence".
+   Each candidate also shows its **stage-gate state**, because *all tasks `[x]`* is not the
+   same as *finished* — a plan can carry every task done and still have an unticked final gate.
 5. `--fix` presents one candidate at a time with its evidence and requires a per-plan `y`. It
    takes a timestamped backup under `<portfolio_home>/plans/.audit-backups/<run-id>/` before
    writing, and the write is atomic. `--restore <run-id>` reverts a run wholesale — the vault

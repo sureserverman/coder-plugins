@@ -256,8 +256,10 @@ Game work has its own front door, since mechanics are a design problem before a 
 The last one is the odd one out: **report-first and on no execution path.** It classifies
 every plan in the vault against its real task completion and lists the ones finished but never
 close-out-marked — the plans that keep feeding phantom work to the unify pass above and to
-`compass`. The default run writes nothing; `--fix` asks per plan and takes a backup first, and
-`--restore <run-id>` undoes a whole run. Add `--check` for the invariants, `--json` for a
+`compass`. It grades its evidence (a master's register naming the plan beats a commit naming it, which
+beats commits that merely happened afterwards) and shows each candidate's stage-gate state,
+because all tasks ticked is not the same as finished. The default run writes nothing; `--fix`
+asks per plan and takes a backup first, and `--restore <run-id>` undoes a whole run. Add `--check` for the invariants, `--json` for a
 machine-readable report.
 
 Per project, three registers hold the durable state: `backlog` (deferred work),

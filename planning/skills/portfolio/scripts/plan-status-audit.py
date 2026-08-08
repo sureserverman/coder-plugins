@@ -6,8 +6,13 @@ read by two different code paths and never reconciled. `portfolio unify` emits
 an in-flight plan's open tasks as backlog candidates, and `compass next` ranks
 projects by how much is in flight — so a plan that is finished but never
 close-out-marked is a standing source of phantom work in both. Measured across
-the live vault when this was written: 16 plans at 100% of tasks done carrying no
-`**Completed:**` line at all.
+the live vault on 2026-08-08: 15 plans at 100% of tasks done carrying no
+close-out line at all.
+
+(That figure is dated on purpose, and is the only place it appears. An earlier
+draft said "16" here while the same file said 15 twice elsewhere — the corpus
+is alive, and every count in it moves. Counts belong in a run's output, not in
+prose that nobody re-measures; this one survives only as a "when written" note.)
 
 REPORT-FIRST, AND THAT IS THE WHOLE DESIGN. The default invocation writes
 nothing. `--fix` presents one candidate at a time with its evidence and requires
@@ -91,11 +96,22 @@ def enumerate_plans(vault, projects):
     task as authored (Correction 5, measured 2026-08-08). Task 4.1 says
     "enumerates every plan file across every enabled registry project"; measured
     against live data those are two different populations. The registry walk
-    reaches 479 plan files. The vault holds 518, in 82 `plans/` directories —
+    reaches 479 plan files. The vault holds 518+, in 82 `plans/` directories —
     39 files across 7 projects (kloak-mac 16, kloak-ubuntu 10, agents 4,
     openclawbench 3, deaf-blind-deb 3, ever-learn 2, bin-buster 1) live in
     directories with NO registry entry at all. None of them is disabled; they
-    were simply never registered.
+    were simply never registered. (Ten unregistered projects exist as of
+    2026-08-08; the three not listed hold no plan files. Figures are a dated
+    snapshot of a living corpus, not a bound — the run's own output is the
+    current count.)
+
+    NESTED plan sets are enumerated too. The glob was `*.md` directly inside
+    `plans/`, which silently missed an 8-file multi-document set under
+    `containers/nice-dns/plans/apple-container-migration/` — 518 of 526 files.
+    Low blast radius (none carries a Status marker, so none could have become a
+    candidate) but it is the same mechanism this docstring spends a paragraph
+    arguing against, and the `--check` partition invariant could never catch it
+    because both of its sides derive from the same glob.
 
     Stage 4's GOAL is "classifies every plan in the vault", so the registry
     phrasing was the authored means, not the requirement — and a tool that
@@ -125,7 +141,8 @@ def enumerate_plans(vault, projects):
             "name": key[1], "area": key[0], "path": None, "unregistered": True}
         note = None if key in by_key else "no registry entry — classified, but no repo for evidence"
         try:
-            files = sorted(f for f in d.glob("*.md") if f.is_file())
+            files = sorted(f for f in d.rglob("*.md")
+                           if f.is_file() and ".audit-backups" not in f.parts)
         except OSError as exc:
             rows.append((project, d, [], f"unreadable: {exc.strerror or exc}"))
             continue
@@ -169,6 +186,38 @@ def task_counts(text, path):
     return done, total
 
 
+GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
+
+
+def gate_state(text):
+    """(ticked, total) over every stage-gate checkbox in the plan.
+
+    "ALL TASKS [x]" IS NOT "FINISHED", and until this existed the tool rendered
+    the weaker fact as though it settled the stronger one — the exact inference
+    the gate's own judgment criterion asks a reader to check for. A plan can
+    carry every task done and still have an unticked final gate; measured on the
+    live corpus, 3 of 14 completion candidates did, one of them with 4 of 4
+    Stage 1 gate items unticked while presenting as "4/4 tasks done".
+
+    Counts checkboxes only between a `### Stage N Gate` heading and the next
+    `###` heading, so a Preflight or Research checklist elsewhere in the
+    document is not mistaken for gate state. GATEHDR_RE comes from the contract
+    owner, like everything else here.
+    """
+    ticked = total = 0
+    in_gate = False
+    for line in text.splitlines():
+        if line.startswith("###"):
+            in_gate = bool(pu.GATEHDR_RE.match(line))
+            continue
+        if in_gate:
+            m = GATE_ITEM_RE.match(line)
+            if m:
+                total += 1
+                ticked += pu.status_state(m.group(1)) == "done"
+    return ticked, total
+
+
 def classify(text, path):
     """(class, detail) for one plan. Total function: every plan gets a class.
 
@@ -202,8 +251,10 @@ def classify(text, path):
 
     odd = out_of_contract_markers(text)
     if odd:
+        # No `[{m}]` wrapper: STATUS_LINE_RE captures everything after the
+        # colon, brackets included, so wrapping double-bracketed it.
         return "unclassifiable", "out-of-contract Status marker(s): " + ", ".join(
-            f"[{m}]" for m in sorted(set(odd)))
+            repr(m[:40]) for m in sorted(set(odd)))
 
     done, total = task_counts(text, path)
     if total == 0:
@@ -246,8 +297,19 @@ def out_of_contract_markers(text):
     it would go stale the first time someone invents a fourth, and it would go
     stale silently, in the optimistic direction. Difference cannot drift.
     """
-    return [m.group(1) for line in text.splitlines()
-            if (m := pu.ANY_STATUS_RE.match(line)) and not pu.STATUS_RE.match(line)]
+    out = []
+    for line in text.splitlines():
+        if pu.STATUS_RE.match(line):
+            continue                    # in-contract; the parser reads it fine
+        m = pu.STATUS_LINE_RE.match(line)
+        if m:
+            # STATUS_LINE_RE, not ANY_STATUS_RE: the latter requires brackets,
+            # so `- **Status:** done` slipped past both it and STATUS_RE and
+            # counted toward nothing. Its plan then read "every task done" with
+            # a task missing. Difference against the authoritative regex over
+            # the WIDEST match is the only formulation that cannot drift.
+            out.append(m.group(1).strip() or "(empty)")
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -460,8 +522,14 @@ def git_evidence(repo_path, plan_path, vault):
 
     # Correlative fallback. Bounded by the plan's own date stamp so a plan from
     # January does not collect a stage commit from December of the year before.
+    # pu.plan_date() returns the SENTINEL "0000-00-00" for an unstamped
+    # filename, never None — so the `is None` guard this used to carry was dead
+    # code, and `--since=0000-00-00` meant the correlative window was the repo's
+    # entire history for every unstamped plan. Nine such files exist in the
+    # vault today (PLAN.md, suggestions.md, …). Found by the Tier-2 pass and
+    # verified against pu directly rather than inferred from the name.
     stamp = pu.plan_date(plan_path.name)
-    if stamp is None:
+    if not stamp or stamp.startswith("0000"):
         return [], "none", None
     found, err = _git_log(repo, ["--extended-regexp", "--grep",
                                  r"^Stage [0-9]+ (green|gate)",
@@ -512,9 +580,11 @@ def audit(vault, projects, with_evidence=True):
                 continue
             cls, detail = classify(text, f)
             done, total = task_counts(text, f)
+            gt, gtot = gate_state(text)
             entry = {"path": str(f), "project": project["name"],
                      "repo": project.get("path") or "",
-                     "done": done, "total": total, "detail": detail}
+                     "done": done, "total": total, "detail": detail,
+                     "gates_ticked": gt, "gates_total": gtot}
             report["classes"][cls].append(entry)
             if cls == "unclassifiable":
                 report["unclassifiable"].append(entry)
@@ -600,9 +670,11 @@ def check_corpus_observations(report):
     n_abandoned = len(report["classes"]["abandoned"])
     return [
         (bool(uncl),
-         f"the unclassifiable class is non-empty ({len(uncl)}) — an empty one on "
-         f"the live vault means the out-of-contract detector stopped detecting, "
-         f"since 3 such markers are known to exist (BL-044)"),
+         f"the unclassifiable class is non-empty ({len(uncl)} plan file(s)) — an "
+         f"empty one on the live vault means the out-of-contract detector "
+         f"stopped detecting, since 3 such MARKERS are known to exist across "
+         f"those files (BL-044); the two counts differ because one file carries "
+         f"two of them"),
         (n_abandoned == 0,
          f"abandoned is {n_abandoned} — nothing writes that marker, so a "
          f"non-zero count means a human adopted it, which is news rather than "
@@ -613,6 +685,23 @@ def check_corpus_observations(report):
 # --------------------------------------------------------------------------
 # Output
 # --------------------------------------------------------------------------
+
+def describe_gates(c):
+    """The gate line shown beside a candidate's task count, or None.
+
+    Deliberately loud when gates are unticked: this is the single most
+    load-bearing thing a user needs at the moment of decision, and its absence
+    was what made "N/N tasks done" read as "finished".
+    """
+    total = c.get("gates_total") or 0
+    if not total:
+        return "gates: none found in this plan"
+    ticked = c.get("gates_ticked") or 0
+    if ticked == total:
+        return f"gates: {ticked}/{total} ticked"
+    return (f"gates: {ticked}/{total} ticked — {total - ticked} UNTICKED, so "
+            f"'all tasks done' does NOT mean this plan passed its own gates")
+
 
 def describe_evidence(c):
     """One line saying what the evidence IS, and what it is not.
@@ -662,6 +751,7 @@ def print_report(report, verbose=False):
     for c in report["candidates"]:
         print(f"\n  {c['path']}")
         print(f"    {c['done']}/{c['total']} tasks done")
+        print("    " + describe_gates(c))
         print("    " + describe_evidence(c))
         for line in (c.get("evidence") or [])[:5]:
             print(f"      {line}")
@@ -806,7 +896,12 @@ def cmd_restore(run_id, vault, projects):
         for b in sorted(d.glob("*.md")):
             target = d.parent.parent / b.name
             try:
-                target.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+                # temp + replace, matching the write path this undoes. The one
+                # function whose entire job is "the only undo that exists"
+                # should not be the one that can be interrupted half-written.
+                tmp = target.with_name(target.name + ".restore-tmp")
+                tmp.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+                os.replace(tmp, target)
             except OSError as exc:
                 missing.append(f"{target}: {exc}")
                 continue
@@ -892,9 +987,11 @@ def main():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         print(f"\n--fix run {run_id} — nothing is written without a per-plan yes\n")
         written = 0
+        failed = 0
         for c in report["candidates"]:
             print(f"  {c['path']}")
             print(f"    {c['done']}/{c['total']} tasks done")
+            print("    " + describe_gates(c))
             print("    " + describe_evidence(c))
             for line in (c.get("evidence") or [])[:5]:
                 print(f"      {line}")
@@ -905,15 +1002,26 @@ def main():
                 print("    no tty — skipped")
                 continue
             if answer.strip().lower() in ("y", "yes"):
-                line = record_completion(c["path"], c.get("evidence") or [],
-                                         run_id, today,
-                                         c.get("evidence_strength", "none"))
+                # Guarded: an unguarded call crashed the whole loop on a
+                # mid-run failure (disk full, permission revoked, a symlink
+                # refusal), skipping every later candidate with a raw
+                # traceback. Each write is individually atomic, so failing one
+                # never corrupts it -- there is no reason to abandon the rest.
+                try:
+                    line = record_completion(c["path"], c.get("evidence") or [],
+                                             run_id, today,
+                                             c.get("evidence_strength", "none"))
+                except OSError as exc:
+                    print(f"    NOT WRITTEN — {exc}")
+                    failed += 1
+                    continue
                 print(f"    written: {line.strip()}")
                 written += 1
             else:
                 print("    left unchanged")
-        print(f"\n{written} plan(s) updated. Undo with: "
-              f"--restore {run_id}")
+        print(f"\n{written} plan(s) updated"
+              + (f", {failed} FAILED" if failed else "")
+              + f". Undo with: --restore {run_id}")
 
     return 0
 
