@@ -1,7 +1,7 @@
 ---
 name: portfolio
 description: >
-  Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "maturity dashboard", "scan all my projects". Subcommands: scan, unify, maturity, migrate, integrate, rebuild.
+  Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on "portfolio scan", "global backlog", "maturity dashboard", "scan all my projects". Subcommands: scan, unify, maturity, migrate, integrate, rebuild, plan-status.
 ---
 
 # Portfolio Orchestrator
@@ -174,6 +174,53 @@ Operation:
 6. **Business layer (optional, additive)** — if the sibling **business** plugin is installed (the `portfolio-rebuild.py` probe resolves `business/scripts/business-scan.py` under the marketplace root and finds it), `rebuild` also regenerates `<vault_dir>/Portfolio/global-business.md` by piping `business-scan.py | business-rollup.py` (per the business plugin's `global-business-format.md`). When the business plugin is **absent**, this step is skipped with a single `business layer: unavailable` line and nothing else changes — the global-backlog / global-maturity / sidecar outputs are byte-identical either way (guarded by `tests/test-business-degradation.py`). `portfolio-rebuild.py` handles this probe; the roll-up is never truncated on a failed business sweep.
 7. **Security layer (additive)** — `rebuild` also regenerates `<vault_dir>/Portfolio/global-security.md` by piping `scripts/security-scan.py | scripts/security-rollup.py`, sweeping each project's `security/history.jsonl` (written by sec-audit v1.29+) into one dashboard: open CRITICAL/HIGH, trend, days since the last audit, and which projects have never been audited. Format and full input contract: `references/global-security-format.md`. Three rules it must not break — an unrecorded count renders `?` and **never `0`** (unmeasured is not clean); a `mode: "feeds"` run is flagged `⚠` because it re-checked dependency advisories without running any code lane; and `total_open` already includes accepted findings, so "open and not suppressed" is `total_open − accepted`. If the scripts are missing, fail, or time out, the step degrades to one `security layer: unavailable` line, leaves any existing `global-security.md` **intact** (never truncated), and every other output is byte-identical (guarded by `tests/test-security-degradation.py`).
 8. Report: `Rebuilt: global-backlog.md (N), global-decisions.md (D), global-maturity.md (M), sidecars enriched: K` plus the business- and security-layer statuses. (0 writes when everything matches prior content.)
+
+### `plan-status` — reconcile every vault plan's recorded status against its real progress
+
+Inputs: optional `--check`, `--json`, `--verbose`, `--fix`, `--restore <run-id>`. Runs
+`scripts/plan-status-audit.py`. **Report-first: the default invocation writes nothing.**
+
+Why it exists: a plan's recorded status and its actual task completion are read by two
+different code paths and never reconciled. `unify` emits an in-flight plan's open tasks as
+backlog candidates and `compass next` ranks projects by what is in flight, so a plan that is
+finished but never close-out-marked is a standing source of phantom work in both. Measured
+when this shipped: **15 plans at 100% of tasks done carrying no `**Completed:**` line.**
+
+1. Enumerate every `plans/*.md` under `<vault>/Portfolio/*/*/`. **The vault is the corpus, not
+   the registry** — 39 files across 7 projects have no registry entry, and skipping them while
+   reporting a portfolio-wide audit would claim coverage the run does not have. The registry
+   resolves each project's **repo path** for evidence, nothing more.
+2. Classify each plan: `abandoned` → `completed` → `unclassifiable` → `no-status` →
+   `never-started` → `started-unfinished`, in that order. Human-authored terminal markers win
+   first; nothing below overrules an author who already answered the question.
+3. **`unclassifiable`** is the load-bearing class: a plan carrying any bracketed `Status:`
+   marker outside the contract's `[ xX~]` (`[!]`, `[~ BLOCKED]`, `[~ N/A]` — see
+   `pu.ANY_STATUS_RE`) has a task invisible to the parser, so it reads **more finished than it
+   is**. Those plans are **never offered as completion candidates, under any flag.**
+4. Gather **graded** evidence from the project repo's git — never the vault's, which is not
+   under version control and is refused outright. `names-the-plan` (a commit message contains
+   the plan's filename) is strong and currently unattested anywhere in the corpus;
+   `correlative` (stage-completion commits dated on or after the plan) identifies a repo and a
+   period, **never a plan** — the same commits get offered to every plan that repo ran.
+5. `--fix` presents one candidate at a time with its evidence and requires a per-plan `y`. It
+   takes a timestamped backup under `<portfolio_home>/plans/.audit-backups/<run-id>/` before
+   writing, and the write is atomic. `--restore <run-id>` reverts a run wholesale — the vault
+   has no version control behind it, so the backup is the only undo that exists.
+6. The recorded line states the evidence's **grade**: a correlative match is written as
+   `user-confirmed; no commit names this plan — correlated with stage commits <hashes>`, never
+   as a bare `evidence: <hashes>`. The line outlives the run by years and a future reader has
+   only its words to tell the two apart.
+
+**It never infers `**Abandoned:**`.** A marker nobody adopts degrades to the status quo; a
+heuristic false-positive is a *new* failure mode, because a plan wrongly marked abandoned
+disappears from the one view still listing its open work. `portfolio-unify.py` owns an advisory
+banner-prose detector and it is deliberately not consulted here.
+
+`--check` runs two separately-labelled sets: **invariants** (true of any corpus — the classes
+partition the enumeration, no plan lands in two, candidates and unclassifiable are disjoint),
+which gate the exit status; and **corpus observations** (true of the live vault when measured —
+`abandoned` is 0, `unclassifiable` is non-empty), which are reported and **never fatal**, so a
+human legitimately adopting a marker cannot turn a green audit red.
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
 

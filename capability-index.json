@@ -641,7 +641,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on \"portfolio scan\", \"global backlog\", \"maturity dashboard\", \"scan all my projects\". Subcommands: scan, unify, maturity, migrate, integrate, rebuild.",
+      "description": "Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on \"portfolio scan\", \"global backlog\", \"maturity dashboard\", \"scan all my projects\". Subcommands: scan, unify, maturity, migrate, integrate, rebuild, plan-status.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
