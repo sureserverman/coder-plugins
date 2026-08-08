@@ -646,6 +646,74 @@ def case_render_returns_lines():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+MASTER_PLAN = """# Master Plan: demo umbrella
+
+## Sub-plans
+
+### Sub-plan 1: foundation
+- **Status:** [x]
+- **Plan:** ./2026-08-01-demo-sub-01-foundation-plan.md
+
+**Gate:**
+- [ ] a gate checkbox, which is NOT a Status line and must not be counted
+- [ ] nor this one
+
+### Sub-plan 02 — zero-padded, em-dash separated
+- **Status:** [~]
+- **Plan:** ./2026-08-02-demo-sub-02-second-plan.md
+
+### Sub-plan 3: not started
+- **Status:** [ ]
+- **Plan:** ./2026-08-03-demo-sub-03-third-plan.md
+"""
+
+
+def case_master_plans_are_countable():
+    """Task 3.2 groundwork (closes BL-054) — a master's bar comes from its
+    sub-plan register, not from Task headings it does not have."""
+    print("Task 3.2 — master plans count their sub-plan register:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="pp-master-"))
+
+    by_heading = tmp / "2026-08-01-demo-umbrella.md"          # no -master-plan.md suffix
+    by_heading.write_text(MASTER_PLAN)
+    by_name = tmp / "2026-08-01-demo-master-plan.md"
+    by_name.write_text(MASTER_PLAN.replace("# Master Plan: demo umbrella", "# Plan: demo"))
+
+    for label, p in (("first heading `# Master Plan:`", by_heading),
+                     ("filename `-master-plan.md`", by_name)):
+        check(pu_is_master(mod, p), f"detected as a master by its {label}")
+
+    done, total, stages = mod.parse_plan(MASTER_PLAN, by_heading)
+    check((done, total) == (1, 3),
+          f"1 of 3 sub-plans done — [~] counts toward total, never done (got {done}/{total})")
+    check(stages == 0, f"a master reports 0 stages, not a stage count (got {stages})")
+    check(mod.plan_is_eligible(MASTER_PLAN, by_heading),
+          "a started, unclosed master IS eligible (it was structurally invisible before)")
+
+    # The zero-padded em-dash entry is the one that used to be missed.
+    only_padded = "# Master Plan: p\n\n### Sub-plan 01 — padded\n- **Status:** [x]\n"
+    d2, t2, _ = mod.parse_plan(only_padded, tmp / "x.md")
+    check((d2, t2) == (1, 1), f"`### Sub-plan 01 — title` is counted (got {d2}/{t2})")
+
+    closed = MASTER_PLAN + "\n**Completed:** 2026-08-05 — all sub-plans green\n"
+    check(not mod.plan_is_eligible(closed, by_heading),
+          "a master carrying **Completed:** is not eligible")
+    never = MASTER_PLAN.replace("[x]", "[ ]").replace("[~]", "[ ]")
+    check(not mod.plan_is_eligible(never, by_heading),
+          "an all-[ ] master is 'authored, never started' and earns no bar")
+
+    # An ordinary plan must not be re-read through the master parser.
+    check(mod.parse_plan(PLAN, tmp / "2026-08-01-ordinary-plan.md")[1] == 5,
+          "a non-master plan still counts its Task headings (5), unaffected")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def pu_is_master(mod, path):
+    return mod.pu.is_master_plan(path.read_text(), path)
+
+
 def case_ordering_ignores_mtime():
     """Stage 2 gate check 4 — the mechanism the amended check actually names.
 
@@ -854,6 +922,7 @@ def main():
     case_degrades_without_raising()
     case_ordering_ignores_mtime()
     case_render_returns_lines()
+    case_master_plans_are_countable()
 
     print()
     if FAILURES:

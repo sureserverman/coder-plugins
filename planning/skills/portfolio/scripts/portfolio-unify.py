@@ -210,6 +210,39 @@ COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(.+)$", re.M)
 ABANDON_HINT_RE = re.compile(
     r"^[>#*_\s]{0,8}\b(OBSOLETE|SUPERSEDED|ABANDONED|DO NOT IMPLEMENT)\b", re.M)
 
+# A master plan's sub-plan register entry. The counterpart of TASK_RE: a master
+# has no `### Task N.N` headings at all, so every Status-counting consumer reads
+# a master as 0/0 -- "not started" -- no matter how many of its sub-plans are
+# done. That is why zero of the vault's masters have ever classified as in
+# flight. Consumers that want a master's real progress count these instead, and
+# they live here for the same single-owner reason COMPLETED_RE does.
+#
+# `### Sub-plan 2: Text import entry points` -> ("2", "Text import entry points")
+#
+# Authors zero-pad the number and separate with an em-dash as readily as they
+# use a bare digit and a colon (`### Sub-plan 01 — skill-curator maintenance
+# lane`), so both are matched. This is the same format-drift the close-out
+# marker shows (BL-053): a register form the regex cannot see makes its master
+# read 0/0, i.e. never started, which is the optimistic direction again.
+#
+# NOT matched, deliberately: the bare-ordinal form `### 01. Foundation and
+# domain contracts` (writer-pad's android-app master). Recognising it needs the
+# match scoped to the `## Sub-plans` section, because `### 01.` is too generic
+# to claim anywhere in a document — a Research Summary heading would qualify.
+# Left as a known false negative rather than a guessed-at true positive.
+SUBPLAN_RE = re.compile(r"^###\s+Sub-plan\s+0*(\d+)\s*[:—–-]\s*(.+)$")
+# Both recognised master forms, per planning-projects/references/master-plan-format.md:
+# the filename suffix and the first heading. Either alone is sufficient -- a
+# master saved under a different filename is still a master.
+MASTER_HEADING_RE = re.compile(r"^#\s+Master Plan:", re.M)
+
+
+def is_master_plan(text, path=None):
+    """Whether this document is a master plan (register of sub-plans)."""
+    if path is not None and str(path).endswith("-master-plan.md"):
+        return True
+    return bool(MASTER_HEADING_RE.search(text))
+
 
 def status_state(ch):
     """Classify a STATUS_RE capture into the contract's three states.

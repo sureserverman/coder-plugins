@@ -175,7 +175,7 @@ def portfolio_plans_dir(repo_root):
         return None
 
 
-def parse_plan(text):
+def parse_plan(text, path=None):
     """(done, total, stage_count) via the portfolio-unify Status contract.
 
     A `[~]` partial task counts toward `total` but never toward `done`, so the
@@ -183,6 +183,8 @@ def parse_plan(text):
     goes through pu.status_state(), never `!= " "` (which would fill the bar
     for an in-flight task).
     """
+    if pu.is_master_plan(text, path):
+        return parse_master(text)
     stages = set()
     done = total = 0
     in_task = False
@@ -200,7 +202,35 @@ def parse_plan(text):
     return done, total, len(stages)
 
 
-def plan_is_eligible(text):
+def parse_master(text):
+    """(done, total, stage_count) for a MASTER plan, from its sub-plan register.
+
+    A master has no `### Task N.N` headings, so the ordinary counter reads every
+    master as 0/0 — indistinguishable from a plan nobody has started. That is
+    why zero of the vault's 517 plans that are masters had ever classified as in
+    flight: not a decision, an artifact of two regexes not matching.
+
+    Its progress is its register: one `### Sub-plan N:` entry per sub-plan, each
+    with a `- **Status:**` the master's own close-out flips. stage_count is 0 —
+    a master has sub-plans, not stages, so `S2/4` would be a category error.
+    Sub-plan registers also carry `**Gate:**` blocks of `- [ ]` checkboxes;
+    those are not Status lines and STATUS_RE does not match them.
+    """
+    done = total = 0
+    in_entry = False
+    for line in text.splitlines():
+        if pu.SUBPLAN_RE.match(line):
+            in_entry = True
+            continue
+        sm = pu.STATUS_RE.match(line)
+        if sm and in_entry:
+            total += 1
+            done += pu.status_state(sm.group(1)) == "done"
+            in_entry = False        # one Status per entry; consume it
+    return done, total, 0
+
+
+def plan_is_eligible(text, path=None):
     """Whether a plan counts as 'in flight' and so earns a bar.
 
     Eligible = STARTED but not CLOSED OUT:
@@ -217,14 +247,18 @@ def plan_is_eligible(text):
     checkbox-era legacy and *-design.md documents), and anything closed out.
     """
     started = False
-    in_task = False
+    in_entry = False
+    # A master's progress lives in its `### Sub-plan N:` register, not in Task
+    # headings it does not have. Counting only TASK_RE is why no master had ever
+    # been eligible -- every one read as "authored, never started".
+    opener = pu.SUBPLAN_RE if pu.is_master_plan(text, path) else pu.TASK_RE
     for line in text.splitlines():
-        if pu.TASK_RE.match(line):
-            in_task = True
+        if opener.match(line):
+            in_entry = True
             continue
         sm = pu.STATUS_RE.match(line)
-        if sm and in_task:
-            in_task = False
+        if sm and in_entry:
+            in_entry = False
             if pu.status_state(sm.group(1)) in ("done", "partial"):
                 started = True
     if not started:
@@ -407,7 +441,7 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
         elif sig is not None:
             for f in sorted(plans_dir.glob("*.md")):
                 try:
-                    if plan_is_eligible(_read_plan(f)):
+                    if plan_is_eligible(_read_plan(f), f):
                         eligible.append(f)
                 except OSError:
                     continue  # deleted or unreadable mid-scan — never raise
@@ -518,7 +552,7 @@ def render_pinned(state_file, state=None):
         state = json.loads(state_file.read_text())
     plan = pinned_plan_path(state, state_file)
     text = plan.read_text(errors="ignore")
-    done, total, stage_count = parse_plan(text)
+    done, total, stage_count = parse_plan(text, plan)
     name = plan.name
     for suffix in ("-light-plan.md", "-plan.md", ".md"):
         if name.endswith(suffix):
@@ -543,7 +577,7 @@ def render_other(plan_path):
     distinction explicit; here it falls out of not having a state to read.
     """
     text = _read_plan(plan_path)
-    done, total, _ = parse_plan(text)
+    done, total, _ = parse_plan(text, plan_path)
     name = plan_path.name
     for suffix in ("-light-plan.md", "-plan.md", ".md"):
         if name.endswith(suffix):
