@@ -22,6 +22,7 @@ in-flight plan, or any degradation along the way. Safe to chain after any
 existing statusline command; a broken environment costs lines, never noise.
 """
 import datetime
+import hashlib
 import importlib.util
 import json
 import os
@@ -53,12 +54,38 @@ DIM = "\033[2m"
 RESET = "\033[0m"
 
 
+# pathlib raises ValueError -- NOT OSError -- for a path containing a NUL byte
+# ("embedded null byte"). Every guard in this file that means "this path is
+# unusable, degrade" therefore has to name both, and a bare `except OSError` is
+# a hole wherever the path came from text rather than from a directory listing.
+# Three sources feed such paths: the `cwd` in the statusline's stdin JSON, the
+# `plan` field of the state file, and -- since Task 3.2 -- the `Master:` /
+# `- **Plan:**` links read out of plan PROSE. Found by Tier-1 review and
+# reproduced: one NUL in a sub-plan's backlink blanked the whole status line,
+# pinned bar included, on every redraw.
+#
+# WHICH calls raise is not uniform, and guessing it wrong is how the hole got
+# there. Measured on CPython 3.12: `stat()`, `resolve()` and `read_text()`
+# RAISE, while `is_file()`, `is_dir()` and `exists()` SWALLOW it internally
+# (pathlib classes a NUL path as non-encodable and returns False). The guards
+# below therefore load-bear on the first group and are belt-and-braces on the
+# second; test-plan-progress.py pins both halves, so a future pathlib that
+# changes either one fails loudly rather than silently reopening this.
+BAD_PATH = (OSError, ValueError)
+
+
 def find_state(start):
-    d = Path(start).resolve()
+    try:
+        d = Path(start).resolve()
+    except BAD_PATH:
+        return None
     for p in [d, *d.parents]:
-        f = p / ".claude" / "plan-progress.json"
-        if f.is_file():
-            return f
+        try:
+            f = p / ".claude" / "plan-progress.json"
+            if f.is_file():
+                return f
+        except BAD_PATH:
+            continue
     return None
 
 
@@ -123,7 +150,15 @@ def portfolio_plans_dir(repo_root):
     None — never a guess — when the project is not registered: showing bars
     from some OTHER project's plans would be worse than showing none.
     """
-    repo_root = Path(repo_root).resolve()
+    # `repo_root` reaches here from the statusline's stdin `cwd` when no state
+    # file exists, so it is untrusted text like everything else in BAD_PATH's
+    # note. Guarded at the top rather than left to render()'s outer try, because
+    # the corpus sweep calls this function RAW on purpose — a surface that only
+    # degrades when someone else catches for it is not a surface that degrades.
+    try:
+        repo_root = Path(repo_root).resolve()
+    except BAD_PATH:
+        return None
 
     # "Could not load the config" and "config loaded but names no vault" are
     # DIFFERENT answers, and collapsing them is a real defect: a machine with
@@ -136,8 +171,11 @@ def portfolio_plans_dir(repo_root):
         return None
     vault = cfg.get("vault_dir")
     if vault is None:
-        local = repo_root / "docs" / "plans"
-        return local if local.is_dir() else None
+        try:
+            local = repo_root / "docs" / "plans"
+            return local if local.is_dir() else None
+        except BAD_PATH:
+            return None
     if not isinstance(vault, str) or not vault:
         return None
 
@@ -159,7 +197,7 @@ def portfolio_plans_dir(repo_root):
             if Path(raw).expanduser().resolve() == repo_root:
                 entry = proj
                 break
-        except OSError:
+        except BAD_PATH:
             continue
     if entry is None or entry.get("enabled") is False:
         return None
@@ -170,7 +208,7 @@ def portfolio_plans_dir(repo_root):
     plans = Path(vault).expanduser() / "Portfolio" / area / name / "plans"
     try:
         return plans if plans.is_dir() else None
-    except OSError:
+    except BAD_PATH:
         # an unreadable or unmounted vault path raises rather than returning False
         return None
 
@@ -295,7 +333,7 @@ def date_stamp(path):
 def _same_file(a, b):
     try:
         return Path(a).resolve() == Path(b).resolve()
-    except OSError:
+    except BAD_PATH:
         return False
 
 
@@ -305,6 +343,48 @@ def _rank(path):
 
 
 CACHE_NAME = "plan-progress-cache.json"
+CACHE_VERSION = 2   # bumped by the rule-signature fix below; discards every v1 cache
+
+
+def rule_signature():
+    """A fingerprint of the CODE that produced a cache's verdicts, or None.
+
+    scan_signature() below fingerprints the plans DIRECTORY, so the cache
+    correctly rebuilds whenever a plan file changes. Nothing fingerprinted the
+    ELIGIBILITY RULE, and that is an independent axis: when `plan_is_eligible`
+    itself changes, every cache on disk keeps serving verdicts computed by the
+    OLD rule against a directory whose signature is still perfectly valid — and
+    keeps doing so forever, because nothing in the key can ever notice. Only an
+    unrelated edit to some plan file breaks the spell.
+
+    Not hypothetical, and not caught by any test. Making masters countable
+    (BL-054, `4d45fbf`) changed the rule; measured immediately afterwards, 3 of
+    the 4 caches on this machine went on hiding every master bar. The feature
+    had shipped and could not fire — twice over, since the tree glyphs that
+    render those masters have nothing to render without them.
+
+    Deliberately a digest of the two whole source files rather than of the
+    rule's individual functions and regexes. Eligibility depends on
+    plan_is_eligible, TASK_RE, SUBPLAN_RE, STATUS_RE, COMPLETED_RE,
+    ABANDONED_RE, status_state and is_master_plan; enumerating those here would
+    create exactly the lockstep site that drifts, which is the bug class this
+    key exists to close. Over-invalidating on a comment edit costs one ~12 ms
+    rescan, once.
+
+    CONTENT, not (mtime, size), which is what this first shipped as. Review
+    caught the gap: a deployment that preserves timestamps across a real edit —
+    `rsync -a`, some Docker COPY layers, a same-second checkout — leaves
+    (mtime, size) identical while the rule underneath has changed, which is
+    precisely the silent-stale failure this function exists to prevent, sneaking
+    back in through the key itself. Measured: 0.048 ms against a 33 ms redraw.
+    """
+    out = []
+    for f in (Path(__file__), _UNIFY):
+        try:
+            out.append(hashlib.sha256(Path(f).read_bytes()).hexdigest())
+        except BAD_PATH:
+            return None     # rule unknown -> decline the cache, never trust a stale one
+    return out
 
 # Instrumentation for the cache test. Counting actual plan-file READS is the
 # only honest way to assert "the cache was used": a timing assertion passes on
@@ -341,7 +421,7 @@ def scan_signature(plans_dir):
             st = f.stat()
             out.append([f.name, st.st_mtime_ns, st.st_size])
         return out
-    except OSError:
+    except BAD_PATH:
         return None
 
 
@@ -373,7 +453,7 @@ def _is_file(path):
     """
     try:
         return path.is_file()
-    except OSError:
+    except BAD_PATH:
         return False
 
 
@@ -390,21 +470,22 @@ def _read_cache(cache_file):
     return data if isinstance(data, dict) else None
 
 
-def _write_cache(cache_file, plans_dir, signature, names):
-    if cache_file is None:
-        return
+def _write_cache(cache_file, plans_dir, signature, names, rule):
+    if cache_file is None or rule is None:
+        return              # an unkeyed cache is worse than none — see rule_signature()
     try:
         p = Path(cache_file)
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_name(p.name + ".tmp")
         tmp.write_text(json.dumps({
-            "version": 1,
+            "version": CACHE_VERSION,
+            "rule": rule,
             "plans_dir": str(plans_dir),
             "signature": signature,
             "eligible": names,
         }), encoding="utf-8")
         os.replace(tmp, p)
-    except OSError:
+    except BAD_PATH:
         pass  # an unwritable cache is a missed optimisation, not a failure
 
 
@@ -423,15 +504,21 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
     if pinned is not None:
         try:
             pinned_r = Path(pinned).resolve()
-        except OSError:
+        except BAD_PATH:
             pinned_r = None
 
     eligible = []
     if plans_dir is not None:
         plans_dir = Path(plans_dir)
         sig = scan_signature(plans_dir)
-        cached = _read_cache(cache_file) if sig is not None else None
+        rule = rule_signature()
+        cached = _read_cache(cache_file) if (sig is not None and rule is not None) else None
         if (cached is not None
+                # `version` was written from the start and never once read — a
+                # key field that existed and did nothing. Checked now, so a
+                # future format change invalidates rather than misreads.
+                and cached.get("version") == CACHE_VERSION
+                and cached.get("rule") == rule
                 and cached.get("plans_dir") == str(plans_dir)
                 and cached.get("signature") == sig
                 and isinstance(cached.get("eligible"), list)):
@@ -443,9 +530,9 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
                 try:
                     if plan_is_eligible(_read_plan(f), f):
                         eligible.append(f)
-                except OSError:
+                except BAD_PATH:
                     continue  # deleted or unreadable mid-scan — never raise
-            _write_cache(cache_file, plans_dir, sig, [f.name for f in eligible])
+            _write_cache(cache_file, plans_dir, sig, [f.name for f in eligible], rule)
 
         # The pinned plan is added below on its own terms, so it must not also
         # arrive through the eligible list.
@@ -463,6 +550,115 @@ def discover_plans(plans_dir, pinned=None, cache_file=None):
         chosen.append(f)
     chosen.sort(key=_rank, reverse=True)
     return chosen[:MAX_BARS]
+
+
+# Tree glyphs for a master's sub-plans. Box-drawing rather than ASCII `|-`
+# because every other glyph in this file is already non-ASCII (█ ░ ⚙ ▶ ◆ ⚑),
+# so a terminal that mangles these was already mangling the bar itself.
+TREE_MID = "├─ "
+TREE_LAST = "└─ "
+
+
+def _plan_text(path):
+    """A plan's text, or "" — grouping must never cost a bar."""
+    try:
+        return _read_plan(path)
+    except BAD_PATH:
+        return ""
+
+
+def master_of(text, path):
+    """The path this sub-plan's `Master:` backlink names, or None."""
+    m = pu.MASTER_BACKLINK_RE.search(text)
+    if not m:
+        return None
+    target = pu.link_target(m.group(1))
+    return path.parent / target if target else None
+
+
+def subplans_of(text, path):
+    """Every path this master's register `- **Plan:**` lines name, in order.
+
+    Order is load-bearing: it is the register's dependency order, which is what
+    a reader expects children to be listed in, and it is the only ordering that
+    survives a sub-plan whose filename date stamp does not match its number.
+    """
+    out = []
+    for m in pu.SUBPLAN_LINK_RE.finditer(text):
+        target = pu.link_target(m.group(1))
+        if target:
+            out.append(path.parent / target)
+    return out
+
+
+def group_plans(paths, pinned=None):
+    """[(path, prefix)] — each master immediately above its own sub-plans.
+
+    Presentation only. This reorders and prefixes what discovery already chose;
+    it never adds a plan and never drops one, so the cap and the eligibility
+    filter keep meaning exactly what Stage 2 gated them to mean. A sub-plan
+    whose master is not among the chosen plans therefore renders as it always
+    did — top level, no glyph — which is the COMMON case, since a master earns
+    its own bar on its own eligibility and often has none.
+
+    `pinned` keeps the plan this session is executing at the top, as the old
+    single-source renderer did. It is the plan's GROUP that is hoisted, not the
+    plan: when the pinned plan is a sub-plan, its master has to stay above it or
+    the tree glyphs point at nothing.
+    """
+    # Path keys throughout: discover_plans() already deduplicates by _same_file,
+    # so no two entries here name one file under two spellings.
+    texts = {p: _plan_text(p) for p in paths}
+    masters = [p for p in paths if pu.is_master_plan(texts[p], p)]
+
+    # Union of the two links, not either alone: the backlink is missing from
+    # some sub-plans and the register entry from others, and a sub-plan is a
+    # sub-plan if EITHER side says so.
+    register = {m: subplans_of(texts[m], m) for m in masters}
+    parent_of = {}
+    for p in paths:
+        if p in masters:
+            continue
+        back = master_of(texts[p], p)
+        for m in masters:
+            if ((back is not None and _same_file(back, m))
+                    or any(_same_file(c, p) for c in register[m])):
+                parent_of[p] = m
+                break
+
+    def child_order(master, kid):
+        # Register position first; a child linked only by its backlink has none
+        # and falls back to filename order. The two never compare against each
+        # other, so the mixed key types below never meet.
+        for i, c in enumerate(register[master]):
+            if _same_file(c, kid):
+                return (0, i)
+        return (1, _rank(kid))
+
+    groups = []
+    for m in masters:
+        kids = [p for p in paths if parent_of.get(p) == m]
+        kids.sort(key=lambda k: child_order(m, k))
+        groups.append([m] + kids)
+    for p in paths:
+        if p not in masters and p not in parent_of:
+            groups.append([p])
+
+    # A group ranks by its NEWEST member, so grouping never pushes a recent
+    # sub-plan below an older unrelated plan just because its master is old.
+    def group_rank(g):
+        holds_pinned = pinned is not None and any(_same_file(x, pinned) for x in g)
+        return (holds_pinned, max(_rank(x) for x in g))
+
+    groups.sort(key=group_rank, reverse=True)
+
+    out = []
+    for g in groups:
+        out.append((g[0], ""))
+        for i, kid in enumerate(g[1:]):
+            glyph = TREE_LAST if i == len(g) - 2 else TREE_MID
+            out.append((kid, f"{DIM}{glyph}{RESET}"))
+    return out
 
 
 def bar(done, total):
@@ -593,11 +789,12 @@ def render_other(plan_path):
 def render(cwd):
     """Every line the status line should carry, in order — possibly none.
 
-    The pinned plan (the one the state file names) keeps render()'s exact
-    byte-for-byte output and comes first. Other in-flight plans for the same
-    project follow. Returning a LIST rather than a string is the whole of Task
-    3.1: main() prints each element on its own line, so a second bar costs a
-    line rather than a rewrite.
+    The pinned plan (the one the state file names) keeps render_pinned()'s exact
+    byte-for-byte output, and its group leads. Other in-flight plans for the
+    same project follow, each master immediately above its own sub-plans.
+    Returning a LIST rather than a string is the whole of Task 3.1: main()
+    prints each element on its own line, so a second bar costs a line rather
+    than a rewrite.
 
     Every step degrades to "fewer lines", never to an exception — this is still
     the statusline. Note which corpus lane proves what: lane A (`python3
@@ -607,33 +804,59 @@ def render(cwd):
     that fails to degrade on its own. Reading lane B as evidence about this
     function's exception safety gets it exactly backwards.
     """
-    lines = []
     state_file = find_state(cwd)
-    pinned = None
+    state = pinned = None
     if state_file is not None:
         try:
-            # ONE read, one anchoring. Re-reading here to recompute `pinned`
-            # also raced executing-plans' overwrite-not-patch state writes: a
-            # rewrite landing between the two reads made the second one fail
-            # and silently disabled dedup for that redraw.
+            # ONE read, one anchoring. Re-reading to recompute `pinned` also
+            # raced executing-plans' overwrite-not-patch state writes: a rewrite
+            # landing between the two reads made the second one fail and
+            # silently disabled dedup for that redraw.
             state = json.loads(state_file.read_text())
-            lines.append(render_pinned(state_file, state))
             pinned = pinned_plan_path(state, state_file)
         except Exception:
-            pinned = None           # an unreadable state file pins nothing
+            state = pinned = None   # an unreadable state file pins nothing
 
+    chosen = []
     try:
         root = repo_root_of(state_file) if state_file is not None else Path(cwd)
         plans_dir = portfolio_plans_dir(root)
         if plans_dir is not None:
             cache = root / ".claude" / CACHE_NAME
-            for p in discover_plans(plans_dir, pinned=pinned, cache_file=cache):
-                if pinned is not None and _same_file(p, pinned):
-                    continue        # already rendered above, with its phase part
-                lines.append(render_other(p))
+            chosen = discover_plans(plans_dir, pinned=pinned, cache_file=cache)
     except Exception:
-        pass                        # discovery is additive: never costs the pinned bar
+        chosen = []                 # discovery is additive: never costs the pinned bar
 
+    # Discovery normally returns the pinned plan itself, but it returns nothing
+    # at all when the project is unregistered, the vault is unreadable, or the
+    # scan raised. The plan this session is executing has to render in every one
+    # of those cases -- that is the pre-Stage-2 behavior, and it is the bar that
+    # matters most.
+    if pinned is not None and _is_file(pinned) and not any(
+            _same_file(p, pinned) for p in chosen):
+        chosen.insert(0, pinned)
+
+    # BAD_PATH above fixes the root cause; this bounds the blast radius of the
+    # NEXT one. group_plans() is the only step between having the plans and
+    # printing them, so anything it raises costs every bar at once — including
+    # the pinned bar the whole function above works to preserve. Grouping is
+    # decoration; losing it must cost the glyphs, never the lines.
+    try:
+        grouped = group_plans(chosen, pinned=pinned)
+    except Exception:
+        grouped = [(p, "") for p in chosen]
+
+    lines = []
+    for path, prefix in grouped:
+        # Per line, not per block: an unreadable plan costs its own bar and
+        # leaves its siblings standing.
+        try:
+            if state is not None and pinned is not None and _same_file(path, pinned):
+                lines.append(prefix + render_pinned(state_file, state))
+            else:
+                lines.append(prefix + render_other(path))
+        except Exception:
+            continue
     return lines
 
 

@@ -236,6 +236,54 @@ SUBPLAN_RE = re.compile(r"^###\s+Sub-plan\s+0*(\d+)\s*[:—–-]\s*(.+)$")
 # master saved under a different filename is still a master.
 MASTER_HEADING_RE = re.compile(r"^#\s+Master Plan:", re.M)
 
+# The two links that associate a master with its sub-plans -- one per direction.
+# Same format contract SUBPLAN_RE reads, so they live here for the same
+# single-owner reason, and consumers need BOTH: either side goes missing in real
+# files, and a sub-plan authored without its backlink is still a sub-plan when
+# the master's register names it.
+#
+#   Master: ./2026-08-06-topic-master-plan.md            (sub-plan, below Date:)
+#   - **Plan:** ./2026-08-06-topic-sub-01-x-plan.md      (master register entry)
+#
+# Both capture to end-of-line rather than one \S+ token, because the vault
+# carries a second written form on BOTH sides -- `[name.md](./name.md)`, used by
+# two of writer-pad's masters and their sub-plans. A token-shaped capture
+# swallows the whole `[...](...)` string, resolves to nothing, and silently
+# reads those masters as childless. Same format-drift as the close-out marker
+# (BL-053) and the register heading above: the dialect the regex cannot see
+# always fails in the direction that looks tidier.
+#
+# NOT scoped to a section, deliberately and with the same caveat SUBPLAN_RE
+# carries: `Master:` is matched anywhere in the document rather than only on the
+# line below `Date:`, and `- **Plan:**` anywhere rather than only inside a
+# register entry. Consistent with STATUS_RE and SUBPLAN_RE, which are unscoped
+# too, so this is the file's existing posture and not a new one -- but it means
+# a stray `Master:`-prefixed line in a Research Summary would group a plan under
+# the wrong master. Recorded here so whoever debugs a spurious grouping finds
+# the reason rather than rediscovering it.
+MASTER_BACKLINK_RE = re.compile(r"^Master:\s*(.+?)\s*$", re.M)
+SUBPLAN_LINK_RE = re.compile(r"^\s*-\s*\*\*Plan:\*\*\s*(.+?)\s*$", re.M)
+MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+
+
+def link_target(raw):
+    """The path a `Master:` / `- **Plan:**` line points at, or None.
+
+    Normalises the two written forms to one relative path. Returns None rather
+    than a guess for anything else -- an unresolvable link should leave a
+    sub-plan ungrouped, never grouped under the wrong master.
+    """
+    if not isinstance(raw, str):
+        return None
+    raw = raw.strip()
+    m = MD_LINK_RE.search(raw)
+    if m:
+        raw = m.group(1).strip()
+    else:
+        parts = raw.split()
+        raw = parts[0] if parts else ""
+    return raw.strip("`<>'\" ") or None
+
 
 def is_master_plan(text, path=None):
     """Whether this document is a master plan (register of sub-plans)."""

@@ -408,6 +408,85 @@ def case_scan_cache():
     mod.discover_plans(plans, cache_file=cache)
     check(mod.PLAN_READS > 0, "removing a plan invalidates the cache")
 
+    print("  a change to the ELIGIBILITY RULE invalidates the cache:")
+    # The axis the directory signature structurally cannot see, and the one that
+    # actually bit: when plan_is_eligible changed to make masters countable
+    # (BL-054), every cache on disk kept serving the OLD rule's verdicts against
+    # a directory whose signature was still valid -- so the masters stayed
+    # invisible and Task 3.2's tree glyphs had nothing to render. Measured on
+    # this machine right after that commit: 3 of 4 real caches were serving
+    # pre-change verdicts, with the whole suite green.
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS == 0, "precondition: warm cache, nothing on disk changed")
+    stale = json.loads(cache.read_text())
+    check(stale.get("rule") is not None,
+          "the cache records the rule that produced its verdicts")
+    check(stale.get("version") == mod.CACHE_VERSION,
+          f"and a format version (got {stale.get('version')!r})")
+    stale["rule"] = [["plan-progress.py", 1, 1], ["portfolio-unify.py", 1, 1]]
+    cache.write_text(json.dumps(stale))
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0,
+          f"a cache written by DIFFERENT rule code is discarded (reads={mod.PLAN_READS})")
+
+    # A v1 cache is every cache that exists in the wild today.
+    old = json.loads(cache.read_text())
+    old["version"] = 1
+    old.pop("rule", None)
+    cache.write_text(json.dumps(old))
+    mod.PLAN_READS = 0
+    mod.discover_plans(plans, cache_file=cache)
+    check(mod.PLAN_READS > 0,
+          f"a pre-existing v1 cache is discarded, not misread (reads={mod.PLAN_READS})")
+
+    print("  ...and rule_signature() reacts to a REAL edit of the rule's source:")
+    # Review finding: everything above substitutes a rule VALUE by hand, which
+    # proves the key is compared but not that it tracks anything. Confirmed by
+    # the reviewer: replacing rule_signature with `lambda: ["constant"]` — i.e.
+    # reintroducing the exact BL-054 staleness this fix exists to close, one
+    # layer up — left the whole suite green. So drive the real function against
+    # real files it is pointed at.
+    srcdir = tmp / "src"
+    srcdir.mkdir()
+    copies = []
+    for real in (Path(mod.__file__), Path(mod._UNIFY)):
+        dst = srcdir / real.name
+        dst.write_bytes(real.read_bytes())
+        copies.append(dst)
+    real_file, real_unify = mod.__file__, mod._UNIFY
+    try:
+        mod.__file__, mod._UNIFY = str(copies[0]), copies[1]
+        before = mod.rule_signature()
+        check(before is not None and len(before) == 2,
+              f"rule_signature() reads the two files it is pointed at ({before})")
+
+        # Timestamp-only change: content is the rule, so this must NOT invalidate.
+        os.utime(copies[0], ns=(10 ** 18, 10 ** 18))
+        check(mod.rule_signature() == before,
+              "an mtime-only touch does NOT change it (the key is content, not stat)")
+
+        # A real edit to the eligibility rule must.
+        copies[0].write_bytes(copies[0].read_bytes() + b"\n# a real edit\n")
+        after_a = mod.rule_signature()
+        check(after_a != before, "editing plan-progress.py changes the rule signature")
+
+        # ...and so must one to the contract file the rule imports from.
+        copies[1].write_bytes(copies[1].read_bytes() + b"\n# a real edit\n")
+        check(mod.rule_signature() not in (before, after_a),
+              "editing portfolio-unify.py changes it too — both files are the rule")
+
+        # A source file that vanishes must decline the cache, not raise.
+        copies[0].unlink()
+        try:
+            gone = mod.rule_signature()
+        except Exception as e:
+            gone = f"RAISED {type(e).__name__}: {e}"
+        check(gone is None, f"an unreadable rule source returns None, never raises ({gone})")
+    finally:
+        mod.__file__, mod._UNIFY = real_file, real_unify
+
     print("  a broken cache is discarded, never raised on:")
     for label, blob in [("truncated JSON", '{"version": 1, "signa'),
                         ("not JSON at all", "\x00\x01 binary junk"),
@@ -468,15 +547,33 @@ def case_scan_cache():
     print("  a poisoned cache cannot name a file outside the plans directory:")
     # The cache is trusted to skip reads, so nothing downstream re-validates
     # what it names, and `plans_dir / "/etc/passwd"` discards plans_dir entirely.
+    # This test was SILENTLY DEFEATED by the CACHE_VERSION bump and caught in
+    # review. It planted `"version": 1` with no `rule`, so the new key rejected
+    # the whole cache before _safe_cache_name() was ever reached; discovery fell
+    # through to a real rescan, which of course contains no escaped paths. It
+    # passed with the traversal defense deleted outright.
+    #
+    # So the planted cache must now be VALID in every respect except the name it
+    # carries, and the fix is not only to build the key correctly but to assert
+    # the cache was actually USED: PLAN_READS == 0 proves the cached branch was
+    # taken, which is the thing the old assertion could not distinguish from a
+    # wholesale rejection. Without that, any future key field silently disarms
+    # this again.
     sig = mod.scan_signature(plans)
+    rule = mod.rule_signature()
     cache.parent.mkdir(parents=True, exist_ok=True)
     for label, planted in (("absolute path", "/etc/passwd"),
                            ("parent traversal", "../../../etc/passwd"),
                            ("nested separator", "sub/evil.md")):
-        cache.write_text(json.dumps({"version": 1, "plans_dir": str(plans),
+        cache.write_text(json.dumps({"version": mod.CACHE_VERSION, "rule": rule,
+                                     "plans_dir": str(plans),
                                      "signature": sig, "eligible": [planted]}),
                          encoding="utf-8")
+        mod.PLAN_READS = 0
         got = mod.discover_plans(plans, cache_file=cache)
+        check(mod.PLAN_READS == 0,
+              f"{label}: the poisoned cache is accepted, so the name filter is "
+              f"what must reject it (reads={mod.PLAN_READS})")
         escaped = [p for p in got if p.parent != plans]
         check(not escaped, f"{label}: rejected, not joined ({escaped})")
 
@@ -714,6 +811,315 @@ def pu_is_master(mod, path):
     return mod.pu.is_master_plan(path.read_text(), path)
 
 
+# --- Task 3.2 (tree glyphs) -------------------------------------------------
+# The fixture is built so that FILENAME ORDER CONTRADICTS TREE ORDER: the two
+# sub-plans are stamped newer than their master, so plain newest-first ranking
+# would print sub-02, sub-01, master. Anything that reproduces master, sub-01,
+# sub-02 therefore had to hoist the master and read the register — the ordering
+# cannot come out right by accident.
+GROUP_MASTER = """# Master Plan: alpha
+
+## Sub-plans
+
+### Sub-plan 1: foundation
+- **Status:** [x]
+- **Plan:** ./2026-08-02-alpha-sub-01-foundation-plan.md
+
+**Gate:**
+- [ ] an integration check
+
+### Sub-plan 2: second
+- **Status:** [ ]
+- **Plan:** [2026-08-03-alpha-sub-02-second-plan.md](./2026-08-03-alpha-sub-02-second-plan.md)
+"""
+
+# Backlinked to its master. Eligible: one [x], no close-out line.
+GROUP_SUB_1 = """# Project Plan: foundation
+Date: 2026-08-02
+Master: ./2026-08-01-alpha-master-plan.md
+
+## Stage 1 — work
+
+### Task 1.1: first
+- **Status:** [x]
+
+### Task 1.2: second
+- **Status:** [ ]
+"""
+
+# Deliberately carries NO `Master:` line: this one is grouped only because the
+# master's register names it, which is the fifth clause of Task 3.2's test. Its
+# register entry uses the `[text](path)` dialect, so it also proves link_target
+# sees the form two of the vault's real masters are written in.
+GROUP_SUB_2 = """# Project Plan: second
+Date: 2026-08-03
+
+## Stage 1 — work
+
+### Task 1.1: first
+- **Status:** [~]
+
+### Task 1.2: second
+- **Status:** [ ]
+"""
+
+
+def group_fixture(mod, files):
+    """A registered repo whose vault plans/ dir holds `files` {name: text}."""
+    tmp = Path(tempfile.mkdtemp(prefix="pp-group-"))
+    repo = tmp / "repo"
+    (repo / ".claude").mkdir(parents=True)
+    vplans = tmp / "vault" / "Portfolio" / "a" / "p" / "plans"
+    vplans.mkdir(parents=True)
+    for name, text in files.items():
+        (vplans / name).write_text(text)
+    cfg, reg = tmp / "cfg.yaml", tmp / "reg.yaml"
+    write_yaml(cfg, f"version: 1\nvault_dir: {tmp / 'vault'}\n")
+    write_yaml(reg, "version: 1\nprojects:\n"
+                    f"  - path: {repo}\n    name: p\n    area: a\n    enabled: true\n")
+    mod.CONFIG_PATH, mod.REGISTRY_PATH = cfg, reg
+    return tmp, repo, vplans
+
+
+def plain_lines(mod, repo):
+    return [ANSI_RE.sub("", ln) for ln in mod.render(str(repo))]
+
+
+MASTER_NAME = "2026-08-01-alpha-master-plan.md"
+SUB1_NAME = "2026-08-02-alpha-sub-01-foundation-plan.md"
+SUB2_NAME = "2026-08-03-alpha-sub-02-second-plan.md"
+FULL_GROUP = {MASTER_NAME: GROUP_MASTER, SUB1_NAME: GROUP_SUB_1, SUB2_NAME: GROUP_SUB_2}
+
+
+def case_master_grouping():
+    """Task 3.2 — a master's bar sits above its sub-plans, tree-glyphed."""
+    print("Task 3.2 — masters group their sub-plans under tree glyphs:")
+    mod = load_module()
+
+    check("Master:" not in GROUP_SUB_2,
+          "fixture precondition: sub-02 carries NO backlink (register-only grouping)")
+
+    tmp, repo, vplans = group_fixture(mod, FULL_GROUP)
+    lines = plain_lines(mod, repo)
+    check(len(lines) == 3, f"master + 2 sub-plans = 3 lines (got {len(lines)})")
+    if len(lines) == 3:
+        check(lines[0].startswith("⚙ ") and "alpha-master" in lines[0],
+              f"the master renders FIRST and unindented ({lines[0][:40]!r})")
+        check(lines[1].startswith("├─ ") and "sub-01" in lines[1],
+              f"sub-plan 1 is indented under it with ├─ ({lines[1][:40]!r})")
+        check(lines[2].startswith("└─ ") and "sub-02" in lines[2],
+              f"the LAST child gets └─, not ├─ ({lines[2][:40]!r})")
+        check("├─" not in lines[2] and "└─" not in lines[1],
+              "the two glyphs are not interchangeable — last child only for └─")
+    # Tier-1 Suggestion: this used to restate the position check above, which
+    # cannot fail independently of it. Assert the fixture's ADVERSARIAL property
+    # instead — that plain newest-first ranking really would have produced a
+    # different order, so the tree order above is evidence of grouping rather
+    # than a coincidence of the filenames.
+    by_rank = sorted((vplans / n for n in FULL_GROUP), key=mod._rank, reverse=True)
+    check(by_rank[0].name == SUB2_NAME,
+          f"rank order alone would lead with sub-02, not the master ({by_rank[0].name})")
+    check(lines and MASTER_NAME.startswith(mod.date_stamp(vplans / MASTER_NAME))
+          and mod.date_stamp(vplans / MASTER_NAME) < mod.date_stamp(vplans / SUB1_NAME),
+          "precondition: the master is stamped OLDER than both its children")
+
+    print("  a sub-plan whose master is not eligible renders ungrouped:")
+    # Same three files; the master is merely closed out. This is the sensitivity
+    # proof for every assertion above: if grouping were unconditional the glyphs
+    # would survive this edit, and if the eligibility filter were ignored the
+    # master would still render.
+    tmp2, repo2, vplans2 = group_fixture(mod, dict(
+        FULL_GROUP, **{MASTER_NAME: GROUP_MASTER + "\n**Completed:** 2026-08-04 — done\n"}))
+    lines2 = plain_lines(mod, repo2)
+    check(len(lines2) == 2, f"only the two sub-plans render (got {len(lines2)})")
+    check(all(ln.startswith("⚙ ") for ln in lines2),
+          f"both are top level, no tree glyph anywhere ({lines2})")
+    check(not any("├─" in ln or "└─" in ln for ln in lines2),
+          "the glyphs are gone — they were not printed unconditionally")
+
+    print("  a master with no eligible sub-plans renders alone:")
+    tmp3, repo3, _ = group_fixture(mod, {MASTER_NAME: GROUP_MASTER})
+    lines3 = plain_lines(mod, repo3)
+    check(len(lines3) == 1 and lines3[0].startswith("⚙ "),
+          f"one unindented line, no dangling glyph (got {lines3})")
+
+    print("  a NUL byte in a link does not blank the whole status line:")
+    # Tier-1 Critical, reproduced before it was fixed. pathlib raises
+    # ValueError -- NOT OSError -- on "embedded null byte", and every guard here
+    # named OSError alone. Task 3.2 is what made it reachable: it is the first
+    # code to build a Path out of plan PROSE (`Master:` / `- **Plan:**`), and
+    # the group_plans() call sits between having the plans and printing them, so
+    # one malformed byte cost every bar including the pinned one.
+    #
+    # render() is called DIRECTLY, unguarded, on purpose: main() ends in
+    # `except Exception: sys.exit(0)`, so a subprocess assertion would go green
+    # whether this degrades or explodes. Same lane-B reasoning the Stage 2 gate
+    # was rewritten around.
+    for label, link in (("in a sub-plan's Master: backlink", "Master: ./evil\x00master-plan.md"),
+                        ("in a master's register entry", None)):
+        files = dict(FULL_GROUP)
+        if link is None:
+            files[MASTER_NAME] = GROUP_MASTER.replace(
+                "./2026-08-02-alpha-sub-01-foundation-plan.md", "./ev\x00il-plan.md")
+        else:
+            files[SUB1_NAME] = GROUP_SUB_1.replace(
+                "Master: ./2026-08-01-alpha-master-plan.md", link)
+        tmpn, repon, _ = group_fixture(mod, files)
+        try:
+            got = mod.render(str(repon))
+            ok = isinstance(got, list) and len(got) >= 2
+        except Exception as e:
+            got, ok = f"RAISED {type(e).__name__}: {e}", False
+        check(ok, f"a NUL {label} costs at most its own grouping, not every bar "
+                  f"({got if not ok else str(len(got)) + ' lines'})")
+        shutil.rmtree(tmpn, ignore_errors=True)
+
+    # And the same byte anywhere else on the render path.
+    tmpn, repon, vplansn = group_fixture(mod, FULL_GROUP)
+    (repon / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": "docs/pl\x00ans/x-plan.md", "phase": "task", "stage": 1, "task": "1.1",
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    try:
+        got = mod.render(str(repon))
+        ok = isinstance(got, list)
+    except Exception as e:
+        got, ok = f"RAISED {type(e).__name__}: {e}", False
+    check(ok, f"a NUL in the state file's `plan` field degrades too ({got})")
+    # The three render()-level assertions above are satisfied by EITHER the
+    # BAD_PATH fix or render()'s group_plans guard, so on their own they cannot
+    # say which one is working — reverting the root-cause fix leaves them green.
+    # These pin the root cause itself, at the function the Critical lived in.
+    try:
+        ok = mod._same_file("/a\x00b", "/a\x00b") is False
+    except Exception as e:
+        ok = False
+        got = f"RAISED {type(e).__name__}: {e}"
+    check(ok, f"_same_file() returns False for a NUL path rather than raising "
+              f"({'ok' if ok else got})")
+    # Pin the PLATFORM split the fix depends on, rather than asserting a
+    # uniform "everything raises" that is simply untrue. Measured on CPython
+    # 3.12: stat/resolve/read_text raise on a NUL, while is_file/is_dir/exists
+    # swallow it. `_is_file()` needing no ValueError guard today is a property
+    # of pathlib, not of this file — so assert it, and it fails loudly if a
+    # future pathlib changes its mind instead of silently reopening the hole.
+    raises, swallows = [], []
+    for meth in ("stat", "resolve", "read_text", "is_file", "is_dir", "exists"):
+        try:
+            getattr(Path("/a\x00b"), meth)()
+            swallows.append(meth)
+        except ValueError:
+            raises.append(meth)
+        except Exception:
+            raises.append(meth + "(non-ValueError)")
+    check(set(raises) == {"stat", "resolve", "read_text"},
+          f"pathlib raises ValueError on exactly stat/resolve/read_text (got {raises})")
+    check(set(swallows) == {"is_file", "is_dir", "exists"},
+          f"...and swallows it on is_file/is_dir/exists (got {swallows})")
+
+    # Fault injection for the blast-radius guard, which no reverted fix can
+    # exercise: with the root cause fixed, grouping simply never raises. Assert
+    # the FALLBACK, not the source text — the Stage 1 handoff called out
+    # `assert "os.replace(" in src` as a check that survives a real regression.
+    tmpg, repog, _ = group_fixture(mod, FULL_GROUP)
+    real = mod.group_plans
+    mod.group_plans = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    try:
+        got = mod.render(str(repog))
+        ok = isinstance(got, list) and len(got) == 3
+    except Exception as e:
+        got, ok = f"RAISED {type(e).__name__}: {e}", False
+    finally:
+        mod.group_plans = real
+    check(ok, f"if grouping raises, every bar still renders — ungrouped, not lost "
+              f"({got if not ok else str(len(got)) + ' lines, no glyphs'})")
+    check(ok and not any("├─" in ln or "└─" in ln for ln in got),
+          "and the fallback really is ungrouped (the glyphs are what was lost)")
+    shutil.rmtree(tmpg, ignore_errors=True)
+
+    try:
+        ok = mod.find_state("/no/such\x00dir") is None
+    except Exception as e:
+        ok = False
+        got = f"RAISED {type(e).__name__}"
+    check(ok, "find_state() survives a NUL in the statusline's stdin cwd")
+    try:
+        ok = mod.portfolio_plans_dir("/no/such\x00dir") is None
+    except Exception:
+        ok = False
+    check(ok, "portfolio_plans_dir() survives it too, called RAW as the corpus does")
+    shutil.rmtree(tmpn, ignore_errors=True)
+
+    print("  detection by first heading, not only by filename:")
+    # The register links are unchanged, so the ONLY thing that moved is how the
+    # master is recognised — `# Master Plan:` with a filename that says nothing.
+    renamed = "2026-08-01-alpha-umbrella.md"
+    tmp4, repo4, _ = group_fixture(mod, {
+        renamed: GROUP_MASTER,
+        SUB1_NAME: GROUP_SUB_1.replace(MASTER_NAME, renamed),
+        SUB2_NAME: GROUP_SUB_2})
+    lines4 = plain_lines(mod, repo4)
+    check(len(lines4) == 3 and lines4[0].startswith("⚙ ")
+          and lines4[1].startswith("├─ ") and lines4[2].startswith("└─ "),
+          f"a master named `-umbrella.md` still groups its children (got {lines4})")
+
+    print("  ...and by filename, with no `# Master Plan:` heading at all:")
+    # Tier-1 Important. master-plan-format.md documents the two signals as
+    # INDEPENDENTLY sufficient, and is_master_plan() ORs them — but every other
+    # fixture satisfies both at once, so a regression that broke only the
+    # filename branch would pass the whole suite. This is the converse
+    # isolation: `-master-plan.md` on disk, `# Project Plan:` in the body.
+    body_says_nothing = GROUP_MASTER.replace("# Master Plan: alpha", "# Project Plan: alpha")
+    check("# Master Plan:" not in body_says_nothing,
+          "fixture precondition: the body carries no master heading")
+    tmp4b, repo4b, _ = group_fixture(mod, {
+        MASTER_NAME: body_says_nothing, SUB1_NAME: GROUP_SUB_1, SUB2_NAME: GROUP_SUB_2})
+    lines4b = plain_lines(mod, repo4b)
+    check(len(lines4b) == 3 and lines4b[0].startswith("⚙ ")
+          and lines4b[1].startswith("├─ ") and lines4b[2].startswith("└─ "),
+          f"the filename suffix alone is sufficient (got {lines4b})")
+
+    print("  the backlink alone is enough when the register omits the sub-plan:")
+    # Mirror image of sub-02's case: the register names nothing, so only the
+    # `Master:` line can associate these. Asserting the union really is a union,
+    # rather than one mechanism doing all the work in both directions.
+    bare = "# Master Plan: alpha\n\n## Sub-plans\n\n### Sub-plan 1: foundation\n- **Status:** [x]\n"
+    tmp5, repo5, _ = group_fixture(mod, {MASTER_NAME: bare, SUB1_NAME: GROUP_SUB_1})
+    lines5 = plain_lines(mod, repo5)
+    check(len(lines5) == 2 and lines5[0].startswith("⚙ ") and lines5[1].startswith("└─ "),
+          f"backlink-only grouping works, and an only child gets └─ (got {lines5})")
+
+    print("  the executing plan's GROUP leads, and the master stays above it:")
+    # A newer unrelated plan outranks the whole group. The pinned plan is the
+    # CHILD, so hoisting the plan rather than its group would put a sub-plan
+    # above its own master and leave the glyphs pointing at nothing.
+    #
+    # Two members, not three, and that is load-bearing rather than incidental:
+    # a 3-member group exactly fills MAX_BARS, so no unrelated plan can be
+    # chosen alongside it and the ordering rule under test would never be
+    # exercised. See BL-056 — the cap selects plans by rank with no knowledge of
+    # this association, so a 4th eligible plan CAN evict a master and leave its
+    # children ungrouped. That is a selection trade-off, not this function's.
+    tmp6, repo6, vplans6 = group_fixture(mod, {
+        MASTER_NAME: GROUP_MASTER, SUB1_NAME: GROUP_SUB_1,
+        "2026-09-09-unrelated-plan.md": GROUP_SUB_1.replace("Master:", "NotMaster:")})
+    (repo6 / ".claude" / "plan-progress.json").write_text(json.dumps({
+        "plan": str(vplans6 / SUB1_NAME), "phase": "task", "stage": 1, "task": "1.1",
+        "updated": datetime.now(timezone.utc).isoformat()}))
+    lines6 = plain_lines(mod, repo6)
+    check(len(lines6) == 3, f"still capped at MAX_BARS=3 (got {len(lines6)})")
+    check(lines6 and lines6[0].startswith("⚙ ") and "alpha-master" in lines6[0],
+          f"the pinned plan's group leads, though a 2026-09-09 plan is newer "
+          f"({lines6})")
+    check(len(lines6) > 2 and lines6[1].startswith("└─ ") and "sub-01" in lines6[1]
+          and "▶ T1.1" in lines6[1],
+          f"the pinned child keeps its phase indicator UNDER its master ({lines6})")
+    check(len(lines6) > 2 and "unrelated" in lines6[2] and not lines6[2].startswith("└"),
+          f"the newer unrelated plan is pushed below the whole group ({lines6})")
+
+    for d in (tmp, tmp2, tmp3, tmp4, tmp5, tmp6):
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def case_ordering_ignores_mtime():
     """Stage 2 gate check 4 — the mechanism the amended check actually names.
 
@@ -923,6 +1329,7 @@ def main():
     case_ordering_ignores_mtime()
     case_render_returns_lines()
     case_master_plans_are_countable()
+    case_master_grouping()
 
     print()
     if FAILURES:
