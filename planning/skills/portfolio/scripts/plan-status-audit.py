@@ -42,6 +42,7 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -261,6 +262,73 @@ def _is_inside(child, parent):
         return False
 
 
+SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b")
+
+
+def register_evidence(plan_path, sibling_plans):
+    """(note, shas) if a master's register marks THIS plan done, else (None, []).
+
+    THE STRONGEST EVIDENCE AVAILABLE, and the tool was blind to it. Found while
+    verifying a candidate by hand for the gate's end-to-end run: multitor's
+    `2026-08-03-backlog-sweep-sub-01-install-integrity-plan.md` reads 9/9 with no
+    close-out line, and its MASTER's register says
+
+        ### Sub-plan 1: Install & uninstall integrity
+        - **Status:** [x] — green 2026-08-04 (commit `86619ad`)
+        - **Plan:** ./2026-08-03-backlog-sweep-sub-01-install-integrity-plan.md
+
+    That is a human, in a different document, asserting this exact plan is done
+    and naming the commit — which then verifies in the repo ("Sub-plan 1 green —
+    install & uninstall integrity"). Nothing the git-message search can produce
+    comes close, and unlike the correlative signal it identifies THE PLAN rather
+    than a repo and a period.
+
+    Why it was missed: Task 4.2 says "gather evidence from the project repo's
+    git", so the search went to git and stopped. The corroboration was in the
+    vault the whole time, in a structured form this repo already parses —
+    SUBPLAN_RE, STATUS_RE and link_target all live in the contract owner and are
+    reused verbatim here rather than re-derived.
+
+    Scoped to the plan's own directory: a register in one project cannot vouch
+    for a plan in another, and every master lives beside its sub-plans.
+    """
+    for master in sibling_plans:
+        if master == plan_path:
+            continue
+        try:
+            text = master.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if not pu.is_master_plan(text, master):
+            continue
+
+        entry_status = None
+        for line in text.splitlines():
+            if pu.SUBPLAN_RE.match(line):
+                entry_status = None          # a new entry; forget the last one
+                continue
+            sm = pu.STATUS_RE.match(line)
+            if sm:
+                entry_status = line
+                continue
+            lm = pu.SUBPLAN_LINK_RE.match(line)
+            if lm and entry_status is not None:
+                target = pu.link_target(lm.group(1))
+                if not target:
+                    continue
+                try:
+                    same = (master.parent / target).resolve() == plan_path.resolve()
+                except (OSError, ValueError):
+                    same = False
+                if same:
+                    m = pu.STATUS_RE.match(entry_status)
+                    if m and pu.status_state(m.group(1)) == "done":
+                        return (f"{master.name} marks it done: "
+                                f"{entry_status.strip()}"), SHA_RE.findall(entry_status)
+                    return None, []          # named, but NOT marked done
+    return None, []
+
+
 def _git_log(repo, args):
     try:
         r = subprocess.run(
@@ -272,6 +340,33 @@ def _git_log(repo, args):
     if r.returncode != 0:
         return None, f"git log failed: {(r.stderr or '').strip()[:120]}"
     return [ln for ln in r.stdout.splitlines() if ln], None
+
+
+def verify_shas(repo_path, shas, vault):
+    """[(sha, subject)] for each sha that really exists in the project repo.
+
+    A register entry that NAMES a commit is only as good as that commit being
+    real: the line is prose a human typed, and a typo, a rebase or a discarded
+    branch all leave it pointing at nothing. Resolving each one turns "someone
+    wrote a hash" into "this commit exists and says this", which is the
+    difference between a citation and a claim.
+    """
+    if not repo_path or not shas:
+        return []
+    repo = Path(repo_path).expanduser()
+    if _is_inside(repo, vault) or not (repo / ".git").exists():
+        return []
+    out = []
+    for sha in shas[:5]:
+        try:
+            r = subprocess.run(["git", "-C", str(repo), "log", "-1",
+                                "--format=%h\t%ad\t%s", "--date=short", sha],
+                               capture_output=True, text=True, timeout=GIT_TIMEOUT)
+        except (subprocess.TimeoutExpired, OSError):
+            return out
+        if r.returncode == 0 and r.stdout.strip():
+            out.append(r.stdout.strip())
+    return out
 
 
 def git_evidence(repo_path, plan_path, vault):
@@ -356,6 +451,7 @@ def audit(vault, projects, with_evidence=True):
     wall clock could never satisfy it.
     """
     rows = enumerate_plans(vault, projects)
+    siblings = {}       # plan path -> the other plans in its directory
     report = {
         "projects": [],
         "classes": {c: [] for c in CLASSES},
@@ -391,10 +487,22 @@ def audit(vault, projects, with_evidence=True):
                 report["unclassifiable"].append(entry)
             elif detail == "all-tasks-done-no-closeout":
                 report["candidates"].append(entry)
+                siblings[str(f)] = files
 
     if with_evidence:
         for c in report["candidates"]:
-            commits, strength, err = git_evidence(c["repo"], Path(c["path"]), vault)
+            path = Path(c["path"])
+            # The vault-side register first: it is the only signal that names
+            # THIS plan, and it needs no git at all.
+            note, shas = register_evidence(path, siblings.get(c["path"], []))
+            if note:
+                verified = verify_shas(c["repo"], shas, vault)
+                c["register_note"] = note
+                c["evidence"] = verified
+                c["evidence_strength"] = "register+commit" if verified else "register"
+                c["evidence_error"] = None
+                continue
+            commits, strength, err = git_evidence(c["repo"], path, vault)
             c["evidence"] = commits
             c["evidence_strength"] = strength
             c["evidence_error"] = err
@@ -483,6 +591,14 @@ def describe_evidence(c):
     if c.get("evidence_error"):
         return f"evidence: NONE — {c['evidence_error']}"
     strength = c.get("evidence_strength", "none")
+    if strength == "register+commit":
+        return (f"evidence (STRONGEST — its master's register marks this plan done "
+                f"AND names a commit that resolves in the repo)\n      register: "
+                f"{c['register_note']}\n      verified commit(s):")
+    if strength == "register":
+        return (f"evidence (STRONG — its master's register marks this plan done; "
+                f"no commit named, or the one named does not resolve)\n      "
+                f"register: {c['register_note']}")
     if strength == "names-the-plan":
         return (f"evidence (STRONG — {len(c['evidence'])} commit(s) name this plan "
                 f"by file):")
@@ -551,7 +667,11 @@ def completion_line(today, evidence, strength):
     confirmed it, so that is what the line says.
     """
     hashes = ", ".join(line.split("\t")[0] for line in (evidence or [])[:5])
-    if strength == "names-the-plan" and hashes:
+    if strength == "register+commit" and hashes:
+        detail = f"evidence: master register + commit(s) {hashes}"
+    elif strength == "register":
+        detail = "evidence: its master's register marks this plan done"
+    elif strength == "names-the-plan" and hashes:
         detail = f"evidence: {hashes}"
     elif strength == "correlative" and hashes:
         detail = (f"user-confirmed; no commit names this plan — correlated with "

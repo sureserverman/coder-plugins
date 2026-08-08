@@ -423,6 +423,47 @@ def case_evidence_is_graded():
     check(s3 == "none" and not c3,
           f"a pre-dated stage commit is excluded by --since ({s3}, {c3})")
 
+    print("  a master's register naming THIS plan is the strongest signal:")
+    # The register is the only source that identifies the plan itself. Fixture
+    # mirrors the live shape that prompted it (multitor's backlog-sweep master).
+    reg_dir = tmp / "vault2" / "Portfolio" / "a" / "p" / "plans"
+    reg_dir.mkdir(parents=True)
+    sub = reg_dir / "2026-03-01-topic-sub-01-thing-plan.md"
+    sub.write_text(task("1.1", "x"), encoding="utf-8")
+    master = reg_dir / "2026-03-01-topic-master-plan.md"
+    master.write_text(
+        "# Master Plan: topic\n\n## Sub-plans\n\n"
+        "### Sub-plan 1: Thing\n"
+        "- **Status:** [x] — green 2026-03-02 (commit `deadbee`)\n"
+        f"- **Plan:** ./{sub.name}\n\n"
+        "### Sub-plan 2: Other\n"
+        "- **Status:** [ ]\n"
+        "- **Plan:** ./2026-03-01-topic-sub-02-other-plan.md\n", encoding="utf-8")
+    other = reg_dir / "2026-03-01-topic-sub-02-other-plan.md"
+    other.write_text(task("1.1", "x"), encoding="utf-8")
+    sibs = sorted(reg_dir.glob("*.md"))
+
+    note, shas = mod.register_evidence(sub, sibs)
+    check(note and "marks it done" in note, f"a done register entry is found ({note})")
+    check(shas == ["deadbee"], f"and the commit it names is extracted ({shas})")
+
+    print("  but an entry that is NOT marked done vouches for nothing:")
+    note2, shas2 = mod.register_evidence(other, sibs)
+    check(note2 is None and shas2 == [],
+          f"sub-02's entry is [ ], so the register does not vouch for it ({note2})")
+
+    print("  a named commit that does not resolve is not counted as verified:")
+    repo3 = make_repo(tmp / "d", "unrelated work")
+    verified = mod.verify_shas(str(repo3), ["deadbee"], vault)
+    check(verified == [], f"a bogus sha resolves to nothing ({verified})")
+    real = subprocess.run(["git", "-C", str(repo3), "rev-parse", "--short", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+    verified2 = mod.verify_shas(str(repo3), [real], vault)
+    check(len(verified2) == 1 and "unrelated work" in verified2[0],
+          f"a real one resolves, with its subject ({verified2})")
+    check(mod.completion_line("2026-03-03", verified2, "register+commit").count("master register") == 1,
+          "and the written line says the register plus the commit backed it")
+
     print("  with no evidence at all, the line still records who decided:")
     line4 = mod.completion_line("2026-02-02", [], "none")
     check("user-confirmed; no commit evidence found" in line4,
