@@ -138,7 +138,10 @@ When you find one:
 
 1. **Diagnose evidence-first.** Invoke `no-fafo-debugging` before generalizing. The order is
    not decorative: a set derived from a wrong root cause is a *wrong set*, so the sweep would
-   then run confidently over the wrong population and report green.
+   then run confidently over the wrong population and report green. **This step begins where
+   the failure becomes *unexpected*** — the first RED of a Red-Green cycle is the test doing
+   its job and has nothing to diagnose, which is why rule 2's second-cycle threshold stands
+   rather than being overridden here.
 2. **Name the set, and enumerate it with a command** — grep the defect's distinguishing
    string, list every sibling of the failing artifact's kind, list every caller of the changed
    symbol. Start from the task's `Scope:` field where it declares one; that is a starting
@@ -168,8 +171,17 @@ green over a population nobody defined.
 
 **It costs a command, never a dispatch** (DEC-010). The sweep is a `grep`, an `ls`, a `git
 grep` you run yourself — so it belongs with the untiered mandates (the dispatch roster, the
-executor trailer, honest-gates disclosure, the plan's own tests and gate checks) and runs at
+executor trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, the plan's
+own tests and gate checks) and runs at
 **every** review tier, including `none`. A tier gates agent cost; this has none to gate.
+
+**One dispatch-shaped consequence, named so it is not a surprise.** A sweep that pulls a
+risk-listed file into the diff — auth, schema, a data-destructive path — trips the risk floor
+and escalates the plan's tier (§ Review scope), and *that* buys dispatches. This is the
+sanctioned way up rather than a breach of the cost rule: the escalation runs through the tier
+mechanism, is declared in the gate report like any other, and is the correct outcome, because
+a plan whose blast radius just reached an auth path is a riskier plan than the one that was
+declared. Say so in the gate report when it happens; never suppress the sweep to avoid it.
 
 ---
 
@@ -339,8 +351,9 @@ overlap), with the risk floor below overriding that order upward.
 
 **What the tier gates** is everything in the row — both review tiers, the gate evaluator, the
 close-out evaluator, the second pass. What it does **not** gate is the dispatch roster, the
-executor trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, and the
-plan's own tests and gate checks: those run at every tier including `none`. The line is cost —
+executor trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, the class
+sweep of § A bug found during execution is a class, and the plan's own tests and gate checks:
+those run at every tier including `none`. The line is cost —
 a mandate costing an agent dispatch is tiered, a mandate costing a line of text is not.
 
 **The format decides the review's SHAPE. The tier decides its DEPTH.** Direct and Light plans
@@ -788,7 +801,7 @@ When every stage is green:
    This step exists because `light`'s single review is the whole plan's only white-box pass;
    a close-out that forgot it would ship a tier that reads as reviewed and was not.
 
-3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
+3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5, and **each finding is repaired as a class** per § A bug found during execution is a class — a close-out evaluator reads the whole plan diff, which is the widest view any reader gets and therefore the one most likely to name one instance of something true of several. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
 4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
    Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
    wherever the project records it **and every place that mirrors it** — grep the old version

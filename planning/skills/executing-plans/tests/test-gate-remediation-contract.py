@@ -63,6 +63,12 @@ What it pins:
      the gate reports dispatched-vs-inline, an unperformable dispatch or review is a
      Stop condition, review skips are closed at two reasons, an opt-out is evidenced,
      and both report sites name the reviewer and the diff.
+ 12. (class repair) The class-repair rule has its own trunk section, states that it
+     fires outside a gate, is priced as a command rather than a dispatch (DEC-010),
+     carries its outer bound and its un-nameable-class disclosure, and is reached
+     from every site where a defect can surface — that last one checked as a SET,
+     printing the specific unwired site, because an instance-shaped check cannot
+     fail on the siblings that make the class.
 
      **Deliberately small.** The first version of this group ran 62 assertions plus a
      574-line mutation harness that re-ran this suite against mutated copies, plus a
@@ -296,7 +302,7 @@ def main():
           "no '## A bug found during execution is a class' section — the rule is either "
           "deleted or has collapsed back inside a single caller")
     check("the rule fires beyond gates, naming the non-gate discovery sites",
-          affirms(class_rule, r"not\*?\*? scoped to gates|RED test|while editing"),
+          affirms(class_rule, r"RED test|while editing"),
           "the rule does not say it fires outside a gate, which is the entire change: "
           "scoped to gates it is the rule that already existed")
     check("the gate-failure branch routes to the shared rule",
@@ -313,7 +319,7 @@ def main():
         ("Red-Green loop", r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget"),
         ("Tier-1 Critical", r"\*\*Critical → blocking", r"\*\*Important / Suggestion"),
         ("Tier-2 review", r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance"),
-        ("gate evaluator", r"\*\*Every finding it returns is a class sample",
+        ("gate evaluator", r"\*\*Independent evaluator for non-command checks",
          r"\*\*Deep code review \(Tier 2\)"),
         ("gate failure", r"\*\*If the gate fails", r"\*\*If the gate passes"),
     ]
@@ -339,7 +345,7 @@ def main():
           "tell whether the review tier gates it (DEC-010 says a command-cost mandate "
           "is never tiered)")
     check("the sweep's outer bound is stated",
-          affirms(class_rule, r"not a licence to refactor|nothing wider"),
+          affirms(class_rule, r"nothing wider"),
           "nothing bounds the sweep to the defect's own predicate, so it reads as "
           "authorisation for unrelated refactoring")
     check("an un-nameable class is disclosed rather than swept by feel",
