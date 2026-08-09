@@ -547,7 +547,7 @@ Before showing the plan to the user, verify:
 - [ ] Every stage has a gate with specific checks
 - [ ] No stage has more than 7 tasks
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
-- [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it — no check names one artifact where the goal is a property of many (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED)
+- [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it, or — where one artifact genuinely *is* the whole set — the `(scoped)` marker saying why. No check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED; see `references/set-valued-checks.md`)
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)

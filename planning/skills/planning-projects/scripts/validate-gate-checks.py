@@ -8,10 +8,15 @@ siblings that make the defect class; they survive the gate and each one costs
 another remediation round. In the run that motivated this script, one defect
 class was discovered across four separate gate rounds for exactly that reason.
 
-Every legitimate check has one of two shapes:
+Every legitimate check has one of three shapes:
 
     EXECUTABLE  a command that sweeps the set it is claiming over
     JUDGMENT    marked `(judgment)`, because a reader genuinely must verify it
+    SCOPED      marked `(scoped)`, because one artifact really is the whole set — a
+                backlog ID unique within one register, a single generated manifest.
+                The author asserts it in the check so a reviewer can disagree; syntax
+                cannot tell this from the harmful narrow form, and widening it anyway
+                produces a check that cannot pass at all rather than a stricter one.
 
 Two failure shapes:
 
@@ -231,6 +236,21 @@ def classify(check):
     """-> (class, reason)"""
     if re.search(r"\(judgment\)", check, re.I):
         return "JUDGMENT", "explicitly marked for a reader"
+    if re.search(r"\(scoped\)", check, re.I):
+        # The third sanctioned shape, and the one this script had no answer for. Its own
+        # limits section already conceded the category — "the rest were single-file facts
+        # where one file really is the whole set" — while still failing them, so an author
+        # writing the correct narrow check was told to widen it. Widening a claim past the
+        # set it is over does not make it stricter, it makes it unpassable: the check that
+        # motivated this marker swept a whole portfolio for a backlog ID that is unique only
+        # within one project's register, so it matched two dozen unrelated entries and could
+        # never go green whatever the plan did.
+        #
+        # A marker rather than a cleverer classifier, because the judgment is not syntactic.
+        # No amount of reading `grep -l X one/file.md` reveals whether that file is the whole
+        # set; only the author knows. So the author asserts it, in the check, where a reviewer
+        # can see the sentence and disagree with it — the same bargain `(judgment)` makes.
+        return "SCOPED", "author asserts one artifact is the whole set"
 
     cmds = [s for s in backticked(check) if is_command(s)]
     if cmds:
@@ -359,7 +379,7 @@ def unswept_scopes(text):
         # advisory contradict the rule it exists to support, flagging a stage that
         # covered its Scope: the sanctioned second way. An advisory that is wrong on
         # its own stated criteria teaches authors to route around it.
-        if not any(classify(c)[0] in ("EXECUTABLE", "JUDGMENT") for c in checks):
+        if not any(classify(c)[0] in ("EXECUTABLE", "JUDGMENT", "SCOPED") for c in checks):
             out.append(m.group(1).rstrip(":"))
     return out
 
@@ -371,7 +391,7 @@ def main(argv=None):
                     help="print counts and failures only")
     args = ap.parse_args(argv)
 
-    totals = {"EXECUTABLE": 0, "JUDGMENT": 0, "INSTANCE-SHAPED": 0, "PROSE": 0}
+    totals = {"EXECUTABLE": 0, "JUDGMENT": 0, "SCOPED": 0, "INSTANCE-SHAPED": 0, "PROSE": 0}
     failures = []
     examined_files = 0
     empty_files = []

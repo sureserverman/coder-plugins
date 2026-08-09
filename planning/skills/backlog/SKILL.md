@@ -103,12 +103,19 @@ Inputs: title, source (plan path + stage/task, or `ad-hoc`), reason, next step, 
 
 Inputs: one or more BL-IDs.
 
-1. Read the file.
+1. Read the file. **Count the entries first** — `grep -c '^## BL-'` — and hold that number.
 2. For each ID:
    - If no block matches the exact ID header, report `BL-NNN not found` and skip.
-   - Else delete the entry block — from its `## BL-NNN — ...` heading through the next `---` separator (inclusive).
-3. Save.
-4. Report: `Removed BL-NNN, BL-NNN.` The calling commit message should include `Closes BL-NNN` so the rationale is recoverable from `git log`.
+   - Else delete the entry block — from its `## BL-NNN — ...` heading **up to the next line beginning `## BL-`, or end of file** — then drop any `---` separator and blank lines the deletion stranded.
+3. **Before saving, count again: the total must have dropped by exactly the number of IDs removed.** If it dropped by more, discard the edit, save nothing, and surface it.
+4. Save.
+5. Report: `Removed BL-NNN (22 entries → 21).` The calling commit message should include `Closes BL-NNN` so the rationale is recoverable from `git log`.
+
+**Why the boundary is the next heading and not the next `---` — which is what this said until 2026-08-09.** An entry ends where the next entry begins. That is true of every backlog file. "There is a `---` before the next one" is true only of files that kept their separators, and real ones drift: a register measured that day had **22 entries and 9 separators**. Deleting "through the next `---`" on it removed the target *and the three entries after it*, because the next separator was four entries away. The instruction was followed exactly as written — the rule was wrong, not the reader.
+
+**And why step 3 exists rather than trusting step 2.** The safety rail below already said to stop if the structure "looks corrupt (missing `---` separators)". A file carrying separators on its older entries and not its newer ones does not look corrupt; it looks tidy. A guard that depends on noticing something looks wrong is not a guard. Counting is: one `grep -c`, no judgment about the file, and it fails loudly on precisely the mistake that has actually happened.
+
+**Assume the register cannot be restored.** It lives in the vault, which is commonly a network mount rather than a git working tree, so "git is the archive" — true of this plugin's own repo — does not hold where the file actually is. An over-wide delete there is permanent.
 
 **Hard rules:**
 
@@ -213,9 +220,10 @@ Operation:
 
 ## Safety rails
 
-- The file is git-tracked. Don't `rm` it, don't rewrite it whole — only append/remove discrete blocks.
+- **Do not assume the file is recoverable.** It lives in the vault, which is frequently a network mount and not a git working tree — check before relying on "git is the archive", because where this file actually sits there may be no archive at all.
+- Don't `rm` it, don't rewrite it whole — only append/remove discrete blocks.
 - Never auto-remove from a "looks implemented" heuristic — only on explicit instruction or `Closes BL-NNN` declared in a plan's Close-out.
-- Preserve unrelated entries byte-for-byte during any edit. If the file's structure looks corrupt (missing `---` separators, duplicate IDs), stop and surface to the user.
+- Preserve unrelated entries byte-for-byte during any edit. **Prove it by counting** (`remove` step 3) rather than by inspecting: missing `---` separators are the normal state of a file that has been appended to for a while, not a sign of corruption, and treating them as one is what let an over-wide delete through. Duplicate IDs are still worth stopping on.
 
 ## Remember
 

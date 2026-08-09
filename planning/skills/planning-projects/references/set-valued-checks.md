@@ -31,8 +31,51 @@ reader — "reads coherently", "the flow works end-to-end", a conformance judgme
 the evaluator instead of trying to make prose executable. Those two shapes cover every
 legitimate check; anything else is an instance-shaped claim waiting to be rewritten.
 
+### The opposite error: widening past the set the claim is over
+
+Everything above pushes one way, so the failure it produces is over-correction — and that one
+is worse than the mistake it avoids, because the check does not merely fail to catch things,
+it **cannot pass at all**. A real example, from a gate check that shipped:
+
+- **BAD (too wide)** — `` ! grep -rln 'BL-008' /mnt/vault/Portfolio/ --include='*backlog*.md' | grep . `` — "the entry is removed from every register that carries it"
+- **GOOD** — `` ! grep -l '^## BL-008 ' /mnt/vault/Portfolio/<area>/<project>/backlog.md ``
+
+Backlog IDs are unique **within one project's register**, not across a portfolio. Twenty other
+projects number their own entries from BL-001, so the wide sweep matches two dozen unrelated
+entries and reports failure whatever the plan did. It also matched any *mention* of the string
+— a `Closes BL-008` in a neighbouring entry, a note explaining the removal — rather than the
+entry itself, which is why the `^## ` anchor belongs in it too.
+
+**One artifact is instance-shaped only when the claim is over many.** "Every file in this
+plugin has stopped saying X" is a set of files and needs `-r`. "This project's register no
+longer holds this entry" is a set of exactly one register, and naming it is correct rather
+than lazy. The question is never how many paths the command touches; it is whether the paths
+it touches are the ones the claim is about.
+
+**A check nobody can pass is not a strict check, it is an absent one** — and it is worse than
+absent when an executor takes it literally. That one was: the removal written against its
+premise deleted three unrelated entries from a register with no version control behind it. So
+before writing a sweep wider than one file, **run it once against the current tree and read
+what comes back.** If it returns matches the plan will never remove, the scope is wrong.
+
+**Mark it `(scoped)` and say why.** The validator cannot tell a correct narrow check from the
+harmful one — nothing in `grep -l X one/file.md` reveals whether that file is the whole set —
+so it failed both, and an author obeying it widened a claim that should not have been widened.
+The marker is the third sanctioned shape beside `(judgment)`, and it carries the same bargain:
+the author asserts the thing syntax cannot see, in the check, where a reviewer can read the
+sentence and disagree with it.
+
+```
+- [ ] **(scoped)** `! grep -l '^## BL-008 ' <vault>/Portfolio/<area>/<project>/backlog.md`
+      — backlog ids are unique within one project's register, so this file is the whole set
+```
+
+Use it only when one artifact really is the set. It is not a waiver for a narrow check over a
+wide claim — that is still INSTANCE-SHAPED, and the identical check without the marker still
+fails, which `tests/test-validate-gate-checks.py` group 2b pins in both directions.
+
 This is enforced mechanically rather than left to discipline. `../scripts/validate-gate-checks.py`
-classifies every check in a plan as EXECUTABLE / JUDGMENT / INSTANCE-SHAPED / PROSE, and
+classifies every check in a plan as EXECUTABLE / JUDGMENT / SCOPED / INSTANCE-SHAPED / PROSE, and
 `executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before
 you present it:
 
@@ -50,5 +93,5 @@ post-rule plan that skipped the check from a legacy one — it reports either id
 authored outside this skill, or hand-edited after authoring, reaches execution unenforced. If
 that becomes a real leak, the fix is a marker the authoring check writes and the executor looks
 for; today it is discipline with a mechanical *reporter*, not a mechanical *gate*. Calibrated
-against 374 real gate checks across 41 plans; its known limits, including the one escape hatch
-left open, are stated in the script's own docstring.
+against 374 real gate checks across 41 plans; its known limits, and both author-asserted
+markers, are stated in the script's own docstring.

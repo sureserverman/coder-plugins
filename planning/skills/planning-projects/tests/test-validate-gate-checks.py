@@ -70,6 +70,9 @@ check(kind("`python3 scripts/check-doc-coverage.py` exits 0") == "EXECUTABLE",
       "invoking a program is EXECUTABLE")
 check(kind("**(judgment)** reads coherently — a sweep cannot prove it") == "JUDGMENT",
       "the (judgment) marker classifies as JUDGMENT")
+check(kind("**(scoped)** `! grep -l '^## BL-008 ' vault/infra/proj/backlog.md` — ids are "
+           "unique within one register") == "SCOPED",
+      "the (scoped) marker classifies as SCOPED")
 check(kind("the README no longer claims the stack is not project-agnostic")
       == "INSTANCE-SHAPED",
       "prose naming one artifact is INSTANCE-SHAPED (the canonical BAD form)")
@@ -289,6 +292,22 @@ rc5, out5 = run(scoped_plan("every commands/*.md", "the README no longer claims 
 rc6, _ = run(plan("the README no longer claims X"))
 check(rc5 == rc6,
       "exit code is identical with and without the Scope: field — advisory, not a gate")
+
+print("group 2b — (scoped) rescues the narrow-but-correct check without widening the default")
+# The marker exists because widening a claim past the set it is over does not make the check
+# stricter — it makes it unpassable. The check that motivated it swept a whole portfolio for a
+# backlog ID unique to one project's register, matched two dozen unrelated entries, and could
+# never go green. What must NOT happen is the marker becoming a general waiver, so both halves
+# are pinned: the marked check passes, and the identical check without it still fails.
+_scoped = "`! grep -l '^## BL-008 ' vault/infra/proj/backlog.md`"
+check(kind(f"**(scoped)** {_scoped} — one register is the whole set") == "SCOPED",
+      "a marked single-path check is SCOPED, not INSTANCE-SHAPED")
+check(kind(f"{_scoped} — one register is the whole set") == "INSTANCE-SHAPED",
+      "the SAME check unmarked still fails — the marker is the assertion, not the path shape")
+check(run(plan(f"**(scoped)** {_scoped} — one register is the whole set"))[0] == 0,
+      "a plan whose only check is (scoped) exits 0")
+check(run(plan(f"{_scoped} — one register is the whole set"))[0] == 1,
+      "the same plan unmarked exits 1")
 
 print("group 9 — the docstring's calibration numbers match the frozen corpus")
 # Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
