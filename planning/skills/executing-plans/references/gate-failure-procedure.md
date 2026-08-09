@@ -66,7 +66,9 @@ third.
 
 **Stop repairing when the exit criterion above is met** — no Critical remaining,
 every Important fixed — the `backlog` is not a disposition for a defect (trunk, § Exit
-criterion). Do not spend a round chasing Suggestions, and do not spend one trying to make a
+criterion). A defect this session genuinely cannot fix — it needs a device, a credential,
+an upstream release — escalates with its blocker named; that is the only exit that is not
+a repair, and it is the user's call from there. Do not spend a round chasing Suggestions, and do not spend one trying to make a
 judgment agent go quiet.
 
 **On budget exhaustion, escalate with the residual list.** Report the findings

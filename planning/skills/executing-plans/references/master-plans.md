@@ -38,7 +38,8 @@ gate and surfaces only at the master close-out — the most expensive place to f
    is handled like any stage-gate failure — same severity classification, remediation
    budget, and the same **exit criterion** — no Critical remains and each Important leaves the
    gate **fixed**, traced to the responsible sub-plan/task or to the defect class it belongs
-   to), append
+   to; a defect this session cannot fix escalates with its blocker named rather than being
+   filed, exactly as at a stage gate), append
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
