@@ -659,6 +659,73 @@ def main():
               affirms_predicate(bt, r"Refuse", r"defect"),
               "the backlog skill has no refusal path, so `add` still accepts a defect")
 
+    # 11b — (dispatch precedence) The rule that a plan's mandated dispatch needs no
+    # confirmation turn. One assertion per clause, and the BOUND is pinned as hard as the
+    # rule: the recorded incident produced BOTH failures — an executor reading the standing
+    # caution as absolute (37 commits, zero dispatches, every mandated review skipped), and
+    # then the over-correction that inverted the rule instead of scoping it. A guard that
+    # pinned only the permissive half would let the second one back in.
+    precedence = section(text, r"## The plan is the authorization",
+                         r"## A bug found during execution is a class")
+    check("dispatch-precedence rule stated as its own trunk section", bool(precedence),
+          "no '## The plan is the authorization' section — a session must then re-derive "
+          "the precedence between the standing caution and the plan's execution model")
+    check("slice is bounded, not fallen through: precedence", len(precedence) < 4000,
+          f"the precedence slice is {len(precedence)} chars — its end anchor no longer "
+          f"matches, so the checks below are reading the rest of the document")
+    # These four requirements have a NEGATION as their subject — "conditional, not
+    # absolute", "no plan in play", "over-corrected", "without asking" — so affirms(),
+    # which screens negation tokens inside the match, rejects every one of them on true
+    # prose. Same call the file already makes at check 9c. The phrases are specific enough
+    # that an inversion cannot match them accidentally, which is what affirms() would
+    # otherwise be buying.
+    check("the standing caution is named as CONDITIONAL, not absolute",
+          re.search(r"conditional, not absolute", precedence, re.I) is not None,
+          "the rule does not say the standing caution is conditional, which is the whole "
+          "resolution — without it the two rules still contradict and the general one wins")
+    check("approving the plan is named as the request",
+          affirms(precedence, r"was the request|is the request"),
+          "nothing states that the plan's approval IS the request the caution refers to")
+    check("the BOUND is stated: no plan in play means you still ask",
+          re.search(r"no plan in play[\s\S]{0,160}?ask", precedence, re.I) is not None,
+          "the rule is stated without its bound, which is how it gets over-corrected into "
+          "its inverse — the documented second failure of the same incident")
+    check("the over-correction is recorded as a failure in its own right",
+          re.search(r"over-correct", precedence, re.I) is not None,
+          "only the permissive failure is recorded, so a reader has no warning against "
+          "inverting the rule rather than scoping it")
+    check("what still halts a dispatch is enumerated",
+          affirms(precedence, r"requires_enablement") and affirms(precedence, r"probe"),
+          "the rule removes the confirmation turn without saying what legitimately still "
+          "stops a dispatch, which reads as 'dispatch unconditionally'")
+
+    # 11c — the rule must reach the two files that actually make the decision, checked as a
+    # SET. dispatching-parallel-agents is where a fan-out is launched; dispatch-fidelity is
+    # where the reasoning is kept. A rule stated only in the trunk is a rule the dispatch
+    # path never reads.
+    DISPATCH_SITES = [
+        ("dispatching-parallel-agents", SKILLS_ROOT / "dispatching-parallel-agents"
+         / "SKILL.md", r"without asking"),
+        ("dispatch-fidelity rationale", SKILLS_ROOT / "executing-plans" / "references"
+         / "dispatch-fidelity.md", r"conditional"),
+    ]
+    missing = [name for name, path, pat in DISPATCH_SITES
+               if not (path.is_file()
+                       and re.search(pat, flat(path.read_text(encoding="utf-8")), re.I))]
+    check("dispatch precedence reaches: " + ", ".join(n for n, _, _ in DISPATCH_SITES),
+          not missing,
+          f"these dispatch-path files do not carry the rule: {', '.join(missing)}")
+
+    # 11d — tree-wide sweep: no skill may reintroduce a confirmation turn before a
+    # mandated dispatch. Fixtures excluded for the reason given at the admission sweep.
+    ASK_RE = re.compile(r"ask (?:the user )?(?:whether|if) to dispatch|"
+                        r"confirm before dispatching|permission to dispatch", re.I)
+    askers = [str(md.relative_to(SKILLS_ROOT))
+              for md in sorted(SKILLS_ROOT.rglob("*.md"))
+              if "fixtures" not in md.parts and ASK_RE.search(flat(md.read_text(encoding="utf-8")))]
+    check("no skill asks before a mandated dispatch", not askers,
+          "these still ask before dispatching: " + ", ".join(askers))
+
     # 9 — drift guard. The renderer hardcodes the default budget as its denominator when
     # `remediation_budget` is absent, which duplicates the number stated in the skill
     # prose. Nothing coupled them, so a prose edit to "default 3 rounds" would have left
