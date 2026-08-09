@@ -126,6 +126,49 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 
 ---
 
+## A bug found during execution is a class — sweep it, fix every instance
+
+**Any defect you find during a run is one sample of a class until a command proves
+otherwise.** This fires wherever a bug surfaces: a RED test inside a Red-Green loop, a
+finding from either review tier, an evaluator finding, a failed gate check, or something you
+simply notice while editing a file. It is **not** scoped to gates — the gate-failure branch
+is one caller of this rule, not its home.
+
+When you find one:
+
+1. **Diagnose evidence-first.** Invoke `no-fafo-debugging` before generalizing. The order is
+   not decorative: a set derived from a wrong root cause is a *wrong set*, so the sweep would
+   then run confidently over the wrong population and report green.
+2. **Name the set, and enumerate it with a command** — grep the defect's distinguishing
+   string, list every sibling of the failing artifact's kind, list every caller of the changed
+   symbol. Start from the task's `Scope:` field where it declares one; that is a starting
+   point, not an authority, and a sweep that finds members the `Scope:` did not means the
+   plan's `Scope:` line is wrong and is fixed as part of the repair.
+3. **Fix every member the sweep returns, in the same change** — not the instance that
+   happened to surface. A class repaired one instance per round is the oscillation the gate's
+   remediation budget exists to bound, and bounding it is not the same as converging.
+4. **Write the command down** — in the commit body, or in the gate report when a gate is what
+   surfaced the bug. The next round then argues with a command rather than a recollection.
+
+**The whole project is the search space, not the plan's blast radius.** A sibling instance
+living in a file this plan never touches is the same defect; "out of scope" describes a
+plan's *subject matter*, never a defect's *reach* (§ Exit criterion, on what a scope
+guardrail actually bounds). Fixing it is the cheapest it will ever be, because the diagnosis
+is already loaded.
+
+**Where the sweep stops.** It covers the defect's own predicate — whatever makes an instance
+an instance — and nothing wider. It is not a licence to refactor, restyle, or repair
+unrelated things that merely live nearby. **If you cannot write the command that separates
+members from non-members, you have not named the class yet**: say so, fix what you can
+identify, and record the limit rather than sweeping by feel.
+
+**It costs a command, never a dispatch** (DEC-010). The sweep is a `grep`, an `ls`, a `git
+grep` you run yourself — so it belongs with the untiered mandates (the dispatch roster, the
+executor trailer, honest-gates disclosure, the plan's own tests and gate checks) and runs at
+**every** review tier, including `none`. A tier gates agent cost; this has none to gate.
+
+---
+
 ## Phase 1 — Load and critique
 
 1. Read the plan file in full
@@ -368,7 +411,7 @@ Every task follows this loop. No task is "done" until its test is green.
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
-2. **Diagnose before fixing.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch.
+2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **§ A bug found during execution is a class** applies here exactly as it does at a gate: sweep for the siblings before you call the task green. A RED test is the earliest and cheapest place this rule fires, and the one where it is most often forgotten.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
@@ -377,7 +420,7 @@ Every task follows this loop. No task is "done" until its test is green.
    **Why the default moved.** Per-task review was unconditional through 0.36.0, so a nine-task plan paid nine review dispatches plus their re-dispatches after fixes, and the findings were overwhelmingly about the verification apparatus rather than the product. What Tier 1 uniquely buys is catching a Critical *before* it is built on — worth an agent when the change is risky, not worth nine when it is prose. Tier 2 still reads every line of the same diff at the gate; what a `standard` plan gives up is latency, not coverage. That is the trade, and it is why `high` keeps Tier 1 and why a single dangerous task can buy it back by annotation.
 
    When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing — briefed with the task description and its `Test:`. **Brief it to check behavioral claims too**: every sentence in the diff asserting what the code does (a default, an exit code, a count, an "every") is verified against the source or flagged, per `honest-gates`. Handle by severity:
-   - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
+   - **Critical → blocking.** A Critical finding means the task is not actually done. Fix it inline (one fix per cycle, diagnose first — same discipline as the Red-Green loop), sweeping its class per **§ A bug found during execution is a class**, then **re-run at fix-scope** — the task's own `Test:` plus the test classes the fix touched, never the full suite (`../planning-projects/references/test-scope-tiers.md`) — **and re-dispatch the review**. Critical-review cycles count against the *same* `Red-Green max cycles` budget as test failures; on exhaustion, escalate like any other budget exhaustion (Stop conditions). The executor applies the fix; the reviewer only ever reports.
    - **Important / Suggestion → advisory.** Do not act on them now. Append them to the plan file as a note under the task (`**Review notes (Task N.M):** …`) so the stage gate's deep review (Step 3.5) can triage the batch. They never block the task.
    - **Skip for trivial/non-code diffs.** Docs-only, config-only, pure version-bump, or comment-only diffs don't need Tier 1 even at `high` — note the skip and proceed. Honor a `Review: skip` task annotation and the global opt-out (see References) the same way — but an opt-out is **evidenced, not asserted** (§ Review opt-out): note the skip *with* the quote or the cited annotation, never as a bare "skipped". A task where the *tier* never called for Tier 1 needs none of this: that is scope, recorded once by the declared tier, not a per-task skip to evidence.
 
@@ -499,6 +542,11 @@ the tier says **always**, and there the excuse would contradict it — collapsin
 the *goal* was met, which a green command check does not establish; at `high` that question
 is exactly the one worth paying an agent for.
 
+**Every finding it returns is a class sample**, so the disposition of one is settled by
+**§ A bug found during execution is a class** — an evaluator reading the artifact black-box
+routinely names one instance of something that is true of several, and it has no way to know
+that.
+
 **Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
 nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
 always finds *something*, so "no adverse findings" is not a reachable state. Require, for
@@ -524,7 +572,9 @@ stage's collected `**Review notes (Task N.M):**` lines. It is a gate criterion, 
 **exit criterion** below, which governs every gate pass and not only one reached through the
 failure branch. Suggestions are recorded. This is the only point where findings are judged against the *coherent
 stage*, so cross-task issues Tier-1 could not see (duplication across tasks, an abstraction
-that should have been shared) surface here. **Brief it to audit the stage's behavioral claims
+that should have been shared) surface here. **Each finding is repaired as a class** per
+**§ A bug found during execution is a class** — a reviewer cites the line it read, which is
+one member of whatever set that line belongs to. **Brief it to audit the stage's behavioral claims
 as a set**, per `honest-gates` § *A behavioral claim is a gate too* — the stage view is where
 a claim that was true when written and false after a later task shows up.
 
@@ -595,24 +645,17 @@ found in a file you are already editing is in scope by default.** A plan that ge
 One question settles most cases: *would fixing this change what the gate measures?* If not,
 fixing it is not scope creep, and the guardrail is not about it.
 
-**If the gate fails:** treat it as a **defect class sampled once**, not a point defect.
-Detection at a gate is goal-scoped while repair defaults to instance-scoped, so a class with
-N instances costs about N rounds, each looking like fresh news.
+**If the gate fails:** a gate is one caller of **§ A bug found during execution is a class**,
+and the sharpest one — detection at a gate is goal-scoped while repair defaults to
+instance-scoped, so a class with N instances costs about N rounds, each looking like fresh
+news.
 
 1. **Classify every finding** as **Critical**, **Important**, or **Suggestion** — the same
    scale the review tiers use, so a gate finding and a review finding are graded once.
-2. **Diagnose evidence-first, then name the set.** Invoke `no-fafo-debugging` **first** — this
-   is the most fix-prone moment in the workflow, and the order is not decorative: a set
-   derived from a wrong root cause is a *wrong set*, so the sweep would then run confidently
-   over the wrong population and report green. Only then name the set the finding quantifies
-   over. **Derive it** from the failing task's `Scope:` field where it declares one — a
-   starting point, not an authority. **When no `Scope:` exists,
-   or the finding escapes it, enumerate the set now**: run the sweep the check should have
-   been (grep the defect's distinguishing string, list every sibling of the failing
-   artifact's kind, list every caller of the changed symbol) and **write the command down in
-   the gate report**, so the next round argues with a command rather than a recollection. If
-   that sweep finds members the `Scope:` did not, the plan's `Scope:` line is wrong — fix it
-   as part of the repair.
+2. **Run the shared rule** — diagnose evidence-first, name the set, enumerate it with a
+   command, and **write that command down in the gate report**. A failed gate under a bounded
+   round budget is the most fix-prone moment in the workflow, which is why the rule's
+   evidence-first ordering is load-bearing here rather than advisory.
 3. **Add a test covering the set**, not the one file that failed, and fix **every member the
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
@@ -803,7 +846,7 @@ When every stage is green:
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
 - Respect the gate's **remediation budget** too — counted and reported, with the default stated once at Step 3.5 rather than restated here; a gate passes when no Critical remains and every Important is fixed or recorded, never when the detector finally goes quiet
-- Repair the defect **class**, not the instance the gate happened to sample — name the set, sweep it
+- Repair the defect **class**, not the instance you happened to sample — name the set, sweep it, fix every member. This fires wherever a bug surfaces (RED test, review finding, evaluator finding, failed gate, something noticed while editing), not only at a gate
 - Stage gates check integration, not just aggregate task success; invoke the platform stage-verify skill there when one matches the project
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not
 - Commit each green task; never squash silently during execution
@@ -818,8 +861,9 @@ When every stage is green:
 
 Beck (TDD's red-green cycle), Cooper (phase gates), Gawande (preflight as a hard gate),
 Torvalds and *The Pragmatic Programmer* (commit per logical change), and Anthropic's
-harness-design work (independent evaluators, structured context handoffs). Full list with
-what each one is load-bearing for: `references/sources.md`.
+harness-design work (independent evaluators, structured context handoffs), plus Deming and
+Toyota's jidoka (repair the process that produced the defect, not the unit that showed it).
+Full list with what each one is load-bearing for: `references/sources.md`.
 ## Integration
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
