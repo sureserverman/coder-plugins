@@ -652,7 +652,7 @@ The asymmetry this closes: recording is frictionless and always available, while
 the gate you are trying to pass. So an executor under gate pressure drifted toward the backlog
 for *everything*, and each deferral read as discipline rather than as the avoidance it was. A
 backlog that grows by half a dozen entries per plan is the symptom. **Measured 2026-08-09 in
-this repo: 28 open entries, of which the most recent were titled "residual guard gaps found by
+this repo: 28 open entries, among them "residual guard gaps found by
 review, judged not worth closing yet" and "residual hardening … judged not worth closing
 now"** — findings, deferred, by the executor that found them. One of them (BL-041) left the
 repo's own test suite standing red for eight days, teaching every later reader to skim past
@@ -663,6 +663,21 @@ something this session does not have, and you say which. It does not mean the fi
 large, or risky, or like it belonged to someone else — those are the readings that reopen the
 door this rule closes. If you find yourself reaching for the valve twice in one gate, the
 honest report is that the gate is blocked, not that the backlog grew.
+
+**And the valve is evidenced, not asserted — the same bar § Review opt-out sets.** Escalating
+names the *missing thing* (`escalated: cannot reproduce without a physical device`), which is
+checkable against the session. If the user then decides to file it, that decision is recorded
+by **quoting their words**, exactly as a review opt-out is:
+
+```
+BL-0NN opened — escalated at Stage 2 gate: "no device here"; user: "yeah, file it for now"
+```
+
+Without that bar the valve is strictly weaker than the opt-out mechanism it sits beside, and
+in the same way: *"escalated, user chose to file"* written by the executor is the executor
+deciding on the user's behalf and recording it as though the user had. That is the exact
+failure § Review opt-out names, so it gets the exact same answer — **an unevidenced
+escalation is not an escalation**, and the finding is still owed a fix.
 
 **A plan's scope guardrails bound that plan's subject matter. They are not a licence to defer
 unrelated defects.** A guardrail like *"change only the values, never which fields are

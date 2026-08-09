@@ -432,7 +432,8 @@ def main():
         ("Tier-2 stage review",
          section(text, r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance")),
         ("Light-plan pre-gate review",
-         section(text, r"\*\*One review, not per-task", r"\*\*Both evaluator passes")),
+         section(text, r"\*\*One review, not per-task",
+                 r"\*\*The evaluator follows the tier")),
         ("Integration summary (code-reviewer agent)",
          section(text, r"- \*\*git-github:code-reviewer agent\*\*", r"\n- \*\*")),
         # Added after the Tier-2 stage review: Task 2.1's own review notes claimed the
@@ -444,6 +445,14 @@ def main():
     ]
     for label, block in sibling_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")
+        # A dead END anchor makes section() run to the end of the concatenation, and the
+        # checks below then pass on unrelated text while still naming this site — found
+        # live: the Light-plan slice was reading 33,190 chars because its end anchor
+        # ("**Both evaluator passes") existed nowhere outside this file. Every real
+        # sibling block is 300-1500 chars, so a bound catches the whole failure mode.
+        check(f"slice is bounded, not fallen through: {label}", len(block) < 4000,
+              f"the {label} slice is {len(block)} chars — its end anchor no longer "
+              f"matches, so these checks are reading the rest of the document")
         # Two conditions rather than one 220-char window. The window had to be greedy to
         # span either order, and a greedy span pulls in any negation further down the
         # paragraph — including, at the master site, the criterion's own "no Critical
@@ -455,7 +464,7 @@ def main():
               f"{label} describes Important findings without binding them to the exit "
               f"criterion and to being fixed — findings can pass this path unrepaired")
         check(f"no backlog escape hatch at: {label}",
-              not re.search(r"Important[\s\S]{0,160}recorded to the `?backlog", block, re.I),
+              not re.search(r"Important[\s\S]{0,260}recorded to the `?backlog", block, re.I),
               f"{label} still offers the backlog as a disposition for an Important "
               f"finding, so the deferral path survives at this sibling")
 
