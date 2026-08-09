@@ -25,6 +25,16 @@ Refuse to dispatch unless all are true:
 
 If any precondition fails, stop and report which one — do not relax them on your own.
 
+**These five preconditions are the whole check.** Satisfying them means dispatch — not a
+pause to confirm with the user first. A plan's `Parallel: YES` is a direct order, approved
+when the plan was approved; asking "should I dispatch these?" here re-litigates a decision
+that's already made. (An inlined task and a dispatched one produce byte-identical
+artifacts, so skipping a mandated dispatch shows up nowhere in the diff — only later, when
+the review work that dispatch was supposed to trigger turns out to have never happened.)
+The only legitimate halts remain the ones above: a precondition genuinely fails, or a
+component flagged `requires_enablement` can't be lazy-loaded (Phase 4). "I wasn't sure
+whether to fan out" is not one.
+
 ---
 
 ## Checklist
@@ -133,6 +143,13 @@ at all) at the stage gate, after the work is built. Per **DEC-001**, carry the e
 words — a security-sourced decision never brings its report body into an agent prompt.
 
 ## Phase 4 — Dispatch
+
+Tasks that cleared Preconditions are already authorized. Dispatch on invocation,
+**without asking** whether to proceed or whether to run them in parallel — the
+confirmation turn happened when the plan was approved, not here. A standing caution against calling the
+Agent tool unless the user requested it is conditional, not absolute: a plan whose
+execution model names this dispatch point is the condition being met, so approving that
+plan *was* the request.
 
 Launch every selected task in a **single message** with multiple `Agent` tool calls. This is the only way they actually run concurrently — sequential tool calls wait on each other.
 
