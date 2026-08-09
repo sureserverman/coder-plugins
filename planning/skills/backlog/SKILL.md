@@ -1,6 +1,6 @@
 ---
 name: backlog
-description: Use to read, append, or remove entries in docs/backlog.md — the project's deferred-work register. Triggers on "add to backlog", "defer this", "what's in the backlog", "BL-007 is done — remove it". Append on defer, remove on implement, list on research.
+description: Use to read, append, or remove entries in docs/backlog.md — the register for deferred improvements and decisions, not defects. Triggers on "add to backlog", "defer this", "what's in the backlog", "BL-007 is done — remove it". Append on defer, remove on implement, list on research.
 ---
 
 # Backlog
@@ -70,12 +70,27 @@ you keep getting nagged about; remove the line to unpark.
 
 ---
 
+## What belongs here
+
+The backlog admits exactly three kinds of entry:
+
+1. **A significant improvement** — a refactor, a new capability, performance work with no bug behind it. Nothing is broken; this is work someone should choose to schedule.
+2. **A non-urgent decision** the user must make — a change needing sign-off, a trade-off with no obviously right answer, an editorial call.
+3. **Work the user explicitly chose to defer** — including a task skipped after a Red-Green cycle budget exhausted, where the user chose skip over re-plan.
+
+**Refuse the fourth kind: a defect found during plan execution.** A defect is fixed, and its class swept, per `executing-plans` § *A bug found during execution is a class* and § *Exit criterion* (`planning/skills/executing-plans/SKILL.md`). The one exception: a defect that genuinely cannot be fixed in the session — because it needs a device, a credential, or an upstream release the session does not have — is escalated to the user with the blocker named. If the user then chooses to file it, that is an admissible entry of kind 3, because the user decided it, not the executor.
+
+**Why refuse.** Recording is frictionless and fixing is not, so an executor under gate pressure drifts toward filing everything, and each deferral reads as scope discipline rather than the avoidance it is. Measured 2026-08-09 in this repo: 28 open entries, the most recent titled "residual guard gaps found by review, judged not worth closing yet" and "residual hardening in the statusline renderer, judged not worth closing now" — findings, deferred by the executor that found them. One of them, BL-041, left the repo's own test suite failing for eight days.
+
+`unify` (below) derives candidates from *unexecuted plan tasks* — deferred work, kind 3 above — so it is unaffected by this refusal.
+
 ## Operations
 
 ### `add` — append a new entry
 
 Inputs: title, source (plan path + stage/task, or `ad-hoc`), reason, next step, optional tags, optional body.
 
+0. **Classify before doing anything else.** Check the item against § What belongs here. If it is a defect found during plan execution (not kind 1, 2, or 3), **Refuse**: compute no ID, write nothing. Report the refusal, name the rule (`backlog admits improvements and decisions, not defects — see § What belongs here`), and tell the caller to fix the defect and sweep its class instead. A caller who insists is told that only the user can decide to file it — that requires the user's own instruction, not the executor's judgment call.
 1. Read `docs/backlog.md`. If the file doesn't exist, create it with the header block above (no entries yet).
 2. Compute the next ID: scan for `BL-\d{3}`, take max, add 1.
 3. Insert the new entry block immediately below the top `---` separator (newest first).
@@ -190,7 +205,7 @@ Operation:
 
 ## Integration
 
-- **executing-plans** — calls `add` whenever the user defers a task, a Red-Green cycle budget exhausts and the user chooses to skip, or a stage gate exposes scope outside the plan. Calls `remove` in Phase Close-out for every backlog item the executed plan implemented (the closing report should list them by ID).
+- **executing-plans** — calls `add` for what § What belongs here admits: a significant improvement, a non-urgent decision, or a task the user chose to skip after a Red-Green cycle budget exhausted. A stage gate exposing a defect is never routed here — that gets fixed and its class swept, per `executing-plans` § *A bug found during execution is a class* and § *Exit criterion*. Calls `remove` in Phase Close-out for every backlog item the executed plan implemented (the closing report should list them by ID).
 - **planning-projects** — calls `read` in Phase 0 (Research). Open entries whose `Tags` or `Source` touch the new plan's scope are surfaced to the user; they decide which fold into the new plan vs. remain deferred. Plan tasks that resolve a backlog item should reference it (`Closes BL-NNN`) so executing-plans knows what to remove on close-out.
 - **Ad-hoc** — invoke directly via natural language ("add to backlog: ...", "list backlog", "BL-007 is done, remove it").
 
@@ -205,5 +220,6 @@ Operation:
 ## Remember
 
 - Append on defer, remove on implement, list on research.
+- The backlog admits improvements, non-urgent decisions, and explicitly-deferred work — never a defect found during plan execution. `add` refuses those; see § What belongs here.
 - IDs are immutable and never reused.
 - Git history — not an in-file archive — is the record of what was closed and why.
