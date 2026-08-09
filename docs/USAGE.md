@@ -55,8 +55,10 @@ subagents. Its two review tiers are not its own — both dispatch `code-reviewer
 `git-github` plugin, and how much of either runs comes from the plan's declared
 **review scope**: at the default *standard* tier that is one deep review per stage gate
 and no per-task pass, with per-task review reserved for the *high* tier or a task the plan
-annotated Review: required. At close-out it bumps versions
-across every mirror, reconciles the backlog, and records any decision the work created.
+annotated Review: required. A bug found at any point is swept as a defect class and fixed everywhere it lives, rather
+than filed — the backlog takes improvements and decisions, not defects. At close-out it bumps
+versions across every mirror, reconciles the backlog, and records any decision the work
+created.
 
 While it runs, execution state is mirrored to `<repo>/.claude/plan-progress.json` and can be
 rendered as a live status-line bar

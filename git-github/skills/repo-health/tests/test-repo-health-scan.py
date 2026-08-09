@@ -10,9 +10,11 @@ couldnt_assess), CI default-branch filtering, issue/PR/security lanes,
 backlog cross-check (triaged_as + zombies), --project filter, and the
 read-only guarantee.
 """
+import datetime
 import hashlib
 import json
 import os
+import pathlib
 import stat
 import subprocess
 import sys
@@ -21,6 +23,36 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE.parent / "scripts" / "repo-health-scan.py"
+
+# All fixture timestamps below are expressed as offsets from NOW rather than
+# baked-in calendar dates, so the suite stays green no matter when it runs.
+# REPO_HEALTH_NOW (the scan script's NOW-injection seam) lets this same
+# mechanism prove the fixture also holds with the clock advanced a year — see
+# check_year_ahead(), which main() runs automatically. Absent that override,
+# NOW is real time, captured once so the fixture builder, the fake `gh` shim
+# subprocess, and the scanner subprocess all agree on exactly the same instant.
+#
+# Parsed the same way the scan script parses it (naive -> UTC, malformed ->
+# a named error). The two are separate parses of one variable, so a value
+# accepted by one and rejected by the other would be the worse bug.
+_NOW_OVERRIDE = os.environ.get("REPO_HEALTH_NOW")
+if _NOW_OVERRIDE:
+    try:
+        NOW = datetime.datetime.fromisoformat(_NOW_OVERRIDE.replace("Z", "+00:00"))
+    except ValueError:
+        sys.exit("REPO_HEALTH_NOW is not an ISO-8601 timestamp: "
+                 f"{_NOW_OVERRIDE!r} (example: 2027-08-09T00:00:00Z)")
+    if NOW.tzinfo is None:
+        NOW = NOW.replace(tzinfo=datetime.timezone.utc)
+else:
+    NOW = datetime.datetime.now(datetime.timezone.utc)
+NOW_ISO = NOW.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ago_date(days):
+    """YYYY-MM-DD `days` before NOW, for backlog.md's date-only fields."""
+    return (NOW - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+
 
 FAILURES = []
 
@@ -41,8 +73,19 @@ def tree_digest(root):
 
 
 GH_SHIM = r'''#!/usr/bin/env python3
-import json, sys
+import datetime, json, os, sys
 args = sys.argv[1:]
+
+# Mirrors the outer test's NOW-relative fixture construction: reads the same
+# REPO_HEALTH_NOW seam the scanner reads, so shim output and the scanner's
+# own "now" always agree, whether that's real time or a test-injected one.
+_now_override = os.environ.get("REPO_HEALTH_NOW")
+NOW = (datetime.datetime.fromisoformat(_now_override.replace("Z", "+00:00"))
+       if _now_override else datetime.datetime.now(datetime.timezone.utc))
+
+
+def ago(days):
+    return (NOW - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def out(x):
@@ -56,34 +99,34 @@ if args[:2] == ["run", "list"]:
     out([
         {"workflowName": "ci", "conclusion": "failure", "status": "completed",
          "url": "https://github.com/tester/alpha/actions/runs/3",
-         "createdAt": "2026-07-10T00:00:00Z", "headBranch": "main"},
+         "createdAt": ago(10), "headBranch": "main"},
         {"workflowName": "ci", "conclusion": "success", "status": "completed",
          "url": "https://github.com/tester/alpha/actions/runs/2",
-         "createdAt": "2026-07-01T00:00:00Z", "headBranch": "main"},
+         "createdAt": ago(19), "headBranch": "main"},
         {"workflowName": "release", "conclusion": "success", "status": "completed",
          "url": "https://github.com/tester/alpha/actions/runs/1",
-         "createdAt": "2026-06-20T00:00:00Z", "headBranch": "main"},
+         "createdAt": ago(30), "headBranch": "main"},
         {"workflowName": "feature-only", "conclusion": "failure", "status": "completed",
          "url": "https://github.com/tester/alpha/actions/runs/4",
-         "createdAt": "2026-07-11T00:00:00Z", "headBranch": "feat/x"},
+         "createdAt": ago(9), "headBranch": "feat/x"},
     ])
 if args[:2] == ["issue", "list"]:
     out([
-        {"number": 1, "title": "Old bug", "createdAt": "2026-05-01T00:00:00Z",
-         "updatedAt": "2026-05-02T00:00:00Z",
+        {"number": 1, "title": "Old bug", "createdAt": ago(80),
+         "updatedAt": ago(79),
          "url": "https://github.com/tester/alpha/issues/1",
          "labels": [{"name": "bug"}]},
-        {"number": 2, "title": "Fresh ask", "createdAt": "2026-07-10T00:00:00Z",
-         "updatedAt": "2026-07-10T00:00:00Z",
+        {"number": 2, "title": "Fresh ask", "createdAt": ago(10),
+         "updatedAt": ago(10),
          "url": "https://github.com/tester/alpha/issues/2", "labels": []},
     ])
 if args[:2] == ["pr", "list"]:
     out([
-        {"number": 5, "title": "Stale WIP", "createdAt": "2026-06-01T00:00:00Z",
-         "updatedAt": "2026-06-10T00:00:00Z",
+        {"number": 5, "title": "Stale WIP", "createdAt": ago(49),
+         "updatedAt": ago(40),
          "url": "https://github.com/tester/alpha/pull/5", "isDraft": True},
-        {"number": 6, "title": "Fresh PR", "createdAt": "2026-07-14T00:00:00Z",
-         "updatedAt": "2026-07-15T00:00:00Z",
+        {"number": 6, "title": "Fresh PR", "createdAt": ago(6),
+         "updatedAt": ago(5),
          "url": "https://github.com/tester/alpha/pull/6", "isDraft": False},
     ])
 if args[0] == "api":
@@ -102,7 +145,7 @@ sys.stderr.write("gh shim: unhandled args: %r" % (args,))
 sys.exit(1)
 '''
 
-BACKLOG = """# Backlog
+BACKLOG = f"""# Backlog
 
 Deferred items.
 
@@ -110,7 +153,7 @@ Deferred items.
 
 ## BL-001 — Fix the old bug
 
-- **Opened:** 2026-06-01
+- **Opened:** {ago_date(49)}
 - **Source:** github — https://github.com/tester/alpha/issues/1
 - **Reason:** deferred
 - **Next step:** plan
@@ -120,7 +163,7 @@ Deferred items.
 
 ## BL-002 — Chase closed thing
 
-- **Opened:** 2026-05-01
+- **Opened:** {ago_date(80)}
 - **Source:** github — https://github.com/tester/alpha/issues/99
 - **Reason:** deferred
 - **Next step:** plan
@@ -130,7 +173,7 @@ Deferred items.
 
 ## BL-003 — Fix red CI on main
 
-- **Opened:** 2026-07-16
+- **Opened:** {ago_date(4)}
 - **Source:** github — https://github.com/tester/alpha/actions/runs/3
 - **Reason:** deferred
 - **Next step:** triage
@@ -147,6 +190,34 @@ def run_scan(env, *extra):
     return subprocess.run(
         [sys.executable, str(SCRIPT)] + list(extra),
         capture_output=True, text=True, env=env)
+
+
+def check_year_ahead():
+    """Re-run this whole suite with the clock advanced a year, and check it stays green.
+
+    The point of expressing every fixture timestamp as an offset from NOW is that the
+    suite cannot drift into failure the way BL-041's absolute dates did. That property
+    is worth exactly as much as its enforcement: left to a manual invocation nobody
+    remembers, the next edit that reintroduces an absolute date passes CI and the
+    drift returns on a delay. So it runs here, automatically, on every run.
+
+    Guarded on the override being ABSENT, which is what makes the recursion terminate:
+    the child sees REPO_HEALTH_NOW set and skips this function.
+    """
+    if os.environ.get("REPO_HEALTH_NOW"):
+        return
+    future = (NOW + datetime.timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    env = dict(os.environ, REPO_HEALTH_NOW=future)
+    cp = subprocess.run([sys.executable, str(pathlib.Path(__file__).resolve())],
+                        env=env, capture_output=True, text=True)
+    check(cp.returncode == 0,
+          f"fixture still holds with the clock at {future} "
+          f"(re-ran self; exit {cp.returncode})")
+    if cp.returncode != 0:
+        print("    --- year-ahead run output ---")
+        for line in (cp.stdout + cp.stderr).splitlines():
+            if "FAIL" in line or "failure" in line:
+                print(f"    {line}")
 
 
 def main():
@@ -178,7 +249,8 @@ def main():
 
     registry = home / ".claude" / "projects-registry.yaml"
     env = {**os.environ, "HOME": str(home),
-           "PATH": f"{bindir}:{os.environ['PATH']}"}
+           "PATH": f"{bindir}:{os.environ['PATH']}",
+           "REPO_HEALTH_NOW": NOW_ISO}
 
     print("unconfigured:")
     cp = run_scan(env)
@@ -248,6 +320,8 @@ projects:
     cp = run_scan(env, "--project", "nope")
     check(cp.returncode != 0 and "not in registry" in cp.stderr,
           "unknown --project fails loudly")
+
+    check_year_ahead()
 
     print()
     if FAILURES:

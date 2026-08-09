@@ -18,6 +18,7 @@ dropped. No LLM in this lane; judgment lives in SKILL.md.
 import argparse
 import datetime
 import json
+import os
 import re
 import subprocess
 import sys
@@ -27,6 +28,9 @@ from pathlib import Path
 import yaml
 
 STALE_PR_DAYS_DEFAULT = 14
+# Test-only seam: when set, overrides "now" for staleness/age math instead of
+# the real wall clock. Unset in normal use. See tests/test-repo-health-scan.py.
+NOW_ENV_VAR = "REPO_HEALTH_NOW"
 ISSUE_LIMIT = 100
 PR_LIMIT = 100
 RUN_LIMIT = 50
@@ -310,6 +314,38 @@ def scan_project(proj, vault, now, stale_days):
     return ("projects", out)
 
 
+
+def parse_now_override(raw):
+    """Resolve "now" from the NOW_ENV_VAR override, or real wall time when unset.
+
+    Validated rather than parsed bare, because this seam ships in the scan script and
+    is meant to be usable by hand. Both plausible mistakes produced an uncaught
+    exception with a traceback pointing nowhere near the cause:
+
+      REPO_HEALTH_NOW=2027-08-09T00:00:00   (no offset — the natural way to hand-type
+                                             one) parsed to a NAIVE datetime, which then
+                                             raised TypeError deep inside a worker thread
+                                             when subtracted from GitHub's aware `...Z`
+                                             timestamps;
+      REPO_HEALTH_NOW=garbage               raised ValueError before `gh auth status`
+                                             was even reached.
+
+    A naive value is now assumed UTC (the only interpretation consistent with the `Z`
+    timestamps it is compared against) and a malformed one exits with a message naming
+    the variable and an example.
+    """
+    if not raw:
+        return datetime.datetime.now(datetime.timezone.utc)
+    try:
+        parsed = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        sys.exit(f"{NOW_ENV_VAR} is not an ISO-8601 timestamp: {raw!r} "
+                 f"(example: 2027-08-09T00:00:00Z)")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--project", action="append", default=None,
@@ -330,7 +366,7 @@ def main():
             sys.exit(f"not in registry (or disabled): {', '.join(sorted(missing))}")
         projects = [p for p in projects if p["name"] in wanted]
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = parse_now_override(os.environ.get(NOW_ENV_VAR))
     result = {
         "generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "stale_pr_days": args.stale_days,

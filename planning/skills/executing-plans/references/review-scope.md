@@ -72,7 +72,8 @@ complete is the one over the finished diff.
 
 What the tier does **not** gate — because each costs a line of text and its absence is
 invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
-reconciliation, honest-gates disclosure, and the plan's own tests and gate checks. Those run
+reconciliation, honest-gates disclosure, the class sweep of `../SKILL.md` § *A bug found
+during execution is a class*, and the plan's own tests and gate checks. Those run
 at every tier including `none`. The distinction is cost: **a *verification* mandate that costs
 an agent dispatch is tiered; one that costs a line of text is not.**
 

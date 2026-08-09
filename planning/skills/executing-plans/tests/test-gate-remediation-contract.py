@@ -63,6 +63,21 @@ What it pins:
      the gate reports dispatched-vs-inline, an unperformable dispatch or review is a
      Stop condition, review skips are closed at two reasons, an opt-out is evidenced,
      and both report sites name the reviewer and the diff.
+ 11b/c/d. (dispatch precedence, Task 3.4) A plan's mandated dispatch needs no
+     confirmation turn — the standing caution against calling the Agent tool is
+     conditional and the plan's approval IS the request. Pinned with its BOUND at
+     equal weight (no plan in play → the caution stands and you ask) and with the
+     over-correction recorded as its own failure, because the incident behind the
+     rule failed in BOTH directions and a guard pinning only the permissive half
+     would readmit the second. Plus: the rule reaches the two files that actually
+     make the decision (a set), and a marketplace-wide sweep that no skill
+     reintroduces a confirmation turn.
+ 12. (class repair) The class-repair rule has its own trunk section, states that it
+     fires outside a gate, is priced as a command rather than a dispatch (DEC-010),
+     carries its outer bound and its un-nameable-class disclosure, and is reached
+     from every site where a defect can surface — that last one checked as a SET,
+     printing the specific unwired site, because an instance-shaped check cannot
+     fail on the siblings that make the class.
 
      **Deliberately small.** The first version of this group ran 62 assertions plus a
      574-line mutation harness that re-ran this suite against mutated copies, plus a
@@ -284,6 +299,69 @@ def main():
     check("gate-failure section present", bool(gate_fail),
           "no '**If the gate fails' … '**If the gate passes' block in SKILL.md")
 
+    # 0 — the class-repair rule's own section. It used to live INSIDE the gate-failure
+    # branch, which scoped it to gates: a bug found in a Red-Green loop, in a review, or
+    # noticed while editing got no sweep at all. It is now stated once in the trunk and
+    # called from every site where a defect can surface, so the properties that belong to
+    # the RULE are asserted here and the properties the GATE adds stay on gate_fail.
+    # Splitting them this way is what lets either move again without unpinning the other.
+    class_rule = section(text, r"## A bug found during execution is a class",
+                         r"## Phase 1 — Load and critique")
+    check("class-repair rule stated as its own trunk section", bool(class_rule),
+          "no '## A bug found during execution is a class' section — the rule is either "
+          "deleted or has collapsed back inside a single caller")
+    check("the rule fires beyond gates, naming the non-gate discovery sites",
+          affirms(class_rule, r"RED test|while editing"),
+          "the rule does not say it fires outside a gate, which is the entire change: "
+          "scoped to gates it is the rule that already existed")
+    check("the gate-failure branch routes to the shared rule",
+          affirms(gate_fail, r"A bug found during execution is a class"),
+          "the gate-failure branch does not call the shared rule, so the two can drift "
+          "back into separate procedures")
+
+    # 0b — the rule is wired at EVERY site a defect can surface, checked as a SET rather
+    # than one worked example: an instance-shaped check cannot fail on the siblings that
+    # make the class, which is the very defect this rule exists to repair. Reads SKILL.md
+    # directly (not the concatenation) because these are trunk call sites.
+    skill_only = SKILL.read_text(encoding="utf-8")
+    DISCOVERY_SITES = [
+        ("Red-Green loop", r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget"),
+        ("Tier-1 Critical", r"\*\*Critical → blocking", r"\*\*Important / Suggestion"),
+        ("Tier-2 review", r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance"),
+        ("gate evaluator", r"\*\*Independent evaluator for non-command checks",
+         r"\*\*Deep code review \(Tier 2\)"),
+        ("gate failure", r"\*\*If the gate fails", r"\*\*If the gate passes"),
+    ]
+    unwired = []
+    for name, start, end in DISCOVERY_SITES:
+        blk = section(skill_only, start, end)
+        if not blk or not affirms(blk, r"A bug found during execution is a class"):
+            unwired.append(name)
+    check("every discovery site routes to the class rule: "
+          + ", ".join(n for n, _, _ in DISCOVERY_SITES),
+          not unwired,
+          f"these sites do not reach the rule: {', '.join(unwired)} — a bug found there "
+          f"is repaired one instance at a time")
+
+    # 0c — the rule's two bounds. Both were added deliberately and both are the kind of
+    # qualifier a later compression deletes as hedging: without the cost line the rule
+    # reads as fundable-by-tier (contradicting DEC-010), and without the stop line it
+    # reads as a licence to refactor whatever lives near the bug.
+    check("the sweep is priced as a command, never a dispatch",
+          affirms(class_rule, r"costs a command")
+          and affirms(class_rule, r"untiered mandates"),
+          "the rule does not state that it costs no agent dispatch, so a reader cannot "
+          "tell whether the review tier gates it (DEC-010 says a command-cost mandate "
+          "is never tiered)")
+    check("the sweep's outer bound is stated",
+          affirms(class_rule, r"nothing wider"),
+          "nothing bounds the sweep to the defect's own predicate, so it reads as "
+          "authorisation for unrelated refactoring")
+    check("an un-nameable class is disclosed rather than swept by feel",
+          affirms(class_rule, r"disclose the limit"),
+          "no instruction for the case where the class cannot be expressed as a "
+          "command — which is where a sweep silently becomes a guess")
+
     # Anchored on the DEFINITION heading, not the bare phrase. A Tier-1 review caught
     # the bare anchor matching the Tier-2 paragraph's inline forward-reference ("per the
     # **exit criterion** below") first, which inflated the slice to 2693 chars starting
@@ -329,9 +407,27 @@ def main():
     check("exit criterion turns on no Critical remaining",
           re.search(r"passes when\s+\*{0,2}no Critical", exit_block, re.I) is not None,
           "the exit criterion does not state that passing requires no Critical remaining")
-    check("Important findings fixed-or-recorded",
-          affirms(exit_block, r"Important[\s\S]{0,160}(fixed|recorded)[\s\S]{0,160}backlog"),
-          "Important findings may be silently dropped — no affirmative fix-or-record rule")
+    check("Important findings are FIXED, not filed",
+          affirms(exit_block, r"Important[\s\S]{0,120}fixed"),
+          "Important findings may be silently dropped — no affirmative fix rule")
+    # The inverse pin, and the load-bearing half after this stage: the criterion must not
+    # offer the backlog as a way to pass a gate on an unfixed defect. The old contract
+    # REQUIRED "backlog" next to "Important"; letting that requirement simply lapse would
+    # leave the drift free to return in the next rewording.
+    check("the criterion does not offer the backlog as a disposition for a defect",
+          not re.search(r"Important[\s\S]{0,120}recorded to the `?backlog", exit_block, re.I),
+          "the exit criterion still lets an Important finding leave the gate as a backlog "
+          "ID, which is the deferral asymmetry this criterion was rewritten to close")
+    check("the backlog's two admissible kinds are named at the criterion",
+          affirms(exit_block, r"significant improvement")
+          and affirms(exit_block, r"decision"),
+          "the criterion removes the backlog as a disposition without saying what the "
+          "backlog IS for, which is how the rule reads as 'never file anything'")
+    check("a defect that cannot be fixed here escalates with its blocker named",
+          affirms_predicate(exit_block, r"cannot fix", r"[Ee]scalat")
+          or affirms(exit_block, r"naming the blocker"),
+          "no escape valve: a defect needing a device, a credential or an upstream "
+          "release would be unreportable, which is worse than the drift being fixed")
     check("'no findings' rejected as the bar",
           re.search(r"not a reachable state|returned silent", exit_block, re.I) is not None,
           "the rationale for not using 'detector returned silent' is missing")
@@ -345,7 +441,8 @@ def main():
         ("Tier-2 stage review",
          section(text, r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance")),
         ("Light-plan pre-gate review",
-         section(text, r"\*\*One review, not per-task", r"\*\*Both evaluator passes")),
+         section(text, r"\*\*One review, not per-task",
+                 r"\*\*The evaluator follows the tier")),
         ("Integration summary (code-reviewer agent)",
          section(text, r"- \*\*git-github:code-reviewer agent\*\*", r"\n- \*\*")),
         # Added after the Tier-2 stage review: Task 2.1's own review notes claimed the
@@ -357,11 +454,28 @@ def main():
     ]
     for label, block in sibling_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")
+        # A dead END anchor makes section() run to the end of the concatenation, and the
+        # checks below then pass on unrelated text while still naming this site — found
+        # live: the Light-plan slice was reading 33,190 chars because its end anchor
+        # ("**Both evaluator passes") existed nowhere outside this file. Every real
+        # sibling block is 300-1500 chars, so a bound catches the whole failure mode.
+        check(f"slice is bounded, not fallen through: {label}", len(block) < 4000,
+              f"the {label} slice is {len(block)} chars — its end anchor no longer "
+              f"matches, so these checks are reading the rest of the document")
+        # Two conditions rather than one 220-char window. The window had to be greedy to
+        # span either order, and a greedy span pulls in any negation further down the
+        # paragraph — including, at the master site, the criterion's own "no Critical
+        # remains". Cite-the-criterion and say-they-are-fixed are separate claims anyway.
         check(f"Importants bound to the exit criterion at: {label}",
-              affirms(block, r"exit criterion[\s\S]{0,220}backlog|"
-                             r"backlog[\s\S]{0,220}exit criterion"),
+              "exit criterion" in block and affirms(block, r"leaves[\s\S]{0,40}?fixed")
+              and not re.search(r"either fixed or recorded|or recorded to the `?backlog",
+                                block, re.I),
               f"{label} describes Important findings without binding them to the exit "
-              f"criterion and the backlog — findings can pass this path unrecorded")
+              f"criterion and to being fixed — findings can pass this path unrepaired")
+        check(f"no backlog escape hatch at: {label}",
+              not re.search(r"Important[\s\S]{0,260}recorded to the `?backlog", block, re.I),
+              f"{label} still offers the backlog as a disposition for an Important "
+              f"finding, so the deferral path survives at this sibling")
 
     # 4 — escalation on exhaustion, carrying the residual list
     check("budget-exhaustion escalation",
@@ -385,8 +499,12 @@ def main():
     check("the set is derived from the task's Scope: field",
           affirms(gate_fail, r"`?Scope:`?[^.]{0,80}field|field'?s? `?Scope:`?"),
           "step 2 does not name the task's Scope: field as the derivation source")
+    # Asserted on the RULE, not the gate: the enumeration procedure moved to the trunk
+    # section when the rule stopped being gate-only, and a defect found outside a gate is
+    # precisely the case where no `Scope:` was ever declared — so this property matters
+    # MORE at the rule than it did here.
     check("a missing Scope: has a stated fallback",
-          affirms_predicate(gate_fail, r"(no `?Scope:`?|when no scope)", r"enumerate"),
+          affirms_predicate(class_rule, r"(no `?Scope:`?|when no scope)", r"enumerate"),
           "there is no procedure for deriving the set when the task declares no Scope:")
     check("the derived sweep command is recorded in the gate report",
           affirms(gate_fail, r"write the command down|command down in the gate report"),
@@ -406,17 +524,21 @@ def main():
     # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
     # ("Diagnose evidence-first, then name the set…") already contains "name the set"
     # and states the order itself, so anchoring there compares against the wrong point.
-    fafo_at = affirmed_index(gate_fail, r"no-fafo")
-    derive_at = gate_fail.lower().find("derive it")
+    # The ORDER is now asserted on the rule (step 1 before step 2) and its ROUTING on
+    # the gate, because the rule is where the ordering is defined and the gate is where
+    # it is most fix-prone. Both must hold; neither alone is the contract.
     check("step 2's heading orders diagnosis before naming",
           affirms(gate_fail, r"diagnose evidence-first, then name the set"),
           "step 2 does not state diagnosis-before-generalization in its own heading")
+    fafo_at = affirmed_index(class_rule, r"no-fafo")
+    derive_at = class_rule.lower().find("name the set")
     check("no-fafo is routed BEFORE the set is derived",
           fafo_at != -1 and derive_at != -1 and fafo_at < derive_at,
           "diagnosis is not ordered before generalization, so a wrong root cause "
           "yields a confidently-swept wrong set")
     check("the ordering rationale is stated, not just the order",
-          affirms(gate_fail, r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
+          affirms(class_rule + gate_fail,
+                  r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
           "nothing explains why diagnosis must precede generalization")
 
     # 6c — BL-027's SECOND site. An independent evaluator deleted the Red-Green
@@ -490,9 +612,147 @@ def main():
           re.search(r"Material[\s\S]{0,120}is \*?not\*? a merge blocker",
                     close_out, re.I) is not None,
           "a Material-only FAIL is not distinguished from a Blocking one")
-    check("close-out Material findings are recorded, not just mentioned",
-          affirms(close_out, r"record each Material finding[\s\S]{0,40}backlog"),
-          "Material findings are reported without an imperative to record them")
+    check("close-out Material findings are FIXED, not just mentioned",
+          affirms(close_out, r"fix each Material finding"),
+          "Material findings are reported without an imperative to fix them")
+    check("close-out does not route a Material finding to the backlog instead",
+          not re.search(r"record each Material finding[\s\S]{0,60}backlog", close_out, re.I),
+          "close-out still files Material findings rather than fixing them, so the "
+          "deferral path survives at the one gate with the widest view of the diff")
+
+    # 8b — (backlog admission) A SWEEP over every skill, not a check on the two files
+    # this stage happened to edit. The retired contract — "fixed OR recorded to the
+    # backlog" — was restated at seven sites, which is why it survived three earlier
+    # attempts to tighten it: each fixed the site that was noticed. Any file under
+    # planning/skills/ that still offers the backlog as a disposition for an Important
+    # or Material finding fails here, by name.
+    #
+    # tests/fixtures/ is excluded deliberately, not incidentally: gate-check-corpus/
+    # holds FROZEN COPIES OF REAL, UNMODIFIED past plans (see its PROVENANCE.md), one of
+    # which narrates a July gate as "eleven were fixed or recorded". Editing a historical
+    # record to satisfy a sweep would falsify it AND decalibrate
+    # test-validate-gate-checks.py group 9, whose figures are pinned against that corpus.
+    # Two patterns, because one of them needs no distance parameter at all. The window on
+    # the second was originally 80 chars, chosen by eye; a mutation probe reverting ONE
+    # sibling site proved it vacuous — the real distance at that site is 186 characters,
+    # measured, so it is now 260 and the disjunction pattern backstops it regardless.
+    DEFERRAL_RE = re.compile(
+        r"either fixed or recorded|fixed or recorded to the `?backlog|"
+        r"or recorded to the `?backlog|"
+        r"(Important|Material)[\s\S]{0,260}?recorded to the `?backlog", re.I)
+    # Marketplace-wide, not planning/skills/: the disposition claim also lives in
+    # planning/README.md and docs/USAGE.md, and README WAS an offending site — it still
+    # said "fixed or recorded" until a stage gate caught it by hand. A guard narrower than
+    # the claim it protects is the instance-vs-class shape this whole plan exists to close,
+    # recurring inside the guard. Matches check 11d's scope for the same reason.
+    ADMISSION_ROOT = SKILLS_ROOT.parent.parent
+    offenders = []
+    swept = 0
+    for md in sorted(ADMISSION_ROOT.rglob("*.md")):
+        if "fixtures" in md.parts or ".git" in md.parts:
+            continue
+        swept += 1
+        if DEFERRAL_RE.search(flat(md.read_text(encoding="utf-8"))):
+            offenders.append(str(md.relative_to(ADMISSION_ROOT)))
+    check(f"no skill files a defect instead of fixing it (swept {swept} files)",
+          not offenders,
+          "these still offer the backlog as a disposition for a finding: "
+          + ", ".join(offenders))
+    check("the admission sweep examined a non-empty set", swept > 20,
+          f"only {swept} files swept — the sweep is not reaching the skills tree")
+
+    # 8c — the backlog skill states what it DOES admit. A rule that only forbids leaves
+    # an executor with nowhere to put a genuine improvement, and the predictable failure
+    # is that it stops recording those too.
+    backlog_skill = SKILLS_ROOT / "backlog" / "SKILL.md"
+    if backlog_skill.is_file():
+        bt = flat(backlog_skill.read_text(encoding="utf-8"))
+        for kind in ("significant improvement", "non-urgent decision"):
+            check(f"backlog admits: {kind}", affirms(bt, re.escape(kind)),
+                  f"the backlog skill does not name '{kind}' as admissible")
+        check("backlog refuses a defect found during execution",
+              affirms_predicate(bt, r"Refuse", r"defect"),
+              "the backlog skill has no refusal path, so `add` still accepts a defect")
+
+    # 11b — (dispatch precedence) The rule that a plan's mandated dispatch needs no
+    # confirmation turn. One assertion per clause, and the BOUND is pinned as hard as the
+    # rule: the recorded incident produced BOTH failures — an executor reading the standing
+    # caution as absolute (37 commits, zero dispatches, every mandated review skipped), and
+    # then the over-correction that inverted the rule instead of scoping it. A guard that
+    # pinned only the permissive half would let the second one back in.
+    precedence = section(text, r"## The plan is the authorization",
+                         r"## A bug found during execution is a class")
+    check("dispatch-precedence rule stated as its own trunk section", bool(precedence),
+          "no '## The plan is the authorization' section — a session must then re-derive "
+          "the precedence between the standing caution and the plan's execution model")
+    check("slice is bounded, not fallen through: precedence", len(precedence) < 4000,
+          f"the precedence slice is {len(precedence)} chars — its end anchor no longer "
+          f"matches, so the checks below are reading the rest of the document")
+    # These four requirements have a NEGATION as their subject — "conditional, not
+    # absolute", "no plan in play", "over-corrected", "without asking" — so affirms(),
+    # which screens negation tokens inside the match, rejects every one of them on true
+    # prose. Closest precedent is check 9b, which drops the screen because there is no single
+    # claim clause to anchor; here the reason differs again — the target text itself embeds
+    # a negation token, so the screen rejects the requirement's own correct wording. The phrases are specific enough
+    # that an inversion cannot match them accidentally, which is what affirms() would
+    # otherwise be buying.
+    check("the standing caution is named as CONDITIONAL, not absolute",
+          re.search(r"conditional, not absolute", precedence, re.I) is not None,
+          "the rule does not say the standing caution is conditional, which is the whole "
+          "resolution — without it the two rules still contradict and the general one wins")
+    check("approving the plan is named as the request",
+          affirms(precedence, r"was the request|is the request"),
+          "nothing states that the plan's approval IS the request the caution refers to")
+    check("the BOUND is stated: no plan in play means you still ask",
+          re.search(r"no plan in play[\s\S]{0,160}?ask", precedence, re.I) is not None,
+          "the rule is stated without its bound, which is how it gets over-corrected into "
+          "its inverse — the documented second failure of the same incident")
+    check("the over-correction is recorded as a failure in its own right",
+          re.search(r"over-correct(?:ed|ion)? into its own inverse", precedence, re.I)
+          is not None,
+          "only the permissive failure is recorded, so a reader has no warning against "
+          "inverting the rule rather than scoping it")
+    check("what still halts a dispatch is enumerated",
+          affirms(precedence, r"requires_enablement") and affirms(precedence, r"probe"),
+          "the rule removes the confirmation turn without saying what legitimately still "
+          "stops a dispatch, which reads as 'dispatch unconditionally'")
+
+    # 11c — the rule must reach the two files that actually make the decision, checked as a
+    # SET. dispatching-parallel-agents is where a fan-out is launched; dispatch-fidelity is
+    # where the reasoning is kept. A rule stated only in the trunk is a rule the dispatch
+    # path never reads.
+    DISPATCH_SITES = [
+        # Sentence-shaped, not a bare substring: "without asking" alone is satisfied by
+        # "never dispatch without asking permission first" — i.e. by the over-correction
+        # this stage exists to prevent. Reproduced before widening.
+        ("dispatching-parallel-agents", SKILLS_ROOT / "dispatching-parallel-agents"
+         / "SKILL.md", r"[Dd]ispatch on invocation[\s\S]{0,80}?without asking"),
+        ("dispatch-fidelity rationale", SKILLS_ROOT / "executing-plans" / "references"
+         / "dispatch-fidelity.md", r"conditional"),
+    ]
+    missing = [name for name, path, pat in DISPATCH_SITES
+               if not (path.is_file()
+                       and re.search(pat, flat(path.read_text(encoding="utf-8")), re.I))]
+    check("dispatch precedence reaches: " + ", ".join(n for n, _, _ in DISPATCH_SITES),
+          not missing,
+          f"these dispatch-path files do not carry the rule: {', '.join(missing)}")
+
+    # 11d — tree-wide sweep: no skill may reintroduce a confirmation turn before a
+    # mandated dispatch. Fixtures excluded for the reason given at the admission sweep.
+    # Synonyms matter: the rule is about a confirmation turn, not about one phrasing of
+    # it, and "check with the user before fanning out" is the same regression. Scope is
+    # the whole marketplace, matching the stage gate's own class predicate rather than
+    # being quietly narrower than the check it mirrors.
+    ASK_RE = re.compile(r"ask (?:the user )?(?:whether|if) to (?:dispatch|fan out)|"
+                        r"(?:confirm|check) with the user before (?:dispatch|fan)|"
+                        r"confirm before dispatching|permission to dispatch", re.I)
+    MARKET_ROOT = SKILLS_ROOT.parent.parent
+    askers = [str(md.relative_to(MARKET_ROOT))
+              for md in sorted(MARKET_ROOT.rglob("*.md"))
+              if "fixtures" not in md.parts and ".git" not in md.parts
+              and ASK_RE.search(flat(md.read_text(encoding="utf-8")))]
+    check("no skill asks before a mandated dispatch", not askers,
+          "these still ask before dispatching: " + ", ".join(askers))
 
     # 9 — drift guard. The renderer hardcodes the default budget as its denominator when
     # `remediation_budget` is absent, which duplicates the number stated in the skill
