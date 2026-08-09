@@ -143,7 +143,10 @@ When you find one:
    string, list every sibling of the failing artifact's kind, list every caller of the changed
    symbol. Start from the task's `Scope:` field where it declares one; that is a starting
    point, not an authority, and a sweep that finds members the `Scope:` did not means the
-   plan's `Scope:` line is wrong and is fixed as part of the repair.
+   plan's `Scope:` line is wrong and is fixed as part of the repair. **When no `Scope:`
+   exists, you still enumerate** — and that is the common case, since a defect rarely
+   surfaces exactly where some task happened to declare its set. An undeclared set is still a
+   set; skipping the sweep there is how this rule quietly becomes gate-only again.
 3. **Fix every member the sweep returns, in the same change** — not the instance that
    happened to surface. A class repaired one instance per round is the oscillation the gate's
    remediation budget exists to bound, and bounding it is not the same as converging.
@@ -158,9 +161,10 @@ is already loaded.
 
 **Where the sweep stops.** It covers the defect's own predicate — whatever makes an instance
 an instance — and nothing wider. It is not a licence to refactor, restyle, or repair
-unrelated things that merely live nearby. **If you cannot write the command that separates
-members from non-members, you have not named the class yet**: say so, fix what you can
-identify, and record the limit rather than sweeping by feel.
+unrelated things that merely live nearby. **A class you cannot express as a command is a
+class you have not named yet: disclose the limit**, fix the members you can identify, and
+state in the report what you were unable to sweep. Sweeping by feel produces a confident
+green over a population nobody defined.
 
 **It costs a command, never a dispatch** (DEC-010). The sweep is a `grep`, an `ls`, a `git
 grep` you run yourself — so it belongs with the untiered mandates (the dispatch roster, the
@@ -652,10 +656,12 @@ news.
 
 1. **Classify every finding** as **Critical**, **Important**, or **Suggestion** — the same
    scale the review tiers use, so a gate finding and a review finding are graded once.
-2. **Run the shared rule** — diagnose evidence-first, name the set, enumerate it with a
-   command, and **write that command down in the gate report**. A failed gate under a bounded
-   round budget is the most fix-prone moment in the workflow, which is why the rule's
-   evidence-first ordering is load-bearing here rather than advisory.
+2. **Run the shared rule: diagnose evidence-first, then name the set.** Invoke
+   `no-fafo-debugging` before generalizing, enumerate the set with a command, and **write
+   that command down in the gate report**. A failed gate under a bounded round budget is the
+   most fix-prone moment in the workflow, which is why the rule's evidence-first ordering is
+   load-bearing here rather than advisory: a set derived from a wrong root cause is a wrong
+   set, swept confidently, reporting green.
 3. **Add a test covering the set**, not the one file that failed, and fix **every member the
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.

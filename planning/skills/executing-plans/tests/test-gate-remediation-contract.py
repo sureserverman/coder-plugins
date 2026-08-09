@@ -284,6 +284,69 @@ def main():
     check("gate-failure section present", bool(gate_fail),
           "no '**If the gate fails' … '**If the gate passes' block in SKILL.md")
 
+    # 0 — the class-repair rule's own section. It used to live INSIDE the gate-failure
+    # branch, which scoped it to gates: a bug found in a Red-Green loop, in a review, or
+    # noticed while editing got no sweep at all. It is now stated once in the trunk and
+    # called from every site where a defect can surface, so the properties that belong to
+    # the RULE are asserted here and the properties the GATE adds stay on gate_fail.
+    # Splitting them this way is what lets either move again without unpinning the other.
+    class_rule = section(text, r"## A bug found during execution is a class",
+                         r"## Phase 1 — Load and critique")
+    check("class-repair rule stated as its own trunk section", bool(class_rule),
+          "no '## A bug found during execution is a class' section — the rule is either "
+          "deleted or has collapsed back inside a single caller")
+    check("the rule fires beyond gates, naming the non-gate discovery sites",
+          affirms(class_rule, r"not\*?\*? scoped to gates|RED test|while editing"),
+          "the rule does not say it fires outside a gate, which is the entire change: "
+          "scoped to gates it is the rule that already existed")
+    check("the gate-failure branch routes to the shared rule",
+          affirms(gate_fail, r"A bug found during execution is a class"),
+          "the gate-failure branch does not call the shared rule, so the two can drift "
+          "back into separate procedures")
+
+    # 0b — the rule is wired at EVERY site a defect can surface, checked as a SET rather
+    # than one worked example: an instance-shaped check cannot fail on the siblings that
+    # make the class, which is the very defect this rule exists to repair. Reads SKILL.md
+    # directly (not the concatenation) because these are trunk call sites.
+    skill_only = SKILL.read_text(encoding="utf-8")
+    DISCOVERY_SITES = [
+        ("Red-Green loop", r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget"),
+        ("Tier-1 Critical", r"\*\*Critical → blocking", r"\*\*Important / Suggestion"),
+        ("Tier-2 review", r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance"),
+        ("gate evaluator", r"\*\*Every finding it returns is a class sample",
+         r"\*\*Deep code review \(Tier 2\)"),
+        ("gate failure", r"\*\*If the gate fails", r"\*\*If the gate passes"),
+    ]
+    unwired = []
+    for name, start, end in DISCOVERY_SITES:
+        blk = section(skill_only, start, end)
+        if not blk or not affirms(blk, r"A bug found during execution is a class"):
+            unwired.append(name)
+    check("every discovery site routes to the class rule: "
+          + ", ".join(n for n, _, _ in DISCOVERY_SITES),
+          not unwired,
+          f"these sites do not reach the rule: {', '.join(unwired)} — a bug found there "
+          f"is repaired one instance at a time")
+
+    # 0c — the rule's two bounds. Both were added deliberately and both are the kind of
+    # qualifier a later compression deletes as hedging: without the cost line the rule
+    # reads as fundable-by-tier (contradicting DEC-010), and without the stop line it
+    # reads as a licence to refactor whatever lives near the bug.
+    check("the sweep is priced as a command, never a dispatch",
+          affirms(class_rule, r"costs a command")
+          and affirms(class_rule, r"untiered mandates"),
+          "the rule does not state that it costs no agent dispatch, so a reader cannot "
+          "tell whether the review tier gates it (DEC-010 says a command-cost mandate "
+          "is never tiered)")
+    check("the sweep's outer bound is stated",
+          affirms(class_rule, r"not a licence to refactor|nothing wider"),
+          "nothing bounds the sweep to the defect's own predicate, so it reads as "
+          "authorisation for unrelated refactoring")
+    check("an un-nameable class is disclosed rather than swept by feel",
+          affirms(class_rule, r"disclose the limit"),
+          "no instruction for the case where the class cannot be expressed as a "
+          "command — which is where a sweep silently becomes a guess")
+
     # Anchored on the DEFINITION heading, not the bare phrase. A Tier-1 review caught
     # the bare anchor matching the Tier-2 paragraph's inline forward-reference ("per the
     # **exit criterion** below") first, which inflated the slice to 2693 chars starting
@@ -385,8 +448,12 @@ def main():
     check("the set is derived from the task's Scope: field",
           affirms(gate_fail, r"`?Scope:`?[^.]{0,80}field|field'?s? `?Scope:`?"),
           "step 2 does not name the task's Scope: field as the derivation source")
+    # Asserted on the RULE, not the gate: the enumeration procedure moved to the trunk
+    # section when the rule stopped being gate-only, and a defect found outside a gate is
+    # precisely the case where no `Scope:` was ever declared — so this property matters
+    # MORE at the rule than it did here.
     check("a missing Scope: has a stated fallback",
-          affirms_predicate(gate_fail, r"(no `?Scope:`?|when no scope)", r"enumerate"),
+          affirms_predicate(class_rule, r"(no `?Scope:`?|when no scope)", r"enumerate"),
           "there is no procedure for deriving the set when the task declares no Scope:")
     check("the derived sweep command is recorded in the gate report",
           affirms(gate_fail, r"write the command down|command down in the gate report"),
@@ -406,17 +473,21 @@ def main():
     # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
     # ("Diagnose evidence-first, then name the set…") already contains "name the set"
     # and states the order itself, so anchoring there compares against the wrong point.
-    fafo_at = affirmed_index(gate_fail, r"no-fafo")
-    derive_at = gate_fail.lower().find("derive it")
+    # The ORDER is now asserted on the rule (step 1 before step 2) and its ROUTING on
+    # the gate, because the rule is where the ordering is defined and the gate is where
+    # it is most fix-prone. Both must hold; neither alone is the contract.
     check("step 2's heading orders diagnosis before naming",
           affirms(gate_fail, r"diagnose evidence-first, then name the set"),
           "step 2 does not state diagnosis-before-generalization in its own heading")
+    fafo_at = affirmed_index(class_rule, r"no-fafo")
+    derive_at = class_rule.lower().find("name the set")
     check("no-fafo is routed BEFORE the set is derived",
           fafo_at != -1 and derive_at != -1 and fafo_at < derive_at,
           "diagnosis is not ordered before generalization, so a wrong root cause "
           "yields a confidently-swept wrong set")
     check("the ordering rationale is stated, not just the order",
-          affirms(gate_fail, r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
+          affirms(class_rule + gate_fail,
+                  r"wrong root cause[^.]{0,60}wrong set|set derived from a wrong"),
           "nothing explains why diagnosis must precede generalization")
 
     # 6c — BL-027's SECOND site. An independent evaluator deleted the Red-Green
