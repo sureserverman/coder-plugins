@@ -18,6 +18,7 @@ dropped. No LLM in this lane; judgment lives in SKILL.md.
 import argparse
 import datetime
 import json
+import os
 import re
 import subprocess
 import sys
@@ -27,6 +28,9 @@ from pathlib import Path
 import yaml
 
 STALE_PR_DAYS_DEFAULT = 14
+# Test-only seam: when set, overrides "now" for staleness/age math instead of
+# the real wall clock. Unset in normal use. See tests/test-repo-health-scan.py.
+NOW_ENV_VAR = "REPO_HEALTH_NOW"
 ISSUE_LIMIT = 100
 PR_LIMIT = 100
 RUN_LIMIT = 50
@@ -330,7 +334,9 @@ def main():
             sys.exit(f"not in registry (or disabled): {', '.join(sorted(missing))}")
         projects = [p for p in projects if p["name"] in wanted]
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now_override = os.environ.get(NOW_ENV_VAR)
+    now = (datetime.datetime.fromisoformat(now_override.replace("Z", "+00:00"))
+           if now_override else datetime.datetime.now(datetime.timezone.utc))
     result = {
         "generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "stale_pr_days": args.stale_days,
