@@ -25,9 +25,8 @@ running at full weight:
    `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
    across all the light plan's commits). Handle its verdict exactly like the Tier-2 stage
    review: a **Critical** blocks close-out just as a Tier-2 Critical fails a gate (fix
-   within the same discipline, re-run test + review), and Important findings are surfaced
-   for the user's triage rather than auto-fixed — but they are still bound by the **exit
-   criterion** (Step 3.5), so each one leaves the gate **fixed**, its class swept. A light
+   within the same discipline, re-run test + review), and Important findings are bound by the **exit criterion** (Step 3.5), so each one leaves the
+   gate **fixed**, its class swept. A light
    plan is a small plan, not one where findings evaporate — and not one where they are filed
    instead of fixed, since a small diff is the cheapest place there is to repair a defect. Skip only on the usual opt-out /
    trivial-diff rules — so an entirely docs-only light plan skips it too (zero reviews is

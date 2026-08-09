@@ -507,6 +507,13 @@ Every task follows this loop. No task is "done" until its test is green.
    "indent it and it still parses" is a detail nobody checks at commit time and the failure
    is silent. Put the reason in the body; keep the trailer bare.
 
+   **A routed agent that cannot commit does not become an inline task.** Four of the agents
+   the routing table names have no `git commit` in their tool grant, so the agent does the
+   work and reports, this session runs the `Test:` and writes the commit, and **the trailer
+   still names the agent** — it records who did the work, not who typed `git commit`
+   (`../dispatching-parallel-agents/references/stack-routing.md` § *Not every routed agent can
+   commit*, DEC-015).
+
    Name the actual `subagent_type` that ran the work, not the routing table's suggestion, and
    say so when a dispatch failed and finished inline: a substitution nobody can see is the
    defect this trailer exists to end. **A trailer that misstates who ran the task is worse
@@ -617,7 +624,7 @@ each finding, exactly one of:
 |----------|---------|-------------|
 | **Blocking** | the goal in scope is not met — the stage's at a gate, the plan's at close-out | must be fixed; the gate does not pass |
 | **Material** | real defect, goal still met | **fixed**, with its class swept; the `backlog` is not where a defect goes |
-| **Minor** | nit, polish, taste | recorded; never blocks |
+| **Minor** | nit, polish, taste | recorded in the gate report and carried into the stage handoff note; never blocks |
 
 Blocking maps to Critical, Material to Important, Minor to Suggestion, so both scales
 resolve to the one **exit criterion** below. An evaluator FAIL carrying no Blocking finding
@@ -671,7 +678,14 @@ checks above and the procedure below both resolve to:
 
 > A gate passes when **no Critical finding remains** and **every Important finding is
 > fixed**, its class swept per § A bug found during execution is a class. Suggestions are
-> recorded, never blocking.
+> **recorded in the gate report and carried into the stage handoff note**, never blocking.
+
+**"Recorded" names a destination.** A Suggestion is not a backlog candidate — `backlog add`
+refuses a defect found during execution, and a nit is still a defect — so the gate report and
+the handoff note are where it lives. Without a named destination it survives only in a
+transcript this skill then tells you to discard at the next stage boundary, which is how a
+finding disappears with nobody told. A Suggestion worth fixing is simply fixed; a Suggestion
+worth neither fixing nor writing down was not a finding.
 
 It is deliberately *not* "the detector returned silent" — a fresh judgment agent never
 reports zero findings, so a gate with that exit condition is not a gate but a loop. What ends
@@ -771,11 +785,11 @@ converging.
 The full procedure — how to derive the set, when the task's `Scope:` field is the authority
 and when it is wrong, and what each severity obliges: `references/gate-failure-procedure.md`.
 
-**If the gate passes** (per the exit criterion above — including its obligation to have
-recorded every unfixed Important and told the user): mark the stage complete, append the
+**If the gate passes** (per the exit criterion above — no Critical remains and every Important
+is fixed, or escalated with its blocker named): mark the stage complete, append the
 stage's handoff note to the plan (see Context resets below), commit with `"Stage N green"`,
-and start Step 3.1 for the next stage. The gate report states the remediation rounds spent
-and any residual findings recorded, so "green" never reads as "nothing was found".
+and start Step 3.1 for the next stage. The gate report states the remediation rounds spent, every Suggestion recorded, and any
+finding escalated rather than fixed, so "green" never reads as "nothing was found".
 
 ---
 
@@ -794,6 +808,8 @@ the handoff artifact.
   anything a fresh context needs that the Status flips don't capture>
   `dispatch: <the gate report's dispatched-vs-inline line, verbatim>`
   `review: <the gate report's per-tier reviewer/diff line, verbatim>`
+  `residuals: <every Suggestion recorded at this gate, and anything escalated rather than
+  fixed — one line each; "none" when there were none>`
   **Decisions in force:** <the DEC/GDEC IDs still binding, plus any Supersedes
   citation raised in this stage and not yet recorded>
   ```

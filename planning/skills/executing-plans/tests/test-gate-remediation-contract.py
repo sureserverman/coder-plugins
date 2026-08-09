@@ -640,14 +640,20 @@ def main():
         r"either fixed or recorded|fixed or recorded to the `?backlog|"
         r"or recorded to the `?backlog|"
         r"(Important|Material)[\s\S]{0,260}?recorded to the `?backlog", re.I)
+    # Marketplace-wide, not planning/skills/: the disposition claim also lives in
+    # planning/README.md and docs/USAGE.md, and README WAS an offending site — it still
+    # said "fixed or recorded" until a stage gate caught it by hand. A guard narrower than
+    # the claim it protects is the instance-vs-class shape this whole plan exists to close,
+    # recurring inside the guard. Matches check 11d's scope for the same reason.
+    ADMISSION_ROOT = SKILLS_ROOT.parent.parent
     offenders = []
     swept = 0
-    for md in sorted(SKILLS_ROOT.rglob("*.md")):
-        if "fixtures" in md.parts:
+    for md in sorted(ADMISSION_ROOT.rglob("*.md")):
+        if "fixtures" in md.parts or ".git" in md.parts:
             continue
         swept += 1
         if DEFERRAL_RE.search(flat(md.read_text(encoding="utf-8"))):
-            offenders.append(str(md.relative_to(SKILLS_ROOT)))
+            offenders.append(str(md.relative_to(ADMISSION_ROOT)))
     check(f"no skill files a defect instead of fixing it (swept {swept} files)",
           not offenders,
           "these still offer the backlog as a disposition for a finding: "
