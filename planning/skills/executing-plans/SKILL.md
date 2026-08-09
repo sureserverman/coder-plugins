@@ -572,7 +572,7 @@ each finding, exactly one of:
 | Severity | Meaning | Consequence |
 |----------|---------|-------------|
 | **Blocking** | the goal in scope is not met — the stage's at a gate, the plan's at close-out | must be fixed; the gate does not pass |
-| **Material** | real defect, goal still met | fixed, or recorded to the `backlog` with the user told |
+| **Material** | real defect, goal still met | **fixed**, with its class swept; the `backlog` is not where a defect goes |
 | **Minor** | nit, polish, taste | recorded; never blocks |
 
 Blocking maps to Critical, Material to Important, Minor to Suggestion, so both scales
@@ -584,10 +584,9 @@ it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condit
 scope. The evaluator above verifies *goals* black-box; this is the complementary *white-box*
 pass: dispatch `git-github:code-reviewer` (read-only) over the **full stage diff** plus the
 stage's collected `**Review notes (Task N.M):**` lines. It is a gate criterion, not advisory
-— a **Critical** here is a **gate failure**. Important findings are not auto-fixed but are
-**not free either**: each leaves the gate either fixed or recorded to the `backlog`, per the
-**exit criterion** below, which governs every gate pass and not only one reached through the
-failure branch. Suggestions are recorded. This is the only point where findings are judged against the *coherent
+— a **Critical** here is a **gate failure**. Important findings are **not free either**:
+each leaves the gate **fixed**, per the **exit criterion** below, which governs every gate
+pass and not only one reached through the failure branch. Suggestions are recorded. This is the only point where findings are judged against the *coherent
 stage*, so cross-task issues Tier-1 could not see (duplication across tasks, an abstraction
 that should have been shared) surface here. **Each finding is repaired as a class** per
 **§ A bug found during execution is a class** — a reviewer cites the line it read, which is
@@ -626,29 +625,44 @@ non-code and no decision in force bears on documentation.
 not only one reached by repairing a failure, and it is the single definition the
 checks above and the procedure below both resolve to:
 
-> A gate passes when **no Critical finding remains**, and **every Important finding
-> is either fixed or recorded to the `backlog` with the user told**. Suggestions are
+> A gate passes when **no Critical finding remains** and **every Important finding is
+> fixed**, its class swept per § A bug found during execution is a class. Suggestions are
 > recorded, never blocking.
 
 It is deliberately *not* "the detector returned silent" — a fresh judgment agent never
-reports zero findings, so a gate with that exit condition is not a gate but a loop. Recording
-is not dropping: an unfixed Important leaves the gate as a backlog ID, never as silence. An
-Important-only result is a **pass with an obligation** — if nothing was recorded and the user
-was not told, the gate has not passed yet.
+reports zero findings, so a gate with that exit condition is not a gate but a loop. What ends
+the loop is that the findings were *dealt with*, and for a defect that means fixed.
 
-**"Fixed or recorded" is not a free choice — the finding's kind decides which.**
+**A defect is fixed. The backlog is for what is not a defect.**
 
 | Kind of finding | Disposition |
 |---|---|
-| **A defect in code this plan touched** | **Fix it.** The context is already loaded; this is the cheapest it will ever be. |
-| **A decision** — new capability, a change needing sign-off, a trade-off with no obviously right answer | **Record it.** It is the user's call, not the executor's. |
-| **A defect outside the plan's blast radius** | Record it, and say why it was out of reach. |
+| **A defect — anywhere in the project, whether or not this plan touched the file** | **Fix it**, and sweep its class. The diagnosis is already loaded; this is the cheapest it will ever be, and it will not get cheaper by being written down. |
+| **A significant improvement** — a refactor, a new capability, performance work with no bug behind it | **Record it.** Nothing is broken; this is work someone should choose to schedule. |
+| **A decision** — a change needing sign-off, a trade-off with no obviously right answer, an editorial call | **Record it.** It is the user's call, not the executor's. |
+| **A defect you genuinely cannot fix here** — it needs a device, a credential, an upstream release, an environment this session does not have | **Escalate**, naming the blocker. Recording it is then the user's decision, not your default. |
+
+**Why the "outside the blast radius" row is gone.** It used to say *record it, and say why it
+was out of reach* — and it was the row that did the damage, because every deferral could be
+narrated as scope discipline. A sibling instance in a file this plan never touched is the same
+defect, and § A bug found during execution is a class already sends you there. Out of scope
+describes a plan's *subject matter*; it has never described a defect's *reach*.
 
 The asymmetry this closes: recording is frictionless and always available, while fixing risks
-the gate you are trying to pass. So an executor under gate pressure drifts toward the backlog
-for *everything*, and each deferral reads as scope discipline rather than as the avoidance it
-is. A backlog that grows by half a dozen entries per plan is the symptom, not a sign of
-thoroughness.
+the gate you are trying to pass. So an executor under gate pressure drifted toward the backlog
+for *everything*, and each deferral read as discipline rather than as the avoidance it was. A
+backlog that grows by half a dozen entries per plan is the symptom. **Measured 2026-08-09 in
+this repo: 28 open entries, of which the most recent were titled "residual guard gaps found by
+review, judged not worth closing yet" and "residual hardening … judged not worth closing
+now"** — findings, deferred, by the executor that found them. One of them (BL-041) left the
+repo's own test suite standing red for eight days, teaching every later reader to skim past
+the runner's verdict.
+
+**The escalation valve is narrow on purpose.** *"I could not fix it"* means the fix needs
+something this session does not have, and you say which. It does not mean the fix looked
+large, or risky, or like it belonged to someone else — those are the readings that reopen the
+door this rule closes. If you find yourself reaching for the valve twice in one gate, the
+honest report is that the gate is blocked, not that the backlog grew.
 
 **A plan's scope guardrails bound that plan's subject matter. They are not a licence to defer
 unrelated defects.** A guardrail like *"change only the values, never which fields are
@@ -691,7 +705,7 @@ counters and only one limit: repairs are bounded at 2, while fix → re-review �
 fix can run indefinitely because each pass is "just confirming the fix". The failure mode is
 not hypothetical — a fresh judgment agent reading a real artifact essentially always returns
 *something*, so a loop that re-dispatches until the reviewer goes quiet has no reachable exit.
-The exit is the **exit criterion** (no Critical remains, every Important fixed or recorded),
+The exit is the **exit criterion** (no Critical remains, every Important fixed),
 evaluated after each round; the budget is what stops the loop when that criterion is not
 converging.
 
@@ -796,12 +810,12 @@ When every stage is green:
    here except `high`'s second independent pass. At `none`, nothing. Handle the verdict by the
    same rules a gate uses: a **Critical blocks the merge** (fix, re-run at fix-scope,
    re-dispatch — and that re-dispatch counts a remediation round), and every **Important**
-   leaves close-out fixed or recorded to the `backlog` per the exit criterion. Report it in
+   leaves close-out **fixed** per the exit criterion. Report it in
    the close-out list with the agent and the diff range, exactly as a gate report would.
    This step exists because `light`'s single review is the whole plan's only white-box pass;
    a close-out that forgot it would ship a tier that reads as reviewed and was not.
 
-3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5, and **each finding is repaired as a class** per § A bug found during execution is a class — a close-out evaluator reads the whole plan diff, which is the widest view any reader gets and therefore the one most likely to name one instance of something true of several. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker: record each Material finding to the `backlog`, then report the residual list and those IDs to the user and let them decide. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
+3. **Independent evaluator pass.** **Whether it runs comes from § Review scope** — never at `none`; at `light` and `standard` when the final gate carries a `(judgment)` check; always at `high`. When it runs, dispatch a fresh evaluator briefed ONLY with the plan's stated goals, the per-stage Goal lines and the gate criteria — never the implementation transcript. It verifies the goal against the artifact itself and grades every finding Blocking / Material / Minor, as at Step 3.5, and **each finding is repaired as a class** per § A bug found during execution is a class — a close-out evaluator reads the whole plan diff, which is the widest view any reader gets and therefore the one most likely to name one instance of something true of several. **A Blocking finding is the stop condition** — surface it before merge. A FAIL carrying only **Material** findings is *not* a merge blocker — but it is not a filing exercise either: **fix each Material finding**, sweeping its class, and report what was fixed. Only a Material finding you genuinely cannot fix here escalates with its blocker named, per the exit criterion's fourth row. The distinction matters because "the evaluator returned no adverse findings" is not a reachable state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user opt-out (§ Review scope); where the tier does not, report it as scope rather than as an opt-out.
 4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
    Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
    wherever the project records it **and every place that mirrors it** — grep the old version
@@ -864,7 +878,8 @@ When every stage is green:
 - Run to completion: stage gates are checkpoints, not approval gates — don't stop between green stages to ask permission
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
-- Respect the gate's **remediation budget** too — counted and reported, with the default stated once at Step 3.5 rather than restated here; a gate passes when no Critical remains and every Important is fixed or recorded, never when the detector finally goes quiet
+- Respect the gate's **remediation budget** too — counted and reported, with the default stated once at Step 3.5 rather than restated here; a gate passes when no Critical remains and every Important is fixed, never when the detector finally goes quiet
+- Fix defects; file only what is not one. The backlog takes a significant improvement or a decision the user must make — never a bug you found while running the plan
 - Repair the defect **class**, not the instance you happened to sample — name the set, sweep it, fix every member. This fires wherever a bug surfaces (RED test, review finding, evaluator finding, failed gate, something noticed while editing), not only at a gate
 - Stage gates check integration, not just aggregate task success; invoke the platform stage-verify skill there when one matches the project
 - Never silently skip a Red-Green cycle — report and move on is fine; skip is not
@@ -887,11 +902,11 @@ Full list with what each one is load-bearing for: `references/sources.md`.
 
 - **planning-projects** — produces the plan this skill consumes; for decomposed big projects it produces a master plan plus sub-plans (format: its `references/master-plan-format.md`), which this skill executes per the Master plans section — sub-plans in register order, cross-plan gates on each completion, version bumps deferred to the master close-out
 - **dispatching-parallel-agents** — invoked for every `Parallel: YES` task; a file conflict serializes the dispatches rather than cancelling one (Step 3.2). Its `references/stack-routing.md` is the shared table that routes each `Parallel: YES` task to a stack-matched subagent (e.g. `rust-expert`, `testing-expert`). It routes nothing else: a `Parallel: NO` task runs inline, and Step 3.2's old rule sending independent, output-heavy sequential tasks to a subagent is retired
-- **backlog** — invoked to `add` deferred work (skipped task, scope creep at a gate) and to `remove` items the plan closed in Phase Close-out
+- **backlog** — invoked to `add` what is **not** a defect: a significant improvement, a decision the user must make, or a task the user chose to skip after a cycle budget exhausted. A defect found during a run is fixed, never filed (§ Exit criterion). Also invoked to `remove` items the plan closed in Phase Close-out
 - **decisions** — the architectural-decision register, consumed on three paths: `relevant` at Preflight (re-scan and diff against the plan's recorded `## Decisions in force`, since the register accretes between planning and execution), the conformance check at the **final** stage gate and close-out (a contradiction without a `Supersedes` citation is a gate failure wherever it is found — what is scoped to the final gate is the *sweep*, not the rule), and `supersede` / `add` at close-out (recording overrides the plan declared, and constraints execution itself discovered)
 - **workflow-spec** — invoked in Phase Close-out to `audit` the cumulative diff against `docs/workflows/`; undeclared `Removed` findings block the merge
 - **goal-evaluator agent** — the *black-box* gate/close-out evaluator: a fresh agent briefed ONLY with the stage/plan goals and gate criteria, never the implementation transcript. Verifies the *goal* is met against the artifact. **When it runs is the declared review scope's call** (§ Review scope): never at `none`, at `light`/`standard` wherever a gate carries a `(judgment)` check, always at `high` and at that tier's Phase Close-out. Where the tier mandates it, skip only on an evidenced user opt-out (quoted, per § Review opt-out) or — below `high` only — when every check is a command.
-- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** never at `none`, at `light` once over the whole plan diff whatever the format, and at `standard`/`high` once per unit the format names — per stage gate for a Standard or Master plan, once over the whole diff for a Direct or Light one (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed or recorded to the `backlog` per the exit criterion — never merely mentioned). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
+- **git-github:code-reviewer agent** — the *white-box* review (read-only): reads the actual diff and returns a Critical / Important / Suggestion triage. Runs in two tiers, **each gated by the declared review scope** (§ Review scope, which is the authority on when either fires) — **Tier 1** per green task, at `high` only or on a task's `Review: required` (Step 3.3 rule 6; a Critical blocks the task within its Red-Green cycle budget), and **Tier 2** never at `none`, at `light` once over the whole plan diff whatever the format, and at `standard`/`high` once per unit the format names — per stage gate for a Standard or Master plan, once over the whole diff for a Direct or Light one (Step 3.5; a Critical fails the gate, and an Important leaves the gate fixed per the exit criterion — never merely mentioned, and never merely filed). Distinct axis from the goal-evaluator: *code quality* vs *goal attainment*. Shipped by the `git-github` plugin.
 - **applying-design-handoff** — drives a *design-handoff* / *redesign* task: detects the
   handoff pack (local bundle or live claude.ai design project), reproduces it precisely,
   reshapes functionality to fit (behavior changes gated through `workflow-spec` with
