@@ -514,7 +514,8 @@ sharpest caller. What matters at *authoring* time is unchanged either way.
 `executing-plans` owns the operative procedure and is the single source of truth for it —
 severity classification (Critical / Important / Suggestion), a bounded remediation budget
 defaulting to 2 rounds, an exit criterion that passes when no Critical remains and every
-Important is fixed or recorded to the `backlog`, and escalation with a residual list on
+Important is fixed (the `backlog` takes a significant improvement or a decision the user must
+make, never a defect found while running the plan), and escalation with a residual list on
 exhaustion. Do not restate those rules here; a second copy is how the two drift apart. What
 matters at *authoring* time is that the plan's gate checks are shaped so a class can fail
 them at all — which is the class-predicate rule above.

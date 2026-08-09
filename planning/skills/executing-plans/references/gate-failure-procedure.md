@@ -65,8 +65,9 @@ uncounted loop is how a gate reaches its fourth round with nobody noticing the
 third.
 
 **Stop repairing when the exit criterion above is met** — no Critical remaining,
-every Important fixed or recorded. Do not spend a round chasing Suggestions, and do
-not spend one trying to make a judgment agent go quiet.
+every Important fixed — the `backlog` is not a disposition for a defect (trunk, § Exit
+criterion). Do not spend a round chasing Suggestions, and do not spend one trying to make a
+judgment agent go quiet.
 
 **On budget exhaustion, escalate with the residual list.** Report the findings
 that remain, their severities, and how the rounds were spent. This is a documented
