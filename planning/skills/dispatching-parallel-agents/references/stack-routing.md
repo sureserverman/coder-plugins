@@ -105,6 +105,48 @@ treat a handoff pack there as loose visual inspiration, not a fidelity target.
 
 ---
 
+## Not every routed agent can commit — the orchestrator finishes the task
+
+`executing-plans` Step 3.3 requires every dispatched task to run its `Test:`, flip its
+`Status:` to `[x]`, and land a commit ending in an executor trailer. **Four of the agents
+this table routes to cannot do that**, because their `tools:` grant withholds what it takes.
+Swept 2026-08-09 against every agent frontmatter in the marketplace
+(grep -m1 '^tools:' over every `*/agents/*.md`):
+
+| Routed agent | Can run a test? | Can commit? |
+|---|---|---|
+| `testing:testing-expert` | yes | **yes** — unrestricted shell |
+| `stingy-agents:code-generator` | yes | **yes** — unrestricted shell |
+| `planning:design-handoff-reproducer` | yes | **yes** — unrestricted shell |
+| `rust-dev:rust-expert` | yes (cargo) | **no** — its git grant is read-only (status, diff, log, show, blame) |
+| `game-dev:game-design-expert` | no | **no** — same read-only git grant |
+| `i18n:translator` | partly (python3) | **no** — status and diff only |
+| `stingy-agents:skill-rewriter` | **no** — no shell at all | **no** |
+| `stingy-agents:readonly-scanner` | n/a | n/a — read-only by design; never route a *task* here |
+
+This is a capability boundary, not a bug in those agents: a markdown rewriter with no shell
+is a deliberately cheap, deliberately safe tool. What was missing is the handoff.
+
+**So when the routed agent cannot commit, the task is still dispatched** — the delegation
+directive is unchanged, and inlining it instead would be the exact substitution
+`../../executing-plans/references/dispatch-fidelity.md` exists to prevent. Split the work:
+
+1. **The agent does the work** and returns its report, including what it could not verify.
+   Brief it that way up front rather than letting it discover the gap: tell it to make the
+   edits and report, and that the caller will run the test and commit.
+2. **The orchestrator runs the task's `Test:` itself**, from the main session. This is the
+   same trust-but-verify re-run Phase 6 already requires for a GREEN return, so it costs
+   nothing new — it just becomes the only run rather than the second one.
+3. **The orchestrator writes the commit**, and **the trailer still names the agent**:
+   `Executor: dispatched — stingy-agents:skill-rewriter`. The trailer records **who did the
+   work**, not who typed `git commit` — that is what makes it answer "5 marked YES, 0
+   dispatched". Say in the commit body that the agent lacked commit capability and the
+   orchestrator completed it, so the split is on the record.
+
+**What you may not do** is call the task inline because the agent could not finish it, or
+mark the trailer `inline` when an agent wrote the diff. Both convert a capability boundary
+into a false record of who did the work.
+
 ## Resolving a capability whose plugin isn't enabled
 
 The routing table names agents and skills by the identity Claude Code uses **when
