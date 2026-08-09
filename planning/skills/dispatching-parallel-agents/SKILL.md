@@ -31,8 +31,7 @@ when the plan was approved; asking "should I dispatch these?" here re-litigates 
 that's already made. (An inlined task and a dispatched one produce byte-identical
 artifacts, so skipping a mandated dispatch shows up nowhere in the diff — only later, when
 the review work that dispatch was supposed to trigger turns out to have never happened.)
-The only legitimate halts remain the ones above: a precondition genuinely fails, or a
-component flagged `requires_enablement` can't be lazy-loaded (Phase 4). "I wasn't sure
+The only legitimate halts remain the ones above: a precondition genuinely fails, a component flagged `requires_enablement` can't be lazy-loaded, or **dispatch is mechanically unavailable or disallowed in this session** — which is a Stop condition for the caller (`../executing-plans/SKILL.md` § Stop conditions), reported as such rather than resolved by quietly inlining the work. "I wasn't sure
 whether to fan out" is not one.
 
 ---

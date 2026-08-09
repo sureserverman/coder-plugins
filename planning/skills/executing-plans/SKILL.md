@@ -129,8 +129,10 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 ## The plan is the authorization — dispatch without a confirmation turn
 
 **A dispatch this plan mandates is a direct order, and you execute it without asking.** That
-covers a `Parallel: YES` task, a review the declared tier calls for, an evaluator at a
-`(judgment)` gate, and the Preflight probe. Do not spend a turn on *"shall I fan these out?"*
+covers a `Parallel: YES` task, and — **each on the conditions § Review scope already sets for
+it, never beyond them** — a review the declared tier calls for, an evaluator the tier funds at
+a `(judgment)` gate, and the Preflight probe on a non-empty roster at `standard` or `high`.
+The rule removes the *asking*, never the *conditions*. Do not spend a turn on *"shall I fan these out?"*
 or *"should I dispatch the reviewer?"* — the answer was given when the plan was handed to you.
 
 **Why this needs saying at all.** A session usually carries a standing caution of roughly the
@@ -424,8 +426,14 @@ Scan the stage's tasks. A task is **dispatchable** when every task in its `Depen
 
 **File-conflict check:** before dispatching, verify no two parallel tasks edit the same file. If they do, **serialize the dispatches — do not inline either one.** A file conflict is a fact about *scheduling*: it says these two cannot run at the same moment, which is a different claim from "this task need not go to a subagent". `Parallel: YES` is a delegation directive (`../planning-projects/SKILL.md` § Stage structure), and nothing about a sibling touching the same file withdraws it. So the conflicting task is dispatched on its own once the first returns, and its commit carries `Executor: dispatched — <type>` like any other.
 
-If you genuinely need a `Parallel: YES` task inline, that is a deviation: run it, say so in
-the gate report's dispatch line with a reason, and let the trailer record `Executor: inline`.
+If a `Parallel: YES` task ends up inline, that is a **deviation**, and it needs the same
+justification a Stop condition does: dispatch was mechanically unavailable, or the user
+authorised the substitution. *"It seemed easier inline"* and *"I judged it unnecessary"* are
+not on that list — § The plan is the authorization is explicit that the substitution is not
+the executor's call to make. When it does happen, run it, say so in the gate report's
+dispatch line with the reason, and let the trailer record `Executor: inline (dispatch
+failed)` or `Executor: inline (user authorised)` — the bare `Executor: inline` on a task the
+plan marked `YES` is the shape that hides a silent downgrade.
 
 **A `Parallel: NO` task runs in the main session.** The plan's `Parallel` field is the whole
 decision: `YES` obligates a dispatch, `NO` means inline. There is no executor discretion to

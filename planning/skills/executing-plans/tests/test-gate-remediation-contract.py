@@ -63,6 +63,15 @@ What it pins:
      the gate reports dispatched-vs-inline, an unperformable dispatch or review is a
      Stop condition, review skips are closed at two reasons, an opt-out is evidenced,
      and both report sites name the reviewer and the diff.
+ 11b/c/d. (dispatch precedence, Task 3.4) A plan's mandated dispatch needs no
+     confirmation turn — the standing caution against calling the Agent tool is
+     conditional and the plan's approval IS the request. Pinned with its BOUND at
+     equal weight (no plan in play → the caution stands and you ask) and with the
+     over-correction recorded as its own failure, because the incident behind the
+     rule failed in BOTH directions and a guard pinning only the permissive half
+     would readmit the second. Plus: the rule reaches the two files that actually
+     make the decision (a set), and a marketplace-wide sweep that no skill
+     reintroduces a confirmation turn.
  12. (class repair) The class-repair rule has its own trunk section, states that it
      fires outside a gate, is priced as a command rather than a dispatch (DEC-010),
      carries its outer bound and its un-nameable-class disclosure, and is reached
@@ -676,7 +685,9 @@ def main():
     # These four requirements have a NEGATION as their subject — "conditional, not
     # absolute", "no plan in play", "over-corrected", "without asking" — so affirms(),
     # which screens negation tokens inside the match, rejects every one of them on true
-    # prose. Same call the file already makes at check 9c. The phrases are specific enough
+    # prose. Closest precedent is check 9b, which drops the screen because there is no single
+    # claim clause to anchor; here the reason differs again — the target text itself embeds
+    # a negation token, so the screen rejects the requirement's own correct wording. The phrases are specific enough
     # that an inversion cannot match them accidentally, which is what affirms() would
     # otherwise be buying.
     check("the standing caution is named as CONDITIONAL, not absolute",
@@ -691,7 +702,8 @@ def main():
           "the rule is stated without its bound, which is how it gets over-corrected into "
           "its inverse — the documented second failure of the same incident")
     check("the over-correction is recorded as a failure in its own right",
-          re.search(r"over-correct", precedence, re.I) is not None,
+          re.search(r"over-correct(?:ed|ion)? into its own inverse", precedence, re.I)
+          is not None,
           "only the permissive failure is recorded, so a reader has no warning against "
           "inverting the rule rather than scoping it")
     check("what still halts a dispatch is enumerated",
@@ -704,8 +716,11 @@ def main():
     # where the reasoning is kept. A rule stated only in the trunk is a rule the dispatch
     # path never reads.
     DISPATCH_SITES = [
+        # Sentence-shaped, not a bare substring: "without asking" alone is satisfied by
+        # "never dispatch without asking permission first" — i.e. by the over-correction
+        # this stage exists to prevent. Reproduced before widening.
         ("dispatching-parallel-agents", SKILLS_ROOT / "dispatching-parallel-agents"
-         / "SKILL.md", r"without asking"),
+         / "SKILL.md", r"[Dd]ispatch on invocation[\s\S]{0,80}?without asking"),
         ("dispatch-fidelity rationale", SKILLS_ROOT / "executing-plans" / "references"
          / "dispatch-fidelity.md", r"conditional"),
     ]
@@ -718,11 +733,18 @@ def main():
 
     # 11d — tree-wide sweep: no skill may reintroduce a confirmation turn before a
     # mandated dispatch. Fixtures excluded for the reason given at the admission sweep.
-    ASK_RE = re.compile(r"ask (?:the user )?(?:whether|if) to dispatch|"
+    # Synonyms matter: the rule is about a confirmation turn, not about one phrasing of
+    # it, and "check with the user before fanning out" is the same regression. Scope is
+    # the whole marketplace, matching the stage gate's own class predicate rather than
+    # being quietly narrower than the check it mirrors.
+    ASK_RE = re.compile(r"ask (?:the user )?(?:whether|if) to (?:dispatch|fan out)|"
+                        r"(?:confirm|check) with the user before (?:dispatch|fan)|"
                         r"confirm before dispatching|permission to dispatch", re.I)
-    askers = [str(md.relative_to(SKILLS_ROOT))
-              for md in sorted(SKILLS_ROOT.rglob("*.md"))
-              if "fixtures" not in md.parts and ASK_RE.search(flat(md.read_text(encoding="utf-8")))]
+    MARKET_ROOT = SKILLS_ROOT.parent.parent
+    askers = [str(md.relative_to(MARKET_ROOT))
+              for md in sorted(MARKET_ROOT.rglob("*.md"))
+              if "fixtures" not in md.parts and ".git" not in md.parts
+              and ASK_RE.search(flat(md.read_text(encoding="utf-8")))]
     check("no skill asks before a mandated dispatch", not askers,
           "these still ask before dispatching: " + ", ".join(askers))
 
