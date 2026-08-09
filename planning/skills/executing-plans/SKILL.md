@@ -126,6 +126,41 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 
 ---
 
+## The plan is the authorization — dispatch without a confirmation turn
+
+**A dispatch this plan mandates is a direct order, and you execute it without asking.** That
+covers a `Parallel: YES` task, a review the declared tier calls for, an evaluator at a
+`(judgment)` gate, and the Preflight probe. Do not spend a turn on *"shall I fan these out?"*
+or *"should I dispatch the reviewer?"* — the answer was given when the plan was handed to you.
+
+**Why this needs saying at all.** A session usually carries a standing caution of roughly the
+form *"do not call the Agent tool unless the user requested it"*. That caution is
+**conditional, not absolute**, and a plan whose execution model names dispatch points is the
+condition being met: **approving the plan WAS the request.** The two rules live in different
+places — one in the session's standing instructions, one in a file the user pointed at — and
+nothing forces a reader to reconcile them, so the more general and more recently read rule
+wins by default. Stating the precedence here is what stops each session having to re-derive
+it, and getting it wrong differently each time.
+
+**The bound, which carries equal weight.** With **no plan in play and no mandate**, the
+caution stands and you ask. This rule deletes a confirmation turn where a plan already
+authorized the work; it does not authorize dispatch in general, and it never makes a dispatch
+the *tier* did not fund (§ Review scope) suddenly due. A rule stated without its bound gets
+over-corrected into its own inverse, which is not hypothetical: the recorded response to this
+failure was *"standing rule, no exceptions: I won't dispatch unless you explicitly ask"* —
+inverting the rule rather than scoping it, and stripping the same reviews for the opposite
+reason.
+
+**What still halts a dispatch**, unchanged: the probe fails or dispatch is unavailable (a
+Preflight failure and a documented Stop condition — the user chooses, and inline substitution
+is not the executor's call to make), or a `requires_enablement` component cannot be
+lazy-loaded. *"I wasn't sure whether to fan out"* has never been on that list.
+
+Why the incident that produced this rule was invisible while it happened:
+`references/dispatch-fidelity.md`.
+
+---
+
 ## A bug found during execution is a class — sweep it, fix every instance
 
 **Any defect you find during a run is one sample of a class until a command proves
@@ -394,7 +429,8 @@ the gate report's dispatch line with a reason, and let the trailer record `Execu
 
 **A `Parallel: NO` task runs in the main session.** The plan's `Parallel` field is the whole
 decision: `YES` obligates a dispatch, `NO` means inline. There is no executor discretion to
-hand a sequential task to a subagent anyway.
+hand a sequential task to a subagent anyway — and none, in the other direction, to check
+first: a `YES` is dispatched **without asking** (§ The plan is the authorization).
 
 This retires a "delegate output-heavy sequential tasks for context hygiene" nudge that stood
 here through 0.36.0. It was optional, discretionary, and conceded in its own text that it
@@ -802,6 +838,12 @@ Stop immediately and escalate to the user when:
 
 **Never guess through a stop condition.** Ask.
 
+**Equally: never ask through a dispatch the plan mandated.** These conditions fire when a
+mandated dispatch *cannot be performed*, never when you are merely unsure whether to perform
+one — that question is answered by the plan (§ The plan is the authorization). A turn spent
+confirming a dispatch the plan already ordered is the run-to-completion failure this skill
+exists to prevent, arriving through a different door.
+
 The dispatch entry restores a symmetry the list already had and had lost. "A test cannot be run" blocks, because an unrunnable check is not a passed check — and a mandated dispatch or review that cannot be run is the same fact about a different mechanism. What made the asymmetry survive is that the substitute looks like the work: an inlined task produces the same diff, and an unreviewed gate reads exactly like a reviewed one. That is the reason it needs a rule rather than judgment — the failure is invisible in the artifact, so nothing downstream will raise it. **The choice belongs to the user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through `planning-projects`, or accept inline execution knowingly. What the executor may not do is make that call silently on their behalf, which is exactly what happened in the incident this rule comes from.
 
 ## When to revisit earlier steps
@@ -891,6 +933,7 @@ When every stage is green:
 - Critique the plan before starting
 - Preflight is a hard gate — and it includes a live git repo (init one if missing)
 - Run to completion: stage gates are checkpoints, not approval gates — don't stop between green stages to ask permission
+- Dispatch what the plan mandates without asking; the approval of the plan was the request. With no plan in play, the standing caution stands and you ask
 - Follow the plan's exact tests, exact commands
 - Respect the cycle budget — three targeted fixes, then stop
 - Respect the gate's **remediation budget** too — counted and reported, with the default stated once at Step 3.5 rather than restated here; a gate passes when no Critical remains and every Important is fixed, never when the detector finally goes quiet
