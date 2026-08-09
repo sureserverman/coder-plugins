@@ -640,7 +640,7 @@ the loop is that the findings were *dealt with*, and for a defect that means fix
 | **A defect — anywhere in the project, whether or not this plan touched the file** | **Fix it**, and sweep its class. The diagnosis is already loaded; this is the cheapest it will ever be, and it will not get cheaper by being written down. |
 | **A significant improvement** — a refactor, a new capability, performance work with no bug behind it | **Record it.** Nothing is broken; this is work someone should choose to schedule. |
 | **A decision** — a change needing sign-off, a trade-off with no obviously right answer, an editorial call | **Record it.** It is the user's call, not the executor's. |
-| **A defect you genuinely cannot fix here** — it needs a device, a credential, an upstream release, an environment this session does not have | **Escalate**, naming the blocker. Recording it is then the user's decision, not your default. |
+| **A defect you genuinely cannot fix here** — the fix needs a device, a credential, an upstream release, or an environment this session lacks | **Escalate**, naming the blocker. Recording it is then the user's decision, not your default. |
 
 **Why the "outside the blast radius" row is gone.** It used to say *record it, and say why it
 was out of reach* — and it was the row that did the damage, because every deferral could be

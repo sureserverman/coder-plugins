@@ -398,9 +398,27 @@ def main():
     check("exit criterion turns on no Critical remaining",
           re.search(r"passes when\s+\*{0,2}no Critical", exit_block, re.I) is not None,
           "the exit criterion does not state that passing requires no Critical remaining")
-    check("Important findings fixed-or-recorded",
-          affirms(exit_block, r"Important[\s\S]{0,160}(fixed|recorded)[\s\S]{0,160}backlog"),
-          "Important findings may be silently dropped — no affirmative fix-or-record rule")
+    check("Important findings are FIXED, not filed",
+          affirms(exit_block, r"Important[\s\S]{0,120}fixed"),
+          "Important findings may be silently dropped — no affirmative fix rule")
+    # The inverse pin, and the load-bearing half after this stage: the criterion must not
+    # offer the backlog as a way to pass a gate on an unfixed defect. The old contract
+    # REQUIRED "backlog" next to "Important"; letting that requirement simply lapse would
+    # leave the drift free to return in the next rewording.
+    check("the criterion does not offer the backlog as a disposition for a defect",
+          not re.search(r"Important[\s\S]{0,120}recorded to the `?backlog", exit_block, re.I),
+          "the exit criterion still lets an Important finding leave the gate as a backlog "
+          "ID, which is the deferral asymmetry this criterion was rewritten to close")
+    check("the backlog's two admissible kinds are named at the criterion",
+          affirms(exit_block, r"significant improvement")
+          and affirms(exit_block, r"decision"),
+          "the criterion removes the backlog as a disposition without saying what the "
+          "backlog IS for, which is how the rule reads as 'never file anything'")
+    check("a defect that cannot be fixed here escalates with its blocker named",
+          affirms_predicate(exit_block, r"cannot fix", r"[Ee]scalat")
+          or affirms(exit_block, r"naming the blocker"),
+          "no escape valve: a defect needing a device, a credential or an upstream "
+          "release would be unreportable, which is worse than the drift being fixed")
     check("'no findings' rejected as the bar",
           re.search(r"not a reachable state|returned silent", exit_block, re.I) is not None,
           "the rationale for not using 'detector returned silent' is missing")
@@ -426,11 +444,20 @@ def main():
     ]
     for label, block in sibling_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")
+        # Two conditions rather than one 220-char window. The window had to be greedy to
+        # span either order, and a greedy span pulls in any negation further down the
+        # paragraph — including, at the master site, the criterion's own "no Critical
+        # remains". Cite-the-criterion and say-they-are-fixed are separate claims anyway.
         check(f"Importants bound to the exit criterion at: {label}",
-              affirms(block, r"exit criterion[\s\S]{0,220}backlog|"
-                             r"backlog[\s\S]{0,220}exit criterion"),
+              "exit criterion" in block and affirms(block, r"leaves[\s\S]{0,40}?fixed")
+              and not re.search(r"either fixed or recorded|or recorded to the `?backlog",
+                                block, re.I),
               f"{label} describes Important findings without binding them to the exit "
-              f"criterion and the backlog — findings can pass this path unrecorded")
+              f"criterion and to being fixed — findings can pass this path unrepaired")
+        check(f"no backlog escape hatch at: {label}",
+              not re.search(r"Important[\s\S]{0,160}recorded to the `?backlog", block, re.I),
+              f"{label} still offers the backlog as a disposition for an Important "
+              f"finding, so the deferral path survives at this sibling")
 
     # 4 — escalation on exhaustion, carrying the residual list
     check("budget-exhaustion escalation",
@@ -567,9 +594,61 @@ def main():
           re.search(r"Material[\s\S]{0,120}is \*?not\*? a merge blocker",
                     close_out, re.I) is not None,
           "a Material-only FAIL is not distinguished from a Blocking one")
-    check("close-out Material findings are recorded, not just mentioned",
-          affirms(close_out, r"record each Material finding[\s\S]{0,40}backlog"),
-          "Material findings are reported without an imperative to record them")
+    check("close-out Material findings are FIXED, not just mentioned",
+          affirms(close_out, r"fix each Material finding"),
+          "Material findings are reported without an imperative to fix them")
+    check("close-out does not route a Material finding to the backlog instead",
+          not re.search(r"record each Material finding[\s\S]{0,60}backlog", close_out, re.I),
+          "close-out still files Material findings rather than fixing them, so the "
+          "deferral path survives at the one gate with the widest view of the diff")
+
+    # 8b — (backlog admission) A SWEEP over every skill, not a check on the two files
+    # this stage happened to edit. The retired contract — "fixed OR recorded to the
+    # backlog" — was restated at seven sites, which is why it survived three earlier
+    # attempts to tighten it: each fixed the site that was noticed. Any file under
+    # planning/skills/ that still offers the backlog as a disposition for an Important
+    # or Material finding fails here, by name.
+    #
+    # tests/fixtures/ is excluded deliberately, not incidentally: gate-check-corpus/
+    # holds FROZEN COPIES OF REAL, UNMODIFIED past plans (see its PROVENANCE.md), one of
+    # which narrates a July gate as "eleven were fixed or recorded". Editing a historical
+    # record to satisfy a sweep would falsify it AND decalibrate
+    # test-validate-gate-checks.py group 9, whose figures are pinned against that corpus.
+    # Two patterns, because one of them needs no distance parameter at all. The window on
+    # the second was originally 80 chars, chosen by eye; a mutation probe reverting ONE
+    # sibling site proved it vacuous — the real distance at that site is 186 characters,
+    # measured, so it is now 260 and the disjunction pattern backstops it regardless.
+    DEFERRAL_RE = re.compile(
+        r"either fixed or recorded|fixed or recorded to the `?backlog|"
+        r"or recorded to the `?backlog|"
+        r"(Important|Material)[\s\S]{0,260}?recorded to the `?backlog", re.I)
+    offenders = []
+    swept = 0
+    for md in sorted(SKILLS_ROOT.rglob("*.md")):
+        if "fixtures" in md.parts:
+            continue
+        swept += 1
+        if DEFERRAL_RE.search(flat(md.read_text(encoding="utf-8"))):
+            offenders.append(str(md.relative_to(SKILLS_ROOT)))
+    check(f"no skill files a defect instead of fixing it (swept {swept} files)",
+          not offenders,
+          "these still offer the backlog as a disposition for a finding: "
+          + ", ".join(offenders))
+    check("the admission sweep examined a non-empty set", swept > 20,
+          f"only {swept} files swept — the sweep is not reaching the skills tree")
+
+    # 8c — the backlog skill states what it DOES admit. A rule that only forbids leaves
+    # an executor with nowhere to put a genuine improvement, and the predictable failure
+    # is that it stops recording those too.
+    backlog_skill = SKILLS_ROOT / "backlog" / "SKILL.md"
+    if backlog_skill.is_file():
+        bt = flat(backlog_skill.read_text(encoding="utf-8"))
+        for kind in ("significant improvement", "non-urgent decision"):
+            check(f"backlog admits: {kind}", affirms(bt, re.escape(kind)),
+                  f"the backlog skill does not name '{kind}' as admissible")
+        check("backlog refuses a defect found during execution",
+              affirms_predicate(bt, r"Refuse", r"defect"),
+              "the backlog skill has no refusal path, so `add` still accepts a defect")
 
     # 9 — drift guard. The renderer hardcodes the default budget as its denominator when
     # `remediation_budget` is absent, which duplicates the number stated in the skill
