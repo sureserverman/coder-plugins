@@ -84,6 +84,18 @@ carefully here:
     EXECUTABLE.
   - `INLINE_SCRIPT`'s quote matching is not escape-aware, so an interpreter payload
     containing an escaped copy of its own delimiter truncates early.
+  - SELECTOR-UNMATCHED has one known false-positive shape, measured: a gate selector
+    satisfied by tests that **already exist** in the tree — written by an earlier sub-plan,
+    or predating the plan entirely — reads as unmatched, because the cross-reference is
+    against the plan's own task `Test:` fields and nothing else. Observed on 2 of 5 flagged
+    checks across the remote-agents `bot-live-view` sub-plans (2026-08-10): both collected
+    (1 and 2 tests) when probed, while the other 3 collected zero and were real. This is why
+    `executing-plans` pairs the static check with a `pytest --collect-only` probe at
+    Preflight, where the tree is real: the static half runs at authoring, when the tests
+    usually do not exist yet and only the plan can vouch for them; the runtime half settles
+    it. **A flagged selector that collects is not a defect** — record the collection count
+    and proceed. Narrowing the static check to avoid this would cost the true positives,
+    since at authoring time "no test yet" and "no test ever" look identical.
   - The `Scope:`-advisory (`unswept_scopes`) is REPORTED, never failed, and only for
     stages that declare the field — so a plan predating it classifies identically. It
     accepts either sanctioned shape (a sweep or a `(judgment)` marker) as covering the
