@@ -102,10 +102,24 @@ expiry is gone*, verified four times:
 |---|---|---|
 | 1 | Task 1.1 `Test:` — the migration produces no `expires_at` column | **Keep.** The task owns its instance; nothing else proves this migration is right. |
 | 2 | Stage-1 gate — `! grep -rn 'expires_at\|timedelta(minutes=15)\|view_revision' src/` | **Keep.** Strictly wider and nameable: the task proved one file, this sweeps the tree for the whole vocabulary. |
-| 3 | Close-out gate — the same grep again | **Cut.** Same command, same set, same population. A re-run is not a second fact. |
+| 3 | Close-out gate — the same grep again | **Keep.** Same command and same *set*, but a **larger population**: two stages of commits landed since check 2 ran. A negative-existence sweep is a regression guard, and its whole value is re-running over a tree that has grown. |
 | 4 | `(judgment)` — "no surviving claim that a view can expire" | **Cut, or narrow.** As written it restates check 2 and spends an evaluator dispatch on it. It earns its place only against what a grep genuinely cannot decide — that the two surviving mentions of "expired" are *denials* rather than assertions — and then it says so. |
 
-The plan shipped all four. Two of them were coverage; two were cost.
+The plan shipped all four; three of them were coverage and one was cost.
+
+**The boundary that decides rows 1 and 3 is the same one, read in two directions.** A task's
+`Test:` is not re-proved *at that stage's gate*, because the task's commit is inside the
+stage the gate is about to check — the population is genuinely identical. Across a **stage
+boundary** it is not: later commits can reintroduce what an earlier sweep proved absent, and
+nothing else is looking. So "one owner per fact" retires *repetition within a stage*, and
+leaves *regression sweeps across stages* alone. A negative-existence check (`! grep -r …`) is
+almost always the second kind.
+
+An earlier draft of this table cut row 3 for being "the same command, the same set, the same
+population". The first two were true and the third was not, and the cut would have removed the
+only guard against a late stage reintroducing the vocabulary — a rule against redundancy
+deleting a real check, which is the failure mode this whole reference exists to prevent in the
+opposite direction.
 
 Be honest about where the "mandatory" half lives: it is **this checklist**, and nothing else.
 No plan-file marker records that a plan was validated, so `executing-plans` cannot tell a

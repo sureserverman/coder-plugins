@@ -43,10 +43,25 @@ exactly what fix-scope re-proves.
 Without this rule the tiers are correct per-run and unbounded in aggregate: a gate that
 takes three remediation rounds runs its full stage-scope sweep four times, and nothing in
 the table above forbids it. Measured live (remote-agents `bot-live-view` sub-plan 01,
-2026-08-10): 52 pytest invocations in one session, of which ~13 were multi-tree or
+2026-08-10): 76 pytest invocations in one session, of which 13 were multi-tree or
 full-suite sweeps and most of those were gate re-entries re-proving code that had not
 changed since the previous entry. The per-task runs — the ones an executor is most tempted
 to trim — were never the problem, and are untouched here.
+
+**A class sweep is not a fix-scope re-run.** When the repair is a **project-wide class fix**
+(DEC-013 — a defect found at a gate is swept across the project and fixed at every member),
+fix-scope covers the classes the fix touched, and the fix touched every member of the class:
+the sweep *is* the scope, and it runs in full. This rule bounds a gate from re-buying its
+whole stage-scope command per round; it does not narrow a repair that legitimately spans the
+project. Where the two read as competing, DEC-013 wins and the gate report says which scope
+ran, per guard rail 2.
+
+**Accepted cost, stated because it is real.** Running stage-scope once per gate entry means a
+remediation fix that breaks a *sibling* module — via a shared dependency or a signature
+change — is no longer caught at that gate; it surfaces at the plan-scope pass. That is
+latency, not lost coverage: the same trade DEC-010 already accepted at tier `standard`, where
+a Critical waits for the stage gate rather than the next task. It is named here so a future
+reader meets it as a decision rather than discovering it as a surprise.
 
 **A declared stage-scope command is subject to the same cost threshold as the full
 suite.** If the stage-scope command itself crosses ~5 minutes, narrow it: run the cheap
