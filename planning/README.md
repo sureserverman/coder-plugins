@@ -88,10 +88,13 @@ Takes a plan file produced by `planning-projects` and executes it. The skill is 
 
 Preflight includes a **git bootstrap** — if the project isn't a repo it runs `git init` (and offers a GitHub remote) so the per-task commits have somewhere to land. Execution **runs to completion**: stage gates are checkpoints, not approval gates, so it doesn't pause between green stages to ask permission — only the documented stop conditions halt it. At each stage gate it invokes a matching **platform stage-verify skill** (Android → `android-stage-verify`: build the debug APK, and if an adb device is attached, install + smoke-launch + run instrumented tests). At close-out it **bumps versions** for whatever the plan changed, across every mirror of the version string (e.g. a plugin's `plugin.json` and the root `marketplace.json`).
 
+**Test-first Red-Green (v0.42.0).** The task's test is written and run **before** the implementation, and must go RED for the reason the task names. A RED that means something else is a defective test, diagnosed as such on the spot rather than debugged against code the executor already believes correct — and repairing it doesn't spend the `Red-Green max cycles` budget, which bounds failed hypotheses about the product. Where the task's `Test:` names a `-k` selector, that selector is a naming constraint applied as the test is written, not a rename discovered after it passes.
+
 **Tiered test-scope gates (v0.24.0).** Gates run the tests their tier warrants rather than the whole suite every time — cheap host-side checks always run in full, expensive suites (device / instrumented / e2e) are scoped:
 
+- **task-scope** — inside a task: the task's own `Test:` and nothing wider (v0.42.0). The `stage-scope:` command never runs "for Task 2.3" — a break in a sibling module surfaces at the stage gate, which is the one place that sweep is scheduled.
 - **fix-scope** — after a review fix inside a Red-Green cycle: the task's own `Test:` plus the test classes the fix touched.
-- **stage-scope** — at an intermediate stage gate: restricted to the modules the stage's commits touched, never `clean`.
+- **stage-scope** — at an intermediate stage gate, **once per gate entry** (v0.41.0): restricted to the modules the stage's commits touched, never `clean`.
 - **plan-scope** — exactly one clean full pass, at close-out (the final stage's gate runs at this tier).
 
 A scoped gate report always discloses what actually ran. Policy lives in `skills/planning-projects/references/test-scope-tiers.md`, shared with `planning-projects`.

@@ -22,7 +22,7 @@ the merge.
 
 | Tier | When it runs | What runs |
 |------|--------------|-----------|
-| **task-scope** | Every Red-Green cycle | The task's own `Test:` — already targeted (a class filter, a module's unit tests, a single command). Unchanged from the base model. |
+| **task-scope** | Every Red-Green cycle | The task's own `Test:` — already targeted (a class filter, a module's unit tests, a single command) — **and nothing else**. The stage-scope command does not run inside a task. |
 | **fix-scope** | After a Tier-1/Tier-2 Critical fix, a gate-triage fix, or **any re-verification inside a gate's remediation loop** | Only the test classes/modules the fix touched, plus the originating task's own `Test:` and the gate check that failed. Never the full suite, and never a repeat of the gate's stage-scope command — a review or remediation fix is a targeted change and gets a targeted re-proof. |
 | **stage-scope** | Intermediate stage gates | All **cheap host-side checks in full** (unit tests, lint, static/architecture checks, build). **Expensive suites restricted to the modules touched by the stage's commits.** Never `clean`. |
 | **plan-scope** | Final stage gate + close-out — once | The full suite from a clean state, including every expensive suite and every quarantined slow test. The one place `clean` belongs. |
@@ -43,10 +43,12 @@ exactly what fix-scope re-proves.
 Without this rule the tiers are correct per-run and unbounded in aggregate: a gate that
 takes three remediation rounds runs its full stage-scope sweep four times, and nothing in
 the table above forbids it. Measured live (remote-agents `bot-live-view` sub-plan 01,
-2026-08-10): 76 pytest invocations in one session, of which 13 were multi-tree or
-full-suite sweeps and most of those were gate re-entries re-proving code that had not
-changed since the previous entry. The per-task runs — the ones an executor is most tempted
-to trim — were never the problem, and are untouched here.
+2026-08-10): 75 pytest invocations in one session, of which 10 ran the declared stage-scope
+set or the full suite — and **6 of those 10 were labelled per task**, not per gate
+(`Full stage-scope suite for Task 2.3`, twice; `for Task 2.4`; `after Task 2.5 fixes`).
+Re-measuring that session is what corrected this paragraph: the sweeps were first attributed
+to gate re-entries, and most of them were not. A task's own `Test:` was never the problem —
+what an executor adds *after* it is, which is what the next section bounds.
 
 **A class sweep is not a fix-scope re-run.** When the repair is a **project-wide class fix**
 (DEC-013 — a defect found at a gate is swept across the project and fixed at every member),
@@ -69,6 +71,42 @@ trees the stage's commits *touched or depend on*, not every cheap tree the proje
 "Cheap host-side checks in full" is an economy when a project has three test trees and a
 tax when it has ten — the same sub-plan declared four whole trees as its stage-scope at
 every gate, for stages that touched one.
+
+## A stage-scope pass never runs inside a task
+
+**Between a task's Red-Green loop starting and its commit landing, the only tests that run
+are the task's own `Test:`** — plus, when a Tier-1 Critical is fixed, that fix's fix-scope.
+Nothing else. Not the stage-scope command, not "the suites this task touched", not a
+regression sweep across sibling trees. The stage that owns the task runs stage-scope **at its
+gate**, once (previous section), and that is where a cross-task regression is meant to
+surface.
+
+The previous section bounded a gate to one stage-scope pass per entry and left the per-task
+step unbounded, on the belief that per-task runs were already targeted. They were not.
+Measured after that rule shipped (sub-plan 02, 2026-08-10, planning 0.41.0 in force):
+`Lint and full regression for Task 1.2` ran the stage-scope trees plus `tests/integration`
+and `tests/e2e` for **297s** — the whole 290-second suite, for one task, between its green
+`-k` test and its commit. A per-gate bound cannot help here, because these runs were never
+attributed to a gate.
+
+**Why an executor reaches for it, and why the answer is no.** A task's `Test:` proves the
+task; it does not prove the task broke nothing else. That instinct is correct and its
+scheduling is wrong — "did this break a sibling?" is precisely the question the stage gate
+asks, and asking it n times per stage buys the same answer at n times the price. The
+accepted cost is the one the previous section already named and takes one paragraph
+further: a task that breaks a sibling module is caught at the stage gate rather than at the
+task. That is latency measured in tasks, against a full suite per task.
+
+**What is still allowed.** Widening *within* the task's own subject — running a whole test
+file rather than one `-k` filter, or the class the fix touched — is task-scope and needs no
+permission. **§ A bug found during execution is a class** is likewise untouched: when a
+class sweep genuinely reaches other trees, the sweep is the scope and it runs. The rule
+bars the *unprompted* regression sweep, not a repair that legitimately spans the project.
+
+**Disclosure.** A task reporting green on a run wider than its `Test:` says so, under the
+same guard rail 2 that governs a scoped gate report. "Ran the stage-scope suite for Task
+2.3" is honest and now also a rule violation; running it and reporting only the task's
+`Test:` as green is the disclosure failure on top.
 
 ## Guard rails
 
