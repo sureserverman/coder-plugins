@@ -17,9 +17,10 @@ running at full weight:
    fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
    `Depends on`; honor it as ordering.)
 3. **One review, not per-task.** **Skip the Tier-1 per-task review** — unless the declared
-   tier is `high`, which runs Tier-1 per task in every format (see the note at the end of
-   this item), or a task carries `Review: required`, the per-task opt-in that buys one
-   task a review without raising the whole plan's tier. Instead, after the
+   tier is `high`, which runs Tier-1 in every format for the **risk-listed tasks its
+   declaration names** (DEC-016; see the note at the end of this item), or a task carries
+   `Review: required`, the per-task opt-in that buys one task a review without raising the
+   whole plan's tier. Instead, after the
    last task goes green and **before** the gate (this is a pre-gate check, not the gate
    itself — a light plan still has exactly one gate, its Stage 1 Gate), run **one**
    `git-github:code-reviewer` (read-only) pass over the **whole plan diff** (`git diff`
@@ -40,10 +41,11 @@ running at full weight:
    evaluator runs beside them, comes from the declared review-scope tier — see
    § Review scope → *Composing with the plan format*. A light plan whose diff is `high`
    still gets the second independent pass; it just gets it over the whole diff. **And it
-   still gets per-task Tier-1**: Tier-1 belongs to the tier, not the format, so the "skip
-   it" above is this item describing the `light`/`standard` case it was written for, not
-   the format overriding `high`. A small plan doing a dangerous thing is the one case where
-   a Light plan reviews per task.
+   still gets Tier-1 on the tasks its `high` declaration names**: Tier-1 belongs to the
+   tier, not the format, so the "skip it" above is this item describing the
+   `light`/`standard` case it was written for, not the format overriding `high`. A small
+   plan doing a dangerous thing is the one case where a Light plan reviews per task — and
+   even there it reviews the dangerous *task*, not all five (DEC-016).
 4. **The evaluator follows the tier, not the format.** Whether the independent
    goal-evaluator runs — at the gate (Step 3.5) and at close-out (Phase Close-out step 3) —
    is decided by the review-scope table, not by this plan being Light: off at `none`, on at

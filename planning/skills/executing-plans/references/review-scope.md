@@ -14,12 +14,12 @@ of what it was reviewing — and which this table, in its first version, only ha
 it gated the two review passes and left the probe, the evaluator and the conformance check
 running unconditionally underneath.
 
-| Tier | When (judged on the plan's **cumulative diff**) | Tier-1 (per task) | Tier-2 (the deep review) | Gate evaluator | Close-out evaluator |
+| Tier | When (judged on the plan's **cumulative diff**) | Tier-1 (which tasks) | Tier-2 (the deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
 | **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan — **and none of that prose asserting executable behavior** (see below) | skip | skip | skip | skip |
 | **light** | No new executable behavior, **or** a diff under roughly 200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff, before close-out | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
 | **standard** | Multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | at the shape the format sets | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
-| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, **plus** a second independent pass | **every gate, always** | **always** |
+| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per **risk-listed task** (see below) | that, **plus** a second independent pass | **every gate, always** | **always** |
 
 **`none` excludes prose that asserts executable behavior.** A docs-only diff qualifies for
 `none` only when its prose *mentions* things; the moment it **asserts** a fact about a
@@ -114,6 +114,24 @@ Two rules govern which direction an ambiguity resolves:
 
 - **Touching a risk-listed area sets `high`**, whatever the size. Small and dangerous is
   still dangerous; the `high` row's list is the authority on what counts.
+- **The floor escalates the plan, but Tier-1 attaches to the risk-listed task.** Everything
+  in the `high` row that reads an *integrated* diff — both evaluators, the second Tier-2
+  pass — is plan-level and runs for the whole plan, because a risk-listed task's blast
+  radius is not confined to its own diff. Tier-1 is the exception: it reads one task's diff
+  in isolation, so it runs for **the tasks whose `Scope:`/diff touches the risk-listed area,
+  plus any task carrying `Review: required` — and for no others.** A `high` declaration
+  therefore names the tasks it binds (`review-scope: high — tasks 1.1, 1.3 (schema
+  migration)`); one naming no tasks binds all of them, the conservative reading for a plan
+  authored before this rule.
+
+  **Why the floor stopped being plan-wide for Tier-1.** Observed live (remote-agents
+  `bot-live-view` sub-plan 01, 2026-08-10): two genuinely risky tasks — a schema migration
+  and a replay-claim boundary — set the plan to `high`, and the other ten tasks, all
+  ordinary rendering edits, each bought a Tier-1 dispatch on their way to a commit. Four had
+  been spent on live-view rendering before the pattern was noticed. The risk was real and
+  the escalation was correct; what was wrong was the *unit* it applied to. A rule that
+  escalates by plan cannot express "this task is dangerous", which is the only thing the
+  risk list ever actually knows.
 - **Size alone never escalates.** A large diff of prose, or of mechanical renames, is a big
   `light` change, not a `standard` one. Volume is not risk, and treating it as risk is how
   the old "when in doubt, go heavier" instinct reintroduced the cost this table removes.
@@ -130,12 +148,12 @@ questions**, and a plan carries both at once. Resolve them this way, always:
 | Direct, Light | Tier-2 runs over the **whole plan diff**, once, before close-out |
 | Standard, Master | Tier-2 runs **per stage gate** |
 
-| From the **tier** — depth | Tier-2 passes | Tier-1 (per task) | Evaluator |
+| From the **tier** — depth | Tier-2 passes | Tier-1 (which tasks) | Evaluator |
 |---|---|---|---|
 | `none` | none | no | no |
 | `light` | **one**, whatever shape the format sets | no | only at a gate carrying `(judgment)` |
 | `standard` | one **per** unit the format's shape names | no | only at a gate carrying `(judgment)` |
-| `high` | that, plus a second independent pass | **yes** | **yes, always** — every gate and close-out |
+| `high` | that, plus a second independent pass | **yes — risk-listed tasks only** | **yes, always** — every gate and close-out |
 
 **How to read the two together without them fighting.** The format's row names the unit a
 Tier-2 pass *would* cover if the tier bought one pass per unit: the whole plan diff for
@@ -147,7 +165,8 @@ Direct/Light, one stage for Standard/Master. The tier then says **how many passe
   `light` overrides, and this is the single place the two axes genuinely cross.
 - `standard` buys **one pass per unit the format names** — per stage for a Standard or Master
   plan, once over the whole diff for a Direct or Light one.
-- `high` buys that plus a second independent pass, and adds per-task Tier-1.
+- `high` buys that plus a second independent pass, and adds Tier-1 for its risk-listed
+  tasks.
 
 The earlier version stated a shape in the `light` row ("over the whole plan diff") and a
 shape in the format row ("per stage gate") with no rule for which won, so a Standard plan at
@@ -155,17 +174,18 @@ shape in the format row ("per stage gate") with no rule for which won, so a Stan
 and `standard` identical for every multi-stage plan, retiring the damping term for the exact
 case it was built for — so `light` overriding the unit is not a wrinkle, it is the point.
 
-**Tier-1 is the tier's alone.** The format never sets it: `high` runs it per task in any
-format, including Light, and no other tier runs it at all without a task's `Review:
-required`. The Direct/Light row used to say "never per task", which contradicted `high`'s
-"plus per-task Tier-1" for precisely the Light-plan-touching-auth case the risk floor exists
-to settle.
+**Tier-1 is the tier's alone.** The format never sets it: `high` runs it for its
+risk-listed tasks in any format, including Light, and no other tier runs it at all without a
+task's `Review: required`. The Direct/Light row used to say "never per task", which
+contradicted `high`'s Tier-1 column for precisely the Light-plan-touching-auth case the risk
+floor exists to settle.
 
 **Resolve a disagreement by the risk floor, not by "take the lighter option" and not by
 "take the heavier".** Both of those are instincts standing in for a rule. The rule is: apply
 the format's shape and the tier's depth, and let a risk-listed area override the tier upward.
 A Light plan touching an auth path is a *small plan doing a dangerous thing* — it gets
-whole-diff shape (from Light) and `high`'s depth (from the risk floor). A Light plan editing
+whole-diff shape (from Light) and `high`'s depth (from the risk floor), with Tier-1 on the
+task that touches auth rather than on all five. A Light plan editing
 four prose files is a small plan doing a small thing, and gets exactly one review; the
 earlier "never take the lighter option" rule made that case pay `standard`'s price for no
 protection, which is the asymmetry the risk floor replaces.

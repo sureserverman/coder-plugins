@@ -69,6 +69,28 @@ symmetric partner to the decomposition rule in Phase 2.5.
 | **Standard** | Everything between Light and Master | The full staged plan (Phases 0–5 below) |
 | **Master** | > ~6 stages / ~25 tasks, or ≥2 independently shippable workstreams | A master plan + sub-plans (Phase 2.5, `references/master-plan-format.md`) |
 
+**Size each request, not the batch.** A prompt often carries several independent asks, and
+the ladder above applies to **each item on its own**. Sizing the batch is how one real
+feature drags four one-line tweaks into its format: the tweaks are not larger for having
+arrived in the same sentence as something that is.
+
+So triage may return a **split verdict** — some items executed Direct, the remainder
+planned at whatever format the *remainder alone* warrants:
+
+```
+Format: Split — items 1, 4, 5 Direct; items 2, 3 Light
+```
+
+Escalation to Master requires the **plannable remainder** to cross Phase 2.5's thresholds
+by itself, never the raw item count of the request. Observed live (remote-agents
+`bot-live-view`, 2026-08-10): six asks — one durable-storage feature and five UX tweaks —
+triaged as a batch to Master, producing 3 sub-plans / 9 stages / ~66 checkboxes, of which
+five items were an hour of Direct work carrying a master plan's ceremony.
+
+**Split only where the items are genuinely independent.** Items sharing a file, a
+migration, or a behavior contract are one item for triage purposes however separately they
+were phrased — splitting those buys a merge conflict, not a saving.
+
 **How to triage:**
 
 - **Direct is the off-ramp.** If the job is a couple of tested edits in one sitting, say
@@ -91,11 +113,15 @@ symmetric partner to the decomposition rule in Phase 2.5.
 at the top of the plan you produce (`Format: Light — single stage, 4 tasks, one
 session`), so a reader (and `executing-plans`) sees the decision, not just its result. A
 Standard or Master plan may omit the line (they are the unmarked default); a Light plan
-should carry it.
+should carry it. **A split verdict always carries the line** — it names which items left
+the plan entirely, and that is the half a reader cannot reconstruct from the plan file.
 
-**When in doubt, round up.** A job on the Light/Standard or Standard/Master boundary takes
-the heavier format — the cost of slightly too much structure is smaller than the cost of a
-container that can't hold the work. The user can always override in either direction.
+**When in doubt, round up — per item, never per batch.** A *single job* on the
+Light/Standard or Standard/Master boundary takes the heavier format: the cost of slightly
+too much structure is smaller than the cost of a container that can't hold the work. That
+reasoning is about one job's shape and does not transfer to a batch, where rounding up
+means charging every small item for the largest item's container. The user can always
+override in either direction.
 
 ---
 
@@ -294,7 +320,7 @@ Verify each of these and report the result:
 - [ ] **Access**: Required permissions exist (repo write, service accounts, deploy targets)
 - [ ] **Environment**: The dev environment can build the project and run the test suite
 - [ ] **Baseline**: Existing tests pass before any changes begin (don't build on a broken foundation)
-- [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size (`../executing-plans/references/review-scope.md`)
+- [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size. **A `high` declaration names the risk-listed tasks it binds** (`review-scope: high — tasks 1.1, 1.3 (schema migration)`), because Tier-1 attaches to the **risk-listed task**, not the plan — an unnamed `high` conservatively binds every task (`../executing-plans/references/review-scope.md`)
 - [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session (skipped on an empty roster, or below tier `standard`)
 - [ ] **Dispatch roster**: Every `Parallel: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none
 
@@ -397,6 +423,20 @@ assumed. A run cannot be asked to weigh a cost nobody wrote down.
 only false alarms, or only findings about itself, is a candidate for the `Removes:` line of
 the next plan that touches its area.
 
+**A new verification mandate names the tier or scope rule that gates it** (DEC-017) — and a
+mandate that names none does not enter. DEC-010 established this for mandates costing an
+agent dispatch; it extends here to mandates costing a *command*, because those accrete the
+same way and are easier to wave through precisely because each one is cheap. A gate sweep is
+a line of text to write and minutes to run on every future execution of every plan, and
+nobody compares the second number to what the sweep protects unless a rule asks. Measured:
+one sub-plan's four-tree stage-scope command, re-run at every gate and every remediation
+round, produced 13 broad sweeps in a single session re-proving code that had not changed.
+
+So a plan adding a mandate says which of these governs it: a **review-scope tier** (for
+anything dispatching an agent), a **test-scope tier** — task / fix / stage / plan — for a
+test command, or a **position** (once per gate entry, final gate only, close-out only). "It
+runs every time" is an answer, but it is the one that must be argued hardest.
+
 ## Phase 2.5 — Decomposition decision (master plan + sub-plans)
 
 Stage sizing has a project-level analogue: when the *plan itself* is too large, don't
@@ -483,6 +523,35 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
 - **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
 
+### Every fact has one owner
+
+**A fact a task's `Test:` proves is not re-proved at the gate.** Write each gate check to
+verify something no task test already decides — integration between the stage's tasks, the
+stage's goal end-to-end, regressions. A check that re-runs the task's own assertion buys
+nothing: the task cannot be green without it.
+
+Two exceptions, and they are the useful cases:
+
+- **A strictly wider set.** A gate check may cover ground a task test could not, provided
+  the widening is *nameable*: "the task proved the column is gone from the migration; the
+  gate sweeps the whole source tree for the vocabulary". That is the class-predicate rule
+  below doing its job — the gate owns the *class*, the task owns its *instance*.
+- **A different mechanism proving a different claim.** A test asserting the code behaves
+  and a sweep asserting no stale prose survives are two facts, not one fact twice.
+
+**A `(judgment)` line may never restate a fact an executable check in the same plan already
+decides.** The marker routes to an evaluator dispatch — the most expensive check in the
+plan — so spending it on a question a command has already answered is the worst version of
+this defect. Reserve it for what genuinely needs a reader.
+
+Observed live (remote-agents `bot-live-view` sub-plan 01, 2026-08-10): a single fact —
+view-expiry was removed — was verified four times, by a task test asserting no `expires_at`
+column, a Stage-1 gate grep, the same grep repeated at close-out, and a `(judgment)` line
+asking an evaluator to confirm no surviving claim that a view can expire. Two of those are
+legitimate and distinct: the task test (this migration is right) and one tree-wide sweep
+(the vocabulary is gone everywhere). The repeat and the judgment line were cost with no
+coverage behind it.
+
 ### Write a set-valued check as the sweep that proves it
 
 **A gate check over a set is an executable sweep, not a spot check** (DEC-005). A check that
@@ -548,6 +617,8 @@ Before showing the plan to the user, verify:
 - [ ] No stage has more than 7 tasks
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
 - [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it, or — where one artifact genuinely *is* the whole set — the `(scoped)` marker saying why. No check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED; see `references/set-valued-checks.md`)
+- [ ] **One owner per fact**: no gate check re-proves what a task's `Test:` already decides, unless it sweeps a strictly wider, nameable set; and no `(judgment)` line restates a fact an executable check in this plan already answers (§ Every fact has one owner)
+- [ ] **Every gate check can pass as authored**: `validate-gate-checks.py` reports zero SELECTOR-UNMATCHED — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)

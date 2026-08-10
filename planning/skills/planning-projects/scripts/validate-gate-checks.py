@@ -27,9 +27,23 @@ Two failure shapes:
                      signal (reported, not failed): often a legacy judgment check
                      written before the marker existed.
 
-Exit 0 when no INSTANCE-SHAPED check is found, 1 otherwise, 2 on bad usage.
-Always prints a per-class count and the total examined: an empty sweep must not
-read as a pass (honest-gates).
+One further failure, on a SEPARATE axis from shape — a well-shaped check can still be
+impossible to run:
+
+    SELECTOR-UNMATCHED  a gate check whose `pytest <file>.py -k <expr>` selector matches
+                        no task `Test:` field in the same plan. The gate cannot pass as
+                        authored, and nobody finds out until execution. Shipped twice: the
+                        check that motivated the `(scoped)` marker, and remote-agents
+                        bot-live-view sub-01, whose Stage 1 gate named an e2e file with a
+                        filter collecting zero tests in it. Reported and counted separately
+                        so the shape calibration below stays comparable; `(judgment)` and
+                        `(scoped)` exempt, and a bare `pytest <file>.py` with no `-k` is
+                        never a selector (a whole-file regression run is legitimate, and
+                        syntax cannot tell it from the defect).
+
+Exit 0 when no INSTANCE-SHAPED and no SELECTOR-UNMATCHED check is found, 1 otherwise,
+2 on bad usage. Always prints a per-class count and the total examined: an empty sweep
+must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
 tests/test-validate-gate-checks.py group 9 against the frozen corpus in
@@ -347,6 +361,86 @@ def gate_checks(text):
 
 SCOPE_FIELD = re.compile(r"^\s*[-*]\s+\*\*Scope:\*\*\s*(.+)$", re.MULTILINE)
 
+TEST_FIELD = re.compile(r"^\s*[-*]\s+\*\*Test:\*\*\s*(.+)$", re.MULTILINE)
+# `pytest <path> -k <expr>` in either order, inside a backticked command. The path must
+# carry an extension: a bare directory with -k is a legitimate wide sweep, not a selector.
+#
+# The body stops at the NEXT `pytest`, so a chained command keeps each invocation's path
+# with its own filter. A greedy body reads `pytest a.py -k foo && pytest b.py -k bar` as one
+# invocation owning both paths, and then pairs b.py with foo — a false positive on a gate
+# whose every invocation is correctly task-declared.
+PYTEST_SELECTOR = re.compile(r"pytest\b(?P<body>(?:(?!pytest\b)[^`])*)")
+# A positional test-file argument only. `(?<![=\w/.-])` is what keeps a flag VALUE out:
+# `--cov=src/mod.py` names a module being measured, not a test file being selected, and
+# flagging it invents an unmatched selector on a gate that runs exactly what a task declared.
+SELECTOR_PATH = re.compile(r"(?<![=\w/.-])([\w./-]+\.py)\b")
+SELECTOR_FILTER = re.compile(r"-k\s+(?P<q>['\"]?)(?P<expr>[^'\"`]+?)(?P=q)(?=\s|$)")
+
+
+def pytest_selectors(text):
+    """-> [(path, k-expression)] for every filter-narrowed pytest invocation in `text`.
+
+    A bare `pytest tests/foo.py` is deliberately NOT a selector: running an existing file
+    as a regression sweep is legitimate, and syntax cannot tell it from the defect. Only
+    the `-k`-narrowed form is checkable, and it is also the form both known unpassable
+    gates took.
+    """
+    found = []
+    for span in backticked(text):
+        for m in PYTEST_SELECTOR.finditer(span):
+            body = m.group("body")
+            kf = SELECTOR_FILTER.search(body)
+            if not kf:
+                continue
+            for p in SELECTOR_PATH.findall(body):
+                found.append((p, kf.group("expr").strip()))
+    return found
+
+
+def unmatched_selectors(text):
+    """-> [(check, path, k-expr)] gate selectors no task in this plan builds toward.
+
+    The defect: a gate check names a real test file and a `-k` filter that collects zero
+    tests, so the gate cannot pass as authored and nobody learns that until execution. It
+    has now shipped twice — the check that motivated the `(scoped)` marker in 0.40.0, and
+    remote-agents `bot-live-view` sub-plan 01, whose Stage 1 gate named an e2e file with a
+    filter matching nothing in it.
+
+    Why a cross-reference rather than running pytest: at authoring time the selected tests
+    usually do not exist yet — the plan's own tasks create them. So the checkable invariant
+    is not "does this collect now" but "does any task in this plan declare it". A gate
+    selector no task builds toward is either a typo or a check pointed at the wrong file,
+    and both are unpassable. `executing-plans` runs the runtime half at Preflight, where
+    the tests DO exist (`pytest --collect-only`), and the two together cover the class.
+
+    Orthogonal to the shape classes: a selector-unmatched check is usually a perfectly
+    well-shaped EXECUTABLE sweep. It is reported and failed separately for that reason, and
+    kept out of the shape totals so the calibration corpus figures stay comparable.
+
+    A `(judgment)` or `(scoped)` marker exempts the check, on the same bargain as
+    elsewhere: the author is asserting something syntax cannot see, where a reviewer can
+    disagree with it.
+    """
+    declared = set()
+    for m in TEST_FIELD.finditer(text):
+        for pair in pytest_selectors(m.group(1)):
+            declared.add(pair)
+    declared_paths = {p for p, _ in declared}
+
+    out = []
+    for c in gate_checks(text):
+        if re.search(r"\((judgment|scoped)\)", c, re.I):
+            continue
+        for path, expr in pytest_selectors(c):
+            if (path, expr) in declared:
+                continue
+            # A task declares the file but a different filter: still unmatched, and worth
+            # naming distinctly — this is the typo case rather than the wrong-file case.
+            why = ("no task declares this file at all" if path not in declared_paths
+                   else f"a task declares {path} but with a different -k filter")
+            out.append((c, path, expr, why))
+    return out
+
 
 def unswept_scopes(text):
     """Stage numbers whose tasks declare a `Scope:` but whose gate sweeps nothing.
@@ -393,6 +487,7 @@ def main(argv=None):
 
     totals = {"EXECUTABLE": 0, "JUDGMENT": 0, "SCOPED": 0, "INSTANCE-SHAPED": 0, "PROSE": 0}
     failures = []
+    selector_failures = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -406,6 +501,8 @@ def main(argv=None):
         unswept = unswept_scopes(raw)
         if unswept:
             scope_notes.append((path, unswept))
+        for c, sel_path, expr, why in unmatched_selectors(raw):
+            selector_failures.append((path, c, sel_path, expr, why))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -431,6 +528,16 @@ def main(argv=None):
         for path, c, why in failures:
             print(f"  {path.name}: {c[:96]}\n      → {why}", file=sys.stderr)
 
+    # Reported separately from the shape classes, and deliberately NOT folded into the
+    # totals line: this is a different axis (can the check run at all) and merging it
+    # would move calibration figures that are pinned to the frozen corpus.
+    if selector_failures:
+        print(f"\nFAIL: {len(selector_failures)} selector-unmatched check(s) — the gate "
+              f"names a pytest selector no task in the plan builds toward:", file=sys.stderr)
+        for path, c, sel_path, expr, why in selector_failures:
+            print(f"  {path.name}: {c[:96]}\n      → `{sel_path} -k {expr}` — {why}",
+                  file=sys.stderr)
+
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
     # while the aggregate looked healthy.
@@ -446,7 +553,9 @@ def main(argv=None):
 
     print(f"\n{total} gate check(s) across {examined_files} file(s): "
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))
-    return 1 if failures else 0
+    if selector_failures:
+        print(f"selector-unmatched {len(selector_failures)} (separate axis — see above)")
+    return 1 if (failures or selector_failures) else 0
 
 
 if __name__ == "__main__":

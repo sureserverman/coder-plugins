@@ -829,12 +829,22 @@ def main():
     # still naming the tier, which is how these three would actually erode. A gate
     # evaluator mutation-tested all three against 9b alone and found every one reverts
     # green, so each gets its own claim-level anchor here.
-    check("Tier-1 is scoped to high and Review: required",
+    check("Tier-1 is scoped to high's risk-listed tasks and Review: required",
           affirms_claim(text,
                         r"there is no per-task review|"
-                        r"Tier 1\)[^.]{0,60}`high` tier and `Review: required` tasks only"),
-          "Step 3.3 rule 6 no longer scopes the per-task review to `high` and "
-          "`Review: required` — per-task review has reverted to a default")
+                        r"Tier 1\)[^.]{0,80}`high` tier's risk-listed tasks and "
+                        r"`Review: required` tasks only"),
+          "Step 3.3 rule 6 no longer scopes the per-task review to `high`'s risk-listed "
+          "tasks and `Review: required` — per-task review has reverted to a default")
+    # DEC-016: the floor escalates the plan for mandates reading an integrated diff, but
+    # Tier-1 follows the risk to the individual task. Anchored separately from the check
+    # above because that one would stay green if `high` silently went back to binding every
+    # task — the wording it pins is about which *tiers* run Tier-1, not which *tasks*.
+    check("Tier-1 at high binds the risk-listed task, not every task in the plan",
+          affirms_claim(text, r"this task is one the declaration names"),
+          "Step 3.3 rule 6 no longer requires a `high` declaration to name the tasks "
+          "Tier-1 binds — one risk-listed task has gone back to buying a per-task review "
+          "dispatch for every task in the plan (DEC-016)")
     check("a re-dispatched review counts against the remediation budget",
           affirms_claim(text, r"re-dispatched review or evaluator is a round"),
           "the fix -> re-review loop is unbounded again: the budget counts repairs but "

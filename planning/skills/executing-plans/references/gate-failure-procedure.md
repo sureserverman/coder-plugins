@@ -49,9 +49,15 @@ news. Triage before repairing, and bound the loop.
    is the oscillation the budget exists to bound, and bounding it is not the same as
    converging.
 4. **Run that task through its Red-Green loop again.**
-5. **Re-verify narrowly, plus the sweep.** Re-run the failed check(s), any check
+5. **Re-verify at fix-scope, plus the sweep.** Re-run the failed check(s), any check
    whose inputs the fix touched, and the step-3 class sweep — not every gate check
-   from scratch.
+   from scratch, and **not the gate's stage-scope command again**. That command ran
+   once when the gate was first attempted and is not re-bought per round
+   (`../../planning-projects/references/test-scope-tiers.md` § *A stage-scope pass runs
+   once per gate entry*); the gate goes green on this fix-scope pass plus that recorded
+   result. Disclose both in the gate report, per honest-gates — "stage-scope at entry,
+   fix-scope after round 2" is short and true, and it is what makes the recorded pass
+   auditable rather than merely asserted.
 
 **Remediation budget — default 2 rounds per gate.** One round is classify →
 repair → re-verify — and **a re-dispatched review or evaluator is itself a round**

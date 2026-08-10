@@ -50,6 +50,21 @@ fix that happens to make the check pass.
 - **Proxy data that doesn't measure what the gate measures.** Facilitator runs on
   the optimal path do not validate a "first-time casual player, 8–15 min" gate.
   Label proxy evidence as proxy and leave the real gate BLOCKED.
+- **Unannotated amendment of a gate's own checks.** Rewriting what a check verifies,
+  or how wide it sweeps, and then reporting the result as though the authored check
+  passed. A legitimate amendment exists — the rules a plan was authored under do move
+  — but it is annotated with the rule that authorized it and the value it replaced
+  (`executing-plans` § *Amending authored ceremony*). Without that, a recalibrated
+  gate and a quietly cheapened one leave identical artifacts, which is the same
+  reason a scope change must be disclosed rather than merely made. **Amending a
+  check to make a failing gate pass is never an amendment** — that is the gate-failure
+  procedure wearing its clothes.
+- **Verifying against a dirty working tree.** A gate whose commands ran over
+  uncommitted edits proves nothing about what the branch records: the next reader,
+  the next stage, and CI all see the committed state, not yours. Commit first, then
+  run the gate — and if a gate was run early to save time, re-run it after the commit
+  rather than reporting the earlier result
+  (`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`).
 
 ## When a gate is BLOCKED
 
