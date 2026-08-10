@@ -23,7 +23,7 @@ the merge.
 | Tier | When it runs | What runs |
 |------|--------------|-----------|
 | **task-scope** | Every Red-Green cycle | The task's own `Test:` — already targeted (a class filter, a module's unit tests, a single command). Unchanged from the base model. |
-| **fix-scope** | After a Tier-1/Tier-2 Critical fix or a gate-triage fix | Only the test classes/modules the fix touched, plus the originating task's own `Test:`. Never the full suite — a review fix is a targeted change and gets a targeted re-proof. |
+| **fix-scope** | After a Tier-1/Tier-2 Critical fix, a gate-triage fix, or **any re-verification inside a gate's remediation loop** | Only the test classes/modules the fix touched, plus the originating task's own `Test:` and the gate check that failed. Never the full suite, and never a repeat of the gate's stage-scope command — a review or remediation fix is a targeted change and gets a targeted re-proof. |
 | **stage-scope** | Intermediate stage gates | All **cheap host-side checks in full** (unit tests, lint, static/architecture checks, build). **Expensive suites restricted to the modules touched by the stage's commits.** Never `clean`. |
 | **plan-scope** | Final stage gate + close-out — once | The full suite from a clean state, including every expensive suite and every quarantined slow test. The one place `clean` belongs. |
 
@@ -31,6 +31,29 @@ the merge.
 intermediate gate that wipes incremental state re-buys the whole build for nothing —
 regressions an incremental build would miss are exactly what the single clean
 plan-scope pass exists to catch.
+
+## A stage-scope pass runs once per gate entry
+
+**The stage-scope command runs once, when the gate is first attempted.** Every
+re-verification inside that gate's remediation loop is **fix-scope**, and the gate goes
+green on the fix-scope result *plus* the stage-scope result already recorded — which is
+still a real pass over real commits, not a remembered one, because the fixes since are
+exactly what fix-scope re-proves.
+
+Without this rule the tiers are correct per-run and unbounded in aggregate: a gate that
+takes three remediation rounds runs its full stage-scope sweep four times, and nothing in
+the table above forbids it. Measured live (remote-agents `bot-live-view` sub-plan 01,
+2026-08-10): 52 pytest invocations in one session, of which ~13 were multi-tree or
+full-suite sweeps and most of those were gate re-entries re-proving code that had not
+changed since the previous entry. The per-task runs — the ones an executor is most tempted
+to trim — were never the problem, and are untouched here.
+
+**A declared stage-scope command is subject to the same cost threshold as the full
+suite.** If the stage-scope command itself crosses ~5 minutes, narrow it: run the cheap
+trees the stage's commits *touched or depend on*, not every cheap tree the project owns.
+"Cheap host-side checks in full" is an economy when a project has three test trees and a
+tax when it has ten — the same sub-plan declared four whole trees as its stage-scope at
+every gate, for stages that touched one.
 
 ## Guard rails
 
