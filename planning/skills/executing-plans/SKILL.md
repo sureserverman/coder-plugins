@@ -268,6 +268,7 @@ Run every check in the Preflight section and report pass/fail:
 - Baseline test suite passes
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
+- **Every gate selector collects something** — probed with `--collect-only`, not assumed; see below
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
@@ -295,6 +296,37 @@ So Preflight does not trust the recorded section: re-run the scan and diff it.
 Surfacing here is cheap; discovering it at the gate costs a stage. This is a report, not a
 stop condition — unless the diff invalidates a task outright, in which case it is a
 plan defect and returns to `planning-projects` (§ When to revisit earlier steps).
+
+### Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure)
+
+`planning-projects` cross-references every `pytest <file> -k <expr>` in a gate against the
+plan's task `Test:` fields at authoring time (its `validate-gate-checks.py` reports
+SELECTOR-UNMATCHED). That check is static, because at authoring time the selected tests
+usually do not exist yet. **Preflight runs the half that authoring could not**: here, the
+tests either exist or are about to be created by a named task.
+
+For every gate check invoking pytest whose target file exists now:
+
+```
+pytest --collect-only -q <the check's selector>
+```
+
+- **Collects ≥1 test** → fine, proceed.
+- **Collects 0, and no task in the plan creates that test** → **plan defect**. Stop and
+  return it to `planning-projects` (§ When to revisit earlier steps), exactly as an
+  invalidated task in the decisions re-check does. The gate cannot pass however well the
+  work goes, so discovering it now saves the stage it would otherwise fail at.
+- **Collects 0, but a task's `Test:` builds toward it** → expected. Record which task
+  satisfies the selector (`gate-selector: Stage 1 gate `-k restart` — created by Task 1.4`)
+  so the gate report can say why an empty collection at Preflight was not a defect.
+- **Target file does not exist yet** → same as the previous case: name the task that creates
+  it, or it is a defect.
+
+This is a **command, not a dispatch**, so it is not tier-gated (DEC-010's cost rule: a
+mandate costing an agent dispatch is tiered, one costing a line of text or a command is
+not). It exists because the class has now shipped twice — the check that motivated 0.40.0's
+`(scoped)` marker, and remote-agents `bot-live-view` sub-01, whose Stage 1 gate named a real
+e2e file with a filter matching nothing in it and was discovered only by failing mid-stage.
 
 ### Git bootstrap (hard prerequisite for commit-per-task)
 
