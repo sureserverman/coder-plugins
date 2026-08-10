@@ -294,7 +294,7 @@ Verify each of these and report the result:
 - [ ] **Access**: Required permissions exist (repo write, service accounts, deploy targets)
 - [ ] **Environment**: The dev environment can build the project and run the test suite
 - [ ] **Baseline**: Existing tests pass before any changes begin (don't build on a broken foundation)
-- [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size (`../executing-plans/references/review-scope.md`)
+- [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size. **A `high` declaration names the risk-listed tasks it binds** (`review-scope: high — tasks 1.1, 1.3 (schema migration)`), because Tier-1 attaches to the **risk-listed task**, not the plan — an unnamed `high` conservatively binds every task (`../executing-plans/references/review-scope.md`)
 - [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session (skipped on an empty roster, or below tier `standard`)
 - [ ] **Dispatch roster**: Every `Parallel: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none
 

@@ -376,12 +376,12 @@ plan's **cumulative diff**, not per task. This is the honest-gates disclosure ru
 review effort: downgrading silently and downgrading openly produce the same diff, so **the
 declaration is what makes the choice reviewable**.
 
-| Tier | When (the plan's cumulative diff) | Tier-1 (per task) | Tier-2 (deep review) | Gate evaluator | Close-out evaluator |
+| Tier | When (the plan's cumulative diff) | Tier-1 (which tasks) | Tier-2 (deep review) | Gate evaluator | Close-out evaluator |
 |---|---|---|---|---|---|
 | **none** | docs/config/version-bump/comment-only across the whole plan, **none of it asserting executable behavior** (prose that asserts a command, flag, exit code, default or path is `light`, not `none`) | skip | skip | skip | skip |
 | **light** | no new executable behavior, **or** under ~200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff before close-out, whatever the format | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
 | **standard** | multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | one per unit the format names — per stage gate for Standard/Master, once over the whole diff for Direct/Light | only at a gate carrying `(judgment)` | only if the final gate carries `(judgment)` |
-| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per task | that, plus a second independent pass | **always** | **always** |
+| **high** | **risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per **risk-listed task** — the ones the declaration names, plus `Review: required` | that, plus a second independent pass | **always** | **always** |
 
 Read it top-down — the first row the diff satisfies wins (`none` and `light` deliberately
 overlap), with the risk floor below overriding that order upward.
@@ -395,11 +395,12 @@ a mandate costing an agent dispatch is tiered, a mandate costing a line of text 
 
 **The format decides the review's SHAPE. The tier decides its DEPTH.** Direct and Light plans
 review the **whole plan diff once** before close-out; Standard and Master review **per stage
-gate**, and per task only at `high`.
+gate**, and per task only at `high`, and there only for the plan's **risk-listed tasks**.
 
 **Resolve a disagreement by the risk floor** — not by taking the lighter option, and not by
 taking the heavier; both are instincts standing in for a rule. Touching a risk-listed area
-sets `high` whatever the size; **size alone never escalates**, so a large prose or
+sets `high` whatever the size, escalating the plan's evaluators and second pass while Tier-1
+follows the risk to the individual task; **size alone never escalates**, so a large prose or
 mechanical-rename diff is a big `light` change rather than a `standard` one. A Light plan
 touching an auth path is a small plan doing a dangerous thing: whole-diff shape *and*
 `high`'s second pass and mandatory evaluator.
@@ -476,7 +477,7 @@ Every task follows this loop. No task is "done" until its test is green.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
-6. **Quick review gate (Tier 1) — `high` tier and `Review: required` tasks only.** Whether it runs comes from § Review scope; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. Tier 1 runs when the declared tier is `high`, or when *this* task carries `Review: required` — the per-task opt-in that buys one risky task a review without raising the whole plan's tier.
+6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from § Review scope; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. Tier 1 runs when the declared tier is `high` **and this task is one the declaration names** — a **risk-listed task**, whose `Scope:`/diff touches the risk-listed area — or when *this* task carries `Review: required`, the per-task opt-in that buys one risky task a review without raising the whole plan's tier. A `high` declaration naming no tasks binds all of them; an ordinary task in a `high` plan whose own diff touches nothing risk-listed does **not** run Tier 1, and the gate report records that as scope (`Tier-1: not run — tier high, task not risk-listed`), never as an opt-out.
 
    **Why the default moved.** Per-task review was unconditional through 0.36.0, so a nine-task plan paid nine review dispatches plus their re-dispatches after fixes, and the findings were overwhelmingly about the verification apparatus rather than the product. What Tier 1 uniquely buys is catching a Critical *before* it is built on — worth an agent when the change is risky, not worth nine when it is prose. Tier 2 still reads every line of the same diff at the gate; what a `standard` plan gives up is latency, not coverage. That is the trade, and it is why `high` keeps Tier 1 and why a single dangerous task can buy it back by annotation.
 
