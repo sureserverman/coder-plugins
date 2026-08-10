@@ -553,23 +553,55 @@ MCP) can't be lazy-loaded: stop and ask the user to enable that plugin.
 
 ### Step 3.3 — Red-Green loop (per task)
 
-Every task follows this loop. No task is "done" until its test is green.
+Every task follows this loop. **The test is written first and must go RED for the right
+reason before any implementation is attempted.** No task is "done" until its test is green.
 
 ```
- Attempt → Test → Pass? ──yes──► Next task
-            │
-            no
-            ↓
-         Diagnose → Fix → Retest
-            (max `Red-Green max cycles` per task)
+ Write the test → Run it → RED for the named reason?
+                              │              │
+                              no            yes
+                              ↓              ↓
+              the TEST is wrong,        Implement → Test → Pass? ──yes──► Next task
+              not the code —                        │
+              repair and re-run                     no
+              (not an implementation                ↓
+               cycle; see below)                 Diagnose → Fix → Retest
+                                                    (max `Red-Green max cycles` per task)
 ```
+
+**Why test-first is a rule and not a preference.** Written after the implementation, a test's
+first run cannot distinguish "the behavior is missing" from "my test is wrong" — both print
+RED — so the executor debugs its own test against code it already believes correct, and the
+task's early cycles are spent repairing assertions rather than building. Measured (remote-agents
+`bot-live-view` sub-02, 2026-08-10): both of Stage 1's first tasks edited the source file
+first, and every RED that followed was the test's own defect — an assertion comparing callback
+tokens that are minted fresh per render, and one comparing unescaped text against a presenter
+that HTML-escapes. Neither RED said anything about the feature. Running the test **before** the
+implementation exists costs one command and converts that ambiguity into information: a test
+that passes before the work is done is testing nothing, and a test that fails for the wrong
+reason is defective *now*, when it is cheap and unmistakable.
+
+**Repairing a wrong RED is not an implementation cycle.** Fixing a test that failed for the
+wrong reason does not consume the `Red-Green max cycles` budget — that budget bounds failed
+*fix hypotheses about the product*, and spending it on test mechanics would make a careful
+test-first task look like a failing one. Repairs are still bounded by honesty: never weaken an
+assertion to reach green (`honest-gates`), and if the test cannot be made to fail for the named
+reason at all, the task's `Test:` is wrong and that is a plan defect, not a debugging problem.
+
+**The task's `Test:` selector is a naming constraint, applied when the test is written.**
+When the plan names `pytest <file> -k <expr>` — or a gate check names a selector this task's
+tests are meant to satisfy — **name the tests to match that expression as you write them**.
+Both of the sub-02 tasks above wrote sensible names, ran them, then re-ran and renamed on
+discovering the plan's selector collected only half of them; the constraint was in the task
+the whole time. This is the same defect class the Preflight gate-selector probe catches one
+phase earlier, and reading the selector before naming the test closes it at zero cost.
 
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
 2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **§ A bug found during execution is a class** applies here exactly as it does at a gate: sweep for the siblings before you call the task green. A RED test is the earliest and cheapest place this rule fires, and the one where it is most often forgotten.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
-4. **Never skip the test.** The task's Test field is the gate. "It looks right" is not green.
+4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate. "It looks right" is not green. It is also the **whole** of the task's testing: between this loop starting and rule 7's commit, the only other tests that may run are a Tier-1 Critical's fix-scope. **Do not run the plan's `stage-scope:` command here** — not "for Task 2.3", not as a regression check across the suites this task touched. The stage gate runs it once, at the gate, and that is where a break in a sibling module surfaces (`../planning-projects/references/test-scope-tiers.md` § *A stage-scope pass never runs inside a task*, which measured a 297-second full regression run for a single task whose own `Test:` was a one-file `-k` filter). Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep (§ *A bug found during execution is a class*) is likewise untouched.
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from § Review scope; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. Tier 1 runs when the declared tier is `high` **and this task is one the declaration names** — a **risk-listed task**, whose `Scope:`/diff touches the risk-listed area — or when *this* task carries `Review: required`, the per-task opt-in that buys one risky task a review without raising the whole plan's tier. A `high` declaration naming no tasks binds all of them; an ordinary task in a `high` plan whose own diff touches nothing risk-listed does **not** run Tier 1, and the gate report records that as scope (`Tier-1: not run — tier high, task not risk-listed`), never as an opt-out.
 
@@ -1064,7 +1096,7 @@ When every stage is green:
 - Append a handoff note at every passed gate — the plan file, not the transcript, is what survives a context reset
 - Bump versions at close-out for whatever the plan changed, including every mirror of the version string
 - Keep `.claude/plan-progress.json` current at every transition and delete it when close-out finishes
-- Scope gates by tier: stage-scope at intermediate gates, fix-scope after review fixes, exactly one clean plan-scope pass at close-out (../planning-projects/references/test-scope-tiers.md)
+- Scope gates by tier: **the task's own `Test:` and nothing wider inside a task**, stage-scope at intermediate gates (once per gate entry), fix-scope after review fixes, exactly one clean plan-scope pass at close-out (../planning-projects/references/test-scope-tiers.md)
 
 ---
 
