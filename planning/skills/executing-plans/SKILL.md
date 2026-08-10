@@ -269,6 +269,7 @@ Run every check in the Preflight section and report pass/fail:
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
 - **Every gate selector collects something** — probed with `--collect-only`, not assumed; see below
+- **Calibration re-check** — review-scope, test-scope commands and roster recomputed from today's rules rather than trusted from the plan file; see below
 - **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
@@ -296,6 +297,66 @@ So Preflight does not trust the recorded section: re-run the scan and diff it.
 Surfacing here is cheap; discovering it at the gate costs a stage. This is a report, not a
 stop condition — unless the diff invalidates a task outright, in which case it is a
 plan defect and returns to `planning-projects` (§ When to revisit earlier steps).
+
+### Calibration re-check (the plan's ceremony can be stale)
+
+The **calibration references accrete between planning and execution**, exactly as the
+decisions register does — and a plan's Preflight froze its review-scope tier, its test-scope
+commands and its roster at authoring time. A plan written under older rules therefore
+executes at older ceremony forever, however much the rules have since improved. This is the
+same staleness the decisions re-check above exists for, applied to the second thing a plan
+records about how it will be run.
+
+So Preflight does not trust the recorded declarations either: recompute and diff them.
+
+1. Recompute from the current rules — `references/review-scope.md` for the tier (including
+   **which tasks** a `high` declaration binds), `../planning-projects/references/test-scope-tiers.md`
+   for the scoped commands, and the roster from the plan's own `Parallel:` fields.
+2. Diff against what the plan's Preflight declares:
+   - **Unchanged** → say so in one line and proceed.
+   - **Changed** → **amend** under the protocol below, and state both values in the
+     Preflight report (`review-scope: high — recalibrated to bind tasks 1.1, 1.3; as
+     authored, bound all 12`).
+3. **A plan with no declaration** (written before the convention): recompute and record the
+   result as the working set. Absence is not exemption — the same rule the decisions
+   re-check applies.
+
+**What is never recomputed: the plan's facts.** Tasks, their `Test:` fields, gate checks'
+substance, invariants, `Scope:` sets. Recalibration changes only what the run *costs* — how
+many reviews and evaluators it buys, how wide its regression sweeps are. A rule that let
+Preflight rewrite what a task must prove would not be recalibration, it would be re-planning
+without the user in the room.
+
+### Amending authored ceremony
+
+Execution has always edited authored gate checks when they turned out unrunnable — the
+practice existed as ad-hoc `*(corrected during execution …)*` annotations, with no rule
+about what may be touched or what must be disclosed. That is the mechanism this protocol
+formalizes rather than invents.
+
+An amendment is legal only when all three hold:
+
+- **Unexecuted checks only.** A check belonging to a stage whose gate has already passed, or
+  a task already `Status: [x]`, is **never** rewritten. Recorded results describe a run that
+  happened; editing their checks retroactively edits the evidence.
+- **The annotation cites the authorizing rule.** Not "corrected during execution" but
+  `*(amended at Preflight per review-scope.md § task-scoped floor — was: `review-scope: high`
+  binding all tasks)*`. A reader must be able to check the amendment against the rule that
+  permitted it, which is exactly what the bare form made impossible.
+- **The was-value survives.** An amendment that deletes what it replaced leaves no way to
+  tell a recalibration from an author's original intent.
+
+**honest-gates treats an unannotated ceremony change as it treats an undisclosed scope
+change** — the artifacts are identical either way, so the annotation is the only thing
+distinguishing "the rules moved" from "the executor wanted a cheaper run". Amending a check
+to make a *failing* gate pass is not recalibration under any reading; that is the gate-
+failure procedure, and it is not this.
+
+**Verify against committed state.** Recompute from the plan file as committed and confirm
+the working tree is clean before recording any Preflight result. A calibration re-check run
+over uncommitted edits certifies a plan nobody else can see — the same defect as a gate
+verified against a dirty working tree, one phase earlier
+(`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`).
 
 ### Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure)
 
