@@ -87,6 +87,26 @@ python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.
 the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
 deliberate, because a check executors learn to route around protects nothing.
 
+## Worked example — a sweep is not licence to sweep twice
+
+The rules pull in opposite directions and both are right. This one says *widen the check to
+the set*; the trunk's § *Every fact has one owner* says *don't verify what a task test
+already decided*. What resolves them is that the gate owns the **class** and the task owns
+its **instance** — so a gate sweep is legitimate exactly when the set it covers is strictly
+wider than what any task proved, and the widening can be named.
+
+Observed live (remote-agents `bot-live-view` sub-plan 01, 2026-08-10) — one fact, *view
+expiry is gone*, verified four times:
+
+| # | The check | Verdict |
+|---|---|---|
+| 1 | Task 1.1 `Test:` — the migration produces no `expires_at` column | **Keep.** The task owns its instance; nothing else proves this migration is right. |
+| 2 | Stage-1 gate — `! grep -rn 'expires_at\|timedelta(minutes=15)\|view_revision' src/` | **Keep.** Strictly wider and nameable: the task proved one file, this sweeps the tree for the whole vocabulary. |
+| 3 | Close-out gate — the same grep again | **Cut.** Same command, same set, same population. A re-run is not a second fact. |
+| 4 | `(judgment)` — "no surviving claim that a view can expire" | **Cut, or narrow.** As written it restates check 2 and spends an evaluator dispatch on it. It earns its place only against what a grep genuinely cannot decide — that the two surviving mentions of "expired" are *denials* rather than assertions — and then it says so. |
+
+The plan shipped all four. Two of them were coverage; two were cost.
+
 Be honest about where the "mandatory" half lives: it is **this checklist**, and nothing else.
 No plan-file marker records that a plan was validated, so `executing-plans` cannot tell a
 post-rule plan that skipped the check from a legacy one — it reports either identically. A plan

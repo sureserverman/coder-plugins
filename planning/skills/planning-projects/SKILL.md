@@ -483,6 +483,35 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
 - **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
 
+### Every fact has one owner
+
+**A fact a task's `Test:` proves is not re-proved at the gate.** Write each gate check to
+verify something no task test already decides — integration between the stage's tasks, the
+stage's goal end-to-end, regressions. A check that re-runs the task's own assertion buys
+nothing: the task cannot be green without it.
+
+Two exceptions, and they are the useful cases:
+
+- **A strictly wider set.** A gate check may cover ground a task test could not, provided
+  the widening is *nameable*: "the task proved the column is gone from the migration; the
+  gate sweeps the whole source tree for the vocabulary". That is the class-predicate rule
+  below doing its job — the gate owns the *class*, the task owns its *instance*.
+- **A different mechanism proving a different claim.** A test asserting the code behaves
+  and a sweep asserting no stale prose survives are two facts, not one fact twice.
+
+**A `(judgment)` line may never restate a fact an executable check in the same plan already
+decides.** The marker routes to an evaluator dispatch — the most expensive check in the
+plan — so spending it on a question a command has already answered is the worst version of
+this defect. Reserve it for what genuinely needs a reader.
+
+Observed live (remote-agents `bot-live-view` sub-plan 01, 2026-08-10): a single fact —
+view-expiry was removed — was verified four times, by a task test asserting no `expires_at`
+column, a Stage-1 gate grep, the same grep repeated at close-out, and a `(judgment)` line
+asking an evaluator to confirm no surviving claim that a view can expire. Two of those are
+legitimate and distinct: the task test (this migration is right) and one tree-wide sweep
+(the vocabulary is gone everywhere). The repeat and the judgment line were cost with no
+coverage behind it.
+
 ### Write a set-valued check as the sweep that proves it
 
 **A gate check over a set is an executable sweep, not a spot check** (DEC-005). A check that
@@ -548,6 +577,7 @@ Before showing the plan to the user, verify:
 - [ ] No stage has more than 7 tasks
 - [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests
 - [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it, or — where one artifact genuinely *is* the whole set — the `(scoped)` marker saying why. No check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED; see `references/set-valued-checks.md`)
+- [ ] **One owner per fact**: no gate check re-proves what a task's `Test:` already decides, unless it sweeps a strictly wider, nameable set; and no `(judgment)` line restates a fact an executable check in this plan already answers (§ Every fact has one owner)
 - [ ] The research summary has actual findings, not placeholders
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (references/test-scope-tiers.md)
