@@ -85,7 +85,7 @@ per-task passes — **that single pre-gate review IS the light plan's Tier-2, so
 run a separate Step 3.5 Tier-2 pass**; and close-out applies a single stated version bump.
 **How many passes actually run is the declared tier's call, not the format's** (§ Review
 scope): `none` runs none, `light` and `standard` run that one, `high` adds a second pass and
-per-task Tier-1 even here.
+Tier-1 even here, on the risk-listed tasks its declaration names.
 
 Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
 Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.

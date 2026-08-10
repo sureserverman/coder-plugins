@@ -47,7 +47,7 @@ guardrail that a one-session job cannot need.
 | Commit per green task | **Risk** / **Rollback** stage fields |
 | Red-Green cycle budget (default 3) | `Blocks:` field (derivable from `Depends on` at ≤5 tasks) |
 | Run-to-completion + stop conditions | `Parallel:` field (no fan-out at this size) |
-| A single **Stage 1 Gate** incl. the full existing test suite | Tier-1 per-task review — the format replaces it with one whole-diff review before close-out, and the declared tier then decides whether even that runs (`high` restores per-task Tier-1) |
+| A single **Stage 1 Gate** incl. the full existing test suite | Tier-1 per-task review — the format replaces it with one whole-diff review before close-out, and the declared tier then decides whether even that runs (`high` restores Tier-1 for the risk-listed tasks its declaration names) |
 | honest-gates integrity contract | Default goal-evaluator dispatch (opt-in at Light) |
 | | Mirror-grep version-bump ritual (one stated bump) |
 
@@ -179,7 +179,7 @@ git-bootstrap + baseline tests only; tasks run inline through the normal Red-Gre
 `git-github:code-reviewer` pass after the last task goes green and before the gate — the
 *format* sets that shape, while the plan's declared **review-scope tier** decides how many
 passes actually run and whether an evaluator joins them (`none` runs none; `high` restores
-per-task Tier-1 even here); the goal-evaluator follows that tier rather than being opt-in
+Tier-1 even here, for its risk-listed tasks); the goal-evaluator follows that tier rather than being opt-in
 by format; and close-out applies a **single stated** SemVer bump (naming the manifest/marketplace mirror pair explicitly in this repo
 rather than grepping for every mirror). Everything in the "Kept at Light" column above —
 Status flips, commit per green task, cycle budgets, stop conditions, honest-gates, and
