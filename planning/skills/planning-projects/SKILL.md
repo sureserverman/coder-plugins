@@ -423,6 +423,20 @@ assumed. A run cannot be asked to weigh a cost nobody wrote down.
 only false alarms, or only findings about itself, is a candidate for the `Removes:` line of
 the next plan that touches its area.
 
+**A new verification mandate names the tier or scope rule that gates it** (DEC-017) — and a
+mandate that names none does not enter. DEC-010 established this for mandates costing an
+agent dispatch; it extends here to mandates costing a *command*, because those accrete the
+same way and are easier to wave through precisely because each one is cheap. A gate sweep is
+a line of text to write and minutes to run on every future execution of every plan, and
+nobody compares the second number to what the sweep protects unless a rule asks. Measured:
+one sub-plan's four-tree stage-scope command, re-run at every gate and every remediation
+round, produced 13 broad sweeps in a single session re-proving code that had not changed.
+
+So a plan adding a mandate says which of these governs it: a **review-scope tier** (for
+anything dispatching an agent), a **test-scope tier** — task / fix / stage / plan — for a
+test command, or a **position** (once per gate entry, final gate only, close-out only). "It
+runs every time" is an answer, but it is the one that must be argued hardest.
+
 ## Phase 2.5 — Decomposition decision (master plan + sub-plans)
 
 Stage sizing has a project-level analogue: when the *plan itself* is too large, don't
