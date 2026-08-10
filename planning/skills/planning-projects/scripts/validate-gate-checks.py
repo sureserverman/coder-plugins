@@ -96,6 +96,13 @@ carefully here:
     it. **A flagged selector that collects is not a defect** — record the collection count
     and proceed. Narrowing the static check to avoid this would cost the true positives,
     since at authoring time "no test yet" and "no test ever" look identical.
+  - SELECTOR-UNMATCHED is SKIPPED entirely on a master plan. A master carries no tasks by
+    construction, so it has no `Test:` fields and every selector in its cross-plan gates
+    would flag — 3 of the 5 portfolio-wide flags on the day this check shipped were one
+    master plan. Its gates legitimately name tests its sub-plans build, in documents this
+    script does not see when handed the master alone; the sub-plan that owns the task is
+    where the check runs against a real corpus. Master detection reuses portfolio-unify's
+    two signals (filename suffix, `# Master Plan:` heading) so the two cannot drift.
   - The `Scope:`-advisory (`unswept_scopes`) is REPORTED, never failed, and only for
     stages that declare the field — so a plan predating it classifies identically. It
     accepts either sanctioned shape (a sweep or a `(judgment)` marker) as covering the
@@ -409,7 +416,21 @@ def pytest_selectors(text):
     return found
 
 
-def unmatched_selectors(text):
+MASTER_HEADING = re.compile(r"^#\s+Master Plan:", re.MULTILINE)
+
+
+def is_master_plan(text, path=None):
+    """Whether this document is a master plan (a register of sub-plans).
+
+    Same two signals `portfolio-unify.py` uses — the filename suffix and the heading —
+    deliberately, so the two do not drift into disagreeing about what a master is.
+    """
+    if path is not None and str(path).endswith("-master-plan.md"):
+        return True
+    return bool(MASTER_HEADING.search(text))
+
+
+def unmatched_selectors(text, path=None):
     """-> [(check, path, k-expr)] gate selectors no task in this plan builds toward.
 
     The defect: a gate check names a real test file and a `-k` filter that collects zero
@@ -433,6 +454,15 @@ def unmatched_selectors(text):
     elsewhere: the author is asserting something syntax cannot see, where a reviewer can
     disagree with it.
     """
+    # A MASTER plan carries no tasks by construction (master-plan-format.md), so it has no
+    # `Test:` fields to cross-reference and EVERY selector in its cross-plan gates would flag.
+    # Its gates legitimately name tests its SUB-plans build, and those are separate documents
+    # this function cannot see. Skipping is therefore the correct answer, not a concession:
+    # the sub-plan that owns the task is where the same check runs with a real corpus.
+    # Found portfolio-wide the day this check shipped — 3 of 5 flags were one master plan.
+    if is_master_plan(text, path):
+        return []
+
     declared = set()
     for m in TEST_FIELD.finditer(text):
         for pair in pytest_selectors(m.group(1)):
@@ -513,7 +543,7 @@ def main(argv=None):
         unswept = unswept_scopes(raw)
         if unswept:
             scope_notes.append((path, unswept))
-        for c, sel_path, expr, why in unmatched_selectors(raw):
+        for c, sel_path, expr, why in unmatched_selectors(raw, path):
             selector_failures.append((path, c, sel_path, expr, why))
         examined_files += 1
         if not checks:

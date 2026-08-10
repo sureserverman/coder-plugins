@@ -372,6 +372,18 @@ check(vgc.unmatched_selectors(
         "#### Task 1.1 — a\n\n- **Test:** `pytest tests/x.py -k restart`\n\n"
         "### Stage 1 Gate\n- [ ] `pytest tests/x.py -k restart --cov=src/mod.py` with coverage\n") == [],
       "a coverage-annotated gate running the declared selector is not flagged")
+# A master plan carries no tasks, so every selector in its cross-plan gates would flag —
+# 3 of the 5 portfolio-wide flags on the day this check shipped were one master plan.
+_master = ("# Master Plan: x\n\n## Sub-plans\n\n### 1. sub-01\n\n"
+           "**Gate:** \n- [ ] `pytest tests/e2e/test_x.py -k restart` — the integrated proof\n")
+check(vgc.unmatched_selectors(_master) == [],
+      "a master plan's selectors are not flagged — its tasks live in its sub-plans")
+check(vgc.is_master_plan("# Master Plan: x") and
+      vgc.is_master_plan("", path="2026-01-01-topic-master-plan.md"),
+      "both master signals are recognised (heading and filename), matching portfolio-unify")
+check(vgc.unmatched_selectors(_master.replace("# Master Plan: x", "# Project Plan: x")) != [],
+      "the SAME document as a non-master still flags — the skip is the master's, not a waiver")
+
 # The real historical instance, reproduced: the file exists in the plan's world, the filter
 # matches nothing in it, and no task builds toward it.
 check(len(vgc.unmatched_selectors(plan_with_task(
