@@ -106,13 +106,22 @@ Omit the heading entirely when no decision bears on this task.>
 If that skill's plugin isn't enabled, instead: "Read <repo-relative path from capability-index.json>
 and follow it" — the same skill body, loaded from disk (see stack-routing.md § Resolving).>
 
-## Execution model (Red-Green loop)
-1. Attempt the implementation described by the task
-2. Run the Test:
+## Execution model (Red-Green loop — test first)
+1. Write the test FIRST, before touching the implementation. If the Test command below
+   names a `-k` expression or a test id, name your test so that expression collects it —
+   the selector is a naming constraint, not something to rename to afterwards
+2. Run the Test and confirm it goes RED **for the reason this task names** (the behavior
+   is missing). A RED for any other reason means YOUR TEST is wrong, not the code: fix
+   the test and re-run. Those repairs do not count against the cycle budget in step 5
+3. Implement the task
+4. Run the Test again:
    <Test command, verbatim from plan>
    Expected: <expected pass criterion>
-3. If RED: diagnose the actual error, form a hypothesis, make ONE targeted fix, retest
-4. Max <Red-Green max cycles> RED cycles. If exceeded, STOP and report — do not keep looping
+5. If RED: diagnose the actual error, form a hypothesis, make ONE targeted fix, retest.
+   Max <Red-Green max cycles> RED cycles. If exceeded, STOP and report — do not keep looping
+6. Run NOTHING WIDER than the Test above. No full suite, no regression sweep across other
+   test trees, no "check I broke nothing else" — the main session runs that once at the
+   stage gate. Running a whole test file instead of one filter is fine
 
 ## Constraints
 - Do NOT modify files outside the Files list above
@@ -201,7 +210,17 @@ For each ESCALATE task:
 
 ### Merge check
 
-After integrating, run the full test suite once more. Parallel work sometimes interacts at seams the individual tests don't cover — catch it here before the stage gate.
+After integrating, run **the round's own tests together** — every dispatched task's `Test:`
+in one invocation — plus any test file whose subject two of them both touched. Parallel work
+sometimes interacts at seams the individual tests don't cover, and that seam is what this
+check is for.
+
+**Not the full suite.** This is a checkpoint inside a stage, so it takes the same bound every
+other in-stage run takes: the stage gate runs the plan's `stage-scope:` command once, and
+close-out runs the one full pass (`../planning-projects/references/test-scope-tiers.md`).
+A full suite here would be the third sweep of the same stage, and this instruction mandated
+it in writing through 0.42.0 — which is why the rule reached every other in-stage run first
+and missed this one.
 
 ## Phase 7 — Report and hand back
 
