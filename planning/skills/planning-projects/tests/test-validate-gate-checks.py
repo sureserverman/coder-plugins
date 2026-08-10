@@ -351,6 +351,27 @@ for marker in ("(judgment)", "(scoped)"):
             plan_with_task("`pytest tests/foo.py -k parses`",
                            f"**{marker}** `pytest tests/bar.py -k later` — author asserts")) == [],
           f"a {marker} check is exempt from the selector cross-reference")
+# False-positive shapes. These matter more than the true positives: this check is wired into
+# the mandatory pre-presentation checklist, so a false positive does not merely miss a defect,
+# it blocks a correct plan from being presented — the opposite failure from the one the class
+# exists to fix. Both were found by Tier-2 review of the first implementation.
+check(vgc.pytest_selectors("`pytest tests/a.py -k foo && pytest tests/b.py -k bar`")
+      == [("tests/a.py", "foo"), ("tests/b.py", "bar")],
+      "chained invocations keep each path with its OWN -k filter")
+check(vgc.unmatched_selectors(
+        "# P\n\n## Stage 1: x\n\n"
+        "#### Task 1.1 — a\n\n- **Test:** `pytest tests/a.py -k foo`\n\n"
+        "#### Task 1.2 — b\n\n- **Test:** `pytest tests/b.py -k bar`\n\n"
+        "### Stage 1 Gate\n- [ ] `pytest tests/a.py -k foo && pytest tests/b.py -k bar`\n") == [],
+      "a chained gate check whose every invocation is task-declared is not flagged")
+check(vgc.pytest_selectors("`pytest tests/x.py -k restart --cov=src/mod.py`")
+      == [("tests/x.py", "restart")],
+      "a .py value of a --flag= is not a selector path (coverage targets are not test files)")
+check(vgc.unmatched_selectors(
+        "# P\n\n## Stage 1: x\n\n"
+        "#### Task 1.1 — a\n\n- **Test:** `pytest tests/x.py -k restart`\n\n"
+        "### Stage 1 Gate\n- [ ] `pytest tests/x.py -k restart --cov=src/mod.py` with coverage\n") == [],
+      "a coverage-annotated gate running the declared selector is not flagged")
 # The real historical instance, reproduced: the file exists in the plan's world, the filter
 # matches nothing in it, and no task builds toward it.
 check(len(vgc.unmatched_selectors(plan_with_task(

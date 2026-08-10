@@ -364,9 +364,16 @@ SCOPE_FIELD = re.compile(r"^\s*[-*]\s+\*\*Scope:\*\*\s*(.+)$", re.MULTILINE)
 TEST_FIELD = re.compile(r"^\s*[-*]\s+\*\*Test:\*\*\s*(.+)$", re.MULTILINE)
 # `pytest <path> -k <expr>` in either order, inside a backticked command. The path must
 # carry an extension: a bare directory with -k is a legitimate wide sweep, not a selector.
-PYTEST_SELECTOR = re.compile(
-    r"pytest\b(?P<body>[^`]*)")
-SELECTOR_PATH = re.compile(r"(?<![\w/.-])([\w./-]+\.py)\b")
+#
+# The body stops at the NEXT `pytest`, so a chained command keeps each invocation's path
+# with its own filter. A greedy body reads `pytest a.py -k foo && pytest b.py -k bar` as one
+# invocation owning both paths, and then pairs b.py with foo — a false positive on a gate
+# whose every invocation is correctly task-declared.
+PYTEST_SELECTOR = re.compile(r"pytest\b(?P<body>(?:(?!pytest\b)[^`])*)")
+# A positional test-file argument only. `(?<![=\w/.-])` is what keeps a flag VALUE out:
+# `--cov=src/mod.py` names a module being measured, not a test file being selected, and
+# flagging it invents an unmatched selector on a gate that runs exactly what a task declared.
+SELECTOR_PATH = re.compile(r"(?<![=\w/.-])([\w./-]+\.py)\b")
 SELECTOR_FILTER = re.compile(r"-k\s+(?P<q>['\"]?)(?P<expr>[^'\"`]+?)(?P=q)(?=\s|$)")
 
 
