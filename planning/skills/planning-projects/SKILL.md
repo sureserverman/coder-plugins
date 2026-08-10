@@ -69,6 +69,28 @@ symmetric partner to the decomposition rule in Phase 2.5.
 | **Standard** | Everything between Light and Master | The full staged plan (Phases 0–5 below) |
 | **Master** | > ~6 stages / ~25 tasks, or ≥2 independently shippable workstreams | A master plan + sub-plans (Phase 2.5, `references/master-plan-format.md`) |
 
+**Size each request, not the batch.** A prompt often carries several independent asks, and
+the ladder above applies to **each item on its own**. Sizing the batch is how one real
+feature drags four one-line tweaks into its format: the tweaks are not larger for having
+arrived in the same sentence as something that is.
+
+So triage may return a **split verdict** — some items executed Direct, the remainder
+planned at whatever format the *remainder alone* warrants:
+
+```
+Format: Split — items 1, 4, 5 Direct; items 2, 3 Light
+```
+
+Escalation to Master requires the **plannable remainder** to cross Phase 2.5's thresholds
+by itself, never the raw item count of the request. Observed live (remote-agents
+`bot-live-view`, 2026-08-10): six asks — one durable-storage feature and five UX tweaks —
+triaged as a batch to Master, producing 3 sub-plans / 9 stages / ~66 checkboxes, of which
+five items were an hour of Direct work carrying a master plan's ceremony.
+
+**Split only where the items are genuinely independent.** Items sharing a file, a
+migration, or a behavior contract are one item for triage purposes however separately they
+were phrased — splitting those buys a merge conflict, not a saving.
+
 **How to triage:**
 
 - **Direct is the off-ramp.** If the job is a couple of tested edits in one sitting, say
@@ -91,11 +113,15 @@ symmetric partner to the decomposition rule in Phase 2.5.
 at the top of the plan you produce (`Format: Light — single stage, 4 tasks, one
 session`), so a reader (and `executing-plans`) sees the decision, not just its result. A
 Standard or Master plan may omit the line (they are the unmarked default); a Light plan
-should carry it.
+should carry it. **A split verdict always carries the line** — it names which items left
+the plan entirely, and that is the half a reader cannot reconstruct from the plan file.
 
-**When in doubt, round up.** A job on the Light/Standard or Standard/Master boundary takes
-the heavier format — the cost of slightly too much structure is smaller than the cost of a
-container that can't hold the work. The user can always override in either direction.
+**When in doubt, round up — per item, never per batch.** A *single job* on the
+Light/Standard or Standard/Master boundary takes the heavier format: the cost of slightly
+too much structure is smaller than the cost of a container that can't hold the work. That
+reasoning is about one job's shape and does not transfer to a batch, where rounding up
+means charging every small item for the largest item's container. The user can always
+override in either direction.
 
 ---
 
