@@ -383,9 +383,10 @@ pytest --collect-only -q <the check's selector>
 - **Target file does not exist yet** → same as the previous case: name the task that creates
   it, or it is a defect.
 
-This is a **command, not a dispatch**, so it is not tier-gated (DEC-010's cost rule: a
-mandate costing an agent dispatch is tiered, one costing a line of text or a command is
-not). It exists because the class has now shipped twice — the check that motivated 0.40.0's
+This is a **command, not a dispatch**, so it is not tier-gated by review-scope (DEC-010's
+cost rule: a mandate costing an agent dispatch is tiered). Its own gate, per **DEC-017**, is
+a **position** — once at Preflight, never per stage — which is what that entry requires a
+command-costing mandate to name. It exists because the class has now shipped twice — the check that motivated 0.40.0's
 `(scoped)` marker, and remote-agents `bot-live-view` sub-01, whose Stage 1 gate named a real
 e2e file with a filter matching nothing in it and was discovered only by failing mid-stage.
 
