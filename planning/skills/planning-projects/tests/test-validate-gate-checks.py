@@ -309,6 +309,56 @@ check(run(plan(f"**(scoped)** {_scoped} — one register is the whole set"))[0] 
 check(run(plan(f"{_scoped} — one register is the whole set"))[0] == 1,
       "the same plan unmarked exits 1")
 
+print("group 8c — SELECTOR-UNMATCHED: a gate selector no task builds toward")
+# The defect this catches has shipped twice, most recently in remote-agents bot-live-view
+# sub-01, whose Stage 1 gate named a real e2e file with a `-k` filter collecting zero tests
+# in it. A gate nobody can pass is not caught by any shape rule — the check is a perfectly
+# well-formed EXECUTABLE sweep. Hence a separate axis, pinned in BOTH directions here.
+
+
+def plan_with_task(test_field, *checks):
+    """A plan whose single task declares `test_field`, plus the given gate checks."""
+    body = "\n".join(f"- [ ] {c}" for c in checks)
+    return (f"# Project Plan: x\n\n## Stage 1: x\n\n"
+            f"#### Task 1.1 — t\n\n- **Status:** [ ]\n- **Test:** {test_field}\n\n"
+            f"### Stage 1 Gate\n{body}\n")
+
+
+_unmatched = plan_with_task("`pytest tests/foo.py -k parses` — it parses",
+                            "`pytest tests/foo.py -k nothing` — the goal, end to end")
+_matched = plan_with_task("`pytest tests/foo.py -k parses` — it parses",
+                          "`pytest tests/foo.py -k parses` — the goal, end to end")
+check(len(vgc.unmatched_selectors(_unmatched)) == 1,
+      "a gate -k selector no task declares is SELECTOR-UNMATCHED")
+check(vgc.unmatched_selectors(_matched) == [],
+      "the same selector passes when a task's Test: declares it")
+check(run(_unmatched)[0] == 1, "a plan with an unmatched selector exits 1")
+check(run(_matched)[0] == 0, "a plan whose selectors all match a task exits 0")
+check("selector-unmatched" in run(_unmatched)[1],
+      "the failure is reported under its own name, not folded into the shape classes")
+# The wrong-file case and the typo case are distinguishable, and the message says which.
+check("different -k filter" in run(_unmatched)[1],
+      "a declared file with a different filter is named as the typo case it is")
+# A bare whole-file run is legitimate — a regression sweep over an existing suite. Pinning
+# this prevents the obvious over-tightening, which would flag every ordinary gate.
+check(vgc.unmatched_selectors(
+        plan_with_task("`pytest tests/foo.py -k parses`",
+                       "`pytest tests/regression.py` — no regressions")) == [],
+      "a bare pytest file run with no -k is never a selector")
+# Both markers exempt, on the same bargain they make everywhere else in this script.
+for marker in ("(judgment)", "(scoped)"):
+    check(vgc.unmatched_selectors(
+            plan_with_task("`pytest tests/foo.py -k parses`",
+                           f"**{marker}** `pytest tests/bar.py -k later` — author asserts")) == [],
+          f"a {marker} check is exempt from the selector cross-reference")
+# The real historical instance, reproduced: the file exists in the plan's world, the filter
+# matches nothing in it, and no task builds toward it.
+check(len(vgc.unmatched_selectors(plan_with_task(
+        "`pytest tests/integration/test_live_service.py -k durable` — a durable token",
+        "`pytest tests/e2e/test_telegram_fake_backend.py -k restart` — a button survives "
+        "a restart"))) == 1,
+      "the remote-agents bot-live-view sub-01 gate would have been caught at authoring")
+
 print("group 9 — the docstring's calibration numbers match the frozen corpus")
 # Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
 # including CI, where the old vault-conditioned version skipped silently and pinned
