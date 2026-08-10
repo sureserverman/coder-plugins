@@ -281,7 +281,7 @@ All keys optional. Missing file → all defaults (no vault mirror, maturity opt-
 
 ## File conflicts and write discipline
 
-Two write surfaces this skill controls directly: `~/.claude/projects-registry.yaml` (registry) and `~/.claude/global-{backlog,maturity}.md` (globals). Two write surfaces it controls *indirectly* via sub-skills: per-project `docs/backlog.md` (via `backlog add`) and per-project `docs/MATURITY.md` (via `project-maturity audit --write`).
+Two write surfaces this skill controls directly: `~/.claude/projects-registry.yaml` (registry) and `<vault>/Portfolio/global-{backlog,maturity}.md` (globals). Two write surfaces it controls *indirectly* via sub-skills: per-project `docs/backlog.md` (via `backlog add`) and per-project `docs/MATURITY.md` (via `project-maturity audit --write`).
 
 Hard rules:
 

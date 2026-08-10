@@ -4,7 +4,7 @@ This document is the authoritative definition for the six maturity axes used by
 the `project-maturity` skill. It specifies exactly how each axis is
 auto-detected, when a manual claim is appropriate, when N/A is valid, and what
 the minimum state is for a project to count that axis as green in the
-`ship_ready` column of `~/.claude/global-maturity.md`. The `project-maturity
+`ship_ready` column of `<vault>/Portfolio/global-maturity.md`. The `project-maturity
 audit` subcommand runs every rule in this file deterministically — no LLM
 judgement in the loop.
 
@@ -64,7 +64,7 @@ and count identically for ticks and ship-readiness.
 
 The user has verified a condition that cannot be auto-detected. The date is
 when the claim was made. Claims older than 90 days are rendered in yellow in
-`~/.claude/global-maturity.md` to signal staleness and prompt a re-check.
+`<vault>/Portfolio/global-maturity.md` to signal staleness and prompt a re-check.
 The user is responsible for updating the date when they re-verify.
 
 **Not applicable:**
