@@ -15,6 +15,7 @@ Pairs a trunk with its `references/extraction-classification.md`. Read-only.
 Exit 0 when the sets match and every row carries a class and a reason, 1 otherwise.
 """
 import argparse
+import importlib.util
 import os
 import re
 import sys
@@ -25,14 +26,26 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAIRS = [
     ("planning/skills/executing-plans/SKILL.md",
      "planning/skills/executing-plans/references/extraction-classification.md"),
+    ("planning/skills/planning-projects/SKILL.md",
+     "planning/skills/planning-projects/references/extraction-classification.md"),
+    ("planning/skills/portfolio/SKILL.md",
+     "planning/skills/portfolio/references/extraction-classification.md"),
 ]
 
-HEADING_RE = re.compile(r"^#{2,4} (.+)$", re.M)
 VALID_CLASSES = ("unconditional", "rule+elaboration", "conditional")
+
+# Fence-aware heading extraction, shared with check-trunk-retention.py so the two
+# guards cannot disagree about what counts as a section. See that module's
+# docstring for why a `^#{2,4} ` regex alone is wrong here.
+_spec = importlib.util.spec_from_file_location(
+    "_skill_sections", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "_skill_sections.py"))
+_sections = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_sections)
 
 
 def trunk_headings(text):
-    return [h.strip() for h in HEADING_RE.findall(text)]
+    return _sections.headings(text)
 
 
 def table_rows(text):

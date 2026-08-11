@@ -31,6 +31,7 @@ Read-only. Exit 0 when every promise holds, 1 otherwise.
 """
 import argparse
 import collections
+import importlib.util
 import os
 import re
 import sys
@@ -43,16 +44,31 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAIRS = [
     ("planning/skills/executing-plans/SKILL.md",
      "planning/skills/executing-plans/references/extraction-classification.md"),
+    ("planning/skills/planning-projects/SKILL.md",
+     "planning/skills/planning-projects/references/extraction-classification.md"),
+    ("planning/skills/portfolio/SKILL.md",
+     "planning/skills/portfolio/references/extraction-classification.md"),
 ]
 
-HEADING_RE = re.compile(r"^#{2,4} (.+)$", re.M)
 VALID_CLASSES = ("unconditional", "rule+elaboration", "conditional")
 # Sections that must keep a named rule. `conditional` is excluded on purpose.
 BINDING_CLASSES = ("unconditional", "rule+elaboration")
 
+# PAIRS is policy and is duplicated deliberately (above); PARSING is not, so the
+# heading scan is shared. Two guards disagreeing about what counts as a heading in
+# the same file is a silent divergence, and the one seeing fewer headings is the
+# one that stops guarding.
+_spec = importlib.util.spec_from_file_location(
+    "_skill_sections", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "_skill_sections.py"))
+_sections = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_sections)
+
 
 def trunk_headings(text):
-    return {h.strip() for h in HEADING_RE.findall(text)}
+    # A set here on purpose: this guard asks "is the section present", and the
+    # duplicate-heading finding belongs to check-extraction-classification.py.
+    return set(_sections.headings(text))
 
 
 def _rows(text, want_cells):

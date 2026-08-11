@@ -49,7 +49,43 @@
 # prevent). Both restored as rules. "A pointer is not a rule" is the standard this
 # stage set for itself; these two were the places it had not met it.
 planning/skills/executing-plans/SKILL.md 46135
+
+# derived-ceiling: 26976 — Stage 3 Task 3.0, from
+# planning/skills/planning-projects/references/extraction-classification.md.
+# 14 unconditional sections (6477 B) + 22 rule+elaboration (37762 B) + 1
+# conditional (977 B) + 886 B scaffolding, retaining 6650 + 19190 + 250 + 886.
+# A COMMENT, not the active ceiling: the trunk is still 46102 B, so promoting it
+# now would fail the ratchet and redden the suite between two green tasks. Task
+# 3.1 promotes it when the cut lands.
+#
+# rule+elaboration retention is estimated at 45%, NOT the 30% Task 2.0 assumed —
+# measured across executing-plans it is 40-50%, and that assumption is the whole
+# of Stage 2's 10600 B ceiling miss.
+#
+# Only ONE section is conditional, and that is the finding: planning-projects is
+# read once per plan and almost every section fires on that pass, so its
+# reduction (41.5%) comes from compressing justification rather than relocating
+# procedure. Stage 2's trunk reached 50% because it had procedure to relocate.
 planning/skills/planning-projects/SKILL.md 46102
+
+# derived-ceiling: 7728 — Stage 3 Task 3.0, from
+# planning/skills/portfolio/references/extraction-classification.md.
+# 4 unconditional (2121 B) + 3 rule+elaboration (2508 B) + 9 conditional
+# (21045 B) + 1597 B scaffolding + 700 B for a `## Reference map` section this
+# trunk does not yet have, retaining 2121 + 1200 + 2110 + 1597 + 700.
+# A COMMENT for the same reason as above; Task 3.2 promotes it.
+#
+# The 71.7% reduction is STRUCTURAL, not a bolder classification: portfolio is a
+# dispatcher of 7 subcommands and an explicit invocation runs exactly one, which
+# is the textbook conditional shape. Read the honest qualification in the
+# classification file before quoting that number — the DEFAULT flow runs
+# scan -> unify -> maturity -> rebuild, so a default invocation reads 4 of the 7
+# extracted references. The real shape is a 7.7 KB trunk plus 4 mandatory reads
+# on a default run, or exactly 1 on a named subcommand.
+#
+# 417 B of this assumes `## Remember` is DELETED rather than relocated, matching
+# Stage 2's treatment of the executing-plans section of the same name. That
+# deletion needs the register owner's approval; if withheld, this ceiling is 8145.
 planning/skills/portfolio/SKILL.md 27271
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section

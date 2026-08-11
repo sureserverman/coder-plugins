@@ -45,6 +45,25 @@ def parse_cases():
     check(rows == [("Alpha", "unconditional", "because it binds every run")],
           "row carries section, class from its enclosing heading, and reason")
 
+    # A heading inside a fence is sample content, not a section of the trunk.
+    # planning-projects/SKILL.md prints a `## Decisions in force` example inside a
+    # ```markdown fence to show an author what to write; a fence-blind scan reports
+    # it as this skill's own section and the table then has to file a decision
+    # about a code sample — a row that fails the day the example is edited.
+    fenced = cls.trunk_headings(
+        "## Real\ntext\n\n```markdown\n## Sample\n- not a section\n```\n\n## AlsoReal\n")
+    check(fenced == ["Real", "AlsoReal"],
+          "a heading inside a ``` fence is not a trunk section")
+
+    check(cls.trunk_headings("## Real\n\n~~~\n## Tilde\n~~~\n") == ["Real"],
+          "~~~ fences are honoured too")
+
+    # An unterminated fence swallows the rest of the file. That is the correct
+    # reading of the markdown, and reporting fewer headings is the safe direction:
+    # it fails set equality loudly rather than certifying a section nobody classified.
+    check(cls.trunk_headings("## Real\n```\n## Swallowed\n") == ["Real"],
+          "an unclosed fence hides what follows, and fails loudly downstream")
+
 
 def set_equality_cases():
     with tempfile.TemporaryDirectory() as root:
@@ -58,6 +77,21 @@ def set_equality_cases():
         open(c, "w").write(table([("Alpha", "reason enough here"),
                                   ("Beta", "reason enough here")]))
         check(run() == [], "matching sets pass")
+
+        # The end-to-end version of the fence case: a trunk whose only extra
+        # heading is inside a fence needs NO row for it, and gets no complaint.
+        open(t, "w").write("## Alpha\nx\n\n```markdown\n## Sample\n```\n\n## Beta\ny\n")
+        open(c, "w").write(table([("Alpha", "reason enough here"),
+                                  ("Beta", "reason enough here")]))
+        check(run() == [], "a fenced heading demands no classification row")
+
+        # And the converse: filing a row for one is caught, so the table cannot
+        # quietly classify a code sample either.
+        open(c, "w").write(table([("Alpha", "reason enough here"),
+                                  ("Beta", "reason enough here"),
+                                  ("Sample", "reason enough here")]))
+        check(any("no such heading" in x and "Sample" in x for x in run()),
+              "a row naming a fenced heading is rejected")
 
         # Heading present, row absent
         open(c, "w").write(table([("Alpha", "reason enough here")]))
