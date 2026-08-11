@@ -1,0 +1,194 @@
+# Extraction-integrity allowlist.
+#
+# One `path:CODE:token` entry per suppressed finding, exact match only — a bare
+# path suppresses nothing, so allowlisting one known instance cannot hide the
+# next one in the same file.
+#
+# Seeded 2026-08-11 by the token-efficiency plan, Stage 1 Task 1.1, against the
+# tree at that commit. Every entry is PRE-EXISTING debt, not a new exemption:
+# these are the BL-039 residuals the guard was built to see. Task 2.3 burns the
+# `planning/skills/executing-plans/` entries down to zero; the rest stay until
+# each file's next edit, which is BL-039's own stated policy.
+#
+# Adding an entry here is a claim that the finding is benign. Prefer fixing.
+
+
+# android-dev/skills/android-mcp-orchestrator/SKILL.md — 1 finding(s)
+android-dev/skills/android-mcp-orchestrator/SKILL.md:DEAD-PATH:'skills/android-mcp-orchestrator/scripts/down.sh
+
+# android-dev/skills/android-ui-design-figma/SKILL.md — 1 finding(s)
+android-dev/skills/android-ui-design-figma/SKILL.md:DEAD-PATH:scripts/run.sh
+
+# android-dev/skills/android-ui-design-figma/references/adaptive-icons.md — 1 finding(s)
+android-dev/skills/android-ui-design-figma/references/adaptive-icons.md:DEIXIS-POSITIONAL:structure above
+
+# android-dev/skills/android-ui-design-figma/references/standard-tools-frameworks.md — 1 finding(s)
+android-dev/skills/android-ui-design-figma/references/standard-tools-frameworks.md:DEIXIS-POSITIONAL:entry below
+
+# business/references/metrics-format.md — 1 finding(s)
+business/references/metrics-format.md:DEIXIS-POSITIONAL:see above
+
+# business/skills/track/SKILL.md — 1 finding(s)
+business/skills/track/SKILL.md:DEIXIS-SECTION:Target linkage
+
+# game-dev/references/game-accessibility-audit.md — 1 finding(s)
+game-dev/references/game-accessibility-audit.md:DEIXIS-POSITIONAL:item below
+
+# planning/skills/applying-design-handoff/SKILL.md — 1 finding(s)
+planning/skills/applying-design-handoff/SKILL.md:DEAD-PATH:references/ui-grading-rubric.md
+
+# planning/skills/applying-design-handoff/references/example-pack/README.md — 1 finding(s)
+planning/skills/applying-design-handoff/references/example-pack/README.md:DEAD-PATH:scripts/validate-handoff-pack.py
+
+# planning/skills/applying-design-handoff/references/handoff-pack-format.md — 3 finding(s)
+planning/skills/applying-design-handoff/references/handoff-pack-format.md:DEIXIS-POSITIONAL:examples below
+planning/skills/applying-design-handoff/references/handoff-pack-format.md:DEIXIS-POSITIONAL:see below
+planning/skills/applying-design-handoff/references/handoff-pack-format.md:DEIXIS-POSITIONAL:names above
+
+# planning/skills/applying-design-handoff/references/playwright-capture.md — 1 finding(s)
+planning/skills/applying-design-handoff/references/playwright-capture.md:DEIXIS-POSITIONAL:see below
+
+# planning/skills/backlog/SKILL.md — 3 finding(s)
+planning/skills/backlog/SKILL.md:DEIXIS-SECTION:*A bug found during execution is a class* and § *Exit criter
+planning/skills/backlog/SKILL.md:DEIXIS-SECTION:*Review opt-out* sets for a skipped review
+planning/skills/backlog/SKILL.md:DEIXIS-SECTION:*A bug found during execution is a class* and § *Exit criter
+
+# planning/skills/capability-router/SKILL.md — 1 finding(s)
+planning/skills/capability-router/SKILL.md:DEIXIS-SECTION:*Resolving a capability whose plugin isn't enabled* exactly:
+
+# planning/skills/decisions/SKILL.md — 1 finding(s)
+planning/skills/decisions/SKILL.md:DEIXIS-SECTION:Output location step 3 appends
+
+# planning/skills/decisions/references/domain-slugs.md — 1 finding(s)
+planning/skills/decisions/references/domain-slugs.md:DEIXIS-POSITIONAL:see below
+
+# planning/skills/dispatching-parallel-agents/SKILL.md — 3 finding(s)
+planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-SECTION:Resolving
+planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-SECTION:*Resolving a capability whose plugin isn't enabled*: dispatc
+planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-SECTION:22
+
+# planning/skills/dispatching-parallel-agents/references/stack-routing.md — 2 finding(s)
+planning/skills/dispatching-parallel-agents/references/stack-routing.md:DEIXIS-POSITIONAL:scope above
+planning/skills/dispatching-parallel-agents/references/stack-routing.md:DEIXIS-POSITIONAL:named above
+
+# planning/skills/executing-plans/SKILL.md — 25 finding(s)
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review scope already sets for
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Exit criterion
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:task-scoped floor — was: `review-scope: high`
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review scope gates this like any other dispatch
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Stage structure
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:The plan is the authorization is explicit that the substitut
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:*Resolving a
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:A bug found during execution is a class** applies here exact
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review opt-out
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:*A behavioral claim is a gate too* governs
+planning/skills/executing-plans/SKILL.md:DEAD-PATH:agents/goal-evaluator.md
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review opt-out
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review scope** like
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:A bug found during execution is a class** — an evaluator rea
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:A bug found during execution is a class** — a reviewer cites
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:*A behavioral claim is a gate too* — the stage view is where
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:A bug found during execution is a class already sends you th
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review opt-out sets
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review opt-out names
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review scope** — never at `none`
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:A bug found during execution is a class — a close-out evalua
+planning/skills/executing-plans/SKILL.md:DEAD-PATH:references/master-plan-format.md
+planning/skills/executing-plans/SKILL.md:DEAD-PATH:references/stack-routing.md
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Exit criterion
+planning/skills/executing-plans/SKILL.md:DEIXIS-SECTION:Review opt-out
+
+# planning/skills/executing-plans/references/dispatch-fidelity.md — 6 finding(s)
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-SECTION:"Not every routed agent can commit" states the same preceden
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:see below
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:rules above
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:rule below
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-SECTION:Review scope
+planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:re-check above
+
+# planning/skills/executing-plans/references/gate-failure-procedure.md — 2 finding(s)
+planning/skills/executing-plans/references/gate-failure-procedure.md:DEIXIS-SECTION:A bug found during execution is a class**
+planning/skills/executing-plans/references/gate-failure-procedure.md:DEIXIS-POSITIONAL:criterion above
+
+# planning/skills/executing-plans/references/light-plans.md — 1 finding(s)
+planning/skills/executing-plans/references/light-plans.md:DEIXIS-SECTION:Review scope → *Composing with the plan format*
+
+# planning/skills/executing-plans/references/master-plans.md — 3 finding(s)
+planning/skills/executing-plans/references/master-plans.md:DEIXIS-POSITIONAL:flow below
+planning/skills/executing-plans/references/master-plans.md:DEIXIS-POSITIONAL:resets below
+planning/skills/executing-plans/references/master-plans.md:DEIXIS-SECTION:Review scope
+
+# planning/skills/executing-plans/references/review-scope.md — 6 finding(s)
+planning/skills/executing-plans/references/review-scope.md:DEIXIS-POSITIONAL:see below
+planning/skills/executing-plans/references/review-scope.md:DEIXIS-POSITIONAL:see below
+planning/skills/executing-plans/references/review-scope.md:DEIXIS-POSITIONAL:floor below
+planning/skills/executing-plans/references/review-scope.md:DEAD-PATH:references/master-plans.md
+planning/skills/executing-plans/references/review-scope.md:DEIXIS-SECTION:Stop conditions
+planning/skills/executing-plans/references/review-scope.md:DEIXIS-SECTION:Dispatch roster and capability probe
+
+# planning/skills/executing-plans/references/sources.md — 1 finding(s)
+planning/skills/executing-plans/references/sources.md:DEIXIS-SECTION:*A bug found during execution is a class* applies to a singl
+
+# planning/skills/honest-gates/SKILL.md — 1 finding(s)
+planning/skills/honest-gates/SKILL.md:DEIXIS-SECTION:*Amending authored ceremony*
+
+# planning/skills/planning-projects/SKILL.md — 2 finding(s)
+planning/skills/planning-projects/SKILL.md:DEIXIS-SECTION:Output location step 3
+planning/skills/planning-projects/SKILL.md:DEAD-PATH:scripts/portfolio-rebuild.py
+
+# planning/skills/planning-projects/references/light-plan-format.md — 1 finding(s)
+planning/skills/planning-projects/references/light-plan-format.md:DEIXIS-SECTION:"Phase -0
+
+# planning/skills/planning-projects/references/master-plan-format.md — 1 finding(s)
+planning/skills/planning-projects/references/master-plan-format.md:DEIXIS-POSITIONAL:invariant below
+
+# planning/skills/planning-projects/references/plan-document-template.md — 2 finding(s)
+planning/skills/planning-projects/references/plan-document-template.md:DEIXIS-POSITIONAL:fallback above
+planning/skills/planning-projects/references/plan-document-template.md:DEAD-PATH:references/test-scope-tiers.md
+
+# planning/skills/planning-projects/references/set-valued-checks.md — 1 finding(s)
+planning/skills/planning-projects/references/set-valued-checks.md:DEIXIS-POSITIONAL:everything above
+
+# planning/skills/planning-projects/references/task-fields.md — 1 finding(s)
+planning/skills/planning-projects/references/task-fields.md:DEIXIS-SECTION:Review opt-out
+
+# planning/skills/planning-projects/references/test-scope-tiers.md — 2 finding(s)
+planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-SECTION:A bug found during execution is a class** is likewise untouc
+planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-POSITIONAL:declaration below
+
+# planning/skills/portfolio/SKILL.md — 2 finding(s)
+planning/skills/portfolio/SKILL.md:DEIXIS-SECTION:5 hard guarantee from the design doc
+planning/skills/portfolio/SKILL.md:DEIXIS-SECTION:7 rollout step 4: the `project-maturity` skill is shipped bu
+
+# planning/skills/portfolio/references/decisions-format.md — 1 finding(s)
+planning/skills/portfolio/references/decisions-format.md:DEIXIS-SECTION:Output location
+
+# planning/skills/portfolio/references/global-formats.md — 1 finding(s)
+planning/skills/portfolio/references/global-formats.md:DEAD-PATH:references/maturity-axes.md
+
+# planning/skills/portfolio/references/global-security-format.md — 1 finding(s)
+planning/skills/portfolio/references/global-security-format.md:DEAD-PATH:SKILL.md
+
+# planning/skills/portfolio/references/maturity-axes.md — 5 finding(s)
+planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:defined below
+planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:described above
+planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:rule above
+planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:patterns below
+planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:covered above
+
+# planning/skills/portfolio/references/plan-parser.md — 5 finding(s)
+planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:rule below
+planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:signals above
+planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:the above
+planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:rules above
+planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:signals above
+
+# planning/skills/portfolio/references/registry-format.md — 1 finding(s)
+planning/skills/portfolio/references/registry-format.md:DEIXIS-POSITIONAL:convention above
+
+# planning/skills/portfolio/references/sidecar-format.md — 2 finding(s)
+planning/skills/portfolio/references/sidecar-format.md:DEIXIS-POSITIONAL:wrote above
+planning/skills/portfolio/references/sidecar-format.md:DEIXIS-POSITIONAL:pointer above
+
+# release-promo/skills/reddit-promo/references/general-subs.md — 1 finding(s)
+release-promo/skills/reddit-promo/references/general-subs.md:DEAD-PATH:SKILL.md
