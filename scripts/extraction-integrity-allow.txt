@@ -12,7 +12,7 @@
 # will absorb the next real finding with that key. Re-seed after any fix rather
 # than leaving orphans — this file is regenerated, not hand-pruned.
 #
-# 76 entries. Every remaining one is BL-039 debt: a pointer or a position
+# 75 entries. Every remaining one is BL-039 debt: a pointer or a position
 # word that resolved in a monolith and resolves nowhere now. They are a burn-down
 # list, not a permanent exemption — Stage 3 of the token-efficiency plan takes the
 # planning/ half. Nothing here is a tripwire: the trunk entries that were seeded as
@@ -24,7 +24,7 @@
 # file answers "are any entries left for that skill" without a comment mentioning
 # it by name skewing the count.
 #
-# --- planning/ DEBT (49) -------------------------------------------
+# --- planning/ DEBT (48) -------------------------------------------
 planning/skills/applying-design-handoff/SKILL.md:DEAD-PATH:references/ui-grading-rubric.md
 planning/skills/applying-design-handoff/SKILL.md:DEIXIS-POSITIONAL:caveat above
 planning/skills/applying-design-handoff/references/example-pack/README.md:DEAD-PATH:scripts/validate-handoff-pack.py
@@ -51,7 +51,6 @@ planning/skills/planning-projects/references/master-plan-format.md:DEIXIS-POSITI
 planning/skills/planning-projects/references/plan-document-template.md:DEAD-PATH:references/test-scope-tiers.md
 planning/skills/planning-projects/references/plan-document-template.md:DEIXIS-POSITIONAL:fallback above
 planning/skills/planning-projects/references/set-valued-checks.md:DEIXIS-POSITIONAL:everything above
-planning/skills/planning-projects/references/task-fields.md:DEIXIS-SECTION:Review opt-out
 planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-POSITIONAL:declaration below
 planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-SECTION:A bug found during execution is a class** is likewise untouc
 planning/skills/portfolio/SKILL.md:DEIXIS-SECTION:5 hard guarantee from the design doc

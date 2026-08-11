@@ -486,8 +486,22 @@ When every task in the stage is green, run the stage gate:
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
 
-Exact report shapes, the two verify hooks (platform stage-verify, design fidelity), the
-evaluator's briefing and severity scale, and the Tier-2 pass: `references/stage-gate.md`.
+**Platform stage-verify hook.** After the stage's own gate checks pass, **if the project's
+platform ships a stage-verify skill, invoke it as the final gate step** — it proves the stage
+on the real artifact, not just the test suite, and a failure there is a gate failure. Android
+(a `settings.gradle{,.kts}` / `app/build.gradle{,.kts}` present) → `android-stage-verify`.
+Brief it with the gate's tier: stage-scope at an intermediate gate, the full device suite at
+the final one — and that run **is** the plan-scope pass's device portion, not an addition to
+it. If no matching skill is installed, note it and rely on the regular gate checks; the
+absence of a platform verifier is not itself a gate failure.
+
+**A redesign stage carries the design-fidelity hook** in the same position — the
+`applying-design-handoff` fidelity verify loop, graded by a separate evaluator. If the tier
+does not fund that evaluator, **the hook does not run and the gate report says so**: a
+fidelity loop the executor scores itself is worse than none.
+
+Exact report shapes, both hooks' full procedure, the evaluator's briefing, and the Tier-2
+pass: `references/stage-gate.md`.
 
 **Independent evaluator for non-command checks.** **Whether it runs comes from
 `references/review-scope.md` — do not re-derive it**: never at `none`, at `light` and
@@ -497,6 +511,14 @@ and the gate's pass criteria — never the implementation transcript or your own
 session that wrote the code grades its own work too generously. A declared tier that does not
 mandate one is **scope**, reported as such and never as an opt-out; an evaluator that cannot
 be dispatched is a Stop condition, not a skip.
+
+**Brief it to grade by severity, not just pass/fail** — **Blocking** (the goal in scope is
+not met; the gate does not pass), **Material** (real defect, goal still met — fixed, its
+class swept), **Minor** (nit; recorded in the gate report and the handoff note, never
+blocking). **Tell it explicitly that a FAIL carrying no Blocking finding is a pass with
+recorded residuals**, or it will withhold PASS to seem rigorous and hand the loop an
+unsatisfiable condition: a fresh judgment agent reading a real artifact essentially always
+finds *something*, so "no adverse findings" is not a reachable state to wait for.
 
 **Deep code review (Tier 2).** Whether it runs, and at what shape, comes from
 `references/review-scope.md`. It is a gate criterion, not advisory — a **Critical** here is a

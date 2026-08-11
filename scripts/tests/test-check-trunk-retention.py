@@ -50,7 +50,7 @@ Stop immediately and escalate when the plan says so.
 
 ## Step 3.5 — Stage gate
 
-A gate passes when **no Critical finding remains**.
+A gate passes when **no Critical finding remains**. Remediation budget: 2 rounds.
 
 ## Phase Close-out
 
@@ -64,6 +64,7 @@ TABLE_OK = """# Extraction classification
 | bytes | retained | section | reason |
 |---|---|---|---|
 | 100 | 100 | Stop conditions | must bind every run, whole |
+
 
 ### rule+elaboration — 1 section
 
@@ -81,7 +82,9 @@ TABLE_OK = """# Extraction classification
 
 | section | must appear in the trunk |
 |---|---|
+| Stop conditions | Stop immediately and escalate |
 | Step 3.5 — Stage gate | A gate passes when **no Critical finding remains** |
+| Step 3.5 — Stage gate | Remediation budget: 2 rounds |
 
 ## Where the conditional material went
 
@@ -127,13 +130,23 @@ def cases():
     check(not any("MISSING-HEADING" in x for x in p),
           "...and it is NOT reported as a missing heading (the heading is there)")
 
-    # Silencing the row by deleting its marker must fail, not pass.
-    stripped = TABLE_OK.replace(
+    # Silencing the row by deleting its markers must fail, not pass. Since markers
+    # became list-valued, silencing means deleting them ALL — dropping one of two
+    # leaves the section marked, and the surviving marker keeps doing its job (the
+    # "dropping a section's SECOND obligation" case below asserts that directly).
+    one_left = TABLE_OK.replace(
         "| Step 3.5 — Stage gate | A gate passes when "
         "**no Critical finding remains** |\n", "")
+    p = run(demoted, one_left)
+    check(not any("UNMARKED-SECTION" in x for x in p),
+          "dropping one of two markers does not unmark the section")
+
+    stripped = one_left.replace(
+        "| Step 3.5 — Stage gate | Remediation budget: 2 rounds |\n", "")
     p = run(demoted, stripped)
     check(any("UNMARKED-SECTION" in x for x in p),
-          "deleting a marker to silence a demotion is UNMARKED-SECTION")
+          "deleting ALL of a section's markers to silence a demotion is "
+          "UNMARKED-SECTION")
 
     # A marker naming a section nobody classified is a stale row.
     extra = TABLE_OK.replace(
@@ -145,6 +158,35 @@ def cases():
     # The 2-column table further down the file must not be read as markers.
     check(not any("moved from" in x for x in run(TRUNK_OK, TABLE_OK)),
           "the 'where it went' table is not mistaken for a marker table")
+
+    # An UNCONDITIONAL section gutted to a stub while its heading survives. This is
+    # the class the module docstring opens by naming, and it was uncovered until the
+    # Stage 2 gate: `unconditional` rows were exempt from the marker requirement, so
+    # the only check on them was heading presence — exactly the check that cannot see
+    # this. Two reviewers found it independently.
+    gutted = TRUNK_OK.replace(
+        "Stop immediately and escalate when the plan says so.",
+        "See `references/stop-conditions.md`.")
+    p = run(gutted, TABLE_OK)
+    check(any("MISSING-RULE" in x and "Stop conditions" in x for x in p),
+          "gutting an UNCONDITIONAL section to a pointer is MISSING-RULE")
+
+    # An unconditional row with no marker cannot silently opt out of the check.
+    unmarked = TABLE_OK.replace(
+        "| Stop conditions | Stop immediately and escalate |\n", "")
+    p = run(gutted, unmarked)
+    check(any("UNMARKED-SECTION" in x and "Stop conditions" in x for x in p),
+          "an unconditional row with no marker is UNMARKED-SECTION, not a free pass")
+
+    # SECOND marker on a multi-obligation section. One marker per section is
+    # instance-shaped: a section retaining eight obligations pinned by one string
+    # lets seven be demoted with the sweep still green.
+    dropped_second = TRUNK_OK.replace(" Remediation budget: 2 rounds.", "")
+    p = run(dropped_second, TABLE_OK)
+    check(any("MISSING-RULE" in x and "Remediation budget" in x for x in p),
+          "dropping a section's SECOND obligation is caught (markers are list-valued)")
+    check(not any("no Critical finding remains" in x for x in p),
+          "...while its first marker still passes — the two are checked independently")
 
     # A trunk with no classification at all.
     with tempfile.TemporaryDirectory() as root:

@@ -36,7 +36,7 @@ CEILING                       32617      43217     +10600
 Every figure above is bytes, measured with the same accounting
 `scripts/check-trunk-budget.py` uses; the four rows sum to the file size exactly.
 
-Measured trunk after the cut: **43217 B**, a **54% reduction** from 92987 B.
+Measured trunk after the cut: **43217 B**, a **53.5% reduction** from 92987 B.
 
 **Corrected at Task 2.2: the trunk is 44536 B, −52.1%.** The contract suite found that the
 cut had dropped nine obligation-bearing phrases while keeping each rule's gist — the
@@ -132,6 +132,110 @@ actually left in the trunk, measured — not estimated.
 | 456 | 209 | Sources and rationale | already a pointer at references/sources.md |
 
 ## Where the conditional material went
+
+| moved from | now lives in |
+|---|---|
+| Phase Close-out (steps 1–10) | `../references/close-out.md` |
+| Integration list + Review opt-out | `../references/integration.md` |
+| Step 3.5's hooks, evaluator, Tier 2, dispositions, failure branch, handoff shape | `../references/stage-gate.md` |
+| Step 3.2's rationale + Step 3.3's test-first evidence, Tier-1 machinery, trailer detail | `../references/task-execution.md` |
+| Preflight's five check procedures + the amendment protocol | `../references/preflight-checks.md` |
+| The class-sweep reasoning and its cost rule | `../references/bug-is-a-class.md` |
+| `Remember` | deleted — restatement, not relocated |
+
+## Retention markers
+
+Task 2.1's obligation is not only that a heading survived — a heading over a pointer would
+satisfy set equality perfectly and lose the rule. Each row names a string that must be
+**trunk-resident**: the rule the row promised to keep, in the trunk's own words.
+`scripts/check-trunk-retention.py` sweeps this table in full, so a rule quietly demoted to a
+pointer in some later edit fails the suite rather than passing unnoticed.
+
+**Every binding section carries at least one marker, and a section may carry several.** Both
+properties were added at the Stage 2 gate, from findings by an independent evaluator and a
+Tier-2 review that reached them separately:
+
+- **`unconditional` rows were originally exempt**, on the reasoning that they may never move
+  so heading presence is enough. That is exactly backwards: they carry the strongest
+  guarantee in the table, and heading presence is the one check that cannot see a section
+  gutted to a stub. The guard was blind on the class it calls most dangerous.
+- **One marker per section is instance-shaped.** `Step 3.5 — Stage gate` retains eight
+  distinct obligations; pinned by a single string, seven could be demoted with the sweep
+  still green — the defect class this repo's own gate rules exist to reject, reproduced
+  inside the guard meant to enforce them.
+
+| section | must appear in the trunk |
+|---|---|
+| What this skill expects | It deliberately has no |
+| What this skill expects | it wasn't produced by `planning-projects` |
+| Reference map | The trunk carries what fires on every run |
+| Master plans | Version bumps defer to the master |
+| Light plans | that single pre-gate review IS the light plan's Tier-2 |
+| Checklist | Run the stage gate; stop if it fails |
+| Run to completion — don't stop until you have to | Only the documented Stop conditions halt execution |
+| Run to completion — don't stop until you have to | Stage boundaries |
+| The plan is the authorization — dispatch without a confirmation turn | is a direct order, and you execute it without asking |
+| The plan is the authorization — dispatch without a confirmation turn | conditional, not absolute |
+| The plan is the authorization — dispatch without a confirmation turn | no plan in play |
+| A bug found during execution is a class — sweep it, fix every instance | one sample of a class until a command proves |
+| A bug found during execution is a class — sweep it, fix every instance | nothing wider |
+| A bug found during execution is a class — sweep it, fix every instance | costs a command, never a dispatch |
+| Phase 1 — Load and critique | Read the plan file in full |
+| Phase 1 — Load and critique | INSTANCE-SHAPED |
+| Phase 1 — Load and critique | Decisions in force |
+| Phase 2 — Preflight | Baseline test suite passes |
+| Phase 2 — Preflight | Review scope is declared |
+| Decisions re-check (the plan's snapshot can be stale) | accretes between planning and execution |
+| Calibration re-check (the plan's ceremony can be stale) | What is never recomputed: the plan's facts |
+| Amending authored ceremony | unexecuted checks only |
+| Amending authored ceremony | the was-value survives |
+| Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure) | pytest --collect-only -q |
+| Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure) | plan defect |
+| Git bootstrap (hard prerequisite for commit-per-task) | A missing remote is **not** a stop condition |
+| Dispatch roster and capability probe | A failed probe is a Preflight failure |
+| Dispatch roster and capability probe | across all stages |
+| Dispatch roster and capability probe | Snapshot the `Review: skip` annotations |
+| Review scope — the machinery scales to the change | Declare a tier at Preflight and restate it in every gate report |
+| Review scope — the machinery scales to the change | size alone never escalates |
+| Phase 3 — Stage execution | For each stage in order |
+| Step 3.1 — Identify what can run now | every task in its `Depends on` list is green |
+| Step 3.2 — Split by parallelism | `YES` obligates a dispatch, `NO` means inline |
+| Step 3.2 — Split by parallelism | serialize the dispatches |
+| Step 3.2 — Split by parallelism | is a deviation |
+| Step 3.3 — Red-Green loop (per task) | **One fix per cycle.** |
+| Step 3.3 — Red-Green loop (per task) | must go RED for the right |
+| Step 3.3 — Red-Green loop (per task) | Respect the cycle budget |
+| Step 3.3 — Red-Green loop (per task) | Flip the task's Status to `[x]` |
+| Step 3.3 — Red-Green loop (per task) | Executor: dispatched — <subagent_type> |
+| Step 3.3 — Red-Green loop (per task) | one physical line |
+| Step 3.4 — Propagate unblock | scan its `Blocks` field |
+| Step 3.5 — Stage gate | A gate passes when **no Critical finding remains** |
+| Step 3.5 — Stage gate | Regressions check runs at stage-scope |
+| Step 3.5 — Stage gate | dispatched-vs-inline counts |
+| Step 3.5 — Stage gate | the agent that ran it |
+| Step 3.5 — Stage gate | Platform stage-verify hook |
+| Step 3.5 — Stage gate | briefed ONLY with the stage goal |
+| Step 3.5 — Stage gate | pass with |
+| Step 3.5 — Stage gate | a **Critical** here is a |
+| Step 3.5 — Stage gate | Decisions-conformance check |
+| Step 3.5 — Stage gate | default 2 rounds per gate |
+| Step 3.5 — Stage gate | re-dispatched review or evaluator is a round |
+| Context resets at stage boundaries | Stage gates are the reset points |
+| Context resets at stage boundaries | the review ledger cannot |
+| Context resets at stage boundaries | never by needing |
+| Progress state file (live statusline bar) | delete it when close-out |
+| Stop conditions | Never guess through a stop condition |
+| Stop conditions | never ask through a dispatch the plan mandated |
+| Stop conditions | cannot be performed |
+| When to revisit earlier steps | treat the new version as a fresh plan |
+| Phase Close-out — After the last stage | Do not merge without explicit confirmation |
+| Safety rails | Never start on `main` / `master` without explicit user consent |
+| Safety rails | Destructive commands |
+| Sources and rationale | references/sources.md |
+| Integration | references/integration.md |
+
+## Where the conditional material went
+
 
 | moved from | now lives in |
 |---|---|

@@ -38,11 +38,25 @@
 # and none belonged in a reference file, so they were restored to the trunk and
 # the ceiling follows the obligation rather than the obligation following the
 # ceiling. Still -52.1% against the 92987 B this stage started from.
-planning/skills/executing-plans/SKILL.md 44536
+#
+# Raised 44536 -> 46135 (+1599) at the Stage 2 gate, remediation round 1.
+# Two obligations were surviving in the trunk only as NOUNS inside a pointer
+# sentence, found independently by the gate evaluator and the Tier-2 review: the
+# platform stage-verify hook (an executor on an Android project would run the gate
+# checks and never build the APK) and the evaluator's Blocking/Material/Minor
+# briefing (briefed from the trunk alone an evaluator returns bare pass/fail, and
+# the gate loop then has no reachable exit - the exact failure that text existed to
+# prevent). Both restored as rules. "A pointer is not a rule" is the standard this
+# stage set for itself; these two were the places it had not met it.
+planning/skills/executing-plans/SKILL.md 46135
 planning/skills/planning-projects/SKILL.md 46102
 planning/skills/portfolio/SKILL.md 27271
 android-dev/skills/android-play-publish/SKILL.md 18018
-planning/skills/backlog/SKILL.md 17672
+# Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
+# out of the executing-plans trunk, leaving a citation here pointing at a section
+# that no longer exists in the file it named. Repointed at the file that now owns
+# it, which is longer than the bare skill name it replaced.
+planning/skills/backlog/SKILL.md 17714
 planning/skills/dispatching-parallel-agents/SKILL.md 17361
 planning/skills/applying-design-handoff/SKILL.md 16191
 planning/skills/project-maturity/SKILL.md 14834

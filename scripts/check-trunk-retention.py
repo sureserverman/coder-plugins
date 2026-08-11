@@ -16,11 +16,12 @@ structural check stays green. This script closes it in two directions:
   MISSING-RULE      the section is there, but the sentence its classification
                     row promised to keep is not. This catches the demotion a
                     heading check cannot see.
-  UNMARKED-SECTION  a `rule+elaboration` row carries no retention marker, so
-                    nothing pins what "the rule stayed" means for it. Set
-                    equality against the marker table is deliberate: without it,
-                    a row could be silenced by deleting its marker rather than
-                    by keeping its rule.
+  UNMARKED-SECTION  a binding row carries no retention marker, so nothing pins
+                    what "the rule stayed" means for it. Set equality against the
+                    marker table is deliberate: without it, a row could be
+                    silenced by deleting its marker rather than by keeping its
+                    rule. Both binding classes are covered — `unconditional` rows
+                    need markers most, being the ones that may never move at all.
 
 `conditional` sections are exempt by construction — they are the ones that were
 supposed to leave, and their retained pointer is checked by the DEAD-PATH half of
@@ -29,6 +30,7 @@ check-extraction-integrity.py instead.
 Read-only. Exit 0 when every promise holds, 1 otherwise.
 """
 import argparse
+import collections
 import os
 import re
 import sys
@@ -82,16 +84,28 @@ def classified(text):
 
 
 def markers(text):
-    """{section: required substring} from the `## Retention markers` table.
+    """{section: [required substrings]} from the `## Retention markers` table.
 
     Scoped to that section so the 2-column "where the conditional material went"
     table cannot be mistaken for a marker table — they have the same shape and
     only their position distinguishes them.
+
+    LIST-valued, because one marker per section is instance-shaped. `Step 3.5 —
+    Stage gate` retains eight distinct obligations; pinned by a single string,
+    seven of them could be demoted to pointers with this sweep still green —
+    which is the defect class this repo's gate rules exist to reject, reproduced
+    inside the guard meant to enforce them. A dict keyed by section silently kept
+    only the last row for a repeated section, so the table could not express what
+    the rule required.
     """
+    out = collections.defaultdict(list)
     if "## Retention markers" not in text:
-        return {}
+        return out
     tail = text.split("## Retention markers", 1)[1].split("\n## ", 1)[0]
-    return {c[0]: c[1] for c in _rows(tail, 2) if c[0] != "section"}
+    for cells in _rows(tail, 2):
+        if cells[0] != "section":
+            out[cells[0]].append(cells[1])
+    return out
 
 
 def check_pair(root, trunk_rel, table_rel):
@@ -117,24 +131,32 @@ def check_pair(root, trunk_rel, table_rel):
                 f"{trunk_rel}: MISSING-HEADING — {section!r} is classified "
                 f"{klasses[section]!r} and must stay in the trunk")
 
-    # Every rule+elaboration row needs a marker, and every marker needs a row.
-    rule_sections = {s for s, k in klasses.items() if k == "rule+elaboration"}
-    for section in sorted(rule_sections - set(marks)):
+    # EVERY binding section needs at least one marker, and every marker needs a row.
+    #
+    # `unconditional` rows were exempt in the first cut, on the reasoning that they
+    # may never move so heading presence is enough. That is backwards, and an
+    # independent evaluator and a Tier-2 review reached it separately at the Stage 2
+    # gate: those rows carry the STRONGEST guarantee in the table, and heading
+    # presence is precisely the check that cannot see a section gutted to a stub —
+    # the demotion this script's own docstring opens by promising to catch. The guard
+    # was blind on the class it calls most dangerous.
+    for section in sorted(binding - set(marks)):
         problems.append(
-            f"{table_rel}: UNMARKED-SECTION — {section!r} is rule+elaboration "
+            f"{table_rel}: UNMARKED-SECTION — {section!r} is {klasses[section]!r} "
             "but names no retention marker")
     for section in sorted(set(marks) - set(klasses)):
         problems.append(
             f"{table_rel}: marker names no classified section — {section!r}")
 
-    for section, needle in sorted(marks.items()):
-        if not needle:
-            problems.append(f"{table_rel}: {section!r} has an empty marker")
-            continue
-        if needle not in trunk:
-            problems.append(
-                f"{trunk_rel}: MISSING-RULE — {section!r} promised to keep "
-                f"{needle!r} in the trunk and it is not there")
+    for section in sorted(marks):
+        for needle in marks[section]:
+            if not needle:
+                problems.append(f"{table_rel}: {section!r} has an empty marker")
+                continue
+            if needle not in trunk:
+                problems.append(
+                    f"{trunk_rel}: MISSING-RULE — {section!r} promised to keep "
+                    f"{needle!r} in the trunk and it is not there")
     return problems
 
 

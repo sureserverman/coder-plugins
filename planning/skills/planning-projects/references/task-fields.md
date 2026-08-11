@@ -30,7 +30,7 @@ config-only, pure version bumps) without any annotation, so the field is not nee
 that case. An executor that adds it mid-run is recording its own decision as the user's,
 which is why `executing-plans` snapshots these annotations at Preflight and honors only
 the ones present at the run's base commit (`../../executing-plans/SKILL.md` § Dispatch
-roster and capability probe, and § Review opt-out).
+roster and capability probe, and `../../executing-plans/references/integration.md` § Review opt-out).
 
 Omit the field entirely on every task the user did not name. An absent field means "let
 the tier decide", which is the right answer for almost every task; `Review: run` is not a

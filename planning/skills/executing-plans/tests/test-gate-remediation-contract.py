@@ -266,6 +266,27 @@ def affirms_claim(hay, target_pat):
     return False
 
 
+# Slices whose END anchor matched nothing, so the slice ran to the end of whatever
+# it was reading. Recorded centrally rather than guarded call-by-call: this file
+# already carried two hand-written `len(block) < N` bounds added after the same bug
+# bit twice (a Light-plan slice reading 33,190 chars; a Step 3.5 slice reading 56,637
+# across six files), and a per-call guard is instance-shaped by construction — it
+# protects the slices someone remembered to bound and no others. A fall-through fails
+# OPEN: the assertions still name their site while reading unrelated text, so they can
+# pass on prose that has nothing to do with the rule. Detecting it here covers every
+# existing caller and every future one.
+FELL_THROUGH = []
+OVERSIZED = []
+
+# No rule-level slice in this suite is legitimately this long. The largest real one is
+# Step 3.5's full trunk section at ~8.4k. The bound exists because a fall-through does
+# not always leave the end anchor UNMATCHED: Step 3.5's stale `**Platform stage-verify`
+# anchor matched a case-insensitive bullet in a different reference file, producing a
+# 56,637-char slice spanning six files that FELL_THROUGH could not see. Unmatched-anchor
+# and matched-far-away are two shapes of one defect, so both are detected.
+MAX_SLICE = 12000
+
+
 def section(text, start_pat, end_pat):
     """Slice the text between two anchors; returns '' when the start is missing."""
     m = re.search(start_pat, text, re.I)
@@ -273,8 +294,15 @@ def section(text, start_pat, end_pat):
         return ""
     rest = text[m.start():]
     e = re.search(end_pat, rest[1:], re.I)
+    if e is None and end_pat != r"\Z":
+        # `\Z` is the one legitimate unbounded end anchor, and only where the slice
+        # is scoped to a file that genuinely ends there (see the review_optout note).
+        FELL_THROUGH.append(f"{start_pat!r} → {end_pat!r} (read {len(rest)} chars)")
     raw = rest[: e.start() + 1] if e else rest
-    return flat(raw)
+    out = flat(raw)
+    if len(out) > MAX_SLICE:
+        OVERSIZED.append(f"{start_pat!r} → {end_pat!r} ({len(out)} chars)")
+    return out
 
 
 def main():
@@ -1098,7 +1126,16 @@ def main():
           "a wrapped trailer silently vanishes from every %(trailers:...) query, so the "
           "convention documents a check that returns nothing")
 
-    gate_step = section(text, r"### Step 3\.5 — Stage gate", r"\*\*Platform stage-verify")
+    # Scoped to the TRUNK and ended on the next top-level heading. The old end anchor
+    # was `**Platform stage-verify`, a bold inline run that Stage 2's extraction turned
+    # into a `## ` heading in references/stage-gate.md — so the pattern no longer matched
+    # where it was expected and instead hit a case-insensitive bullet in
+    # references/integration.md, 56,637 chars and six files later. The two assertions
+    # below still bit, by the accident of which files sort inside that span. Both
+    # properties this needs — the right file, and an end anchor that exists in it — are
+    # restored here rather than left to luck.
+    gate_step = section(skill_only, r"### Step 3\.5 — Stage gate",
+                        r"## Context resets at stage boundaries")
     check("the gate reports dispatched-vs-inline with a reason",
           affirms_claim(gate_step, r"dispatched-vs-inline counts")
           and affirms_claim(gate_step, r"a reason for every inlined"),
@@ -1169,6 +1206,19 @@ def main():
           escape is None,
           f"an availability-based excuse for skipping a review is back: "
           f"{escape.group(0) if escape else ''}")
+
+    # Every slice this suite took must have found its end anchor. Checked last, so it
+    # reports on all of them at once. A fall-through does not fail the assertion that
+    # used the slice — it makes that assertion read unrelated text while still naming
+    # its site, which is how a guard goes quiet without going red.
+    check("no slice fell through its end anchor",
+          not FELL_THROUGH,
+          "these slices ran past their end anchor and are reading unrelated text: "
+          + "; ".join(FELL_THROUGH))
+    check(f"no slice exceeds {MAX_SLICE} chars",
+          not OVERSIZED,
+          "these slices are too long to be the section they name — their end anchor "
+          "most likely matched in a different file: " + "; ".join(OVERSIZED))
 
     check("sweep examined a non-empty set", scanned > 0,
           "no markdown files scanned — an empty sweep is not a pass")
