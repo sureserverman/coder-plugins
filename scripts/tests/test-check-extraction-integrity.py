@@ -185,6 +185,13 @@ def section_ref_cases():
     f = scan("as metrics-format.md § Target linkage requires, apply the rule.\n")
     check("DEIXIS-SECTION" not in codes(f), "§ qualified by a bare filename not flagged")
 
+    # ...but the filename must be ADJACENT to the §, not merely nearby. A
+    # proximity-only window suppresses a genuinely dangling reference whenever
+    # an unrelated filename happens to precede it within 70 chars.
+    f = scan("After the config.yml rewrite, the § Legacy Format section was dropped.\n")
+    check(codes(f) == ["DEIXIS-SECTION"],
+          "an unrelated nearby filename does NOT qualify a dangling §")
+
     # Containment must not let a SHORT dangling ref hide inside a LONG heading
     f = scan("## Scope of the review pass\n\nThe § Scope rules moved elsewhere.\n")
     check(codes(f) == ["DEIXIS-SECTION"],
@@ -214,6 +221,33 @@ def allowlist_cases():
         write(allow, "p/skills/s/references/r.md\n")
         rc = integrity.main(["--root", root, "--allowlist", allow])
         check(rc == 1, "bare path does not suppress a whole file")
+
+    # --- the allowlist is a MULTISET, not a set -------------------------------
+    # The header's contract ("allowlisting one instance cannot hide the next one
+    # in the same file") was false under set membership: tokens are low-entropy,
+    # so a NEW dead pointer reusing an allowlisted token vanished. Measured by an
+    # evaluator: three fresh dead pointers absorbed, exit 0. These pin the fix.
+    with tempfile.TemporaryDirectory() as root:
+        ref = "p/skills/s/references/r.md"
+        allow = os.path.join(root, "allow.txt")
+        entry = "p/skills/s/references/r.md:DEIXIS-POSITIONAL:rules below"
+
+        write(os.path.join(root, ref), "Follow the escalation rules below now.\n")
+        write(allow, entry + "\n")
+        check(integrity.main(["--root", root, "--allowlist", allow]) == 0,
+              "one line suppresses one occurrence")
+
+        # A SECOND, genuinely new instance of the same token must surface
+        write(os.path.join(root, ref),
+              "Follow the escalation rules below now.\n"
+              "Apply the escalation rules below again.\n")
+        check(integrity.main(["--root", root, "--allowlist", allow]) == 1,
+              "a second occurrence of an allowlisted token is NOT absorbed")
+
+        # Two lines cover two occurrences
+        write(allow, entry + "\n" + entry + "\n")
+        check(integrity.main(["--root", root, "--allowlist", allow]) == 0,
+              "two lines suppress two occurrences")
 
 
 def list_allowlisted_cases():

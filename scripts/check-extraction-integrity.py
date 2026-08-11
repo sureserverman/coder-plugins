@@ -37,12 +37,16 @@ dirs (`business/references/`, `game-dev/references/`) hold the files the
 DEC-009 plugin-rooted citations point at. Paths under `tests/`, `fixtures/` or
 `test-fixtures/` are excluded (test data, not shipped prose).
 A finding is suppressed only by an exact `path:CODE:token` entry in
-`scripts/extraction-integrity-allow.txt` — never by a bare path, so allowlisting
-one known instance cannot hide the next one in the same file.
+`scripts/extraction-integrity-allow.txt` — never by a bare path. The allowlist is
+read as a MULTISET: one line suppresses exactly one finding, so N instances need
+N lines and the N+1th surfaces. Set membership was the original shape and it
+made this paragraph false, because the tokens are low-entropy enough that a new
+dead pointer routinely collides with an allowlisted one.
 
 Read-only: never writes to the repo. Exit 0 when clean, 1 when any finding.
 """
 import argparse
+import collections
 import json
 import os
 import re
@@ -81,7 +85,7 @@ POSITIONAL_RE = re.compile(
 SEE_RE = re.compile(r"\(?\bsee\s+(?P<word>above|below)\b\)?", re.IGNORECASE)
 
 SECTION_RE = re.compile(r"§\s*(?P<name>[^.,;)\n]+)")
-BARE_FILENAME_RE = re.compile(r"[\w./-]+\.(?:md|py|sh|json|ya?ml)\b")
+BARE_FILENAME_RE = re.compile(r"[\w./-]+\.(?:md|py|sh|json|ya?ml)[\s,)]*$")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.*)$", re.M)
 
 
@@ -93,7 +97,21 @@ def normalize(s):
 
 
 def load_allowlist(path=ALLOWLIST_PATH):
-    return set(load_lines(path))
+    """Allowlist as a MULTISET: one line suppresses one finding, not all matches.
+
+    Set membership was the original shape and it silently broke the contract
+    this file's own header states. Keys are `path:CODE:token` and the tokens are
+    low-entropy — "sections below", "checks above", "§ Review scope" recur all
+    over the repo — so a brand-new dead pointer in an already-allowlisted file
+    reuses an existing key and vanishes. Measured by an evaluator: three fresh,
+    entirely dead pointers appended to allowlisted files produced
+    `0 finding(s), 151 allowlisted`, exit 0.
+
+    Counting fixes it without changing the file format, because the seed already
+    writes one line per finding: N occurrences need N lines, and the N+1th
+    surfaces.
+    """
+    return collections.Counter(load_lines(path))
 
 
 def list_allowlisted(path=ALLOWLIST_PATH):
@@ -238,7 +256,6 @@ def plugin_root(relpath, root):
 def scan_file(relpath, text, root):
     """Findings for one file. `relpath` is repo-relative; `root` resolves paths."""
     findings = []
-    is_reference = "/references/" in f"/{relpath}"
     filedir = os.path.dirname(os.path.join(root, relpath))
     lines = text.split("\n")
 
@@ -322,8 +339,13 @@ def scan_file(relpath, text, root):
             tail = before[-70:]
             if "trunk" in tail.lower():
                 continue
+            # Backticked paths are searched over the WHOLE line prefix, not the
+            # 70-char window: the window splits a backtick pair whenever the
+            # citation is long, so `../../planning-projects/SKILL.md` § Stage
+            # structure read as unqualified purely because of where the truncation
+            # fell. A citation is a citation wherever it sits on the line.
             if any(is_pathish(t.split("#", 1)[0].strip())
-                   for t in BACKTICK_RE.findall(tail)):
+                   for t in BACKTICK_RE.findall(before)):
                 continue
             # A filename in bare prose qualifies just as well as a backticked
             # one: `metrics-format.md § Target linkage` names the file the
@@ -394,12 +416,17 @@ def main(argv=None):
     files = discover(args.root, args.scope)
 
     findings, suppressed = [], []
+    remaining = collections.Counter(allowed)
     for rel in files:
         with open(os.path.join(args.root, rel), encoding="utf-8") as fh:
             text = fh.read()
         for f in scan_file(rel, text, args.root):
             key = f"{f['path']}:{f['code']}:{f['token']}"
-            (suppressed if key in allowed else findings).append(f)
+            if remaining[key] > 0:
+                remaining[key] -= 1
+                suppressed.append(f)
+            else:
+                findings.append(f)
 
     if args.json:
         print(json.dumps({"scanned": len(files), "findings": findings,
