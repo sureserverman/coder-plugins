@@ -1,0 +1,42 @@
+# Trunk size ratchet — `<repo-relative SKILL.md> <max bytes>`.
+#
+# A skill's body is loaded per invocation, not per session: every byte here is
+# paid each time the skill fires, in every project with the plugin enabled.
+#
+# Seeded 2026-08-11 by the token-efficiency plan, Stage 1 Task 1.2, at each
+# trunk's measured size. The ceiling is a RATCHET — a trunk may shrink freely
+# and may not grow. It is deliberately seeded at today's size rather than at a
+# target: the regression this stops is silent re-growth (executing-plans gained
+# 34% in six days), and that value does not depend on any extraction landing.
+#
+# Lower a ceiling by hand when an extraction lands — that is what makes the
+# reduction durable instead of a number that drifts back up. Stages 2 and 3
+# write their DERIVED ceilings here, computed from each trunk's
+# conditional/unconditional classification, never from a target picked ahead of
+# the measurement.
+#
+# Every trunk at or above 10000 B must carry an entry; check-trunk-budget.py
+# fails on one that does not, so the ratchet cannot be opted out of by omission.
+
+planning/skills/executing-plans/SKILL.md 92987
+planning/skills/planning-projects/SKILL.md 46102
+planning/skills/portfolio/SKILL.md 27271
+android-dev/skills/android-play-publish/SKILL.md 18018
+planning/skills/backlog/SKILL.md 17672
+planning/skills/dispatching-parallel-agents/SKILL.md 17361
+planning/skills/applying-design-handoff/SKILL.md 16191
+planning/skills/project-maturity/SKILL.md 14834
+android-dev/skills/android-ui-design-figma/SKILL.md 13502
+git-github/skills/license-audit/SKILL.md 13335
+planning/skills/brainstorming/SKILL.md 13122
+planning/skills/decisions/SKILL.md 13026
+android-dev/skills/android-fdroid-publish/SKILL.md 12879
+planning/skills/architecting-projects/SKILL.md 11935
+planning/skills/compass/SKILL.md 11658
+business/skills/business-plan/SKILL.md 11539
+git-github/skills/code-comment-audit/SKILL.md 10838
+business/skills/track/SKILL.md 10750
+planning/skills/workflow-spec/SKILL.md 10580
+android-dev/skills/android-release-signing/SKILL.md 10371
+business/skills/assess/SKILL.md 10277
+browser-extensions/skills/browser-extensions/SKILL.md 10263
