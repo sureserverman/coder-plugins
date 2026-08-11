@@ -39,7 +39,7 @@ running at full weight:
 
    **This rule sets the review's *shape* only.** How many passes run, and whether an
    evaluator runs beside them, comes from the declared review-scope tier — see
-   § Review scope → *Composing with the plan format*. A light plan whose diff is `high`
+   `../references/review-scope.md` § *Composing with the plan format*. A light plan whose diff is `high`
    still gets the second independent pass; it just gets it over the whole diff. **And it
    still gets Tier-1 on the tasks its `high` declaration names**: Tier-1 belongs to the
    tier, not the format, so the "skip it" above is this item describing the

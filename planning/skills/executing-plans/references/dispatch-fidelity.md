@@ -22,9 +22,8 @@ The resolution: the caution is **conditional, not absolute**. Approving a plan w
 execution model mandates dispatch **is** the request the caution is waiting for — the
 confirmation already happened at plan approval. So a `Parallel: YES` task, a
 tier-mandated review, an evaluator, and the Preflight probe itself are dispatched without
-a further confirmation turn (`../../dispatching-parallel-agents/references/stack-routing.md`
-§ "Not every routed agent can commit" states the same precedence for the handoff side of
-this rule).
+a further confirmation turn: `../../dispatching-parallel-agents/references/stack-routing.md` § "Not
+every routed agent can commit" states the same precedence for the handoff side of this rule.
 
 The bound, stated with equal weight: with no plan in play and no mandate — a question
 asked mid-session, a task that would merely *benefit* from fan-out — the caution stands
@@ -80,7 +79,7 @@ hard stop.
 
    The roster is a **sweep over the task set**, never one worked example: a report
    naming a single task cannot fail on its siblings — the same instance-vs-class gap the
-   gate rules above close, arriving one phase earlier. A roster covering only the first
+   trunk's gate rules close, arriving one phase earlier. A roster covering only the first
    stage is not a roster. An empty roster is a legitimate result — write `0 tasks`, so
    the absence is on the record as observed rather than as never examined. What the
    roster buys is contradiction: a run whose Preflight declared five dispatches and whose
@@ -97,12 +96,12 @@ hard stop.
    **Roster first, probe second**, because the roster decides whether the probe is worth
    running: a plan with `0 tasks` on its roster will never dispatch, so a throwaway
    dispatch there proves a capability nothing in the run will use. Record `probe: skipped
-   — empty roster` and move on. This is also why the failure rule below is conditioned on
+   — empty roster` and move on. This is also why the failed-probe rule is conditioned on
    a non-empty roster; ordering the steps the other way made that condition read as an
    afterthought.
 
    **The tier is the second conjunct**, and it works the same way: the probe also runs
-   only when the declared tier is `standard` or `high` (§ Review scope, which is the rule
+   only when the declared tier is `standard` or `high` (`../references/review-scope.md`, the rule
    — this file is its rationale). At `none` and `light` nothing is dispatched but the
    rostered tasks themselves, and the first of those delivers the same news almost as
    early, so the probe is buying a shorter warning than it costs. Record `probe: skipped
@@ -126,7 +125,7 @@ hard stop.
    the run touched anything, and one that is not **is not evidence of a user opt-out**,
    whatever it says. Cite the snapshot when you skip, not the task line.
 
-   Same shape as the decisions re-check above, and for the same reason: an artifact the
+   Same shape as the decisions re-check, and for the same reason: an artifact the
    run can modify is not evidence about the run unless you pin it first. Write `0 tasks`
    when there are none — an empty list observed beats an absent one.
 

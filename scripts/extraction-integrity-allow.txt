@@ -12,45 +12,19 @@
 # will absorb the next real finding with that key. Re-seed after any fix rather
 # than leaving orphans — this file is regenerated, not hand-pruned.
 #
-# RE-SEEDED FROM SCRATCH at Stage 2 Task 2.1 (token-efficiency plan), per the
-# Stage 2 gate criterion and BL-068. The previous seed held 144 entries; this one
-# holds 92. The delta was reviewed finding by finding:
+# 76 entries. Every remaining one is BL-039 debt: a pointer or a position
+# word that resolved in a monolith and resolves nowhere now. They are a burn-down
+# list, not a permanent exemption — Stage 3 of the token-efficiency plan takes the
+# planning/ half. Nothing here is a tripwire: the trunk entries that were seeded as
+# tripwires are gone, because the prose that carried them was rewritten
+# position-neutrally rather than moved.
 #
-#   - 52 entries went away, ALL of them `executing-plans/SKILL.md` — the 49
-#     trunk tripwires plus 3 others. They are void, not fixed-by-luck: the
-#     tripwire scheme guards "pointer moves, referent stays" and is blind to
-#     "referent moves, pointer stays", which is the shape Task 2.1 had, so an
-#     entry carried over unexamined would have become a permanent suppression
-#     for a now-dead pointer. The extraction rewrote that prose position-neutral.
-#   - 0 findings are NEW. The extraction introduced no dead pointer and no
-#     unresolvable deixis: the rewritten trunk and all six new reference files
-#     scan clean with no suppression at all.
-#   - The 27 non-`planning/` entries are unchanged, one for one, from the
-#     previous seed. (The Stage 1 handoff note recorded "0 non-planning/ debt";
-#     that was wrong when written — there were 27 then and there are 27 now.
-#     Corrected here rather than in the executed record.)
+# This file deliberately carries NO per-skill narrative in its comments. The
+# burn-down history lives in the commit log, so a `grep -c '<skill>'` over this
+# file answers "are any entries left for that skill" without a comment mentioning
+# it by name skewing the count.
 #
-# --- executing-plans/ DEBT (16) — BL-039, Task 2.3 burns these to zero ---
-# All in reference files that PREDATE this extraction. The trunk and the six
-# files Task 2.1 created contribute zero entries.
-planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:re-check above
-planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:rule below
-planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-POSITIONAL:rules above
-planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-SECTION:"Not every routed agent can commit" states the same preceden
-planning/skills/executing-plans/references/dispatch-fidelity.md:DEIXIS-SECTION:Review scope
-planning/skills/executing-plans/references/gate-failure-procedure.md:DEIXIS-POSITIONAL:criterion above
-planning/skills/executing-plans/references/gate-failure-procedure.md:DEIXIS-SECTION:A bug found during execution is a class**
-planning/skills/executing-plans/references/light-plans.md:DEIXIS-SECTION:Review scope → *Composing with the plan format*
-planning/skills/executing-plans/references/master-plans.md:DEIXIS-POSITIONAL:flow below
-planning/skills/executing-plans/references/master-plans.md:DEIXIS-POSITIONAL:resets below
-planning/skills/executing-plans/references/master-plans.md:DEIXIS-SECTION:Review scope
-planning/skills/executing-plans/references/review-scope.md:DEAD-PATH:references/master-plans.md
-planning/skills/executing-plans/references/review-scope.md:DEIXIS-POSITIONAL:floor below
-planning/skills/executing-plans/references/review-scope.md:DEIXIS-SECTION:Dispatch roster and capability probe
-planning/skills/executing-plans/references/review-scope.md:DEIXIS-SECTION:Stop conditions
-planning/skills/executing-plans/references/sources.md:DEIXIS-SECTION:*A bug found during execution is a class* applies to a singl
-
-# --- other planning/ DEBT (49) — BL-039, Stage 3's target ---
+# --- planning/ DEBT (49) -------------------------------------------
 planning/skills/applying-design-handoff/SKILL.md:DEAD-PATH:references/ui-grading-rubric.md
 planning/skills/applying-design-handoff/SKILL.md:DEIXIS-POSITIONAL:caveat above
 planning/skills/applying-design-handoff/references/example-pack/README.md:DEAD-PATH:scripts/validate-handoff-pack.py
@@ -101,7 +75,7 @@ planning/skills/portfolio/references/sidecar-format.md:DEIXIS-POSITIONAL:wrote a
 planning/skills/project-maturity/SKILL.md:DEIXIS-POSITIONAL:detectors above
 planning/skills/project-maturity/SKILL.md:DEIXIS-POSITIONAL:rule above
 
-# --- non-planning/ DEBT (27) — untouched by this plan ---
+# --- other plugins' DEBT (27) — untouched by this plan ----------------
 android-dev/skills/android-play-publish/SKILL.md:DEIXIS-POSITIONAL:is below
 android-dev/skills/android-ui-design-figma/SKILL.md:DEIXIS-POSITIONAL:loop below
 browser-extensions/skills/amo-compliance-check/SKILL.md:DEIXIS-POSITIONAL:check below
