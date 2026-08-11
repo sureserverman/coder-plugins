@@ -54,20 +54,20 @@ def table_rows(text):
     Rows live under `### <class> — ...` headings; the class comes from the
     enclosing heading rather than a column, so a row cannot disagree with the
     section it is filed under.
+
+    Delegates to the SHARED parser so this guard and check-trunk-retention.py
+    cannot disagree about what a row is. Malformed rows (a non-numeric bytes
+    cell) are still returned here — this guard's job is set equality, and a
+    malformed row still names a section that must exist — but `malformed_rows()`
+    reports them, because a row this guard accepts and the retention guard drops
+    is the exact silent divergence that shipped.
     """
-    rows, klass = [], None
-    for line in text.split("\n"):
-        m = re.match(r"^### (\S+)", line)
-        if m and m.group(1) in VALID_CLASSES:
-            klass = m.group(1)
-            continue
-        if not line.startswith("|") or line.startswith("|---"):
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) < 4 or cells[0] in ("bytes",):
-            continue
-        rows.append((cells[2], klass, cells[3]))
-    return rows
+    return [(s, k, r) for s, k, r, _bad in _sections.class_rows(text)]
+
+
+def malformed_rows(text):
+    """Sections whose row has a non-numeric bytes cell."""
+    return [s for s, _k, _r, bad in _sections.class_rows(text) if bad]
 
 
 def check_pair(root, trunk_rel, table_rel):

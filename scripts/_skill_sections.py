@@ -5,9 +5,19 @@ Shared by check-extraction-classification.py and check-trunk-retention.py.
 
 A `^#{2,4} ` regex over a SKILL.md does not read markdown, it reads lines — so a
 heading inside a ```fence``` counts as a section of the trunk. That is not a
-pedantic distinction here. `planning-projects/SKILL.md` shows an author what a
-plan's `## Decisions in force` section should look like by printing one inside a
-```markdown fence, and a fence-blind scan reports it as the trunk's own heading.
+pedantic distinction here. When this module was written, `planning-projects/SKILL.md`
+showed an author what a plan's `## Decisions in force` section should look like by
+printing one inside a ```markdown fence, and a fence-blind scan reported it as the
+trunk's own 38th heading.
+
+**That example has since moved** — Task 3.1 relocated it to
+`planning/skills/planning-projects/references/research-scans.md` one commit later —
+so as of now the filter changes nothing on any of the three shipped trunks. The
+module stays because the shape recurs whenever a skill documents a document
+format, which these skills do constantly, and because the failure it prevents is
+silent. **Its live coverage is the unit tests in
+`scripts/tests/test-check-extraction-classification.py`, not the trunks** — do not
+read a green tree as evidence this code is exercised.
 
 Both guards then go wrong, and neither is recoverable by allowlisting:
 
@@ -28,23 +38,50 @@ Parsing is not policy. Two guards disagreeing about what counts as a heading in
 the same file is a silent divergence, and the one that sees fewer headings is the
 one that stops guarding.
 
-**Scoped to headings on purpose.** An earlier cut of this module also stripped
-fences before the retention check's substring match, reasoning that a marker
-should be satisfied by the trunk's prose rather than by a code sample. Measured
-against the live table, that broke a legitimate marker: `Step 3.3` pins
+**Fences are stripped for HEADINGS, never for rule text.** An earlier cut of this
+module also stripped fences before the retention check's substring match,
+reasoning that a marker should be satisfied by prose rather than by a code sample.
+Measured against the live table, that broke a legitimate marker: `Step 3.3` pins
 `Executor: dispatched — <subagent_type>`, and the trailer shapes are a fenced
 block because the rule *is* the literal. A rule may be a code block; only a
-heading may not be. So the marker check still reads the whole trunk.
+heading may not be.
 
 Fence tracking is deliberately simple and matches CommonMark's common case: a
 line whose first non-space characters are ``` or ~~~ toggles fenced state. It
 does not model info strings, indented code blocks, or differing fence lengths,
-because a SKILL.md that needs those has a bigger problem than this parser.
+because a SKILL.md that needs those has a bigger problem than this parser. Two
+consequences worth stating rather than discovering: a `~~~` line inside a
+```-fence toggles the state early, and a heading placed inside a *legitimate*
+fence disappears from both guards silently whenever the classification has no row
+for it. An UNCLOSED fence hides everything after it, which fails loudly at set
+equality — the safe direction.
+
+**Why `sections()` and `class_rows()` live here too.** The callers deliberately
+keep their own PAIRS lists, because those are policy and may legitimately differ.
+Parsing is not policy, and a divergence in it is silent: the guard that sees less
+is the one that stops guarding. Both divergences below were found by an
+adversarial review that mutation-probed them, not by the suite going red.
 """
 import re
 
 HEADING_RE = re.compile(r"^#{2,4} (.+)$")
 _FENCE_RE = re.compile(r"^\s*(```|~~~)")
+VALID_CLASSES = ("unconditional", "rule+elaboration", "conditional")
+
+
+def _walk(text):
+    """(is_heading, heading_text, raw_line) per line, fenced blocks neutralized."""
+    in_fence = False
+    for line in text.split("\n"):
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            yield False, None, line
+            continue
+        if in_fence:
+            yield False, None, line
+            continue
+        m = HEADING_RE.match(line)
+        yield (True, m.group(1).strip(), line) if m else (False, None, line)
 
 
 def headings(text):
@@ -53,14 +90,66 @@ def headings(text):
     Returns a list, not a set: a duplicate heading text is itself a finding the
     callers report, and a set would hide it.
     """
-    out, in_fence = [], False
-    for line in text.split("\n"):
-        if _FENCE_RE.match(line):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        m = HEADING_RE.match(line)
-        if m:
-            out.append(m.group(1).strip())
+    return [h for is_h, h, _ in _walk(text) if is_h]
+
+
+def section_bodies(text):
+    """{heading: body} — each section's text, EXCLUDING its own heading line.
+
+    Excluding the heading is the point, not an accident. A retention marker is a
+    promise that the section still carries its RULE; a marker satisfiable by the
+    heading itself pins nothing, because `MISSING-HEADING` already guarantees the
+    heading. One live row was exactly that shape (`| Subcommands | Subcommands |`).
+
+    A body runs to the next heading of ANY depth, so a rule that lives in a
+    subsection belongs to that subsection, not to its parent.
+
+    Duplicate heading text collapses here; `check-extraction-classification.py`
+    reports duplicates separately and set equality cannot survive them anyway.
+    """
+    out, current, buf = {}, None, []
+    for is_h, head, line in _walk(text):
+        if is_h:
+            if current is not None:
+                out[current] = "\n".join(buf)
+            current, buf = head, []
+        elif current is not None:
+            buf.append(line)
+    if current is not None:
+        out[current] = "\n".join(buf)
     return out
+
+
+def class_rows(text):
+    """(section, klass, reason, malformed) per classification-table row.
+
+    SHARED so the two guards cannot disagree about what a row is. They did:
+    check-trunk-retention.py required `cells[0].isdigit()` while
+    check-extraction-classification.py required only 4+ cells, making the
+    retention guard's row set a strict SUBSET of the classification guard's. A
+    one-character edit to a bytes cell (`497` -> `n/a`) dropped `## Hard rules`
+    out of the retention sweep entirely, with BOTH guards green and the only
+    trace a population count moving 71 -> 70 that nothing asserted.
+
+    A row under a `### <class>` heading whose bytes cell is not a digit is
+    returned with malformed=True rather than skipped, so it can be REPORTED. A
+    silent skip is what let the divergence hide.
+    """
+    rows, klass = [], None
+    for line in text.split("\n"):
+        m = re.match(r"^### (\S+)", line)
+        if m and m.group(1) in VALID_CLASSES:
+            klass = m.group(1)
+            continue
+        if not line.startswith("|") or line.startswith("|---"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < 4 or cells[0] == "bytes":
+            continue
+        # klass may be None — a row under a heading that is not one of the three
+        # valid classes. It is RETURNED rather than skipped so the caller can
+        # report "has no valid class", which names the actual defect. Skipping it
+        # would surface only the downstream symptom (the heading reading as
+        # unclassified) and lose the diagnosis.
+        rows.append((cells[2], klass, cells[3], not cells[0].isdigit()))
+    return rows

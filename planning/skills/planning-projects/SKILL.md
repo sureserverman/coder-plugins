@@ -333,9 +333,17 @@ Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
 - **`Scope:` is only as good as the sweep behind it** — a truncated authoring command is a
   documented way for one to arrive short, and a gate failure then repairs an instance while
   its siblings survive.
+- **`Depends on` and `Blocks` are both required on every task, and they are symmetric** — if
+  A lists B under `Blocks`, B lists A under `Depends on`. An asymmetric pair is how a task
+  becomes dispatchable before the work it needs exists.
+- **Tasks are in dependency order within their stage, and no task depends on a later
+  stage's** — a backward-pointing dependency across a stage gate cannot be satisfied without
+  reordering the plan.
+- **Every task carries `Parallel` (YES/NO), consistent with its dependencies** — a task with
+  an unsatisfied `Depends on` is not `Parallel: YES` however independent it looks.
 
-Exact semantics for every field — including `Review: skip`, dependency symmetry, ordering
-rules, risk flags, rollback notes and stage sizing: `references/task-fields.md`.
+Exact semantics for every field — including `Review: skip`, risk flags, rollback notes and
+stage sizing: `references/task-fields.md`.
 ### Stage sizing
 
 If a stage has more than 7 tasks, it's too large. Split it. Large stages hide integration problems behind a wall of individual task tests that all pass but don't work together. Aim for 3-5 tasks per stage.
@@ -517,9 +525,10 @@ fields and a file-conflict-free set — the fields' meaning is § Stage structur
 applies to Standard plans (and, with the decomposition addendum, Master plans).
 
 Before showing the plan to the user, verify **every** item in
-`references/authoring-checklist.md` — that file is the full list, and each item names the
-trunk section whose rule it enforces. Three are restated here, because they are the items a
-command decides rather than a reading:
+`references/authoring-checklist.md` — that file is the full list, and most items name the
+section that owns the rule they enforce. **It is a mandatory read on the Standard path, not
+a conditional one.** Three items are restated here, because they are the ones a command
+decides rather than a reading:
 
 - [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
 - [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)

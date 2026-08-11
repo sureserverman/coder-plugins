@@ -1,11 +1,20 @@
 # Pre-presentation checklist — the full item list
 
 `../SKILL.md` § Checklist — Before Presenting the Plan carries the imperative (run every item)
-and the three items no other section of that trunk states. This file is the list itself.
+and restates three of them — **the three a command decides rather than a reading**. This file
+is the list itself.
 
-Each item names the section that owns the rule it enforces, so a failed item is fixed at its
-source rather than argued with here. The checklist is a **sweep**, not a second definition
-site: nothing here introduces an obligation the trunk does not already carry.
+*(An earlier version of this paragraph said those three were "the items no other section of
+that trunk states". That was false and a Tier-2 review caught it: the INSTANCE-SHAPED bar is
+stated at `../SKILL.md` § Write a set-valued check, and the save-location item at § Output
+location — which this file's own line 46 cites. Being command-decidable is the real reason
+they are restated, and it is the one the trunk gives.)*
+
+Most items name the section that owns the rule they enforce, so a failed item is fixed at its
+source rather than argued with here; a few name the reference file that owns it instead, and
+four name nothing because their rule lives in `../SKILL.md` § Task and stage fields. The
+checklist is a **sweep**, not a second definition site: nothing here introduces an obligation
+the trunk does not already carry.
 
 ## Checklist — Standard plans
 

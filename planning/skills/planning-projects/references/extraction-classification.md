@@ -246,8 +246,8 @@ from the current trunk.
 | Stage structure | an instruction to the executor — YES obligates dispatch |
 | Stage structure | the SET this task changes |
 | Stage structure | Class predicate: the command that sweeps the set |
-| Status marking (per-task done-state) | - **Status:** [ ] |
-| Status marking (per-task done-state) | single source of truth |
+| Status marking (per-task done-state) | the moment the task's test goes green |
+| Status marking (per-task done-state) | rather than inferred from stage gates or git archaeology |
 | Task and stage fields | is a directive to dispatch |
 | Task and stage fields | only as good as the sweep behind it |
 | Stage sizing | more than 7 tasks |
@@ -259,7 +259,7 @@ from the current trunk.
 | Phase 2.5 — Decomposition decision (master plan + sub-plans) | no tasks and no Preflight |
 | Output location (vault-canonical) | Plans live in the vault, not the repo |
 | Output location (vault-canonical) | Auto-register if new |
-| Plan Document Format | references/plan-document-template.md |
+| Plan Document Format | why it is a fixture rather than a sketch |
 | Phase 3 — The Red-Green Loop | runnable command or a checkable criterion |
 | Phase 4 — Stage Gates | Stage gates prove the pieces work together |
 | What a stage gate checks | Live artifact over static checks |

@@ -82,7 +82,15 @@ planning/skills/executing-plans/SKILL.md 46135
 # accounting, and what a future estimator should ask before picking a ratio, in
 # planning/skills/planning-projects/references/extraction-classification.md
 # § Re-derived at Task 3.1 — the ceiling was MISSED by 8788 B.
-planning/skills/planning-projects/SKILL.md 35764
+# Raised 35764 -> 36430 (+666) by the Stage 3 gate, remediation round 1: +666 to close Tier-2 finding I3. Four
+#   checklist obligations — both `Depends on`/`Blocks` required and symmetric,
+#   dependency order within a stage, no dependency on a later stage, and a
+#   `Parallel` field consistent with them — had left the trunk with the checklist,
+#   surviving only as NOUNS inside a pointer sentence ("including ... dependency
+#   symmetry, ordering rules ..."). That is the shape the Stage 2 gate rejected
+#   twice. Promoted to rules in § Task and stage fields. The ceiling follows the
+#   obligation, which is this plan's rule in both directions.
+planning/skills/planning-projects/SKILL.md 36430
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -149,13 +157,18 @@ planning/skills/planning-projects/SKILL.md 35764
 # answered it by pointing at the retired mirror, which read as an answer while
 # being none. Also fixed here: the Announce line listed six subcommands and omitted
 # plan-status, which the frontmatter description does list.
-planning/skills/portfolio/SKILL.md 12347
+# Raised 12347 -> 12389 (+42) by the Stage 3 gate, remediation round 1: +42 for Tier-2 I4. `## Subcommands` claimed
+#   "the default flow runs four", contradicting § Staged rollout in the same trunk,
+#   which gates the maturity step behind `--include-maturity` (default off) — so the
+#   default flow runs THREE during the staging window. Now "composes four, one of
+#   them gated".
+planning/skills/portfolio/SKILL.md 12389
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
 # that no longer exists in the file it named. Repointed at the file that now owns
 # it, which is longer than the bare skill name it replaced.
-planning/skills/backlog/SKILL.md 17714
+planning/skills/backlog/SKILL.md 17706
 # The six raises below share one cause: Stage 3 Task 3.3 burned the BL-039
 # allowlist debt down to zero for this plugin by REWRITING the prose rather than
 # suppressing the findings, and position-neutral prose runs a little longer than
@@ -170,7 +183,11 @@ planning/skills/dispatching-parallel-agents/SKILL.md 17381
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file
-planning/skills/applying-design-handoff/SKILL.md 16200
+# Raised 16200 -> 16252 (+52) by the Stage 3 gate, remediation round 1: +52 for Tier-2 S6. The Task 3.3 DEAD-PATH
+#   fix had satisfied the guard by DELETING the ui-grading-rubric citation rather
+#   than repointing it — the one place in the 48 where information was lost to make
+#   a check green. Restored as a resolvable relative path into android-dev.
+planning/skills/applying-design-handoff/SKILL.md 16252
 # Raised 14834 -> 14843 (+9) by the Task 3.3 deixis burn-down:
 #   the AI-tool waiver names the step-2 rule it excepts, and the packaging
 #   detectors are named by axis rather than by position

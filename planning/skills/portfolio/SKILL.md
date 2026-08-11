@@ -60,7 +60,7 @@ The trunk carries what binds every run, whatever was invoked. These load when th
 
 ## Subcommands
 
-An explicit invocation runs exactly one; the default flow runs four. Each procedure lives in its own reference.
+An explicit invocation runs exactly one; the default flow composes four, one of them gated (§ Staged rollout). Each procedure lives in its own reference.
 
 ### `scan` — load the registry, detect drift, optionally first-run-seed
 

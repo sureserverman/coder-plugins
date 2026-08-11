@@ -48,7 +48,7 @@ no reference is reachable.
 
 ```
                             bytes     retained
-unconditional   (4 sec)      2121         2121
+unconditional   (4 pre-existing sec)  2121    2121
 rule+elab       (3 sec)      2508         1200
 conditional     (9 sec)     21045         2527
 scaffolding                  1597         1597
@@ -96,7 +96,7 @@ either a rule a branch owns or index text the extraction itself created.
 
 ```
                             bytes   estimated    actual
-unconditional   (4 sec)      2121        2121      2234
+unconditional   (4 pre-existing sec)  2121    2121      2234
 rule+elab       (3 sec)      2508        1200      1725
 conditional     (9 sec)     21045        2527      4747
 scaffolding                  1597        1597      1596
@@ -104,6 +104,22 @@ Reference map section           0         700      1648
 -----------------------------------------------------
 TOTAL                       27271        8145     11950
 ```
+
+Both derivation blocks count `unconditional` as **4** because they account for the
+four sections that existed in the 27271 B trunk; the fifth, `Reference map`, is
+broken out on its own line since it did not exist to be measured. The class table
+below therefore lists 5 rows against a block that says 4, and that is not a
+discrepancy.
+
+**The `retained` column in the class tables is Task 3.0's ESTIMATE.** Actuals live
+in the re-derived block, and the two are deliberately not reconciled row by row —
+the estimate is kept as authored so the miss stays legible.
+
+*(Both actual columns were measured by Task 3.2 at commit `df5ea44`. The Stage 3
+gate's remediation round edited the trunk afterwards — a corrected subcommand
+count, a repointed citation — so they are that commit's measurements, not HEAD's.
+`scripts/trunk-budget.txt` carries the live ceiling; these figures explain a cut,
+they do not track the file.)*
 
 **The miss is mostly in `conditional`, and the cause is a per-pointer floor.**
 That row retained **22.6%**, not the 10% Task 3.0 estimated. Measured per section:
@@ -228,12 +244,12 @@ than answered by a pointer at retired storage. The section's marker count went
 | Resolver (read this before any read/write) | No silent fallback |
 | Resolver (read this before any read/write) | fails loudly |
 | Resolver (read this before any read/write) | NEVER write to |
-| Subcommands | Subcommands |
+| Subcommands | Each procedure lives in its own reference |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | scan |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | Idempotency guarantee |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | Confirms with the user before any mutation |
-| Staged rollout | --include-maturity |
-| Configuration: `~/.claude/portfolio-config.yaml` | vault_dir |
+| Staged rollout | skips the maturity step UNLESS |
+| Configuration: `~/.claude/portfolio-config.yaml` | never a fallback |
 | Configuration: `~/.claude/portfolio-config.yaml` | optional except |
 | Configuration: `~/.claude/portfolio-config.yaml` | not settled |
 | File conflicts and write discipline | Never mutate a project's |

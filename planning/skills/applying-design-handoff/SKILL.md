@@ -271,6 +271,7 @@ lives. Delegate:
   consumption, not a PNG/Figma URL — claudefa.st "Claude Design to Claude Code";
   Anthropic Claude Design overhaul coverage (VentureBeat).
 - Separate-evaluator visual verification + weighted rubric + capped iterate loop —
-  adapted from `android-dev`'s `android-ui-design-figma` and its ui-grading-rubric reference.
+  adapted from `android-dev`'s `android-ui-design-figma`
+(`../../../android-dev/skills/android-ui-design-figma/references/ui-grading-rubric.md`).
 - Independent evaluator (generators grade their own work too generously) — Anthropic
   Engineering, "Harness design for long-running application development".

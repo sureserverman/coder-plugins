@@ -197,14 +197,111 @@ def cases():
           "a trunk with no classification file is reported, not skipped")
 
 
+def scoping_cases():
+    """A marker must hold in the section that CLAIMS it, not anywhere in the trunk.
+
+    Matching against the whole file made four live rows unfalsifiable, found by an
+    adversarial review rather than by this suite. The worst shape: `Staged rollout`
+    pinned `--include-maturity`, a string that also occurs in `Default flow`, so
+    the entire Staged rollout section could be gutted with the guard still green.
+    """
+    # The rule moves OUT of its section but stays in the trunk. Whole-file
+    # matching passes this; section-scoped matching must not.
+    moved = TRUNK_OK.replace(
+        "A gate passes when **no Critical finding remains**. Remediation budget: 2 rounds.",
+        "See `references/stage-gate.md`.").replace(
+        "Stop immediately and escalate when the plan says so.",
+        "Stop immediately and escalate when the plan says so.\n\n"
+        "A gate passes when **no Critical finding remains**. Remediation budget: 2 rounds.")
+    p = run(moved, TABLE_OK)
+    check(any("MISSING-RULE" in x and "Step 3.5" in x for x in p),
+          "a rule relocated to ANOTHER section is MISSING-RULE, not a pass")
+    check(any("elsewhere in the trunk" in x for x in p),
+          "and the message says the rule is elsewhere, so the fix is obvious")
+
+    # A marker satisfied by the section's own HEADING pins nothing: MISSING-HEADING
+    # already guarantees the heading. This was a live row (`| Subcommands | Subcommands |`).
+    self_pin = TABLE_OK.replace(
+        "| Stop conditions | Stop immediately and escalate |",
+        "| Stop conditions | Stop conditions |")
+    p = run(TRUNK_OK, self_pin)
+    check(any("MISSING-RULE" in x and "Stop conditions" in x for x in p),
+          "a marker satisfied only by its own heading does not count as a rule")
+
+    # THE GUTTING PROBE, as a committed test rather than a one-off: replace each
+    # binding section's body with a pointer and require the guard to reject it.
+    for section, body in (
+            ("Stop conditions", "Stop immediately and escalate when the plan says so."),
+            ("Step 3.5 — Stage gate",
+             "A gate passes when **no Critical finding remains**. "
+             "Remediation budget: 2 rounds.")):
+        gutted = TRUNK_OK.replace(body, "See `references/x.md`.")
+        p = run(gutted, TABLE_OK)
+        check(any("MISSING-RULE" in x and section in x for x in p),
+              f"gutting {section!r} to a pointer is caught")
+
+
+def malformed_row_cases():
+    """A non-numeric bytes cell must be REPORTED, never silently skipped.
+
+    The two guards disagreed about what a row is: this one required
+    `cells[0].isdigit()`, check-extraction-classification.py did not. So editing a
+    bytes cell to `n/a` and deleting the row's markers dropped a section out of
+    this sweep entirely with BOTH guards green — the only trace a population count
+    nothing asserted.
+    """
+    bad = TABLE_OK.replace("| 100 | 100 | Stop conditions |",
+                           "| n/a | 100 | Stop conditions |")
+    p = run(TRUNK_OK, bad)
+    check(any("MALFORMED-ROW" in x and "Stop conditions" in x for x in p),
+          "a non-numeric bytes cell is reported, not skipped")
+
+    # And the shared parser must agree with the other guard about the row set.
+    rows = retention._sections.class_rows(TABLE_OK)
+    check(len(rows) == 3 and not any(bad_flag for *_, bad_flag in rows),
+          "the shared row parser sees all three well-formed rows")
+
+
 def real_tree():
-    """The shipped trunk must satisfy its own classification."""
-    check(retention.main([]) == 0, "the real executing-plans trunk passes the sweep")
+    """The shipped trunks must satisfy their own classifications."""
+    check(retention.main([]) == 0, "the real trunks pass the sweep")
+
+    # The probe the Stage 2 handoff told Stage 3 to run, now permanent: gut every
+    # binding section of every shipped trunk and require ALL of them to be caught.
+    # A survivor is a row whose marker pins nothing.
+    survivors = []
+    for trunk_rel, table_rel in retention.PAIRS:
+        root = retention.REPO_ROOT
+        trunk = open(os.path.join(root, trunk_rel), encoding="utf-8").read()
+        table = open(os.path.join(root, table_rel), encoding="utf-8").read()
+        klasses, _ = retention.classified(table)
+        bodies = retention._sections.section_bodies(trunk)
+        for section, klass in klasses.items():
+            if klass not in retention.BINDING_CLASSES:
+                continue
+            body = bodies.get(section)
+            if not body or not body.strip():
+                continue
+            gutted = trunk.replace(body, "\nSee `references/x.md`.\n", 1)
+            if gutted == trunk:
+                continue
+            with tempfile.TemporaryDirectory() as tmp:
+                write(os.path.join(tmp, trunk_rel), gutted)
+                write(os.path.join(tmp, table_rel), table)
+                if not retention.check_pair(tmp, trunk_rel, table_rel):
+                    survivors.append(f"{trunk_rel}::{section}")
+    check(not survivors,
+          f"every binding section of every shipped trunk fails when gutted "
+          f"({len(survivors)} survivor(s): {survivors[:4]})")
 
 
 if __name__ == "__main__":
     print("check-trunk-retention fixtures:")
     cases()
+    print("marker scoping:")
+    scoping_cases()
+    print("malformed rows:")
+    malformed_row_cases()
     print("real tree:")
     real_tree()
     print()

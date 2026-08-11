@@ -84,19 +84,22 @@ def _rows(text, want_cells):
 
 
 def classified(text):
-    """{section: class} from the 4-column classification tables."""
-    out, klass = {}, None
-    for line in text.split("\n"):
-        m = re.match(r"^### (\S+)", line)
-        if m and m.group(1) in VALID_CLASSES:
-            klass = m.group(1)
+    """{section: class} from the 4-column classification tables.
+
+    Rows come from the SHARED parser. This function previously required
+    `cells[0].isdigit()` while check-extraction-classification.py did not, which
+    made this guard's row set a strict subset of that one's — so editing a bytes
+    cell to `n/a` silently removed a section from this sweep with both guards
+    green. Malformed rows are now counted here and reported by the caller rather
+    than skipped.
+    """
+    out, malformed = {}, []
+    for section, klass, _reason, bad in _sections.class_rows(text):
+        if bad:
+            malformed.append(section)
             continue
-        if not line.startswith("|") or line.startswith("|---"):
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) >= 4 and cells[0].isdigit():
-            out[cells[2]] = klass
-    return out
+        out[section] = klass
+    return out, malformed
 
 
 def markers(text):
@@ -137,8 +140,16 @@ def check_pair(root, trunk_rel, table_rel):
         table = fh.read()
 
     heads = trunk_headings(trunk)
-    klasses = classified(table)
+    klasses, malformed = classified(table)
     marks = markers(table)
+    bodies = _sections.section_bodies(trunk)
+
+    # A malformed row is a section this guard would silently stop sweeping while
+    # check-extraction-classification.py kept accepting it. Report, never skip.
+    for section in sorted(malformed):
+        problems.append(
+            f"{table_rel}: MALFORMED-ROW — {section!r} has a non-numeric bytes "
+            "cell, which drops it from this sweep while set equality still passes")
 
     binding = {s for s, k in klasses.items() if k in BINDING_CLASSES}
     for section in sorted(binding):
@@ -164,15 +175,30 @@ def check_pair(root, trunk_rel, table_rel):
         problems.append(
             f"{table_rel}: marker names no classified section — {section!r}")
 
+    # The needle must appear in the body of the section that CLAIMS it, not
+    # anywhere in the trunk. Matching against the whole file made four live rows
+    # unfalsifiable: `Staged rollout` pinned `--include-maturity`, which also
+    # occurs in `Default flow`, so gutting the entire Staged rollout section left
+    # this guard green. An adversarial review found it by replacing each binding
+    # section's body with a pointer and re-running: 4 of 44 Stage-3 rows survived.
+    #
+    # The body EXCLUDES the section's own heading line, so a marker cannot be
+    # satisfied by the heading `MISSING-HEADING` already guarantees.
     for section in sorted(marks):
+        body = bodies.get(section)
         for needle in marks[section]:
             if not needle:
                 problems.append(f"{table_rel}: {section!r} has an empty marker")
                 continue
-            if needle not in trunk:
-                problems.append(
-                    f"{trunk_rel}: MISSING-RULE — {section!r} promised to keep "
-                    f"{needle!r} in the trunk and it is not there")
+            if body is None:
+                continue  # MISSING-HEADING already reported it
+            if needle in body:
+                continue
+            where = " (it is elsewhere in the trunk, which is not this section's promise)" \
+                if needle in trunk else ""
+            problems.append(
+                f"{trunk_rel}: MISSING-RULE — {section!r} promised to keep "
+                f"{needle!r} in its own section and it is not there{where}")
     return problems
 
 
@@ -190,7 +216,7 @@ def main(argv=None):
         if os.path.exists(table_path):
             with open(table_path, encoding="utf-8") as fh:
                 table = fh.read()
-            checked += len({s for s, k in classified(table).items()
+            checked += len({s for s, k in classified(table)[0].items()
                             if k in BINDING_CLASSES})
 
     # honest-gates: name the population swept, so a table that lost its rows
