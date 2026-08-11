@@ -18,13 +18,16 @@
 # Every trunk at or above 10000 B must carry an entry; check-trunk-budget.py
 # fails on one that does not, so the ratchet cannot be opted out of by omission.
 
-# derived-ceiling: 32617 — published by Stage 2 Task 2.0 from
-#   planning/skills/executing-plans/references/extraction-classification.md
-#   (unconditional 13735 + rule-portion 17487 + pointers 700 + scaffolding 695).
-#   Recorded as a comment, not an active ceiling: the trunk is still 92987 B and
-#   an active ceiling would fail the ratchet between two green tasks. Task 2.1
-#   promotes this to the active ceiling when the cut lands.
-planning/skills/executing-plans/SKILL.md 92987
+# Lowered 92987 -> 43217 by Stage 2 Task 2.1: the extraction landed. Task 2.0's
+# estimated ceiling was 32617; the cut retained 43217 and MISSED it by 10600 B.
+# The ceiling is re-derived from what was actually retained rather than met by
+# moving obligations into references/ — the failure mode the plan exists to
+# avoid. Every byte of the miss is rule text: the `rule+elaboration` estimate
+# assumed a rule compresses to ~30% of its section and it is 40-50%. The full
+# accounting, per section, is in
+# planning/skills/executing-plans/references/extraction-classification.md
+# § Derived ceiling — estimated at Task 2.0, re-derived at Task 2.1.
+planning/skills/executing-plans/SKILL.md 43217
 planning/skills/planning-projects/SKILL.md 46102
 planning/skills/portfolio/SKILL.md 27271
 android-dev/skills/android-play-publish/SKILL.md 18018

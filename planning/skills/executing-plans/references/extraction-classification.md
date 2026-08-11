@@ -14,71 +14,146 @@ a branch is taken, and unsafe for a rule that must bind every run — because a
 defect `2026-07-26-dispatch-fidelity-plan.md` diagnosed when `Parallel:` was
 authored as a capability and consumed as an instruction.
 
-## Derived ceiling
+## Derived ceiling — estimated at Task 2.0, re-derived at Task 2.1
 
-    unconditional retained     13735 B
-    rule portion retained      17487 B   (estimate — exact at Task 2.1)
-    conditional pointers         700 B
-    scaffolding                  695 B
-    -----------------------------------
-    DERIVED CEILING            32617 B      (65% reduction from 92987 B)
+Task 2.0 published an estimated ceiling of **32617 B**. Task 2.1 executed the cut
+and **missed it by 10600 B**. Under the rule this file already stated — *"if
+Task 2.1's actual retained total exceeds the ceiling, the honest response is to
+record the miss and re-derive — never to move an obligation to hit a number"* —
+the ceiling is re-derived from what the cut actually retained. Nothing was moved
+to close the gap.
 
-The plan's original fixed target of 30,000 B was withdrawn because it was set
-against a 69,527 B baseline that had since moved to 92,987 B. The derived figure
-lands close to it, which says the original intuition was sound and could not be
-*justified*; this one shows its work.
+```
+                          estimated     actual      delta
+unconditional retained        13735      14583       +848
+rule portion retained         17487      26357      +8870
+conditional pointers            700       1613       +913
+scaffolding                     695        664        -31
+------------------------------------------------------------
+CEILING                       32617      43217     +10600
+```
 
-**The `rule+elaboration` retention figures are estimates.** The `unconditional`
-and `conditional` figures are measurements. If Task 2.1's actual retained total
-exceeds the ceiling, the honest response is to record the miss and re-derive —
-never to move an obligation to hit a number.
+Every figure above is bytes, measured with the same accounting
+`scripts/check-trunk-budget.py` uses; the four rows sum to the file size exactly.
+
+Measured trunk after the cut: **43217 B**, a **54% reduction** from 92987 B.
+
+**Where the estimate was wrong, and what that finding is worth.** The `rule+elaboration`
+figures were explicitly flagged as estimates while the `unconditional` and `conditional`
+figures were measurements — and the estimate assumed a rule compresses to roughly 30% of
+its section. In practice it is 40–50%: `Step 3.5 — Stage gate` retains its exit criterion,
+gate order, evaluator rule, Tier-2 rule, decisions-conformance rule, remediation budget and
+pass/fail branches, and those *are* the section's obligations. Four sections carry most of
+the miss — Step 3.3 (+2071), Step 3.5 (+1149), the dispatch roster (+1221) and Step 3.2
+(+1160).
+
+Read as a finding rather than a failure, this is the number the plan's extraction-eligibility
+rule said was worth knowing: **these three skills now carry roughly 26 KB of standing, unconditional
+obligation in one trunk**, and no amount of extraction discipline reduces that without
+deleting rules. The 30 KB intuition the plan started from was never reachable at the trunk's
+current obligation load — not because the extraction was timid, but because the trunk gained
+12,304 B of new standing rules in the six days before execution.
+
+**Two rows exceed their tabled figure, deliberately:**
+
+- **`Amending authored ceremony`** (tabled 150 B, retained 400 B) — the pointer alone would
+  leave an executor amending unguided, so the three legality conditions (unexecuted checks
+  only, the annotation cites the authorizing rule, the was-value survives) stay in the trunk.
+  *A pointer is not a rule.*
+- **`Reference map`** (tabled 956 B, retained 1605 B) — six new reference files need six new
+  index rows. The index growing with the extraction is the extraction working.
+
+**One row is retired rather than retained:** `Remember` (2097 B) was **deleted, not
+relocated**, as approved before the cut — it restated rules the trunk states in their own
+sections, and relocating a duplicate preserves the drift BL-039 documented. Its row is gone
+from the table below because `scripts/check-extraction-classification.py` enforces set
+equality against the trunk's real headings; the decision is recorded here instead, which is
+the only place it can now live.
 
 ## The table
 
+`bytes` is the section's size in the 92987 B trunk. `retained` is what Task 2.1
+actually left in the trunk, measured — not estimated.
 
-### unconditional — 13 sections, 13735 B, 13735 B retained
-
-| bytes | retained | section | reason |
-|---|---|---|---|
-| 2643 | 2643 | Phase 1 — Load and critique | runs on every plan |
-| 2461 | 2461 | The plan is the authorization — dispatch without a confirmation turn | DEC-014 obligation; binds every dispatch decision |
-| 2262 | 2262 | Stop conditions | must bind every run, whole — never a pointer |
-| 1435 | 1435 | What this skill expects | the format contract; every run validates against it |
-| 1078 | 1078 | Phase 2 — Preflight | phase header + the check list itself |
-| 970 | 970 | Run to completion — don't stop until you have to | governs every turn of every run |
-| 956 | 956 | Reference map | the index — without it no reference is reachable |
-| 526 | 526 | Safety rails | branch/destructive/secrets/shared-infra — every run |
-| 520 | 520 | Checklist | the four-step loop every execution follows |
-| 331 | 331 | When to revisit earlier steps | small, unconditional |
-| 269 | 269 | Step 3.1 — Identify what can run now | every stage start |
-| 227 | 227 | Step 3.4 — Propagate unblock | every green task |
-| 57 | 57 | Phase 3 — Stage execution | phase header |
-
-### rule+elaboration — 14 sections, 59338 B, 17487 B retained
+### unconditional — 13 sections, 13735 B, 14583 B retained
 
 | bytes | retained | section | reason |
 |---|---|---|---|
-| 21784 | 4800 | Step 3.5 — Stage gate | exit criterion + gate order stay; the two verify hooks (Android, redesign), evaluator briefing, Tier-2 shape, decisions sweep and failure procedure are each branch-taken |
-| 12342 | 3600 | Step 3.3 — Red-Green loop (per task) | loop rules 1-7 stay; Tier-1 machinery is tier-gated and the test-first rationale is elaboration |
-| 4106 | 1200 | A bug found during execution is a class — sweep it, fix every instance | rule is one paragraph; the worked reasoning is elaboration |
-| 3689 | 900 | Review scope — the machinery scales to the change | tier declaration is unconditional; the table is RESTATED from references/review-scope.md, which the trunk already calls the authority |
-| 3331 | 900 | Step 3.2 — Split by parallelism | the YES-obligates-dispatch rule stays; the retired-nudge history is elaboration |
-| 2704 | 750 | Dispatch roster and capability probe | fires every Preflight; rationale already in references/dispatch-fidelity.md |
-| 2372 | 700 | Context resets at stage boundaries | the handoff-note requirement fires at every gate; the rest is guidance |
-| 1987 | 550 | Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure) | probe fires every Preflight; the false-positive analysis is elaboration |
-| 1820 | 500 | Calibration re-check (the plan's ceremony can be stale) | fires every Preflight; the worked example is elaboration |
-| 1315 | 450 | Decisions re-check (the plan's snapshot can be stale) | fires every Preflight; the why is elaboration |
-| 1188 | 1188 | Light plans | already a trunk summary over references/light-plans.md |
-| 1151 | 400 | Git bootstrap (hard prerequisite for commit-per-task) | fires every Preflight; the decision tree is mechanical detail |
-| 888 | 888 | Master plans | already a trunk summary over references/master-plans.md |
-| 661 | 661 | Progress state file (live statusline bar) | already a pointer at references/progress-state-file.md |
+| 2643 | 2638 | Phase 1 — Load and critique | runs on every plan |
+| 2461 | 2488 | The plan is the authorization — dispatch without a confirmation turn | DEC-014 obligation; binds every dispatch decision |
+| 2262 | 2298 | Stop conditions | must bind every run, whole — never a pointer |
+| 1435 | 1452 | What this skill expects | the format contract; every run validates against it |
+| 1078 | 1200 | Phase 2 — Preflight | phase header + the check list itself |
+| 970 | 965 | Run to completion — don't stop until you have to | governs every turn of every run |
+| 956 | 1605 | Reference map | the index — without it no reference is reachable |
+| 526 | 532 | Safety rails | branch/destructive/secrets/shared-infra — every run |
+| 520 | 517 | Checklist | the four-step loop every execution follows |
+| 331 | 332 | When to revisit earlier steps | small, unconditional |
+| 269 | 270 | Step 3.1 — Identify what can run now | every stage start |
+| 227 | 228 | Step 3.4 — Propagate unblock | every green task |
+| 57 | 58 | Phase 3 — Stage execution | phase header |
 
-### conditional — 5 sections, 19219 B, 700 B retained
+### rule+elaboration — 14 sections, 59338 B, 26357 B retained
 
 | bytes | retained | section | reason |
 |---|---|---|---|
-| 8087 | 250 | Phase Close-out — After the last stage | a phase reached once, at the end; nothing before it needs the text |
-| 6654 | 200 | Integration | per-skill descriptions consulted only when routing to one |
-| 2097 | 0 | Remember | pure restatement of rules the trunk states in their own sections — BL-039's 'residual restatement' class; delete, do not relocate |
-| 1925 | 150 | Amending authored ceremony | only when an amendment is actually needed |
-| 456 | 100 | Sources and rationale | already a pointer at references/sources.md |
+| 21784 | 5949 | Step 3.5 — Stage gate | exit criterion + gate order stay; the two verify hooks (Android, redesign), evaluator briefing, Tier-2 shape, decisions sweep and failure procedure are each branch-taken |
+| 12342 | 5671 | Step 3.3 — Red-Green loop (per task) | loop rules 1-7 stay; Tier-1 machinery is tier-gated and the test-first rationale is elaboration |
+| 4106 | 1910 | A bug found during execution is a class — sweep it, fix every instance | rule is one paragraph; the worked reasoning is elaboration |
+| 3689 | 1556 | Review scope — the machinery scales to the change | tier declaration is unconditional; the table is RESTATED from references/review-scope.md, which the trunk already calls the authority |
+| 3331 | 2060 | Step 3.2 — Split by parallelism | the YES-obligates-dispatch rule stays; the retired-nudge history is elaboration |
+| 2704 | 1971 | Dispatch roster and capability probe | fires every Preflight; rationale already in references/dispatch-fidelity.md |
+| 2372 | 1491 | Context resets at stage boundaries | the handoff-note requirement fires at every gate; the rest is guidance |
+| 1987 | 676 | Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure) | probe fires every Preflight; the false-positive analysis is elaboration |
+| 1820 | 905 | Calibration re-check (the plan's ceremony can be stale) | fires every Preflight; the worked example is elaboration |
+| 1315 | 767 | Decisions re-check (the plan's snapshot can be stale) | fires every Preflight; the why is elaboration |
+| 1188 | 1204 | Light plans | already a trunk summary over references/light-plans.md |
+| 1151 | 646 | Git bootstrap (hard prerequisite for commit-per-task) | fires every Preflight; the decision tree is mechanical detail |
+| 888 | 889 | Master plans | already a trunk summary over references/master-plans.md |
+| 661 | 662 | Progress state file (live statusline bar) | already a pointer at references/progress-state-file.md |
+
+### conditional — 4 sections, 17122 B, 1613 B retained
+
+| bytes | retained | section | reason |
+|---|---|---|---|
+| 8087 | 546 | Phase Close-out — After the last stage | a phase reached once, at the end; nothing before it needs the text |
+| 6654 | 458 | Integration | per-skill descriptions consulted only when routing to one |
+| 1925 | 400 | Amending authored ceremony | only when an amendment is actually needed; the three legality conditions stay because a pointer is not a rule |
+| 456 | 209 | Sources and rationale | already a pointer at references/sources.md |
+
+## Where the conditional material went
+
+| moved from | now lives in |
+|---|---|
+| Phase Close-out (steps 1–10) | `../references/close-out.md` |
+| Integration list + Review opt-out | `../references/integration.md` |
+| Step 3.5's hooks, evaluator, Tier 2, dispositions, failure branch, handoff shape | `../references/stage-gate.md` |
+| Step 3.2's rationale + Step 3.3's test-first evidence, Tier-1 machinery, trailer detail | `../references/task-execution.md` |
+| Preflight's five check procedures + the amendment protocol | `../references/preflight-checks.md` |
+| The class-sweep reasoning and its cost rule | `../references/bug-is-a-class.md` |
+| `Remember` | deleted — restatement, not relocated |
+
+## Retention markers
+
+Task 2.1's obligation is not only that a `rule+elaboration` heading survived — a heading
+over a pointer would satisfy that and lose the rule. Each row below names a string that
+must be **trunk-resident**: the rule the row promised to keep, in the trunk's own words.
+`scripts/check-trunk-retention.py` sweeps this table in full, so a rule quietly demoted to
+a pointer in some later edit fails the suite rather than passing unnoticed.
+
+| section | must appear in the trunk |
+|---|---|
+| Step 3.5 — Stage gate | A gate passes when **no Critical finding remains** |
+| Step 3.3 — Red-Green loop (per task) | **One fix per cycle.** |
+| A bug found during execution is a class — sweep it, fix every instance | one sample of a class until a command proves |
+| Review scope — the machinery scales to the change | Declare a tier at Preflight and restate it in every gate report |
+| Step 3.2 — Split by parallelism | `YES` obligates a dispatch, `NO` means inline |
+| Dispatch roster and capability probe | A failed probe is a Preflight failure |
+| Context resets at stage boundaries | Stage gates are the reset points |
+| Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure) | pytest --collect-only -q |
+| Calibration re-check (the plan's ceremony can be stale) | What is never recomputed: the plan's facts |
+| Decisions re-check (the plan's snapshot can be stale) | accretes between planning and execution |
+| Light plans | that single pre-gate review IS the light plan's Tier-2 |
+| Git bootstrap (hard prerequisite for commit-per-task) | A missing remote is **not** a stop condition |
+| Master plans | Version bumps defer to the master |
+| Progress state file (live statusline bar) | delete it when close-out |
