@@ -127,9 +127,36 @@ def positional_deixis_cases():
     ]:
         check(codes(scan(text)) == [], f"comparison not flagged: {why}")
 
-    # Positional deixis in a trunk is legitimate — one file, it resolves
-    f = scan("The gate rules above close this.\n", name="p/skills/s/SKILL.md")
-    check(codes(f) == [], "positional deixis in SKILL.md trunk not flagged")
+    # Trunks are checked too. An earlier cut exempted them, reasoning that
+    # "above" resolves inside one file — true before an extraction and false
+    # after it, leaving the guard blind at the moment it is needed. Measured:
+    # 66 unchecked instances, 21 in the trunk the next stage would split.
+    f = scan("Follow the escalation rules below when this fires.\n",
+             name="p/skills/s/SKILL.md")
+    check(codes(f) == ["DEIXIS-POSITIONAL"], "positional deixis in a trunk IS flagged")
+
+    # The six false positives an independent evaluator found, each pinned so
+    # the fix cannot silently regress.
+    for text, why in [
+        ("A game cannot ship without meeting every Basic-tier item below.\n"
+         "| M1 | requirement | test |\n", "'item below' with rows below it"),
+        ("Only build custom when no entry below fits the requirement.\n"
+         "| Need | Standard | DIY |\n", "'entry below' with a table below it"),
+        ("Write XML following the structure above, then generate.\n"
+         "```xml\n<adaptive-icon/>\n```\n", "'structure above' with a block present"),
+        ("The parse contract accepts any key (see above), so these work.\n",
+         "bare '(see above)' — no noun phrase to resolve"),
+    ]:
+        check(codes(scan(text)) == [], f"not flagged: {why}")
+
+    # A shell-quoted path inside a fence resolves to a real file
+    with tempfile.TemporaryDirectory() as root:
+        write(os.path.join(root, "p/skills/s/scripts/down.sh"), "x")
+        write(os.path.join(root, "p/skills/s/SKILL.md"), "x")
+        f = integrity.scan_file(
+            "p/skills/s/SKILL.md",
+            "```bash\ntrap 'skills/s/scripts/down.sh --mock' EXIT\n```\n", root)
+        check(codes(f) == [], "shell-quoted path in a fence is stripped and resolves")
 
 
 def section_ref_cases():
@@ -152,6 +179,16 @@ def section_ref_cases():
     # A trunk's own dangling § is still a dead pointer
     f = scan("See § Light plans, rule 2 for the detail.\n", name="p/skills/s/SKILL.md")
     check(codes(f) == ["DEIXIS-SECTION"], "dangling § in a trunk flagged")
+
+    # Qualified by a filename in BARE prose, not backticks — the reader can
+    # still open it, so the finding's premise would have been false.
+    f = scan("as metrics-format.md § Target linkage requires, apply the rule.\n")
+    check("DEIXIS-SECTION" not in codes(f), "§ qualified by a bare filename not flagged")
+
+    # Containment must not let a SHORT dangling ref hide inside a LONG heading
+    f = scan("## Scope of the review pass\n\nThe § Scope rules moved elsewhere.\n")
+    check(codes(f) == ["DEIXIS-SECTION"],
+          "short dangling § not masked by a longer unrelated heading")
 
 
 def allowlist_cases():

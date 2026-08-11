@@ -7,11 +7,18 @@ things that were correct in the single file (BL-039):
   DEAD-PATH          a relative path or link that resolved from the monolith's
                      directory and resolves from nowhere one level down.
   DEIXIS-POSITIONAL  "the rules above", "the flow below" — position words whose
-                     referent stayed in the trunk. Checked in `references/*.md`
-                     only: inside a single trunk, "above" genuinely resolves.
+                     referent is not present in this file.
   DEIXIS-SECTION     an unqualified `§ Some Heading` naming no heading in this
-                     file and no file the reader could open. Checked everywhere,
-                     trunks included — that is where BL-039 found one.
+                     file and no file the reader could open.
+
+Both deixis checks run over trunks AND reference files. An earlier cut exempted
+trunks from the positional check, reasoning that "inside a single trunk, 'above'
+genuinely resolves" — true before an extraction and false after it, which makes
+the exemption blindest at the exact moment the guard is needed. Measured on this
+tree at the time: 66 positional instances sat unchecked in trunks, 21 of them in
+`executing-plans/SKILL.md`, the file the next stage was about to split. Because
+allowlist keys carry the path, text that MOVES surfaces as a new finding at its
+new home even when its old location was allowlisted.
 
 What it deliberately does NOT flag, because a guard that cries wolf gets its
 findings allowlisted wholesale and then guards nothing:
@@ -24,8 +31,11 @@ findings allowlisted wholesale and then guards nothing:
   - A positional word whose referent IS resolvable in the same file (a heading,
     bold run, or table caption matching the noun phrase).
 
-Scans `*/skills/*/SKILL.md` and `*/skills/*/references/*.md` from the repo root.
-Paths under `tests/` or `fixtures/` are excluded (test data, not shipped prose).
+Scans every `*/skills/*/SKILL.md` and every `*/references/*.md` in the tree —
+the latter repo-wide, not only under `skills/`, because plugin-root reference
+dirs (`business/references/`, `game-dev/references/`) hold the files the
+DEC-009 plugin-rooted citations point at. Paths under `tests/`, `fixtures/` or
+`test-fixtures/` are excluded (test data, not shipped prose).
 A finding is suppressed only by an exact `path:CODE:token` entry in
 `scripts/extraction-integrity-allow.txt` — never by a bare path, so allowlisting
 one known instance cannot hide the next one in the same file.
@@ -41,7 +51,14 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWLIST_PATH = os.path.join(REPO_ROOT, "scripts", "extraction-integrity-allow.txt")
 
-EXCLUDE_PARTS = ("/tests/", "/fixtures/")
+# Shared with check-frontmatter-budget.py and check-trunk-budget.py so the rules
+# that must agree — what counts as test data, how a control file parses — are
+# defined once. Bootstrap this script's own dir so the import resolves both when
+# run directly and when loaded via importlib in the tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _frontmatter_common import EXCLUDE_SEGMENTS, load_lines  # noqa: E402
+
+EXCLUDE_PARTS = EXCLUDE_SEGMENTS
 
 # A path-ish string: has a separator or a known extension, and no spaces.
 PATH_EXTS = (".md", ".py", ".sh", ".json", ".txt", ".yml", ".yaml", ".toml")
@@ -64,6 +81,7 @@ POSITIONAL_RE = re.compile(
 SEE_RE = re.compile(r"\(?\bsee\s+(?P<word>above|below)\b\)?", re.IGNORECASE)
 
 SECTION_RE = re.compile(r"§\s*(?P<name>[^.,;)\n]+)")
+BARE_FILENAME_RE = re.compile(r"[\w./-]+\.(?:md|py|sh|json|ya?ml)\b")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.*)$", re.M)
 
 
@@ -75,28 +93,12 @@ def normalize(s):
 
 
 def load_allowlist(path=ALLOWLIST_PATH):
-    allowed = set()
-    if not os.path.exists(path):
-        return allowed
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            entry = line.split("#", 1)[0].strip()
-            if entry:
-                allowed.add(entry)
-    return allowed
+    return set(load_lines(path))
 
 
 def list_allowlisted(path=ALLOWLIST_PATH):
     """The allowlist's entries, verbatim and in file order."""
-    if not os.path.exists(path):
-        return []
-    out = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            entry = line.split("#", 1)[0].strip()
-            if entry:
-                out.append(entry)
-    return out
+    return load_lines(path)
 
 
 def is_pathish(tok):
@@ -144,7 +146,10 @@ def is_internal_ref(tok):
 # "on API 25 and below", "ranking it above a populated key".
 SPATIAL_QUALIFIERS = ("slightly", "just", "directly", "immediately", "well",
                       "far", "and", "or", "sits", "ranking", "rank", "ranked")
-PRONOUNS = ("it", "them", "this", "that", "these", "those", "one", "which", "you")
+PRONOUNS = ("it", "them", "this", "that", "these", "those", "one", "which", "you",
+            # "see" is the bare form — "(see above)" names no referent, so
+            # there is nothing to resolve and nothing that can be judged dead.
+            "see")
 # Nouns that name a structure rather than a titled section: resolvable only by
 # looking for the structure itself, not by matching a heading.
 STRUCTURAL_NOUNS = {
@@ -154,6 +159,17 @@ STRUCTURAL_NOUNS = {
     "diagram": re.compile(r"^\s*```", re.M),
     "block": re.compile(r"^\s*```", re.M),
     "example": re.compile(r"^\s*```", re.M),
+    # Added after an independent evaluator judged all 8 non-planning/ findings
+    # and returned 6 false positives. These three nouns name a row or a fenced
+    # structure the same way `table` does — "every Basic-tier item below" points
+    # at the M1-M7 tables in its own file, "no entry below fits" at the tables
+    # filling the rest of theirs, "the structure above" at an XML block 29 lines
+    # up. Recording the cause: an unlisted noun could never be resolved, and
+    # `_resolves_locally` needs the phrase twice, so a single correct mention
+    # was unfalsifiable.
+    "item": re.compile(r"^\s*(?:\||[-*+]|\d+\.)\s", re.M),
+    "entry": re.compile(r"^\s*(?:\||[-*+]|\d+\.)\s", re.M),
+    "structure": re.compile(r"^\s*(?:```|\|)", re.M),
 }
 
 
@@ -243,7 +259,13 @@ def scan_file(relpath, text, root):
         if in_fence:
             toks += line.split()
         for tok in toks:
-            cand = tok.split("#", 1)[0].strip()
+            # Strip shell quoting before anything else. `trap 'skills/.../down.sh
+            # --mock' EXIT` inside a fence splits to a token carrying a leading
+            # quote, which resolves against nothing — so a file that EXISTS was
+            # reported dead and seeded as debt. That is precisely the "guard
+            # cries wolf, gets allowlisted, guards nothing" failure this
+            # script's own docstring warns about, reached by its own tokenizer.
+            cand = tok.strip("'\"").split("#", 1)[0].strip()
             if not is_pathish(cand) or not is_internal_ref(cand):
                 continue
             # Three addressing conventions are all legitimate here, so a token
@@ -264,12 +286,19 @@ def scan_file(relpath, text, root):
                     "token": cand, "text": line.strip()[:120],
                 })
 
-        # --- DEIXIS-POSITIONAL (reference files, prose only) -----------
+        # --- DEIXIS-POSITIONAL (prose only, trunks included) -----------
         # Inside a fence, "checked above" is a SAFETY comment about the lines
         # of code above it, and "# see below" annotates a YAML key. Both refer
         # to the listing, not to the document, so neither is extraction deixis.
-        if is_reference and not in_fence:
-            seen_spans = []
+        #
+        # A bare "(see above)" carries no noun phrase, so there is nothing to
+        # resolve and no way to tell a live reference from a dead one. It was
+        # flagged unconditionally in an earlier cut and produced one false
+        # positive and no true ones on this tree — the referent was a heading
+        # 64 lines up in the same file. An unfalsifiable rule that only ever
+        # fires wrongly is worse than no rule, so it is gone rather than
+        # allowlisted.
+        if not in_fence:
             for m in POSITIONAL_RE.finditer(line):
                 if _comparison_context(line, m.end()):
                     continue
@@ -281,18 +310,9 @@ def scan_file(relpath, text, root):
                 if _resolves_locally(text, noun):
                     continue
                 token = f"{noun.split()[-1]} {m.group('word')}".lower()
-                seen_spans.append(m.start())
                 findings.append({
                     "path": relpath, "line": i, "code": "DEIXIS-POSITIONAL",
                     "token": token, "text": line.strip()[:120],
-                })
-            for m in SEE_RE.finditer(line):
-                if any(abs(m.start() - s) < 30 for s in seen_spans):
-                    continue
-                findings.append({
-                    "path": relpath, "line": i, "code": "DEIXIS-POSITIONAL",
-                    "token": f"see {m.group('word')}".lower(),
-                    "text": line.strip()[:120],
                 })
 
         # --- DEIXIS-SECTION (everywhere) -------------------------------
@@ -305,10 +325,22 @@ def scan_file(relpath, text, root):
             if any(is_pathish(t.split("#", 1)[0].strip())
                    for t in BACKTICK_RE.findall(tail)):
                 continue
+            # A filename in bare prose qualifies just as well as a backticked
+            # one: `metrics-format.md § Target linkage` names the file the
+            # heading lives in, and that heading does exist there. Requiring
+            # backticks made the finding's own premise ("no file the reader
+            # could open") factually wrong.
+            if BARE_FILENAME_RE.search(tail):
+                continue
             name = normalize(m.group("name"))
             if not name:
                 continue
-            if any(name in h or h in name for h in headings if h):
+            # Containment must not run in the direction that lets a SHORT
+            # dangling reference hide inside a LONGER unrelated heading: a
+            # file with `## Scope of the review pass` would otherwise swallow
+            # a dead `§ Scope rules`. Only the reference-contains-heading
+            # direction is safe, plus exact equality.
+            if any(h == name or h in name for h in headings if h):
                 continue
             findings.append({
                 "path": relpath, "line": i, "code": "DEIXIS-SECTION",

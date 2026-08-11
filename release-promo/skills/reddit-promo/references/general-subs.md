@@ -1,6 +1,6 @@
 # General programming and launch subs
 
-Per-sub conventions beyond the quick reference table in `SKILL.md`.
+Per-sub conventions beyond the quick reference table in `../SKILL.md`.
 
 ## r/programming
 

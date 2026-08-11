@@ -49,6 +49,23 @@ def parse_cases():
         check(budget.load_budgets(os.path.join(root, "none.txt")) == {},
               "missing budget file parses to empty")
 
+        # A duplicate path with a DIFFERENT ceiling must be loud. Last-write-
+        # wins would let a bad merge that re-adds a trunk at a larger ceiling
+        # loosen the ratchet with nothing reporting it.
+        write(bf, "p/skills/s/SKILL.md 1000\np/skills/s/SKILL.md 9999\n")
+        try:
+            budget.load_budgets(bf)
+            check(False, "duplicate ceiling raises")
+        except budget.DuplicateBudget:
+            check(True, "duplicate ceiling raises DuplicateBudget")
+        # An identical repeat is harmless and must not raise
+        write(bf, "p/skills/s/SKILL.md 1000\np/skills/s/SKILL.md 1000\n")
+        try:
+            budget.load_budgets(bf)
+            check(True, "identical duplicate line does not raise")
+        except budget.DuplicateBudget:
+            check(False, "identical duplicate line does not raise")
+
 
 def ratchet_cases():
     with tempfile.TemporaryDirectory() as root:

@@ -8,6 +8,7 @@ Stdlib-only, so the budget script keeps running without PyYAML (the index
 generator hard-requires PyYAML for its own name/description/model parsing, but
 none of the shared helpers below need it).
 """
+import os
 import re
 
 # Component globs, relative to the repo root, and the path segments that mark
@@ -18,7 +19,29 @@ PATTERNS = (
     ("agent", "*/agents/*.md"),
     ("command", "*/commands/*.md"),
 )
-EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/")
+EXCLUDE_SEGMENTS = ("/tests/", "/fixtures/", "/test-fixtures/")
+
+
+def load_lines(path):
+    """Comment-stripped, non-empty lines from a plain-text control file.
+
+    The allowlist/budget files this repo's validators read all share one format:
+    one entry per line, `#` starts a comment, blank lines ignored. That loader
+    was written three times independently (check-frontmatter-budget.py's
+    allowlist, check-extraction-integrity.py's allowlist, check-trunk-budget.py's
+    budgets) before being pulled here — which is the drift this module exists to
+    prevent, per its own docstring. Returns [] for a missing file: absent and
+    empty are the same instruction to a validator, and neither is an error.
+    """
+    if not os.path.exists(path):
+        return []
+    out = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            entry = line.split("#", 1)[0].strip()
+            if entry:
+                out.append(entry)
+    return out
 
 
 def frontmatter_block(text):

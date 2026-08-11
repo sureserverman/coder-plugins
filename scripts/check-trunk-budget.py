@@ -34,26 +34,41 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUDGETS_PATH = os.path.join(REPO_ROOT, "scripts", "trunk-budget.txt")
 DEFAULT_MIN_SIZE = 10000
 
-EXCLUDE_PARTS = ("/tests/", "/fixtures/")
+# Shared with check-frontmatter-budget.py and check-extraction-integrity.py so
+# the rules that must agree are defined once, per _frontmatter_common's own
+# docstring. Bootstrap this script's dir so the import resolves when run
+# directly and when loaded via importlib in the tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _frontmatter_common import EXCLUDE_SEGMENTS, load_lines  # noqa: E402
+
+EXCLUDE_PARTS = EXCLUDE_SEGMENTS
+
+
+class DuplicateBudget(ValueError):
+    """Two ceilings for one path — the file no longer says what it means."""
 
 
 def load_budgets(path=BUDGETS_PATH):
-    """{repo-relative path: max bytes} from the budget file."""
+    """{repo-relative path: max bytes} from the budget file.
+
+    A duplicate path is an error, not a last-write-wins overwrite. A bad merge
+    that re-adds a trunk with a larger ceiling would otherwise loosen the
+    ratchet silently, which is the one failure this file exists to make loud.
+    """
     budgets = {}
-    if not os.path.exists(path):
-        return budgets
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            entry = line.split("#", 1)[0].strip()
-            if not entry:
-                continue
-            parts = entry.split()
-            if len(parts) != 2:
-                continue
-            try:
-                budgets[parts[0]] = int(parts[1])
-            except ValueError:
-                continue
+    for entry in load_lines(path):
+        parts = entry.split()
+        if len(parts) != 2:
+            continue
+        try:
+            size = int(parts[1])
+        except ValueError:
+            continue
+        if parts[0] in budgets and budgets[parts[0]] != size:
+            raise DuplicateBudget(
+                f"{path}: {parts[0]} has two ceilings "
+                f"({budgets[parts[0]]} and {size})")
+        budgets[parts[0]] = size
     return budgets
 
 

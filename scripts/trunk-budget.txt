@@ -26,7 +26,10 @@ planning/skills/backlog/SKILL.md 17672
 planning/skills/dispatching-parallel-agents/SKILL.md 17361
 planning/skills/applying-design-handoff/SKILL.md 16191
 planning/skills/project-maturity/SKILL.md 14834
-android-dev/skills/android-ui-design-figma/SKILL.md 13502
+# Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
+# lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
+# with the reason on the line above it.
+android-dev/skills/android-ui-design-figma/SKILL.md 13534
 git-github/skills/license-audit/SKILL.md 13335
 planning/skills/brainstorming/SKILL.md 13122
 planning/skills/decisions/SKILL.md 13026
