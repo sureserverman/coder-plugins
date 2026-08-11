@@ -66,7 +66,23 @@ planning/skills/executing-plans/SKILL.md 46135
 # read once per plan and almost every section fires on that pass, so its
 # reduction (41.5%) comes from compressing justification rather than relocating
 # procedure. Stage 2's trunk reached 50% because it had procedure to relocate.
-planning/skills/planning-projects/SKILL.md 46102
+
+# Lowered 46102 -> 35764 by Stage 3 Task 3.1: the extraction landed. Task 3.0's
+# estimated ceiling was 26976; the cut retained 35764 and MISSED it by 8788 B.
+# The ceiling is re-derived from what was actually retained, because every byte of
+# the miss is rule text and moving it would defeat the plan. The whole miss sits in
+# one row: rule+elaboration retained 73.6%, against the 45% Task 3.0 estimated —
+# and 45% was itself Stage 2's correction to a 30% assumption, applied and still
+# low by 28 points. The cause is the trunk's shape, not the cut's effort: this
+# trunk's rule+elaboration sections are mostly ENUMERATIONS of obligations
+# (Preflight's checks 84% kept, Phase 2.5's thresholds 85%) rather than prose over
+# a rule, and an enumeration has no justification layer to shed. The only section
+# that compressed as estimated was the pre-presentation checklist (46%), the one
+# section whose items restate rules other sections own. Full per-section
+# accounting, and what a future estimator should ask before picking a ratio, in
+# planning/skills/planning-projects/references/extraction-classification.md
+# § Re-derived at Task 3.1 — the ceiling was MISSED by 8788 B.
+planning/skills/planning-projects/SKILL.md 35764
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.

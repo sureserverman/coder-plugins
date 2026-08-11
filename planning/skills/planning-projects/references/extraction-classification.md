@@ -54,6 +54,71 @@ redden the suite between two green tasks. Task 3.1 promotes it when the cut land
 Never move an obligation to hit the number.** That is what Stage 2 did, and the
 miss it recorded was worth more than the number would have been.
 
+## Re-derived at Task 3.1 — the ceiling was MISSED by 8788 B
+
+The cut landed at **35764 B**, a **22.5%** reduction, against an estimated 26976
+(41.5%). The ceiling in `scripts/trunk-budget.txt` is set to 35764 — what was
+actually retained — rather than the estimate, because the gap is rule text and
+moving it would defeat the plan.
+
+```
+                          bytes   estimated    actual
+unconditional  (14 sec)    6477        6650      6878
+rule+elab      (22 sec)   37762       19190     27784
+conditional     (1 sec)     977         250       216
+scaffolding                 886         886       886
+-----------------------------------------------------
+TOTAL                     46102       26976     35764
+```
+
+**The whole miss is in one row, and it is the same row Stage 2 missed on.**
+`unconditional` came in 228 B over (the `Reference map` went 627 → 1028, four new
+rows rather than the ~800 B the estimate allowed) and `conditional` 34 B under.
+`rule+elaboration` retained **73.6%**, not the 45% Task 3.0 estimated — and 45% was itself the
+*correction* Stage 2 handed forward after measuring 40–50% against a 30%
+assumption. The correction was applied and was still low by 28 points.
+
+**Why 73.6% here and 40–50% there is not a worse cut but a different trunk.**
+`executing-plans` has procedure to relocate: a section like `Step 3.5 — Stage
+gate` states a rule and then describes how to run it, and the description leaves.
+`planning-projects` states a rule and then says *why*, and the why is usually one
+or two sentences attached to a rule that is three or four. Measured on the six
+largest sections, the justification available to shed was:
+
+```
+section                                    bytes   after   kept   estimated
+Checklist — Before Presenting the Plan      4550    2073    46%        1200
+Phase -0.5 — Format triage                  4586    3203    70%        2300
+A plan that adds an obligation ...          2616    1691    65%        1300
+Decisions scan                              2526    1921    76%        1250
+Preflight checklist                         2833    2381    84%        1800
+Phase 2.5 — Decomposition decision          2413    2039    85%        1350
+```
+
+`Checklist — Before Presenting the Plan` reached 46% because its items *restate*
+rules owned by other trunk sections, so moving them loses nothing — it is the only
+section in this trunk that was structurally duplicative. `Preflight checklist` and
+`Phase 2.5` barely moved because their bullets **are** the rule: the Preflight
+checks and the decomposition thresholds have no justification layer to remove.
+Task 3.0 sized them at 1800 and 1350; the bullets alone, verbatim, exceed both.
+
+**One amendment to the classification's own rows.** `Preflight checklist` is
+described as "the nine checklist bullets ARE the rule". It now carries **ten**.
+The trailing rationale the row calls elaboration contained a live obligation — the
+plan declares its stage-scope and plan-scope test commands in Preflight — which
+would have been deleted along with the paragraph carrying it. It was promoted to a
+bullet rather than dropped or left in prose the cut was about to remove. This is
+the Stage 2 lesson applied: the paragraph was elaboration, the sentence inside it
+was not.
+
+**What a future estimator should take from this.** The retention ratio is not a
+property of the classification class, it is a property of the trunk's *shape*.
+Before estimating, ask what fraction of the trunk's rule+elaboration sections are
+prose-over-rule (which compress) versus enumerations of rules (which do not). A
+trunk that is mostly lists of obligations has no 45% in it at any level of effort,
+and an estimate that assumes one will be missed by exactly the amount of rule text
+the cut refused to move.
+
 **One row grows rather than shrinks:** `Reference map` (627 → 800 B), because the
 extraction creates new reference files and each needs an index row. An index
 growing with the extraction is the extraction working.
@@ -212,17 +277,24 @@ from the current trunk.
 
 ## Where the conditional material will go
 
-**Destinations are named, not linked, because Task 3.1 creates them.** A
-backticked `../references/<file>.md` here would be a dead pointer until the cut
-lands, and `check-extraction-integrity.py` is right to reject one — this plan
-exists to stop exactly that. Task 3.1 rewrites this column into real paths in the
-same change that creates the files, at which point they resolve.
+The files exist as of Task 3.1, so the destinations are links rather than names.
 
-| moved from | destination (new unless marked) |
+| moved from | destination |
 |---|---|
-| The full pre-presentation item list | `authoring-checklist` |
-| Both checklists' Light half | `authoring-checklist` |
-| Phase -0.5's per-format prose + the batch-triage example | `format-triage` |
-| Phase 0's scan rationale (decisions, backlog, workflow, architecture) | `research-scans` |
-| Phase 4's gate-authoring rationale + the one-owner example | `gate-authoring` |
-| Light plans' per-delta prose | `light-plan-format` (already exists) |
+| The full pre-presentation item list | `authoring-checklist.md` |
+| Both checklists' Light half | `authoring-checklist.md` |
+| Phase -0.5's per-format prose + the batch-triage example | `format-triage.md` |
+| Phase 0's scan rationale (decisions, backlog, workflow, architecture) | `research-scans.md` |
+| Citing decisions on tasks' reasoning | `research-scans.md` |
+| Phase 4's gate-authoring rationale + the one-owner example | `gate-authoring.md` |
+| A plan that adds an obligation's accretion argument + the DEC-017 measurement | `gate-authoring.md` |
+| When a stage gate fails' deferral detail | `gate-authoring.md` |
+| Light plans' per-delta prose | `light-plan-format.md` (already existed) |
+
+**Three rows are Task 3.1 amendments, not Task 3.0's plan.** The `Citing
+decisions on tasks`, `A plan that adds an obligation` and `When a stage gate
+fails` rows were not in Task 3.0's table: it named the six destinations it had
+sized, but 23 sections shed justification, not six. The shed material had to land
+somewhere, and inventing a fifth file for three paragraphs would have cost more
+index rows than it saved bytes. Each landed in the nearest existing destination by
+subject, and the table now says so rather than leaving three moves unrecorded.
