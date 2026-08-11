@@ -113,7 +113,7 @@ portfolio_home: <absolute resolved path>
 This allows a session opened inside the repo to know its vault home immediately,
 without querying the registry on every invocation.
 
-The sidecar value is a **cache**. The registry + the mapping convention above is
+The sidecar value is a **cache**. The registry plus the convention in § The mapping is
 **authoritative**. If the two disagree, the tool must recompute from the registry,
 update the sidecar, and emit a warning to the user noting the discrepancy.
 

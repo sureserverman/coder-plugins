@@ -124,7 +124,7 @@ Swept 2026-08-09 against every agent frontmatter in the marketplace
 | `stingy-agents:skill-rewriter` | **no** — no shell at all | **no** |
 | `stingy-agents:readonly-scanner` | n/a | n/a — read-only by design; never route a *task* here |
 
-Rows this table routes for *research or review* rather than for a task — `planning:architecture-researcher`, `git-github:code-reviewer`, `stingy-agents:readonly-scanner` — are deliberately out of scope above: they never carry a `Status:` or a commit obligation, so commit capability is not a property they need. Their absence is a scoping decision, not a gap in the sweep.
+Rows this table routes for *research or review* rather than for a task — `planning:architecture-researcher`, `git-github:code-reviewer`, `stingy-agents:readonly-scanner` — are deliberately out of scope for this table: they never carry a `Status:` or a commit obligation, so commit capability is not a property they need. Their absence is a scoping decision, not a gap in the sweep.
 
 This is a capability boundary, not a bug in those agents: a markdown rewriter with no shell
 is a deliberately cheap, deliberately safe tool. What was missing is the handoff.
@@ -201,7 +201,7 @@ flow.
 
 ## Keeping this table honest
 
-Every agent and skill named above must resolve to a built-in, a marketplace-shipped
+Every agent and skill this table names must resolve to a built-in, a marketplace-shipped
 agent/skill, or an agent tagged `*(if installed)*`. `../scripts/validate-stack-routing.py`
 checks this and fails on drift (renamed/removed agent, typo, undeclared external dep).
 It runs in CI (`.github/workflows/validate-stack-routing.yml`) on any edit to this

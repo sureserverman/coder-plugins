@@ -9,7 +9,8 @@ which have not been audited. Rebuilt by `portfolio rebuild` via
 
 Produced by **sec-audit v1.29+** at
 `<vault_dir>/Portfolio/<area>/<name>/security/history.jsonl`, one JSON object per
-run. The authoritative definition is sec-audit's `SKILL.md` **§1.5.1**; this is
+run. The authoritative definition is sec-audit's own skill body, section 1.5.1;
+this is
 the consumer's view of it.
 
 | Field | Required | Meaning |

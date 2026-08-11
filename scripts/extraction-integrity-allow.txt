@@ -12,69 +12,24 @@
 # will absorb the next real finding with that key. Re-seed after any fix rather
 # than leaving orphans — this file is regenerated, not hand-pruned.
 #
-# 75 entries. Every remaining one is BL-039 debt: a pointer or a position
-# word that resolved in a monolith and resolves nowhere now. They are a burn-down
-# list, not a permanent exemption — Stage 3 of the token-efficiency plan takes the
-# planning/ half. Nothing here is a tripwire: the trunk entries that were seeded as
-# tripwires are gone, because the prose that carried them was rewritten
-# position-neutrally rather than moved.
+# REGENERATED FROM SCRATCH by Stage 3 Task 3.3 of the token-efficiency plan, not
+# hand-pruned. The previous seed carried 75 entries, 48 of them belonging to the
+# plugin this plan restructured. All 48 are gone — every one FIXED in the prose,
+# none suppressed. Three were already stale by construction before this task
+# started, absorbed silently by Task 3.1's rewrites: the exact orphan hazard the
+# paragraph above describes, and the reason this file is regenerated, not edited.
 #
-# This file deliberately carries NO per-skill narrative in its comments. The
-# burn-down history lives in the commit log, so a `grep -c '<skill>'` over this
-# file answers "are any entries left for that skill" without a comment mentioning
-# it by name skewing the count.
+# 27 entries. Every remaining one is BL-039 debt in a plugin the token-efficiency
+# plan did not touch — a pointer or a position word that resolved in a monolith
+# and resolves nowhere now. A burn-down list, not a permanent exemption.
 #
-# --- planning/ DEBT (48) -------------------------------------------
-planning/skills/applying-design-handoff/SKILL.md:DEAD-PATH:references/ui-grading-rubric.md
-planning/skills/applying-design-handoff/SKILL.md:DEIXIS-POSITIONAL:caveat above
-planning/skills/applying-design-handoff/references/example-pack/README.md:DEAD-PATH:scripts/validate-handoff-pack.py
-planning/skills/applying-design-handoff/references/handoff-pack-format.md:DEIXIS-POSITIONAL:examples below
-planning/skills/applying-design-handoff/references/handoff-pack-format.md:DEIXIS-POSITIONAL:names above
-planning/skills/backlog/SKILL.md:DEIXIS-SECTION:*A bug found during execution is a class* and § *Exit criter
-planning/skills/backlog/SKILL.md:DEIXIS-SECTION:*A bug found during execution is a class* and § *Exit criter
-planning/skills/brainstorming/SKILL.md:DEIXIS-POSITIONAL:heuristics below
-planning/skills/capability-router/SKILL.md:DEIXIS-SECTION:*Resolving a capability whose plugin isn't enabled* exactly:
-planning/skills/compass/SKILL.md:DEIXIS-POSITIONAL:rule below
-planning/skills/compass/SKILL.md:DEIXIS-POSITIONAL:sections above
-planning/skills/decisions/SKILL.md:DEIXIS-SECTION:Output location step 3 appends
-planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-POSITIONAL:ones above
-planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-SECTION:*Resolving a capability whose plugin isn't enabled*: dispatc
-planning/skills/dispatching-parallel-agents/SKILL.md:DEIXIS-SECTION:22
-planning/skills/dispatching-parallel-agents/references/stack-routing.md:DEIXIS-POSITIONAL:named above
-planning/skills/dispatching-parallel-agents/references/stack-routing.md:DEIXIS-POSITIONAL:scope above
-planning/skills/honest-gates/SKILL.md:DEIXIS-POSITIONAL:everything above
-planning/skills/honest-gates/SKILL.md:DEIXIS-SECTION:*Amending authored ceremony*
-planning/skills/planning-projects/SKILL.md:DEAD-PATH:scripts/portfolio-rebuild.py
-planning/skills/planning-projects/SKILL.md:DEIXIS-POSITIONAL:gate below
-planning/skills/planning-projects/SKILL.md:DEIXIS-POSITIONAL:rule below
-planning/skills/planning-projects/references/master-plan-format.md:DEIXIS-POSITIONAL:invariant below
-planning/skills/planning-projects/references/plan-document-template.md:DEAD-PATH:references/test-scope-tiers.md
-planning/skills/planning-projects/references/plan-document-template.md:DEIXIS-POSITIONAL:fallback above
-planning/skills/planning-projects/references/set-valued-checks.md:DEIXIS-POSITIONAL:everything above
-planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-POSITIONAL:declaration below
-planning/skills/planning-projects/references/test-scope-tiers.md:DEIXIS-SECTION:A bug found during execution is a class** is likewise untouc
-planning/skills/portfolio/SKILL.md:DEIXIS-SECTION:5 hard guarantee from the design doc
-planning/skills/portfolio/SKILL.md:DEIXIS-SECTION:7 rollout step 4: the `project-maturity` skill is shipped bu
-planning/skills/portfolio/references/decisions-format.md:DEIXIS-SECTION:Output location
-planning/skills/portfolio/references/global-formats.md:DEAD-PATH:references/maturity-axes.md
-planning/skills/portfolio/references/global-security-format.md:DEAD-PATH:SKILL.md
-planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:covered above
-planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:defined below
-planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:described above
-planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:patterns below
-planning/skills/portfolio/references/maturity-axes.md:DEIXIS-POSITIONAL:rule above
-planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:rule below
-planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:rules above
-planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:signals above
-planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:signals above
-planning/skills/portfolio/references/plan-parser.md:DEIXIS-POSITIONAL:the above
-planning/skills/portfolio/references/registry-format.md:DEIXIS-POSITIONAL:convention above
-planning/skills/portfolio/references/sidecar-format.md:DEIXIS-POSITIONAL:pointer above
-planning/skills/portfolio/references/sidecar-format.md:DEIXIS-POSITIONAL:wrote above
-planning/skills/project-maturity/SKILL.md:DEIXIS-POSITIONAL:detectors above
-planning/skills/project-maturity/SKILL.md:DEIXIS-POSITIONAL:rule above
-
-# --- other plugins' DEBT (27) — untouched by this plan ----------------
+# This file deliberately carries NO per-skill narrative in its comments, and NO
+# directory prefix either. The burn-down history lives in the commit log, so a
+# `grep -c '<name>'` over this file answers "are any entries left for that skill"
+# without a comment mentioning it by name skewing the count. That rule is why the
+# paragraphs above name no directory: a Stage 3 gate criterion is literally
+# `! grep -q '<prefix>/' <this file>`, and a comment saying the prefix is clear
+# would fail the check that proves it is.
 android-dev/skills/android-play-publish/SKILL.md:DEIXIS-POSITIONAL:is below
 android-dev/skills/android-ui-design-figma/SKILL.md:DEIXIS-POSITIONAL:loop below
 browser-extensions/skills/amo-compliance-check/SKILL.md:DEIXIS-POSITIONAL:check below

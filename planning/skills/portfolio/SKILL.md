@@ -94,7 +94,7 @@ Runs `scripts/plan-status-audit.py` over every plan in the vault. **Report-first
 
 Composes the four ops in order: `scan` → `unify --dry-run` → `maturity` (with the `--include-maturity` gate, see `## Staged rollout`) → `rebuild`. Confirms with the user before any mutation. Exit when done; user can re-invoke individual subcommands to drill in.
 
-**Idempotency guarantee:** if nothing has changed upstream (no new plans, no plan edits, no manual-claim refreshes), a second consecutive `portfolio` run produces ZERO writes — registry, per-project backlogs, MATURITY files, and both globals are byte-identical between runs. This is the §5 hard guarantee from the design doc.
+**Idempotency guarantee:** if nothing has changed upstream (no new plans, no plan edits, no manual-claim refreshes), a second consecutive `portfolio` run produces ZERO writes — registry, per-project backlogs, MATURITY files, and both globals are byte-identical between runs. This is the design doc's section 5 hard guarantee.
 
 ---
 

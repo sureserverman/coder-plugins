@@ -119,7 +119,7 @@ Auto-generated from per-project `docs/MATURITY.md` files. Re-run
 ## ship_ready rule
 
 A project is ship-ready iff every axis meets its per-axis threshold
-(see references/maturity-axes.md → "## ship_ready aggregation").
+(see maturity-axes.md → "## ship_ready aggregation").
 ```
 
 ### Cell rendering rule

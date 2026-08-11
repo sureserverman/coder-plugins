@@ -4,7 +4,7 @@ The literal template `planning-projects` emits. Consulted once, at write time.
 
 ## Plan Document Format
 
-Output the plan as a markdown document following this structure. Save it to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` (vault), or `docs/plans/` only in the no-`vault_dir` fallback above.
+Output the plan as a markdown document following this structure. Save it to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` (vault), or `docs/plans/` only in the no-`vault_dir` fallback.
 
 ```markdown
 # Project Plan: [Name]
@@ -40,7 +40,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session; skipped when the roster is `0 tasks` or the tier is below `standard`
 - [ ] Dispatch roster — `<n> of <total> tasks`: every `Parallel: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
 
-**Test-scope commands** (per references/test-scope-tiers.md — only when the full suite exceeds ~5 min):
+**Test-scope commands** (per test-scope-tiers.md — only when the full suite exceeds ~5 min):
 - stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]
 - plan-scope:  [the single full clean pass, quarantined tests included]
 

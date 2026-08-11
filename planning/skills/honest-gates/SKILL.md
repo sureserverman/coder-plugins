@@ -54,7 +54,7 @@ fix that happens to make the check pass.
   or how wide it sweeps, and then reporting the result as though the authored check
   passed. A legitimate amendment exists — the rules a plan was authored under do move
   — but it is annotated with the rule that authorized it and the value it replaced
-  (`executing-plans` § *Amending authored ceremony*). Without that, a recalibrated
+  (`../executing-plans/SKILL.md` § *Amending authored ceremony*). Without that, a recalibrated
   gate and a quietly cheapened one leave identical artifacts, which is the same
   reason a scope change must be disclosed rather than merely made. **Amending a
   check to make a failing gate pass is never an amendment** — that is the gate-failure
@@ -85,7 +85,7 @@ failure this skill prevents.
 
 ## A behavioral claim is a gate too
 
-Everything above governs claims about *verification runs*. The same rule governs
+Those rules govern claims about *verification runs*. The same rule governs
 claims about *what the code does* — because **a sentence asserting behavior is
 itself a claim that something was verified**, and it is read by people who will
 act on it without re-checking.

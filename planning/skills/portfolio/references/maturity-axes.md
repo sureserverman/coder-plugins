@@ -83,7 +83,7 @@ audit`. The reason should be terse but unambiguous, e.g.
 A project is ship-ready (`ship_ready: true` in the registry and a green row in
 the global dashboard) if and only if **every line present in the file is
 ticked** (`[x] auto:` or `[x] claim:`) AND each axis meets the per-axis
-minimum defined below.
+minimum defined in that axis's § Ship-ready threshold.
 
 Per-axis minimums in the sparse model:
 
@@ -270,7 +270,7 @@ in doubt, run the audit.
 
 The "sec-audit clean" sub-item must be auto-ticked, OR the axis must be marked
 `[N/A] no-attack-surface`. A manual claim on the overall axis is accepted only
-when backed by an artifact reference as described above. An absent audit file
+when backed by an artifact reference, as § Manual claim conditions requires. An absent audit file
 with no N/A blocks ship-ready.
 
 ---
@@ -365,7 +365,7 @@ handling").
 - **Accrescent**: claim once the app is live on Accrescent. Note the
   Accrescent app URL.
 - **Any other target**: use a manual claim if the packaging artifact lives at
-  a non-standard path not covered by the rule above. Note the actual path.
+  a non-standard path not covered by § Auto-detect rules. Note the actual path.
 
 ### N/A guidance
 
@@ -473,7 +473,7 @@ should demonstrate active i18n support before shipping.
 
 ### Auto-detect rules
 
-The detector checks all applicable patterns below. If more than one applies,
+The detector checks every applicable pattern in this subsection. If more than one applies,
 each is ticked independently with its own evidence.
 
 - **Android**: `res/values-*/` directories exist in the project tree (other
@@ -497,7 +497,7 @@ translation completeness or string coverage.
 
 A manual claim is appropriate when:
 
-- The i18n mechanism uses a framework not covered above (e.g. Rails i18n
+- The i18n mechanism uses a framework not covered by § Auto-detect rules (e.g. Rails i18n
   YAML, iOS `.strings` / `.xcstrings`, GNU gettext in a non-standard
   directory layout). The user should note the framework and evidence path.
 - Translation exists but is loaded dynamically from a remote source (e.g. a

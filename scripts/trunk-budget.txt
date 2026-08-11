@@ -156,19 +156,42 @@ android-dev/skills/android-play-publish/SKILL.md 18018
 # that no longer exists in the file it named. Repointed at the file that now owns
 # it, which is longer than the bare skill name it replaced.
 planning/skills/backlog/SKILL.md 17714
-planning/skills/dispatching-parallel-agents/SKILL.md 17361
-planning/skills/applying-design-handoff/SKILL.md 16191
-planning/skills/project-maturity/SKILL.md 14834
+# The six raises below share one cause: Stage 3 Task 3.3 burned the BL-039
+# allowlist debt down to zero for this plugin by REWRITING the prose rather than
+# suppressing the findings, and position-neutral prose runs a little longer than
+# the deixis it replaces. 2-27 B each, 83 B total, against 48 findings fixed.
+# The ratchet fired on all six and is what forced this accounting.
+#
+# Raised 17361 -> 17381 (+20) by the Task 3.3 deixis burn-down:
+#   three fixes: the halts pointer now names its section, the stack-routing
+#   citation was joined onto one line so its path qualifies it, and a CLRS
+#   section number stopped being read as document deixis
+planning/skills/dispatching-parallel-agents/SKILL.md 17381
+# Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
+#   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
+#   citation stopped claiming a path that resolves nowhere from this file
+planning/skills/applying-design-handoff/SKILL.md 16200
+# Raised 14834 -> 14843 (+9) by the Task 3.3 deixis burn-down:
+#   the AI-tool waiver names the step-2 rule it excepts, and the packaging
+#   detectors are named by axis rather than by position
+planning/skills/project-maturity/SKILL.md 14843
 # Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
 # lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
 # with the reason on the line above it.
 android-dev/skills/android-ui-design-figma/SKILL.md 13534
 git-github/skills/license-audit/SKILL.md 13335
-planning/skills/brainstorming/SKILL.md 13122
-planning/skills/decisions/SKILL.md 13026
+# Raised 13122 -> 13124 (+2) by the Task 3.3 deixis burn-down:
+#   the question heuristics are cited by phase instead of by direction
+planning/skills/brainstorming/SKILL.md 13124
+# Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
+#   the Output location citation now carries the path it refers to
+planning/skills/decisions/SKILL.md 13053
 android-dev/skills/android-fdroid-publish/SKILL.md 12879
 planning/skills/architecting-projects/SKILL.md 11935
-planning/skills/compass/SKILL.md 11658
+# Raised 11658 -> 11674 (+16) by the Task 3.3 deixis burn-down:
+#   the business-aware rules and the agenda sources are named rather than
+#   pointed at
+planning/skills/compass/SKILL.md 11674
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750
