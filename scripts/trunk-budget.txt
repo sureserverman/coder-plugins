@@ -102,7 +102,38 @@ planning/skills/planning-projects/SKILL.md 35764
 # 417 B of this assumes `## Remember` is DELETED rather than relocated, matching
 # Stage 2's treatment of the executing-plans section of the same name. That
 # deletion needs the register owner's approval; if withheld, this ceiling is 8145.
-planning/skills/portfolio/SKILL.md 27271
+
+# Lowered 27271 -> 11950 by Stage 3 Task 3.2: the extraction landed. The ACTIVE
+# target was 8145, not the 7728 recorded above: that approval for deleting
+# `## Remember` was never obtained, so the section was retained whole and the
+# ceiling it was measured against rose by its 417 B. The cut retained 11950 and
+# MISSED 8145 by 3805 B. The ceiling is re-derived from what was actually
+# retained, because the gap is branch-owned rules plus the index the extraction
+# itself created.
+#
+# The miss sits in the `conditional` row, which retained 22.6% against an
+# estimated 10% — and the cause is a per-pointer FLOOR, not a percentage. The
+# eight moved subcommand sections average 541 B of retained pointer with a range
+# of 361-833, and the ratio tracks the INVERSE of the source size (12.9% for the
+# 5686 B `rebuild`, 50.8% for the 711 B `Integration`). A pointer costs what it
+# costs: name the subcommand, state the input gate that decides whether it
+# writes, carry the invariants that bind even when the reference is never opened
+# (migrate's copy->verify->delete, integrate's never-auto-fixed asymmetries,
+# rebuild's PRESERVE block and degrade-but-never-truncate, plan-status'
+# report-first default), and cite the file. Size `conditional` as
+# n_sections x ~500 B, not as a share of bytes: that rule predicts 4500 here
+# against an actual 4747.
+#
+# Two smaller overruns, both already seen once. `Reference map` came in at 1648
+# against 700 — 17 rows at ~45 B of table syntax each before any prose; Task 3.1
+# measured the same direction. And `Configuration:` retained 614 of 614 against
+# an estimated 300, because the "sample block" the row proposed to move IS the
+# key list and the missing-file default — Task 3.1's finding that an enumeration
+# has no justification layer to shed, reproduced exactly. Full per-section
+# accounting in
+# planning/skills/portfolio/references/extraction-classification.md
+# § Re-derived at Task 3.2 — the ceiling was MISSED by 3805 B.
+planning/skills/portfolio/SKILL.md 11950
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
