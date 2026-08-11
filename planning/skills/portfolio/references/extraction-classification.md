@@ -205,6 +205,23 @@ are exempt by construction — they are the ones that were supposed to leave, an
 their retained pointer is checked by the DEAD-PATH half of
 `check-extraction-integrity.py` instead.
 
+**One marker was RETIRED after the cut, and the reason belongs here rather than in
+a commit message.** `Configuration:` originally pinned **`never aborts`**. That
+phrase was deleted by the DEC-013 defect fix this file records under the heading
+"One inconsistency found while classifying" — it was the tail of a sentence
+promising to fall back to
+`~/.claude/` writes, a destination retired when storage went vault-canonical. The
+marker was pinning a stale claim, so keeping it would have forced the stale claim
+to stay.
+
+**Retiring a marker is the move this guard's `UNMARKED-SECTION` check exists to
+make expensive**, because deleting a marker silences a row just as effectively as
+keeping its rule. So it is replaced, not merely removed: `optional except` and
+`not settled` pin what the section now actually promises — that `vault_dir` is the
+one required key, and that the set-but-missing case is openly undecided rather
+than answered by a pointer at retired storage. The section's marker count went
+2 → 3.
+
 | section | must appear in the trunk |
 |---|---|
 | Reference map | These load when their condition is met |
@@ -217,7 +234,8 @@ their retained pointer is checked by the DEAD-PATH half of
 | Default flow (no subcommand, or explicit `portfolio` invocation) | Confirms with the user before any mutation |
 | Staged rollout | --include-maturity |
 | Configuration: `~/.claude/portfolio-config.yaml` | vault_dir |
-| Configuration: `~/.claude/portfolio-config.yaml` | never aborts |
+| Configuration: `~/.claude/portfolio-config.yaml` | optional except |
+| Configuration: `~/.claude/portfolio-config.yaml` | not settled |
 | File conflicts and write discipline | Never mutate a project's |
 | File conflicts and write discipline | no two agents touch the same path |
 | Hard rules | Dry-run is the default for every write-capable subcommand |

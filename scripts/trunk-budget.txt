@@ -133,7 +133,23 @@ planning/skills/planning-projects/SKILL.md 35764
 # accounting in
 # planning/skills/portfolio/references/extraction-classification.md
 # § Re-derived at Task 3.2 — the ceiling was MISSED by 3805 B.
-planning/skills/portfolio/SKILL.md 11950
+#
+# Raised 11950 -> 12347 (+397) by a DEC-013 defect fix, not by drift. Task 3.0
+# recorded that this trunk's Resolver and Configuration sections gave opposite
+# guidance on an unresolvable vault_dir, and deferred it as a decision about
+# portfolio's behavior. Reading the extracted `rebuild` reference settled it as a
+# DEFECT instead: the roll-ups went vault-canonical and "there is no `~/.claude/`
+# or `Projects/` copy", so Configuration's "mirrors globals to <vault_dir>/Projects/"
+# and its "continues with `~/.claude/` writes only" both named storage that had been
+# retired out from under them. A fallback to a destination that no longer exists is
+# not an alternative policy, it is stale text.
+#
+# The genuinely undecided half is kept undecided and is now SAID to be: what a
+# vault_dir that is SET but names a missing directory should do. The old sentence
+# answered it by pointing at the retired mirror, which read as an answer while
+# being none. Also fixed here: the Announce line listed six subcommands and omitted
+# plan-status, which the frontmatter description does list.
+planning/skills/portfolio/SKILL.md 12347
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

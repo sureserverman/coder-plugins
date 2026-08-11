@@ -28,7 +28,7 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
 - **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
 
-**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|default>`."
+**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
 
 ---
 
@@ -116,11 +116,11 @@ Optional config sidecar to the registry. Holds settings that aren't per-project:
 ```yaml
 # ~/.claude/portfolio-config.yaml
 version: 1
-vault_dir: /mnt/vault         # if set, rebuild mirrors globals to <vault_dir>/Projects/
+vault_dir: /mnt/vault         # required; roll-ups land in <vault_dir>/Portfolio/
 include_maturity: false       # default flow opts out of maturity until staging window ends
 ```
 
-All keys optional. Missing file → all defaults (no vault mirror, maturity opt-out). If `vault_dir` is set but the directory doesn't exist, the rebuild logs a one-line warning and continues with `~/.claude/` writes only — never aborts.
+Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to. What a `vault_dir` that is *set* but names a missing directory should do is **not settled**: this section said "warn and continue with `~/.claude/` writes" from before the retirement, and that destination no longer exists. Do not rely on either reading until it is decided.
 
 ## File conflicts and write discipline
 
