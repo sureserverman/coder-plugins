@@ -193,10 +193,12 @@ When you find one:
 
 **The whole project is the search space, not the plan's blast radius.** A sibling instance
 living in a file this plan never touches is the same defect; "out of scope" describes a plan's
-*subject matter*, never a defect's *reach*. **A class you cannot express as a command is a
-class you have not named yet: disclose the limit**, fix the members you can identify, and say
-what you were unable to sweep. **It costs a command, never a dispatch** (DEC-010), so it runs
-at **every** review tier, including `none`.
+*subject matter*, never a defect's *reach*. **Where the sweep stops:** it covers the defect's
+own predicate — whatever makes an instance an instance — and nothing wider; it is not a licence
+to refactor whatever lives nearby. **A class you cannot express as a command is a class you
+have not named yet: disclose the limit**, fix the members you can identify, and say what you
+were unable to sweep. **It costs a command, never a dispatch** (DEC-010), so it belongs with
+the untiered mandates and runs at **every** review tier, including `none`.
 
 Where the sweep stops, and the one dispatch-shaped consequence when it widens the diff into a
 risk-listed area: `references/bug-is-a-class.md`.
@@ -442,7 +444,7 @@ write them.** The measured incident behind all three: `references/task-execution
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
-2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — the class-sweep rule this trunk states for any surfaced bug applies here exactly as it does at a gate.
+2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
@@ -492,12 +494,16 @@ evaluator's briefing and severity scale, and the Tier-2 pass: `references/stage-
 `standard` when the gate carries a `(judgment)` check, always at `high`. Run command checks
 yourself; dispatch a fresh evaluator for the judgment checks, briefed ONLY with the stage goal
 and the gate's pass criteria — never the implementation transcript or your own summary. The
-session that wrote the code grades its own work too generously. An evaluator that cannot be
-dispatched is a Stop condition, not a skip.
+session that wrote the code grades its own work too generously. A declared tier that does not
+mandate one is **scope**, reported as such and never as an opt-out; an evaluator that cannot
+be dispatched is a Stop condition, not a skip.
 
 **Deep code review (Tier 2).** Whether it runs, and at what shape, comes from
 `references/review-scope.md`. It is a gate criterion, not advisory — a **Critical** here is a
-**gate failure**, and every **Important** leaves the gate **fixed**, its class swept.
+**gate failure**, and every **Important** leaves the gate **fixed** per the exit criterion,
+its class swept. **Brief it to audit the stage's behavioral claims as a set**, per
+`honest-gates`: the stage view is where a claim that was true when written and false after a
+later task shows up.
 
 **Decisions-conformance check (gate criterion, not advisory).** Run it at the **final** stage
 gate and at close-out, over the plan's cumulative diff — not at every intermediate gate. A
@@ -522,10 +528,21 @@ detector returned silent": a fresh judgment agent never reports zero findings, s
 that exit condition is not a gate but a loop. Dispositions, the measured backlog-drift
 incident, and what a scope guardrail actually bounds: `references/stage-gate.md`.
 
-**If the gate fails:** a gate is one caller of the class-sweep rule, and the sharpest one. Classify every finding Critical /
-Important / Suggestion, diagnose evidence-first, name and enumerate the set with a command
-you **write down in the gate report**, add a test covering the set, fix every member this
-round, then re-run the task's Red-Green loop and re-verify narrowly plus the sweep.
+**If the gate fails:** a gate is one caller of **A bug found during execution is a class**,
+and the sharpest one — detection at a gate is goal-scoped while repair defaults to
+instance-scoped, so a class with N instances costs about N rounds, each looking like fresh
+news.
+
+1. **Classify every finding** as **Critical**, **Important** or **Suggestion** — the same
+   scale the review tiers use, so a gate finding and a review finding are graded once.
+2. **Run the shared rule: diagnose evidence-first, then name the set.** Invoke
+   `no-fafo-debugging` before generalizing; derive the set from the failing task's `Scope:`
+   field where it declares one, enumerate it with a command, and **write the command down**
+   in the gate report. A set derived from a wrong root cause is a wrong set, swept
+   confidently, reporting green.
+3. **Add a test covering the set**, not the one file that failed, and fix **every member the
+   sweep returns in this round**.
+4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
 **Remediation budget — default 2 rounds per gate.** A plan may override it. Count the rounds
 and report the count. **A re-dispatched review or evaluator is a round** — otherwise the gate
@@ -552,10 +569,11 @@ degraded context — and the plan file is already the handoff artifact.
   plan file under the stage: the deviations, surprises and decisions a fresh context needs
   that the Status flips don't capture, plus — copied verbatim from the gate report, not
   re-derived — its `dispatch:`, `review:` and `residuals:` lines and the **Decisions in
-  force** still binding. The dispatch counts can be rebuilt from the trailers, but **the
-  review ledger cannot**: which agent saw which diff exists only in the gate report. Committed
-  with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a log. Exact
-  shape: `references/stage-gate.md`.
+  force** still binding. **The dispatch and review lines are carried here for the same
+  reason**, and they earn the space: the dispatch counts can be rebuilt from the trailers, but
+  **the review ledger cannot** — which agent saw which diff exists only in the gate report.
+  Committed with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a
+  log. Exact shape: `references/stage-gate.md`.
 - **Resuming fresh:** a new session (or a post-compaction continuation) picks up the plan by
   reading the Research Summary, the `Status:` flips, and the handoff notes — never by needing
   the prior transcript. If you find yourself unable to continue without the old transcript,

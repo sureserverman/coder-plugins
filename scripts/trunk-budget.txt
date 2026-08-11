@@ -27,7 +27,18 @@
 # accounting, per section, is in
 # planning/skills/executing-plans/references/extraction-classification.md
 # § Derived ceiling — estimated at Task 2.0, re-derived at Task 2.1.
-planning/skills/executing-plans/SKILL.md 43217
+#
+# Raised 43217 -> 44536 (+1319) by Stage 2 Task 2.2. NOT drift: the contract suite
+# is what found it. Task 2.1's compression dropped nine obligation-bearing
+# phrases while keeping each rule's gist — the gate-failure branch's routing to
+# the class rule, its `no-fafo-debugging` call, the `Scope:` derivation source,
+# "write the command down", the sweep's outer bound ("nothing wider"), Tier-2's
+# binding of an Important to the exit criterion, the evaluator's tier reference,
+# and the handoff's "carried here". Every one is a rule an executor must follow
+# and none belonged in a reference file, so they were restored to the trunk and
+# the ceiling follows the obligation rather than the obligation following the
+# ceiling. Still -52.1% against the 92987 B this stage started from.
+planning/skills/executing-plans/SKILL.md 44536
 planning/skills/planning-projects/SKILL.md 46102
 planning/skills/portfolio/SKILL.md 27271
 android-dev/skills/android-play-publish/SKILL.md 18018

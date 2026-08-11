@@ -321,24 +321,44 @@ def main():
 
     # 0b — the rule is wired at EVERY site a defect can surface, checked as a SET rather
     # than one worked example: an instance-shaped check cannot fail on the siblings that
-    # make the class, which is the very defect this rule exists to repair. Reads SKILL.md
-    # directly (not the concatenation) because these are trunk call sites.
+    # make the class, which is the very defect this rule exists to repair.
+    #
+    # Each site names the FILE its procedure lives in (Stage 2, Task 2.2). This suite used
+    # to read SKILL.md alone, on the reasoning that these were all trunk call sites — true
+    # until the extraction, after which Tier-1's machinery and the gate's evaluator and
+    # Tier-2 briefs moved to references/ by a classification that marked them branch-taken.
+    # Reading only the trunk would then report three deletions where nothing was deleted.
+    #
+    # Naming the file rather than searching the concatenation is deliberate, and is the
+    # difference between loosening and unpinning: `section()` over trunk+references returns
+    # the FIRST match, so a site present in both would be checked only in the trunk and a
+    # reference copy could silently stop routing. One (file, start, end) triple per site
+    # keeps every one pinned to a definite place that a reader can open.
     skill_only = SKILL.read_text(encoding="utf-8")
+    REFS = SKILL.parent / "references"
     DISCOVERY_SITES = [
-        ("Red-Green loop", r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget"),
-        ("Tier-1 Critical", r"\*\*Critical → blocking", r"\*\*Important / Suggestion"),
-        ("Tier-2 review", r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance"),
-        ("gate evaluator", r"\*\*Independent evaluator for non-command checks",
-         r"\*\*Deep code review \(Tier 2\)"),
-        ("gate failure", r"\*\*If the gate fails", r"\*\*If the gate passes"),
+        ("Red-Green loop", SKILL,
+         r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget"),
+        ("Tier-1 Critical", REFS / "task-execution.md",
+         r"\*\*Critical → blocking", r"\*\*Important / Suggestion"),
+        ("Tier-2 review", REFS / "stage-gate.md",
+         r"## Deep code review \(Tier 2\)", r"## Decisions-conformance"),
+        ("gate evaluator", REFS / "stage-gate.md",
+         r"## Independent evaluator for non-command checks",
+         r"## Deep code review \(Tier 2\)"),
+        ("gate failure", SKILL,
+         r"\*\*If the gate fails", r"\*\*If the gate passes"),
     ]
     unwired = []
-    for name, start, end in DISCOVERY_SITES:
-        blk = section(skill_only, start, end)
+    for name, path, start, end in DISCOVERY_SITES:
+        if not path.is_file():
+            unwired.append(f"{name} (no {path.name})")
+            continue
+        blk = section(path.read_text(encoding="utf-8"), start, end)
         if not blk or not affirms(blk, r"A bug found during execution is a class"):
             unwired.append(name)
     check("every discovery site routes to the class rule: "
-          + ", ".join(n for n, _, _ in DISCOVERY_SITES),
+          + ", ".join(n for n, _, _, _ in DISCOVERY_SITES),
           not unwired,
           f"these sites do not reach the rule: {', '.join(unwired)} — a bug found there "
           f"is repaired one instance at a time")
@@ -567,9 +587,16 @@ def main():
     # reason as #6: the gate evaluator and the close-out evaluator are siblings, and
     # giving only one of them a severity vocabulary leaves the other unsatisfiable.
     evaluator_sites = [
+        # The BRIEF moved to references/stage-gate.md at Stage 2 (the classification marked
+        # the evaluator's briefing branch-taken); the trunk keeps the rule that it runs and
+        # what gates it. Anchored on the reference so the severity vocabulary is pinned
+        # where it is actually written, rather than reported missing from a trunk that was
+        # never meant to carry it after the extraction.
         ("gate evaluator (Step 3.5)",
-         section(text, r"\*\*Independent evaluator for non-command checks",
-                 r"\*\*Deep code review")),
+         section((SKILL.parent / "references" / "stage-gate.md")
+                 .read_text(encoding="utf-8"),
+                 r"## Independent evaluator for non-command checks",
+                 r"## Deep code review")),
         # Anchored on the step's NAME, not on the parenthetical that used to follow it.
         # The heading read "Independent evaluator pass (default)" until the pass stopped
         # being an unconditional default and became tier-gated; pinning "(default)" meant
@@ -582,9 +609,20 @@ def main():
     ]
     for label, block in evaluator_sites:
         check(f"site present: {label}", bool(block), f"could not locate the {label} block")
+        # The level must be BRIEFED, not merely mentioned. A bare `level in block` was
+        # satisfiable by the prose around the brief — "an evaluator FAIL carrying no
+        # Blocking finding…", "Blocking maps to Critical…" — so a mutation probe that
+        # replaced the severity table's own `**Blocking**` row left this green (measured
+        # at Stage 2, Task 2.2). Both legitimate briefing forms are accepted: the gate
+        # evaluator states them as an emphasised table, the close-out evaluator as the
+        # slash-listed triple, and neither survives deleting the row or the list.
         for level in ("Blocking", "Material", "Minor"):
-            check(f"severity '{level}' in brief: {label}", level in block,
-                  f"{label} does not brief the evaluator to return '{level}'")
+            briefed = (re.search(rf"\*\*{level}\*\*", block) is not None
+                       or re.search(r"Blocking\s*/\s*Material\s*/\s*Minor", block)
+                       is not None)
+            check(f"severity '{level}' in brief: {label}", briefed,
+                  f"{label} does not brief the evaluator to return '{level}' — the word "
+                  f"may appear in nearby prose, but the brief itself does not require it")
         check(f"silent-detector rationale at: {label}",
               re.search(r"not a reachable state|essentially (always|never)|"
                         r"almost never", block, re.I) is not None,
@@ -807,9 +845,12 @@ def main():
          section(text, r"\*\*Independent evaluator pass", r"\n4\. \*\*Bump")),
         ("Preflight dispatch probe",
          section(text, r"2\. \*\*Probe the capability", r"3\. \*\*Snapshot the")),
+        # Moved whole to references/stage-gate.md at Stage 2 — it fires only on a redesign
+        # stage, which is the definition of branch-taken. Matched in either form so the
+        # anchor survives the heading style rather than the file it lives in.
         ("design-fidelity verify hook",
-         section(text, r"\*\*Design-fidelity verify hook",
-                 r"\*\*Independent evaluator for non-command checks")),
+         section(text, r"(?:\*\*|## )Design-fidelity verify hook",
+                 r"(?:\*\*|## )Independent evaluator for non-command checks")),
     ]
     for label, block in tier_gated_dispatch_sites:
         check(f"dispatch site present: {label}", bool(block),
@@ -908,14 +949,25 @@ def main():
               "no guidance for a claim over a set, which the class-predicate rule "
               "already covers — leaving the two rules unconnected")
 
+    # Tier-1's brief and its docs-only skip moved to references/task-execution.md at
+    # Stage 2. Both are anchored on that file rather than the concatenation, and BOTH
+    # end anchors were re-pointed: each one's old end marker now sits in the trunk,
+    # which precedes the reference in the concatenation, so `section()` found no end
+    # after the start and ran to the end of the whole corpus. That fails open — the
+    # slice was ~30k chars of unrelated text and the assertions below passed on it
+    # while naming a site they were no longer reading. A vacuous pass is worse here
+    # than a red, so the anchors are pinned inside the file that owns the text.
+    task_exec = (SKILL.parent / "references" / "task-execution.md").read_text(
+        encoding="utf-8")
     p7_sites = [
         ("Tier-1 review brief",
-         section(text, r"\*\*Quick review gate \(Tier 1\)", r"\n   - \*\*Critical")),
+         section(task_exec, r"## Tier 1 — the quick per-task review",
+                 r"- \*\*Critical → blocking")),
         ("Tier-2 review brief",
          section(text, r"\*\*Deep code review \(Tier 2\)", r"\*\*Decisions-conformance")),
         ("docs-only Tier-1 skip",
-         section(text, r"\*\*Skip for trivial/non-code diffs",
-                 r"7\. \*\*Commit after each green task")),
+         section(task_exec, r"- \*\*Skip for trivial/non-code diffs",
+                 r"## The executor trailer")),
     ]
     for label, block in p7_sites:
         check(f"P7 site present: {label}", bool(block),
@@ -1068,13 +1120,25 @@ def main():
                     r"resolution", stops) is not None,
           "the Stop entry does not refuse the substitution, so it reads as advice")
 
-    # Bound this to the TRUNK's own opt-out block. Reading trunk+references means a
-    # \Z end anchor runs past the end of SKILL.md and swallows every reference file —
-    # review-scope.md carries its own "**Review opt-out.**" heading and the pre-
-    # compression wording, so an unbounded slice would let these four assertions pass
-    # on the archived copy even if the trunk's block were deleted outright.
-    review_optout = section(SKILL.read_text(encoding="utf-8"),
-                            r"\*\*Review opt-out\.\*\*", r"\Z")
+    # Bound this to ONE file's opt-out block. The reason has not changed, only the file:
+    # reading trunk+references means a \Z end anchor runs past the end of SKILL.md and
+    # swallows every reference file — review-scope.md carries its own "**Review opt-out.**"
+    # heading and the pre-compression wording, so an unbounded slice over the concatenation
+    # would let these assertions pass on the archived copy even if the live block were
+    # deleted outright.
+    #
+    # At Stage 2 the block moved from the trunk to references/integration.md, where
+    # `## Review opt-out` is the final section — so \Z is bounded by the file itself, which
+    # is what made the trunk anchor safe before. If a later edit appends a section there,
+    # re-point the end anchor rather than widening the slice. The trunk keeps the pointer
+    # to it (Integration), which the DEAD-PATH half of check-extraction-integrity.py
+    # verifies actually resolves.
+    integration_md = SKILL.parent / "references" / "integration.md"
+    review_optout = section(integration_md.read_text(encoding="utf-8"),
+                            r"## Review opt-out", r"\Z") if integration_md.is_file() else ""
+    check("the review opt-out block is locatable", bool(review_optout),
+          "no '## Review opt-out' section in references/integration.md — the block the "
+          "four assertions below pin has been deleted or moved again")
     check("review skips are closed to two reasons",
           affirms_claim(review_optout, r"the list is closed at two"),
           "the review opt-out no longer states its reasons as an exhaustive pair, so a "

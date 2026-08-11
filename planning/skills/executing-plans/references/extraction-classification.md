@@ -38,6 +38,16 @@ Every figure above is bytes, measured with the same accounting
 
 Measured trunk after the cut: **43217 B**, a **54% reduction** from 92987 B.
 
+**Corrected at Task 2.2: the trunk is 44536 B, −52.1%.** The contract suite found that the
+cut had dropped nine obligation-bearing phrases while keeping each rule's gist — the
+gate-failure branch's routing to the class rule and its `no-fafo-debugging` call, the `Scope:`
+derivation source, "write the command down", the sweep's outer bound, Tier-2's binding of an
+Important to the exit criterion, the evaluator's tier reference, and the handoff's "carried
+here". All nine were restored to the trunk, +1319 B. **The compression, not the
+classification, was wrong**: every one is a rule that must bind each run, so none belonged in
+a reference file. The per-row `retained` figures below are Task 2.1's measurements and are
+left as recorded; the active ceiling in `scripts/trunk-budget.txt` is 44536.
+
 **Where the estimate was wrong, and what that finding is worth.** The `rule+elaboration`
 figures were explicitly flagged as estimates while the `unconditional` and `conditional`
 figures were measurements — and the estimate assumed a rule compresses to roughly 30% of
@@ -136,8 +146,8 @@ actually left in the trunk, measured — not estimated.
 ## Retention markers
 
 Task 2.1's obligation is not only that a `rule+elaboration` heading survived — a heading
-over a pointer would satisfy that and lose the rule. Each row below names a string that
-must be **trunk-resident**: the rule the row promised to keep, in the trunk's own words.
+over a pointer would satisfy that and lose the rule. Each row in the table names a string
+that must be **trunk-resident**: the rule the row promised to keep, in the trunk's own words.
 `scripts/check-trunk-retention.py` sweeps this table in full, so a rule quietly demoted to
 a pointer in some later edit fails the suite rather than passing unnoticed.
 
