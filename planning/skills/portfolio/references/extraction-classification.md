@@ -244,11 +244,14 @@ than answered by a pointer at retired storage. The section's marker count went
 | Resolver (read this before any read/write) | No silent fallback |
 | Resolver (read this before any read/write) | fails loudly |
 | Resolver (read this before any read/write) | NEVER write to |
+| Subcommands | An explicit invocation runs exactly one |
+| Subcommands | composes four, one of them gated |
 | Subcommands | Each procedure lives in its own reference |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | scan |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | Idempotency guarantee |
 | Default flow (no subcommand, or explicit `portfolio` invocation) | Confirms with the user before any mutation |
 | Staged rollout | skips the maturity step UNLESS |
+| Staged rollout | works normally |
 | Configuration: `~/.claude/portfolio-config.yaml` | never a fallback |
 | Configuration: `~/.claude/portfolio-config.yaml` | optional except |
 | Configuration: `~/.claude/portfolio-config.yaml` | not settled |

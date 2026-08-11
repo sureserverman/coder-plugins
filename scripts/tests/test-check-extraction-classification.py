@@ -117,6 +117,20 @@ def set_equality_cases():
         check(any("no valid class" in x for x in run()),
               "an unrecognised class heading yields no rows, so its headings read unclassified")
 
+        # The case above has the invalid heading FIRST, so klass was never set.
+        # The dangerous case is an invalid heading FOLLOWING a valid one: the rows
+        # under it used to inherit the preceding class, which silently moved a
+        # binding section out of the retention sweep with both guards green — the
+        # same end state as the bytes-cell divergence, reached by another edit.
+        open(t, "w").write("## Alpha\nx\n## Beta\ny\n")
+        open(c, "w").write(
+            table([("Alpha", "reason enough here")])
+            + "\n### deleted — rows kept for history\n"
+            + "| bytes | retained | section | reason |\n|---|---|---|---|\n"
+            + "| 200 | 0 | Beta | was removed, kept for the record |\n")
+        check(any("no valid class" in x and "Beta" in x for x in run()),
+              "a row under an invalid class heading does NOT inherit the preceding class")
+
         # Duplicate heading text defeats set equality — must be reported
         open(t, "w").write("## Alpha\nx\n## Alpha\ny\n")
         open(c, "w").write(table([("Alpha", "reason enough here")]))

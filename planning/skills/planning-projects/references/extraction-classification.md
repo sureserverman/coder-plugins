@@ -134,7 +134,7 @@ Task 3.1 is measured against.
 |---|---|---|---|
 | 1311 | 1311 | Stage structure | the literal task/stage field template every plan is built from |
 | 977 | 977 | Write a set-valued check as the sweep that proves it | DEC-005; binds every gate check an author writes |
-| 758 | 758 | Task and stage fields | already a pointer at task-fields.md plus two load-bearing rules |
+| 758 | 758 | Task and stage fields | already a pointer at task-fields.md plus load-bearing rules — AMENDED at the Stage 3 gate: two when written, FIVE now. Three task-field obligations (`Depends on`/`Blocks` required and symmetric, intra-stage dependency order with no forward reference, a consistent `Parallel`) left the trunk with the checklist and survived only as nouns in this section's pointer sentence; they were promoted back to rules, +586 B. The `bytes`/`retained` columns are Task 3.0 estimates and are left as authored |
 | 627 | 800 | Reference map | the index — without it no reference is reachable |
 | 470 | 470 | Plan Document Format | already a pointer at the template fixture |
 | 402 | 402 | Phase 3 — The Red-Green Loop | already compressed to a pointer plus its two obligations |
@@ -246,10 +246,15 @@ from the current trunk.
 | Stage structure | an instruction to the executor — YES obligates dispatch |
 | Stage structure | the SET this task changes |
 | Stage structure | Class predicate: the command that sweeps the set |
+| Status marking (per-task done-state) | `- **Status:** [ ]` when planned |
+| Status marking (per-task done-state) | single source of truth for task completion |
 | Status marking (per-task done-state) | the moment the task's test goes green |
 | Status marking (per-task done-state) | rather than inferred from stage gates or git archaeology |
 | Task and stage fields | is a directive to dispatch |
 | Task and stage fields | only as good as the sweep behind it |
+| Task and stage fields | are both required on every task, and they are symmetric |
+| Task and stage fields | no task depends on a later |
+| Task and stage fields | consistent with its dependencies |
 | Stage sizing | more than 7 tasks |
 | A plan that adds an obligation names what it removes | Adds, net: |
 | A plan that adds an obligation names what it removes | has it ever caught a real defect |
@@ -259,6 +264,8 @@ from the current trunk.
 | Phase 2.5 — Decomposition decision (master plan + sub-plans) | no tasks and no Preflight |
 | Output location (vault-canonical) | Plans live in the vault, not the repo |
 | Output location (vault-canonical) | Auto-register if new |
+| Plan Document Format | Save to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-plan.md` |
+| Plan Document Format | Copy it there rather than reconstructing it |
 | Plan Document Format | why it is a fixture rather than a sketch |
 | Phase 3 — The Red-Green Loop | runnable command or a checkable criterion |
 | Phase 4 — Stage Gates | Stage gates prove the pieces work together |

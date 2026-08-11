@@ -266,9 +266,30 @@ def real_tree():
     """The shipped trunks must satisfy their own classifications."""
     check(retention.main([]) == 0, "the real trunks pass the sweep")
 
-    # The probe the Stage 2 handoff told Stage 3 to run, now permanent: gut every
-    # binding section of every shipped trunk and require ALL of them to be caught.
-    # A survivor is a row whose marker pins nothing.
+    # The probe the Stage 2 handoff told Stage 3 to run, kept as a cheap regression
+    # net — but do NOT read it as the thing proving the scoping fix.
+    #
+    # A re-review pointed out that under the fixed guard it is close to a
+    # tautology: gutting section S removes S's body, the marker must be in S's
+    # body, so MISSING-RULE always fires. It went red before the fix and cannot
+    # now. The assertions that actually pin the scoping behavior are in
+    # scoping_cases(), which were mutation-probed against a reverted guard.
+    #
+    # What it still detects, and the reason it is not deleted: an EMPTY-BODIED
+    # binding section, whose marker can only be satisfied from outside itself.
+    # That is asserted separately below rather than skipped silently.
+    empty_bodied = []
+    for trunk_rel, table_rel in retention.PAIRS:
+        trunk = open(os.path.join(retention.REPO_ROOT, trunk_rel), encoding="utf-8").read()
+        table = open(os.path.join(retention.REPO_ROOT, table_rel), encoding="utf-8").read()
+        klasses, _ = retention.classified(table)
+        bodies = retention._sections.section_bodies(trunk)
+        for section, klass in klasses.items():
+            if klass in retention.BINDING_CLASSES and not bodies.get(section, "").strip():
+                empty_bodied.append(f"{trunk_rel}::{section}")
+    check(not empty_bodied,
+          f"no binding section has an empty body ({len(empty_bodied)}: {empty_bodied[:3]})")
+
     survivors = []
     for trunk_rel, table_rel in retention.PAIRS:
         root = retention.REPO_ROOT

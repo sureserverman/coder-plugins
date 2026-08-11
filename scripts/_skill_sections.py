@@ -134,12 +134,27 @@ def class_rows(text):
     A row under a `### <class>` heading whose bytes cell is not a digit is
     returned with malformed=True rather than skipped, so it can be REPORTED. A
     silent skip is what let the divergence hide.
+
+    **Deliberately fence-blind**, unlike `headings()` above, which is the one
+    asymmetry in this module. A classification table inside a fenced block would
+    be parsed as real rows. No shipped table has one, and a fenced 4-column table
+    under a `### <class>` heading is not a shape these documents use — but the
+    asymmetry is stated here rather than left for a reader to trip on, because the
+    rest of this module is about fences.
     """
     rows, klass = [], None
     for line in text.split("\n"):
         m = re.match(r"^### (\S+)", line)
-        if m and m.group(1) in VALID_CLASSES:
-            klass = m.group(1)
+        if m:
+            # An invalid class heading RESETS klass rather than falling through.
+            # Falling through was a second silent-drop path with the same end
+            # state as the bytes-cell divergence, reached by a different edit:
+            # append `### deleted — rows kept for history`, move a row under it,
+            # and it INHERITED the preceding valid class — leaving the binding
+            # sweep with both guards green. The earlier claim that such rows
+            # "carry klass=None so the caller reports no valid class" held only
+            # when no valid heading preceded, which in a real table is never.
+            klass = m.group(1) if m.group(1) in VALID_CLASSES else None
             continue
         if not line.startswith("|") or line.startswith("|---"):
             continue

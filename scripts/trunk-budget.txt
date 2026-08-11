@@ -82,7 +82,12 @@ planning/skills/executing-plans/SKILL.md 46135
 # accounting, and what a future estimator should ask before picking a ratio, in
 # planning/skills/planning-projects/references/extraction-classification.md
 # § Re-derived at Task 3.1 — the ceiling was MISSED by 8788 B.
-# Raised 35764 -> 36430 (+666) by the Stage 3 gate, remediation round 1: +666 to close Tier-2 finding I3. Four
+# Raised 35764 -> 36430 (+666) by the Stage 3 gate, remediation round 1. The
+#   split, corrected at round 2 after the re-review recomputed it: +586 in
+#   § Task and stage fields for finding I3, +80 in § Checklist — Before
+#   Presenting the Plan for finding I2. The round-1 comment attributed all 666
+#   to I3, which was wrong in exactly the way this file exists to prevent —
+#   a raise whose stated reason does not match what grew. I3 was: four
 #   checklist obligations — both `Depends on`/`Blocks` required and symmetric,
 #   dependency order within a stage, no dependency on a later stage, and a
 #   `Parallel` field consistent with them — had left the trunk with the checklist,
