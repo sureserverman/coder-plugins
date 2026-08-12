@@ -196,7 +196,13 @@ planning/skills/applying-design-handoff/SKILL.md 16252
 # Raised 14834 -> 14843 (+9) by the Task 3.3 deixis burn-down:
 #   the AI-tool waiver names the step-2 rule it excepts, and the packaging
 #   detectors are named by axis rather than by position
-planning/skills/project-maturity/SKILL.md 14843
+# Raised 14843 -> 14884 (+41) by Stage 4 Task 4.3's determinism-boundary audit.
+#   The trunk mandated `--portfolio-home` for `audit-detectors.py` in the resolver
+#   section and then printed the invocation WITHOUT it, so an executor copying the
+#   command block silently lost the Security axis for every audited project — the
+#   exact failure the resolver text exists to prevent. The flag is now in the
+#   command that is actually run.
+planning/skills/project-maturity/SKILL.md 14884
 # Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
 # lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
 # with the reason on the line above it.

@@ -103,7 +103,8 @@ Operation:
    the detectors by hand:
 
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-maturity/scripts/audit-detectors.py" <project-path>
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-maturity/scripts/audit-detectors.py" \
+     <project-path> --portfolio-home <portfolio_home>
    ```
 
    The script implements every auto-detect rule defined in
