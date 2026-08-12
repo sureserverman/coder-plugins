@@ -242,7 +242,7 @@ Create a TodoWrite list mirroring the plan: one task per stage, sub-items per ta
 
 ## Phase 2 — Preflight
 
-Run every check in the Preflight section and report pass/fail:
+Run every check in the Preflight section and report pass/fail. **If any fails, stop and report which check failed and how it failed** — a baseline nobody trusts makes every downstream Red-Green loop noise:
 
 - Tools installed and at compatible versions
 - Dependencies resolvable

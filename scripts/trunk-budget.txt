@@ -48,7 +48,11 @@
 # the gate loop then has no reachable exit - the exact failure that text existed to
 # prevent). Both restored as rules. "A pointer is not a rule" is the standard this
 # stage set for itself; these two were the places it had not met it.
-planning/skills/executing-plans/SKILL.md 46135
+# Raised 46135 -> 46280 (+145) by the Stage 5 close-out, BL-039 item (3): the operative "report which check failed and
+#   HOW" survived only in references/dispatch-fidelity.md, which the Reference map loads
+#   when the roster or probe needs justifying — i.e. NOT on the path where Preflight
+#   actually fails. Restored to the trunk's Preflight so the rule is where the failure is.
+planning/skills/executing-plans/SKILL.md 46280
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -95,7 +99,11 @@ planning/skills/executing-plans/SKILL.md 46135
 #   symmetry, ordering rules ..."). That is the shape the Stage 2 gate rejected
 #   twice. Promoted to rules in § Task and stage fields. The ceiling follows the
 #   obligation, which is this plan's rule in both directions.
-planning/skills/planning-projects/SKILL.md 36430
+# Raised 36430 -> 36489 (+59) by the Stage 5 close-out, BL-039 item (4): the field-semantics pointer promised "stage sizing"
+#   from references/task-fields.md, which ends at Rollback notes. The rule is trunk-resident
+#   in § Stage sizing, so the PROMISE was the defect. Corrected, and it now says where the
+#   rule actually is (net +59 B; a false pointer costs more than the words that fix it).
+planning/skills/planning-projects/SKILL.md 36489
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
