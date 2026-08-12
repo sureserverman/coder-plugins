@@ -43,7 +43,7 @@ If any required field is missing, return a single-line note saying which field i
    invoked as skills, only read). Otherwise use the plugin root from any path the caller
    gives you, or glob from the cwd.
 
-2. **Read the SKILL.md.** For `reddit:matrixprotocol` / `reddit:matrixdotorg` also read `skills/reddit-promo/references/matrix-subs.md`. For other reddit subs, read `skills/reddit-promo/references/general-subs.md` and find the matching sub section.
+2. **Read the SKILL.md.** For `reddit:matrixprotocol` / `reddit:matrixdotorg` also read `${CLAUDE_PLUGIN_ROOT}/skills/reddit-promo/references/matrix-subs.md`. For other reddit subs, read `${CLAUDE_PLUGIN_ROOT}/skills/reddit-promo/references/general-subs.md` and find the matching sub section.
 
 3. **Apply the skill's output format** to the facts. Use the exact emit-block shape the skill prescribes (e.g. `TITLE / URL / FIRST COMMENT` for Show HN; `TOOT / ALT TEXT / VISIBILITY / CW / CHAR COUNT` for fediverse; `### <project>` block + suggested category for TWIM). Do not invent your own format.
 
@@ -79,3 +79,5 @@ No preamble. No "Here is the draft:". No closing summary. Caller will concatenat
 ## Why haiku
 
 Drafting one post from structured facts plus one ~200-line SKILL.md is bounded prose work. Haiku keeps the dispatch cheap so the orchestrator can fan out 5–8 channels in parallel without burning Opus context.
+
+**If a SKILL.md or sub reference could not be read, say so instead of drafting from memory** — name the file. A draft written without the channel's rules looks exactly like one written with them, and only the disclosure distinguishes them (DEC-009).

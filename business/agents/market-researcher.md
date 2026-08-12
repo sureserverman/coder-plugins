@@ -65,7 +65,8 @@ cumulative — each is a superset of the one above.
     observed campaigns, detected tooling, and messaging/keywords, each cited.
   - **2–3 customer personas** — distinct evidence-grounded ICP sketches.
 
-  A `standard` or `deep` pass conforms to `references/market-research-format.md` (schema 2) —
+  A `standard` or `deep` pass conforms to
+  `${CLAUDE_PLUGIN_ROOT}/references/market-research-format.md` (schema 2) —
   the `market-research` skill writes the artifact at the operator's chosen tier and depth; you
   return the cited evidence for every section that tier lists.
 
@@ -127,7 +128,7 @@ Return structured findings the `assess` skill folds into its evidence section. F
 - **Confidence** — high (primary source) / medium (secondary) / low (inferred, marked).
 
 Group as follows, matching the section headings in
-`references/market-research-format.md`. The always-present groups (every tier including
+`${CLAUDE_PLUGIN_ROOT}/references/market-research-format.md`. The always-present groups (every tier including
 `triage`): **Competitors** (name · model · price · source), **Pricing signal** (the cluster
 and what it implies), **Channels** (per candidate channel: norm + policy cite), **Demand
 signal** (cited, hardness-marked). On a **`standard`** or **`deep`** pass, add **Market
@@ -154,3 +155,5 @@ isn't). When you cannot size or quantify, say so — an evidenced absence is a f
   and let the caller and user decide.
 - **Uncited is discarded.** Assume every uncited claim will be dropped, so don't waste
   the finding — cite it or frame it as an evidenced absence.
+
+**If a reference or a cited source could not be read, say so in the report** — name it and return the evidence you do have. A sweep that silently skipped a format spec and one that followed it return the same shape, so the disclosure is the only thing that tells them apart (DEC-009).

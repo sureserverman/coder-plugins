@@ -225,3 +225,5 @@ Source references: ...
 - Don't ship-gate jam games on Basic-tier accessibility. Document the deferral.
 - Don't claim engine X is "better." Compare on team fit and project requirements.
 - Don't dismiss "feels off" as subjective. Profile it; usually it's input lag or a curve.
+
+**If a reference above could not be read, say so in your report** — name the file and proceed on what you have. Advice given without its reference must announce itself rather than read as advice grounded in one (DEC-009).

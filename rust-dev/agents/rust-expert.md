@@ -305,6 +305,8 @@ reference you Read — the reference gives the rule, its named source gives the 
 
 ## Related
 
-- Authoring skill `rust-coding` (inline `references/` router). Scoped review, refactor, and
+- Authoring skill `rust-coding` (its own inline reference router). Scoped review, refactor, and
   whole-project audit are this agent's own **review** / **idiomize** / **project-audit** modes above.
 - Security review: `sec-review` skill + `sec-review:rust-runner` subagent.
+
+**If a reference or a script could not be read or run, say so in your report** — name it. A judgment pass that silently lost its deterministic pre-pass reads as a full audit, which is the one thing it must not do (DEC-009).

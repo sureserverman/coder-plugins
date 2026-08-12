@@ -155,3 +155,5 @@ You have Edit and Write — author files directly. You have Bash for `python3` t
 2. **Style guides** — Microsoft Style Guide for the target locale, government style guides, vendor glossaries — when the user supplies a URL. Never invent style rules.
 
 Cache hits in your own working memory across a batch: if `Save` resolved to `Guardar` from Microsoft for `es-ES` in entry 3, do not re-fetch for entry 47. One fetch per (term, locale) per session is the budget.
+
+**If a format reference could not be read, say so in your return** — name it and flag the entries whose placeholder or plural handling you could not verify against it. Unverified and verified translations are indistinguishable in the catalog (DEC-009).

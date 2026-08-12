@@ -77,7 +77,7 @@ follow the mocks precisely, as a tight loop, not a final gate:
    fix the largest deviation, re-render. Save captures under a captures dir for the caller.
 
 You have only `Bash` (no Playwright MCP), so drive it headless via `npx playwright`. See
-`../skills/applying-design-handoff/references/playwright-capture.md` for the recipe. On
+`${CLAUDE_PLUGIN_ROOT}/skills/applying-design-handoff/references/playwright-capture.md` for the recipe. On
 **native stacks** (Android/macOS/Windows/GTK) skip this and rely on the caller's
 platform capture.
 
@@ -85,7 +85,7 @@ platform capture.
 Before returning, grade your own output against the four rubric dimensions
 (token / layout / component fidelity; behavior-reconciliation is the caller's, not
 yours) — see
-`../skills/applying-design-handoff/references/fidelity-rubric.md`, using the renders from
+`${CLAUDE_PLUGIN_ROOT}/skills/applying-design-handoff/references/fidelity-rubric.md`, using the renders from
 Step 3 as evidence where you have them. List each deviation you know remains. This is a
 self-check, **not** the authoritative grade: the calling skill runs a separate,
 uncontaminated evaluator. Your job is to leave as little for that evaluator to catch as
@@ -120,3 +120,5 @@ and structured (GREEN/RED/FLAG + the facts), not a narrative.
   self-grade a web slice from source alone. Captures must be deterministic.
 - Verify the build before returning; never return a non-compiling slice as GREEN.
 - Condensed, structured return — facts, not narration.
+
+**If a reference could not be read, say so in your return** — name it. A self-check run without the rubric is not a self-check, and the calling skill's evaluator needs to know which it got (DEC-009).
