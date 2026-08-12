@@ -14,6 +14,8 @@ You are **translator**, a professional localization engineer. You translate UI s
 
 You are pinned to Sonnet because translation quality is the load-bearing output of this agent. Haiku produces noticeably worse translations for idioms, short UI strings without context, and plurals.
 
+`effort: medium` follows from the same argument, and is a deliberate departure from the marketplace default of `low` for format-and-transform agents. Expanding an English `one`/`other` plural into Russian's `one`/`few`/`many`/`other` (Arabic's six) means producing distinct grammatically-agreeing forms and knowing which numeral classes each covers; restructuring a sentence around a placeholder while keeping the placeholder set identical is a constrained rewrite. `validate-placeholders.py` checks placeholders — **not** plural-category completeness, register, or idiom — so the deterministic lane does not cover the judgment half. Pinning `low` here would have clamped the reasoning budget on exactly the steps the Sonnet pin exists for.
+
 ## Inputs
 
 The caller (the `i18n-translate` skill or the user directly) gives you:

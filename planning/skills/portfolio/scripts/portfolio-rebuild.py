@@ -32,6 +32,36 @@ def vault_dir():
     return Path(vd)
 
 
+def read_utf8(path):
+    """Vault text decoded STRICTLY, or None when the file is not valid UTF-8.
+
+    Three reads in this file used a bare `read_text()` and one used
+    `errors="ignore"`, and a review showed both halves of that were wrong:
+
+      * **Bare read_text() crashes the run.** One non-UTF-8 byte in a single
+        repo's `vault-context.md` aborted the whole rebuild MID sidecar pass, so
+        later repos got no sidecar and no roll-up was written at all. A second
+        bare read inside `write_if_changed` reproduced the same traceback on the
+        roll-up itself, ~200 lines after the read that was supposed to have been
+        fixed.
+      * **errors="ignore" corrupts silently.** On the one path whose contract is
+        "byte-for-byte", dropping undecodable bytes returns a body with characters
+        permanently gone and an EMPTY stderr — then writes it back. That is the
+        region-level rule of this file applied at the character level, and it was
+        latent only because the crash above masked it.
+
+    So: decode strictly, and hand the caller None to decide with. Every caller
+    refuses rather than guesses, except the two fully-regenerable roll-ups where
+    there is no curated content to lose.
+    """
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"warning: {path} is not readable as UTF-8 ({type(e).__name__}) — "
+              "not acting on its contents", file=sys.stderr)
+        return None
+
+
 def count_backlog(home):
     bl = home / "backlog.md"
     if not bl.exists():
@@ -347,15 +377,27 @@ def write_sidecar(repo, home, vd, write):
     lines += ["", END]
     block = "\n".join(lines)
 
+    cur = None
     if sc.exists():
-        cur = sc.read_text()
+        # Read ONCE. The old code read the file twice — once to splice, once to
+        # compare — which is two chances to crash and one chance to disagree with
+        # itself if the file changes between them.
+        cur = read_utf8(sc)
+        if cur is None:
+            # Skip THIS repo, do not abort the run, and never overwrite a file
+            # whose contents could not be read: everything outside the sentinels
+            # is the user's, and this block promises to preserve it.
+            print(f"warning: {sc} could not be decoded — skipping this repo's "
+                  "sidecar rather than overwriting content that cannot be read",
+                  file=sys.stderr)
+            return False
         if BEGIN in cur and END in cur:
             new = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END), block, cur, count=1, flags=re.S)
         else:
             new = cur.rstrip("\n") + "\n\n" + block + "\n"
     else:
         new = f"# Vault context for {Path(repo).name}\n\n{block}\n"
-    if write and (not sc.exists() or new != sc.read_text()):
+    if write and (cur is None or new != cur):
         sc.parent.mkdir(parents=True, exist_ok=True)
         sc.write_text(new)
         return True
@@ -401,11 +443,18 @@ def preserved_region(path):
     """
     if not path.exists():
         return ""
-    # errors="ignore" matches every other vault read in this file (count_backlog,
-    # maturity_axes, read_project_decisions, integration_edges, inbound_debt). A
-    # bare read_text() here aborted the whole rebuild on one non-UTF-8 byte —
-    # AFTER the sidecar pass had already written to every registered repo.
-    text = path.read_text(errors="ignore")
+    # STRICT decode, and refuse on failure. An earlier cut used errors="ignore"
+    # here on the reasoning that it matched the file's other vault reads. It did
+    # not — those reads are of files being counted or parsed, not of the one file
+    # whose contract is "byte-for-byte" and whose content is unrecoverable. Ignoring
+    # undecodable bytes there returns a curated body with characters silently
+    # deleted and then writes it back, which is the region-level rule this
+    # function exists to enforce, violated at the character level.
+    text = read_utf8(path)
+    if text is None:
+        print(f"warning: {path.name} could not be decoded as UTF-8 — REFUSING to "
+              "rewrite it. Nothing was written.", file=sys.stderr)
+        return None
     nb, ne = text.count(PRESERVE_BEGIN), text.count(PRESERVE_END)
     if nb == 0 and ne == 0:
         if text.strip():
@@ -415,9 +464,15 @@ def preserved_region(path):
                   file=sys.stderr)
         return ""
     if nb != 1 or ne != 1:
+        # Branch the advice: "resolve the duplicates" is wrong guidance for a file
+        # that has too FEW sentinels, and an operator following it looks for
+        # something that is not there.
+        how = ("Remove the extra pair, keeping the one with your curated items"
+               if nb > 1 or ne > 1 else
+               "Restore the missing sentinel around your curated items")
         print(f"warning: {path.name} has {nb} BEGIN and {ne} END PRESERVE "
-              "sentinels, expected one of each — REFUSING to rewrite it. Resolve "
-              "the duplicates by hand; nothing was written.", file=sys.stderr)
+              f"sentinels, expected one of each — REFUSING to rewrite it. {how}; "
+              "nothing was written.", file=sys.stderr)
         return None
     i = text.find(PRESERVE_BEGIN)
     j = text.find(PRESERVE_END, i + len(PRESERVE_BEGIN))
@@ -567,8 +622,18 @@ def render_global_decisions(vd, projects):
 
 def write_if_changed(path, content):
     def strip_ts(s): return re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
-    if path.exists() and strip_ts(path.read_text()) == strip_ts(content):
-        return False
+    if path.exists():
+        cur = read_utf8(path)
+        if cur is None:
+            # Regenerating is safe HERE and only here: the roll-ups that reach
+            # this function with an undecodable existing file carry no curated
+            # content. global-backlog.md cannot: `preserved_region` decodes it
+            # strictly first and returns None, and main() skips the write, so an
+            # undecodable roll-up with a curated block never gets this far.
+            print(f"warning: {path.name} could not be decoded — regenerating it "
+                  "from scratch", file=sys.stderr)
+        elif strip_ts(cur) == strip_ts(content):
+            return False
     path.write_text(content)
     return True
 

@@ -25,7 +25,7 @@ import io
 import os
 import sys
 import tempfile
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -138,15 +138,23 @@ def cases():
             region = pr.preserved_region(path)
         check(region is None, "out-of-order sentinels REFUSE the rewrite")
 
-        # A non-UTF-8 byte must not abort the whole rebuild. Every other vault
-        # read in the script uses errors="ignore"; this one did not, and the
-        # traceback landed AFTER the sidecar pass had written to every repo.
+        # A non-UTF-8 byte must neither crash the run NOR be silently dropped.
+        #
+        # This assertion previously required the read to SURVIVE via
+        # errors="ignore", and a review showed it certified a property the system
+        # did not have: the read survived, the run still crashed later at
+        # write_if_changed's own bare read, and meanwhile ignoring the bad bytes
+        # returned a curated body with characters permanently gone and an empty
+        # stderr — then wrote it back. On the one path whose contract is
+        # byte-for-byte, "drop what I cannot read" is the corruption, not the fix.
         path.write_bytes(rollup(CURATED).encode() + b"\xff\xfe stray latin-1\n")
-        try:
+        err = io.StringIO()
+        with redirect_stderr(err):
             region = pr.preserved_region(path)
-            check(CURATED in region, "a non-UTF-8 byte does not abort the read")
-        except UnicodeDecodeError:
-            check(False, "a non-UTF-8 byte does not abort the read")
+        check(region is None,
+              "an undecodable file REFUSES the rewrite rather than dropping bytes")
+        check("UTF-8" in err.getvalue(),
+              "...and names the decode failure, rather than failing silently")
 
 
 def call_site_cases():
@@ -173,11 +181,72 @@ def call_site_cases():
         check(True, "calling without `preserved` raises TypeError")
 
 
+def main_level_cases():
+    """The REFUSAL must hold through `main()`, not only in `preserved_region`.
+
+    This is the same "green function, regressed call site" gap that forced
+    `preserved` to become a required positional — recurring one level up, and
+    found the same way. A review mutated the call site to
+    `render_global_backlog(vd, projects, preserved or "")`: the signature
+    assertion still passed, the suite stayed green, and an ambiguous
+    global-backlog.md was rewritten with an EMPTY block *while the script printed
+    "REFUSING to rewrite it. Nothing was written."* The warning became an active
+    lie. `preserved or ""` is not a contrived edit; it is what someone writes when
+    a None surprises them.
+
+    So this drives the real entry point against a fake vault and asserts the bytes
+    on disk, which is the only thing that cannot be satisfied by a warning.
+    """
+    import yaml
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+        vault, repo = rootp / "vault", rootp / "repo"
+        (vault / "Portfolio" / "area" / "proj").mkdir(parents=True)
+        (repo / ".claude").mkdir(parents=True)
+        gb = vault / "Portfolio" / "global-backlog.md"
+
+        # Ambiguous by duplicate pairs — the recovery-path shape.
+        original = (rollup("") + "\n## Recovered by hand\n\n"
+                    + f"{pr.PRESERVE_BEGIN}\n\n{CURATED}\n\n{pr.PRESERVE_END}\n")
+        gb.write_text(original)
+
+        cfg = rootp / "config.yaml"
+        cfg.write_text(yaml.safe_dump({"version": 1, "vault_dir": str(vault)}))
+        reg = rootp / "registry.yaml"
+        reg.write_text(yaml.safe_dump({"projects": [
+            {"path": str(repo), "name": "proj", "area": "area", "enabled": True}]}))
+
+        old_cfg, old_reg, old_argv = pr.CONFIG, pr.REGISTRY, sys.argv
+        pr.CONFIG, pr.REGISTRY = cfg, reg
+        sys.argv = ["portfolio-rebuild.py", "--write"]
+        try:
+            with redirect_stderr(io.StringIO()) as err, redirect_stdout(io.StringIO()) as out:
+                try:
+                    pr.main()
+                except SystemExit:
+                    pass
+            stderr, stdout = err.getvalue(), out.getvalue()
+        finally:
+            pr.CONFIG, pr.REGISTRY, sys.argv = old_cfg, old_reg, old_argv
+
+        check(gb.read_text() == original,
+              "main() --write leaves an ambiguous global-backlog.md BYTE-IDENTICAL")
+        check("REFUSING" in stderr, "...and says so on stderr")
+        check("SKIPPED" in stdout,
+              "...and the status line reports a refusal, not a bare False")
+        # The refusal must be SCOPED. Halting the whole rebuild would be a
+        # different bug with the same symptom.
+        check((vault / "Portfolio" / "global-maturity.md").exists(),
+              "...while the other roll-ups are still written — the refusal is scoped")
+
+
 if __name__ == "__main__":
     print("PRESERVE block survival:")
     cases()
     print("call-site contract:")
     call_site_cases()
+    print("main()-level refusal:")
+    main_level_cases()
     print()
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} check(s) failed")
