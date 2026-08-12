@@ -52,7 +52,12 @@
 #   HOW" survived only in references/dispatch-fidelity.md, which the Reference map loads
 #   when the roster or probe needs justifying — i.e. NOT on the path where Preflight
 #   actually fails. Restored to the trunk's Preflight so the rule is where the failure is.
-planning/skills/executing-plans/SKILL.md 46280
+# Raised 46280 -> 46311 (+31) at the close-out gate: a Tier-2 suggestion that
+#   the BL-039 fix had stolen the colon introducing Preflight's check list, so
+#   eleven bullets grammatically hung off the consequence-of-failure clause
+#   rather than off "run every check". The rule is now its own line after the
+#   bullets, which reads correctly and costs 31 B.
+planning/skills/executing-plans/SKILL.md 46311
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

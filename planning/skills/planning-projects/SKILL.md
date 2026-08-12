@@ -327,7 +327,7 @@ When the whole plan is finished, `executing-plans` appends a close-out line at t
 
 Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
 `Red-Green max cycles:`; a task sweeping a set also carries `Scope:`, and each stage carries
-`Risk:` and `Rollback:`. Two rules are load-bearing enough to state here rather than defer:
+`Risk:` and `Rollback:`. These rules are load-bearing enough to state here rather than defer:
 
 - **`Parallel: YES` is a directive to dispatch**, not a description of what happened.
 - **`Scope:` is only as good as the sweep behind it** — a truncated authoring command is a
@@ -343,8 +343,8 @@ Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
   an unsatisfied `Depends on` is not `Parallel: YES` however independent it looks.
 
 Exact semantics for every field — including `Review: skip`, risk flags and rollback
-notes: `references/task-fields.md`. (Stage sizing is not there; it is § Stage sizing
-below, in this trunk.)
+notes: `references/task-fields.md`. (Stage sizing is not there; it is § Stage sizing,
+in this trunk.)
 ### Stage sizing
 
 If a stage has more than 7 tasks, it's too large. Split it. Large stages hide integration problems behind a wall of individual task tests that all pass but don't work together. Aim for 3-5 tasks per stage.

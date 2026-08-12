@@ -46,7 +46,10 @@ Important to the exit criterion, the evaluator's tier reference, and the handoff
 here". All nine were restored to the trunk, +1319 B. **The compression, not the
 classification, was wrong**: every one is a rule that must bind each run, so none belonged in
 a reference file. The per-row `retained` figures below are Task 2.1's measurements and are
-left as recorded; the active ceiling in `scripts/trunk-budget.txt` is 44536.
+left as recorded; the active ceiling in `scripts/trunk-budget.txt` is whatever that file says — it has
+risen twice since (the Stage 2 gate's two restored rules, then Stage 5's BL-039 pair).
+Read it there rather than here; a byte count copied into prose is a second definition
+site for a number the ratchet already owns.
 
 **Where the estimate was wrong, and what that finding is worth.** The `rule+elaboration`
 figures were explicitly flagged as estimates while the `unconditional` and `conditional`

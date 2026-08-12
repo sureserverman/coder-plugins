@@ -242,7 +242,7 @@ Create a TodoWrite list mirroring the plan: one task per stage, sub-items per ta
 
 ## Phase 2 — Preflight
 
-Run every check in the Preflight section and report pass/fail. **If any fails, stop and report which check failed and how it failed** — a baseline nobody trusts makes every downstream Red-Green loop noise:
+Run every check in the Preflight section and report pass/fail:
 
 - Tools installed and at compatible versions
 - Dependencies resolvable
@@ -257,6 +257,9 @@ Run every check in the Preflight section and report pass/fail. **If any fails, s
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
 - **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
+
+**If any check fails, stop and report which check failed and how it failed.** Do not
+proceed to Stage 1: a baseline nobody trusts makes every downstream Red-Green loop noise.
 
 The procedure for each — the steps, the worked examples, the incidents behind them:
 `references/preflight-checks.md`.

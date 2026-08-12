@@ -27,6 +27,35 @@ structural check stays green. This script closes it in two directions:
 supposed to leave, and their retained pointer is checked by the DEAD-PATH half of
 check-extraction-integrity.py instead.
 
+WHAT THIS GUARD CANNOT SCREEN, disclosed per DEC-008
+----------------------------------------------------
+**A marker pins PRESENCE, never ASSERTION.** Markers are matched as plain
+case-sensitive substrings with no negation screening, so a rule can be INVERTED in
+place and stay green as long as the marker text survives inside it. Demonstrated by
+a close-out evaluator against the live trunks:
+
+    3. **Respect the cycle budget**
+      ->  3. You need not **Respect the cycle budget** ... On exhaustion, carry on
+
+    **Remediation budget — default 2 rounds per gate.**
+      ->  **Remediation budget — default 2 rounds per gate.** This is advisory
+          only and never limits looping.
+
+Both keep every marker substring intact; this guard, check-extraction-classification.py
+and every executing-plans contract suite stayed green.
+
+DEC-008 requires a prose guard to derive its negation-screening span from the text
+AND to disclose what it cannot screen. This guard does the second and not the first,
+deliberately and for now: the screening half is a real piece of work with genuine
+false-positive risk (this corpus is full of legitimately negative rule text — "Don't
+shotgun", "never a pointer", "may not be presented"), and bolting a naive screen on
+at close-out would trade a known gap for an unknown one. Filed as BL-075.
+
+**So read a green run as "the rule is still there", never as "the rule still says
+what it said."** Deletion and demotion — the failures this guard was built for — are
+caught; inversion is not. The runtime output repeats this, because a docstring is
+not read by whoever is looking at a passing gate.
+
 Read-only. Exit 0 when every promise holds, 1 otherwise.
 """
 import argparse
@@ -223,6 +252,10 @@ def main(argv=None):
     # cannot report a pass over nothing.
     print(f"{len(pairs)} trunk(s), {checked} binding section(s) swept; "
           f"{len(problems)} problem(s).")
+    # DEC-008 disclosure at the point of use. A green line that does not say what
+    # green excludes is the thing that gets quoted at a gate.
+    print("  (markers pin PRESENCE, not ASSERTION: a rule inverted in place around "
+          "its marker text passes — BL-075)")
     for p in problems:
         print(f"  {p}")
     return 1 if problems else 0
