@@ -362,7 +362,40 @@ def write_sidecar(repo, home, vd, write):
     return False
 
 
-def render_global_backlog(vd, projects):
+PRESERVE_BEGIN = "<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->"
+PRESERVE_END = "<!-- END PRESERVE -->"
+
+
+def preserved_region(path):
+    """The hand-curated body between the PRESERVE sentinels of an existing roll-up.
+
+    `render_global_backlog` used to take only (vd, projects) and always emit an
+    EMPTY sentinel pair, so every `rebuild --write` silently destroyed the curated
+    `## Cross-project items` — the one thing `../SKILL.md` § `rebuild` promises
+    survives "byte-for-byte", and which `global-formats.md` § Hard rules spells out
+    as "Do not silently drop previously curated GBL items". Spec and script
+    disagreed and the spec was right.
+
+    Missing sentinels are recovered per that same rule — insert an empty block and
+    WARN — rather than treated as an empty region, because "the file has no
+    sentinels" and "the curated section is empty" must not look alike to an
+    operator who is about to lose notes.
+    """
+    if not path.exists():
+        return ""
+    text = path.read_text()
+    i = text.find(PRESERVE_BEGIN)
+    j = text.find(PRESERVE_END, i + len(PRESERVE_BEGIN)) if i != -1 else -1
+    if i == -1 or j == -1:
+        if text.strip():
+            print(f"warning: {path.name} is missing its PRESERVE sentinels; "
+                  "writing an empty block — recover curated items from git or a backup",
+                  file=sys.stderr)
+        return ""
+    return text[i + len(PRESERVE_BEGIN):j].strip("\n")
+
+
+def render_global_backlog(vd, projects, preserved=""):
     L = ["# Global Backlog", "",
          "Auto-generated index of every per-project backlog in the vault Portfolio",
          "tree. Edit the `## Cross-project items` section by hand; everything else is",
@@ -376,9 +409,10 @@ def render_global_backlog(vd, projects):
         L += [f"### {p['area']}/[[{p['name']}]] — {n} open",
               f"- **Path:** `{home}/backlog.md`",
               f"- **3 newest:** {', '.join(titles) or 'none'}", ""]
-    L += ["---", "", "## Cross-project items", "",
-          "<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->", "",
-          "<!-- END PRESERVE -->", ""]
+    L += ["---", "", "## Cross-project items", "", PRESERVE_BEGIN, ""]
+    if preserved:
+        L += [preserved, ""]
+    L += [PRESERVE_END, ""]
     return "\n".join(L)
 
 
@@ -579,12 +613,13 @@ def main():
         if write_sidecar(p["path"], home, vd, args.write):
             enriched += 1
 
-    gb = render_global_backlog(vd, projects)
+    gb_path = vd / "Portfolio" / "global-backlog.md"
+    gb = render_global_backlog(vd, projects, preserved_region(gb_path))
     gm = render_global_maturity(vd, projects)
     gd = render_global_decisions(vd, projects)
     wrote_gb = wrote_gm = wrote_gd = False
     if args.write:
-        wrote_gb = write_if_changed(vd / "Portfolio" / "global-backlog.md", gb)
+        wrote_gb = write_if_changed(gb_path, gb)
         wrote_gm = write_if_changed(vd / "Portfolio" / "global-maturity.md", gm)
         wrote_gd = write_if_changed(vd / "Portfolio" / "global-decisions.md", gd)
 
