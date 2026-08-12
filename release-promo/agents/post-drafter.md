@@ -32,11 +32,11 @@ If any required field is missing, return a single-line note saying which field i
 
    | Channel pattern | Skill file |
    |---|---|
-   | `reddit:*` | `skills/reddit-promo/SKILL.md` |
-   | `twim` | `skills/twim-submission/SKILL.md` |
-   | `showhn` | `skills/hackernews-show-hn/SKILL.md` |
-   | `lobsters` | `skills/lobsters-post/SKILL.md` |
-   | `fediverse` | `skills/fediverse-post/SKILL.md` |
+   | `reddit:*` | `${CLAUDE_PLUGIN_ROOT}/skills/reddit-promo/SKILL.md` |
+   | `twim` | `${CLAUDE_PLUGIN_ROOT}/skills/twim-submission/SKILL.md` |
+   | `showhn` | `${CLAUDE_PLUGIN_ROOT}/skills/hackernews-show-hn/SKILL.md` |
+   | `lobsters` | `${CLAUDE_PLUGIN_ROOT}/skills/lobsters-post/SKILL.md` |
+   | `fediverse` | `${CLAUDE_PLUGIN_ROOT}/skills/fediverse-post/SKILL.md` |
 
    If the caller passes an explicit `skill_path`, Read that directly — it's the channel's
    SKILL.md on disk (these skills are `disable-model-invocation: true`, so they're never
@@ -75,9 +75,9 @@ No preamble. No "Here is the draft:". No closing summary. Caller will concatenat
 - **Never** copy the same body across two channels — each invocation drafts for one channel only, and the caller dispatches separately for each.
 - **Never** write files. You only return text.
 - **Never** rewrite the skill's rules — apply them verbatim.
+- **If a SKILL.md or sub reference could not be read, emit `SKIP: could not read <file>` instead of drafting from memory.** Use that channel, not prose outside the fence — the caller concatenates your output and parses `SKIP:`. A draft written without the channel's rules looks exactly like one written with them, and only the disclosure distinguishes them (DEC-009).
 
 ## Why haiku
 
 Drafting one post from structured facts plus one ~200-line SKILL.md is bounded prose work. Haiku keeps the dispatch cheap so the orchestrator can fan out 5–8 channels in parallel without burning Opus context.
 
-**If a SKILL.md or sub reference could not be read, say so instead of drafting from memory** — name the file. A draft written without the channel's rules looks exactly like one written with them, and only the disclosure distinguishes them (DEC-009).

@@ -115,3 +115,7 @@ the failure with the error and stop.
   do it.
 - Verification fails and the fix requires architectural decisions: stop and
   report — don't patch over a design gap.
+
+## Why `effort: low` on a Sonnet model
+
+The pin is a **clamp, not a floor**: per the subagent frontmatter contract `effort` *overrides* the session level rather than raising a minimum, so raising session effort does not reach this agent. That is deliberate — this agent transforms to a spec the caller supplies and escalates rather than resolving ambiguity, so the reasoning budget is bounded by design. **If you find yourself needing to make a design call, that is the signal to hand back to the caller, not to want more effort.**

@@ -102,10 +102,82 @@ def cases():
         check("PRESERVE" in err.getvalue(),
               "...and WARNS, per the hard rule against silently dropping items")
 
+        # --- The two cases the FIRST fix still lost data on. ---
+        #
+        # A: the recovery path this tool's own warning prescribes. Told the
+        # sentinels were missing, an operator pastes the recovered section back —
+        # sentinels included — below the generated empty pair. Taking the first
+        # pair returns the EMPTY one and destroys the recovery, on the run where
+        # they have already lost it once. The vault is not git-tracked.
+        path.write_text(rollup("") + "\n## Recovered by hand\n\n"
+                        + f"{pr.PRESERVE_BEGIN}\n\n{CURATED}\n\n{pr.PRESERVE_END}\n")
+        err = io.StringIO()
+        with redirect_stderr(err):
+            region = pr.preserved_region(path)
+        check(region is None,
+              "duplicate sentinel pairs REFUSE the rewrite (None), never return ''")
+        check("2 BEGIN" in err.getvalue() and "REFUSING" in err.getvalue(),
+              "...and the warning names the counts and says nothing was written")
+
+        # B: a curated item quoting the end sentinel — exactly the kind of note
+        # that documents this mechanism — truncated the region and dropped
+        # everything after it.
+        path.write_text(rollup(f"- GBL-001 the sentinel {pr.PRESERVE_END} appears here\n"
+                               "- GBL-002 second item"))
+        err = io.StringIO()
+        with redirect_stderr(err):
+            region = pr.preserved_region(path)
+        check(region is None,
+              "an end sentinel inside the curated body REFUSES rather than truncating")
+
+        # Sentinels present but reversed.
+        path.write_text("# Global Backlog\n\n## Cross-project items\n\n"
+                        f"{pr.PRESERVE_END}\n\n{CURATED}\n\n{pr.PRESERVE_BEGIN}\n")
+        err = io.StringIO()
+        with redirect_stderr(err):
+            region = pr.preserved_region(path)
+        check(region is None, "out-of-order sentinels REFUSE the rewrite")
+
+        # A non-UTF-8 byte must not abort the whole rebuild. Every other vault
+        # read in the script uses errors="ignore"; this one did not, and the
+        # traceback landed AFTER the sidecar pass had written to every repo.
+        path.write_bytes(rollup(CURATED).encode() + b"\xff\xfe stray latin-1\n")
+        try:
+            region = pr.preserved_region(path)
+            check(CURATED in region, "a non-UTF-8 byte does not abort the read")
+        except UnicodeDecodeError:
+            check(False, "a non-UTF-8 byte does not abort the read")
+
+
+def call_site_cases():
+    """The bug had two halves; the guard must cover both.
+
+    The original defect was `render_global_backlog` ignoring existing content AND
+    `main()` not passing it. A test that drives the composition directly stays
+    green when only the call site regresses — mutation-probed by a review, which
+    reverted `main()` to `render_global_backlog(vd, projects)` and watched the
+    suite pass. `preserved` is now a REQUIRED positional, so that edit is a
+    TypeError rather than a silent revert. This asserts the signature, because the
+    signature is what makes the call site checkable.
+    """
+    import inspect
+    sig = inspect.signature(pr.render_global_backlog)
+    p = sig.parameters.get("preserved")
+    check(p is not None and p.default is inspect.Parameter.empty,
+          "render_global_backlog takes `preserved` with NO default, so dropping it "
+          "at the call site fails loudly instead of silently restoring the bug")
+    try:
+        pr.render_global_backlog(Path("/nonexistent"), [])
+        check(False, "calling without `preserved` raises TypeError")
+    except TypeError:
+        check(True, "calling without `preserved` raises TypeError")
+
 
 if __name__ == "__main__":
     print("PRESERVE block survival:")
     cases()
+    print("call-site contract:")
+    call_site_cases()
     print()
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} check(s) failed")

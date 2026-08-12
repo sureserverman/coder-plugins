@@ -8,7 +8,7 @@ Inputs: `--project <abs-path>` (one project) or `--all` (every enabled project);
 
 Moves `<repo>/docs/plans/*`, `<repo>/docs/backlog.md`, and `<repo>/docs/MATURITY.md` into the resolved `<vault_dir>/Portfolio/<area>/<name>/`. The vault is **not git-tracked** (NFS-shared Obsidian), so this is a filesystem move with a verification gate — never `git mv`, never a bare `mv`.
 
-**Run the shipped tool; never hand-execute the copy → verify → delete sequence.** `python3 ../scripts/portfolio-migrate.py (--project <abs-path> | --all) [--write]` implements the per-project procedure end-to-end — preflight skips, the sha256 gate and its abort path, the `git rm` / plain `rm` choice, the sidecar write, and the `repo:` evidence rewrite. The numbered steps are that script's contract: read them to verify a run, not to reproduce it by hand, where a half-completed delete has no undo.
+**Run the shipped tool; never hand-execute the copy → verify → delete sequence.** `python3 ${CLAUDE_PLUGIN_ROOT}/skills/portfolio/scripts/portfolio-migrate.py (--project <abs-path> | --all) [--write]` implements the per-project procedure end-to-end — preflight skips, the sha256 gate and its abort path, the `git rm` / plain `rm` choice, the sidecar write, and the `repo:` evidence rewrite. The numbered steps are that script's contract: read them to verify a run, not to reproduce it by hand, where a half-completed delete has no undo.
 
 Per-project procedure (all-or-nothing):
 
