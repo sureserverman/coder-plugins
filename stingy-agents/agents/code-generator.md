@@ -3,6 +3,7 @@ name: code-generator
 description: Generates code, config, or scaffolding from a concrete spec — Compose screens from a design brief, a mock server from captured traffic, a new subagent/skill file from a name+purpose, or a boilerplate config module. Not a research or architecture tool.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
+effort: low
 ---
 
 # Code Generator

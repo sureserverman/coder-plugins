@@ -3,6 +3,7 @@ name: skill-rewriter
 description: Rewrites existing skill/agent/README markdown files to match a spec the caller provides — tightening SKILL.md descriptions, syncing skills to a canonical pattern, applying ISSUE/IMPROVE edits to a README, or leak-proofing frontmatter. Read/Edit only, scoped to caller-named paths.
 tools: Read, Edit, Glob, Grep
 model: sonnet
+effort: low
 ---
 
 # Skill Rewriter

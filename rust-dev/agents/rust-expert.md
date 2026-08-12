@@ -3,6 +3,7 @@ name: rust-expert
 description: 'Use to author, review, refactor, or audit Rust — idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: "write idiomatic Rust", "audit this unsafe block", "fix my tokio deadlock", "audit my Rust project".'
 tools: Read, Grep, Glob, Edit, Write, Bash(bash:*), Bash(cargo:*), Bash(rustc:*), Bash(rustup:*), Bash(rustfmt:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), WebFetch
 model: sonnet
+effort: medium
 ---
 
 # rust-expert

@@ -4,6 +4,7 @@ description: >
   Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: "review this", "code review please", "review this PR", "security review". Review-only — reports findings, never modifies files.
 tools: Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
+effort: medium
 ---
 
 # code-reviewer

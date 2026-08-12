@@ -3,6 +3,7 @@ name: translator
 description: Use this agent to translate a batch of i18n catalog entries from a source to a target locale, preserving placeholders, ICU MessageFormat, CLDR plurals, and HTML tags. Trigger phrases include "translate this catalog", "translate these entries to <locale>", "fill missing translations for <locale>".
 tools: Read, Grep, Glob, Edit, Write, Bash(python3:*), Bash(git status:*), Bash(git diff:*), WebFetch
 model: sonnet
+effort: low
 ---
 
 # translator

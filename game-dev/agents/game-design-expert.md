@@ -3,6 +3,7 @@ name: game-design-expert
 description: 'Use to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding, or accessibility across Godot 4, Unity 6, or Unreal 5. Triggers: "design a core loop", "review my game design", "tune game feel", "accessibility audit for my game".'
 tools: Read, Grep, Glob, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), Bash(find:*), Bash(rg:*), WebFetch
 model: sonnet
+effort: medium
 ---
 
 # game-design-expert

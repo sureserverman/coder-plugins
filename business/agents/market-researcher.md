@@ -3,6 +3,7 @@ name: market-researcher
 description: Gather cited market evidence for ONE project's viability assessment — competitors and pricing, market signals, distribution-channel norms. Trigger phrases include "research the market for this", "who are the competitors and what do they charge", "is there a payable audience for this".
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 model: sonnet
+effort: medium
 ---
 
 # market-researcher

@@ -3,6 +3,7 @@ name: design-handoff-reproducer
 description: Use to reproduce ONE slice of a Claude Design handoff pack (component/screen plus tokens and assets) precisely, self-checked against the fidelity rubric. Triggers include "reproduce this design slice", "implement this component to spec", "build this screen to match the handoff".
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
+effort: medium
 ---
 
 # design-handoff-reproducer
