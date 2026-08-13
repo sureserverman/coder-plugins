@@ -99,7 +99,7 @@ task. That is latency measured in tasks, against a full suite per task.
 
 **What is still allowed.** Widening *within* the task's own subject — running a whole test
 file rather than one `-k` filter, or the class the fix touched — is task-scope and needs no
-permission. **§ A bug found during execution is a class** is likewise untouched: when a
+permission. **The bug-is-a-class rule in `../../executing-plans/SKILL.md`** is likewise untouched: when a
 class sweep genuinely reaches other trees, the sweep is the scope and it runs. The rule
 bars the *unprompted* regression sweep, not a repair that legitimately spans the project.
 
@@ -114,7 +114,7 @@ same guard rail 2 that governs a scoped gate report. "Ran the stage-scope suite 
    is expensive — rule of thumb: **> ~5 minutes** wall-clock. Below that, just run
    the full suite at every gate; scoping ceremony on a 90-second suite is overhead
    with no payoff. A plan states which side of the threshold its project is on
-   (see the declaration below), and cheap-suite projects execute exactly as before.
+   (see § Plan-authoring declaration), and cheap-suite projects execute exactly as before.
 
 2. **Honest-gates disclosure.** A gate reported green on a scoped run must say what
    scope actually ran — e.g. "gate green — stage-scope: `:features` instrumented +

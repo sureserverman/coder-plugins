@@ -32,6 +32,36 @@ def vault_dir():
     return Path(vd)
 
 
+def read_utf8(path):
+    """Vault text decoded STRICTLY, or None when the file is not valid UTF-8.
+
+    Three reads in this file used a bare `read_text()` and one used
+    `errors="ignore"`, and a review showed both halves of that were wrong:
+
+      * **Bare read_text() crashes the run.** One non-UTF-8 byte in a single
+        repo's `vault-context.md` aborted the whole rebuild MID sidecar pass, so
+        later repos got no sidecar and no roll-up was written at all. A second
+        bare read inside `write_if_changed` reproduced the same traceback on the
+        roll-up itself, ~200 lines after the read that was supposed to have been
+        fixed.
+      * **errors="ignore" corrupts silently.** On the one path whose contract is
+        "byte-for-byte", dropping undecodable bytes returns a body with characters
+        permanently gone and an EMPTY stderr — then writes it back. That is the
+        region-level rule of this file applied at the character level, and it was
+        latent only because the crash above masked it.
+
+    So: decode strictly, and hand the caller None to decide with. Every caller
+    refuses rather than guesses, except the two fully-regenerable roll-ups where
+    there is no curated content to lose.
+    """
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"warning: {path} is not readable as UTF-8 ({type(e).__name__}) — "
+              "not acting on its contents", file=sys.stderr)
+        return None
+
+
 def count_backlog(home):
     bl = home / "backlog.md"
     if not bl.exists():
@@ -347,22 +377,118 @@ def write_sidecar(repo, home, vd, write):
     lines += ["", END]
     block = "\n".join(lines)
 
+    cur = None
     if sc.exists():
-        cur = sc.read_text()
+        # Read ONCE. The old code read the file twice — once to splice, once to
+        # compare — which is two chances to crash and one chance to disagree with
+        # itself if the file changes between them.
+        cur = read_utf8(sc)
+        if cur is None:
+            # Skip THIS repo, do not abort the run, and never overwrite a file
+            # whose contents could not be read: everything outside the sentinels
+            # is the user's, and this block promises to preserve it.
+            print(f"warning: {sc} could not be decoded — skipping this repo's "
+                  "sidecar rather than overwriting content that cannot be read",
+                  file=sys.stderr)
+            return False
         if BEGIN in cur and END in cur:
             new = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END), block, cur, count=1, flags=re.S)
         else:
             new = cur.rstrip("\n") + "\n\n" + block + "\n"
     else:
         new = f"# Vault context for {Path(repo).name}\n\n{block}\n"
-    if write and (not sc.exists() or new != sc.read_text()):
+    if write and (cur is None or new != cur):
         sc.parent.mkdir(parents=True, exist_ok=True)
         sc.write_text(new)
         return True
     return False
 
 
-def render_global_backlog(vd, projects):
+PRESERVE_BEGIN = "<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->"
+PRESERVE_END = "<!-- END PRESERVE -->"
+
+
+def preserved_region(path):
+    """The hand-curated body between the PRESERVE sentinels of an existing roll-up.
+
+    Returns the body, `""` when there is nothing to preserve, or **None when the
+    file is AMBIGUOUS and must not be rewritten at all.**
+
+    `render_global_backlog` used to take only (vd, projects) and always emit an
+    EMPTY sentinel pair, so every `rebuild --write` silently destroyed the curated
+    `## Cross-project items` — the one thing `../SKILL.md` § `rebuild` promises
+    survives "byte-for-byte", and which `global-formats.md` § Hard rules spells out
+    as "Do not silently drop previously curated GBL items".
+
+    **The first fix narrowed that bug without closing it, and the None case is why
+    this function now counts sentinels instead of taking the first pair it finds.**
+    Two reachable ways to lose data silently, both found by review:
+
+      * **The recovery path this function itself prescribes.** Told that sentinels
+        were missing, an operator pastes the recovered section back in — sentinels
+        and all — below the generated empty pair. First-match then returns the
+        EMPTY generated region and the recovered content is destroyed on the next
+        run. That is the run where they have already lost the data once, and the
+        vault is not git-tracked (`subcommand-migrate.md`), so there is no second
+        recovery.
+      * **A curated item containing the literal end sentinel** — exactly the kind of
+        cross-project note that documents this mechanism — truncates the region
+        there and drops everything after it.
+
+    So an ambiguous file returns None and the caller LEAVES IT ALONE. Returning ""
+    on an unreadable-but-non-empty file is the one behavior that must not be
+    reachable here: it converts "I do not understand this file" into "this file was
+    empty". That is the same degrade-loudly-never-truncate contract
+    `rebuild_global_security` already follows.
+    """
+    if not path.exists():
+        return ""
+    # STRICT decode, and refuse on failure. An earlier cut used errors="ignore"
+    # here on the reasoning that it matched the file's other vault reads. It did
+    # not — those reads are of files being counted or parsed, not of the one file
+    # whose contract is "byte-for-byte" and whose content is unrecoverable. Ignoring
+    # undecodable bytes there returns a curated body with characters silently
+    # deleted and then writes it back, which is the region-level rule this
+    # function exists to enforce, violated at the character level.
+    text = read_utf8(path)
+    if text is None:
+        print(f"warning: {path.name} could not be decoded as UTF-8 — REFUSING to "
+              "rewrite it. Nothing was written.", file=sys.stderr)
+        return None
+    nb, ne = text.count(PRESERVE_BEGIN), text.count(PRESERVE_END)
+    if nb == 0 and ne == 0:
+        if text.strip():
+            print(f"warning: {path.name} is missing its PRESERVE sentinels; "
+                  "writing an empty block — recover curated items from a backup, "
+                  "and paste the body only, NOT the sentinel lines",
+                  file=sys.stderr)
+        return ""
+    if nb != 1 or ne != 1:
+        # Branch the advice: "resolve the duplicates" is wrong guidance for a file
+        # that has too FEW sentinels, and an operator following it looks for
+        # something that is not there.
+        how = ("Remove the extra pair, keeping the one with your curated items"
+               if nb > 1 or ne > 1 else
+               "Restore the missing sentinel around your curated items")
+        print(f"warning: {path.name} has {nb} BEGIN and {ne} END PRESERVE "
+              f"sentinels, expected one of each — REFUSING to rewrite it. {how}; "
+              "nothing was written.", file=sys.stderr)
+        return None
+    i = text.find(PRESERVE_BEGIN)
+    j = text.find(PRESERVE_END, i + len(PRESERVE_BEGIN))
+    if j == -1:
+        print(f"warning: {path.name} has its PRESERVE sentinels out of order — "
+              "REFUSING to rewrite it. Nothing was written.", file=sys.stderr)
+        return None
+    return text[i + len(PRESERVE_BEGIN):j].strip("\n")
+
+
+def render_global_backlog(vd, projects, preserved):
+    # `preserved` is REQUIRED, not defaulted. With a default, re-introducing the
+    # original bug is a legal one-token edit at the call site — dropping the
+    # argument — and a test that drives this function directly stays green through
+    # it. Mutation-probed by a review: the guard was green against the exact
+    # regression it exists to catch. There is one caller.
     L = ["# Global Backlog", "",
          "Auto-generated index of every per-project backlog in the vault Portfolio",
          "tree. Edit the `## Cross-project items` section by hand; everything else is",
@@ -376,9 +502,10 @@ def render_global_backlog(vd, projects):
         L += [f"### {p['area']}/[[{p['name']}]] — {n} open",
               f"- **Path:** `{home}/backlog.md`",
               f"- **3 newest:** {', '.join(titles) or 'none'}", ""]
-    L += ["---", "", "## Cross-project items", "",
-          "<!-- BEGIN PRESERVE — content below this line is preserved across rebuilds -->", "",
-          "<!-- END PRESERVE -->", ""]
+    L += ["---", "", "## Cross-project items", "", PRESERVE_BEGIN, ""]
+    if preserved:
+        L += [preserved, ""]
+    L += [PRESERVE_END, ""]
     return "\n".join(L)
 
 
@@ -495,8 +622,18 @@ def render_global_decisions(vd, projects):
 
 def write_if_changed(path, content):
     def strip_ts(s): return re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
-    if path.exists() and strip_ts(path.read_text()) == strip_ts(content):
-        return False
+    if path.exists():
+        cur = read_utf8(path)
+        if cur is None:
+            # Regenerating is safe HERE and only here: the roll-ups that reach
+            # this function with an undecodable existing file carry no curated
+            # content. global-backlog.md cannot: `preserved_region` decodes it
+            # strictly first and returns None, and main() skips the write, so an
+            # undecodable roll-up with a curated block never gets this far.
+            print(f"warning: {path.name} could not be decoded — regenerating it "
+                  "from scratch", file=sys.stderr)
+        elif strip_ts(cur) == strip_ts(content):
+            return False
     path.write_text(content)
     return True
 
@@ -579,12 +716,18 @@ def main():
         if write_sidecar(p["path"], home, vd, args.write):
             enriched += 1
 
-    gb = render_global_backlog(vd, projects)
+    gb_path = vd / "Portfolio" / "global-backlog.md"
+    # None means the existing file is ambiguous (duplicate or out-of-order
+    # sentinels). Skip the write entirely rather than rewrite it: the roll-up is
+    # regenerable, the curated block is not, and the vault has no version control
+    # behind it. The warning has already named the counts on stderr.
+    preserved = preserved_region(gb_path)
+    gb = None if preserved is None else render_global_backlog(vd, projects, preserved)
     gm = render_global_maturity(vd, projects)
     gd = render_global_decisions(vd, projects)
     wrote_gb = wrote_gm = wrote_gd = False
     if args.write:
-        wrote_gb = write_if_changed(vd / "Portfolio" / "global-backlog.md", gb)
+        wrote_gb = write_if_changed(gb_path, gb) if gb is not None else False
         wrote_gm = write_if_changed(vd / "Portfolio" / "global-maturity.md", gm)
         wrote_gd = write_if_changed(vd / "Portfolio" / "global-decisions.md", gd)
 
@@ -603,7 +746,11 @@ def main():
     sec_status = ("security layer: unavailable (scripts missing)" if sec is None
                   else f"global-security written: {sec}")
 
-    print(f"sidecars enriched: {enriched} | global-backlog written: {wrote_gb} | "
+    # `SKIPPED (ambiguous PRESERVE)` rather than `False`: a refusal and a no-op
+    # look identical in this line otherwise, and the refusal is the one an
+    # operator has to act on.
+    gb_status = "SKIPPED (ambiguous PRESERVE)" if gb is None else wrote_gb
+    print(f"sidecars enriched: {enriched} | global-backlog written: {gb_status} | "
           f"global-maturity written: {wrote_gm} | global-decisions written: {wrote_gd} | "
           f"{biz_status} | {sec_status} | {'WRITE' if args.write else 'DRY-RUN'}")
 

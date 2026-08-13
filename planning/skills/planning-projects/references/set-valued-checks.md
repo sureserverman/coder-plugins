@@ -33,7 +33,7 @@ legitimate check; anything else is an instance-shaped claim waiting to be rewrit
 
 ### The opposite error: widening past the set the claim is over
 
-Everything above pushes one way, so the failure it produces is over-correction — and that one
+Those pressures push one way, so the failure they produce is over-correction — and that one
 is worse than the mistake it avoids, because the check does not merely fail to catch things,
 it **cannot pass at all**. A real example, from a gate check that shipped:
 

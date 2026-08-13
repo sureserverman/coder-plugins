@@ -3,6 +3,7 @@ name: rust-expert
 description: 'Use to author, review, refactor, or audit Rust — idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: "write idiomatic Rust", "audit this unsafe block", "fix my tokio deadlock", "audit my Rust project".'
 tools: Read, Grep, Glob, Edit, Write, Bash(bash:*), Bash(cargo:*), Bash(rustc:*), Bash(rustup:*), Bash(rustfmt:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), WebFetch
 model: sonnet
+effort: medium
 ---
 
 # rust-expert
@@ -304,6 +305,8 @@ reference you Read — the reference gives the rule, its named source gives the 
 
 ## Related
 
-- Authoring skill `rust-coding` (inline `references/` router). Scoped review, refactor, and
+- Authoring skill `rust-coding` (its own inline reference router). Scoped review, refactor, and
   whole-project audit are this agent's own **review** / **idiomize** / **project-audit** modes above.
 - Security review: `sec-review` skill + `sec-review:rust-runner` subagent.
+
+**If a reference or a script could not be read or run, say so in your report** — name it. A judgment pass that silently lost its deterministic pre-pass reads as a full audit, which is the one thing it must not do (DEC-009).

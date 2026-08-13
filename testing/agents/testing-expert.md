@@ -3,6 +3,7 @@ name: testing-expert
 description: 'Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include "run tests", "test failures", "flaky test", "coverage gap".'
 tools: Bash, Read, Grep, Glob, Edit, Write, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
+effort: medium
 ---
 
 # testing-expert (Claude Code build)

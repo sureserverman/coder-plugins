@@ -31,7 +31,7 @@ when the plan was approved; asking "should I dispatch these?" here re-litigates 
 that's already made. (An inlined task and a dispatched one produce byte-identical
 artifacts, so skipping a mandated dispatch shows up nowhere in the diff — only later, when
 the review work that dispatch was supposed to trigger turns out to have never happened.)
-The only legitimate halts remain the ones above: a precondition genuinely fails, a component flagged `requires_enablement` can't be lazy-loaded, or **dispatch is mechanically unavailable or disallowed in this session** — which is a Stop condition for the caller (`../executing-plans/SKILL.md` § Stop conditions), reported as such rather than resolved by quietly inlining the work. "I wasn't sure
+The only legitimate halts remain the ones in § Preconditions: a precondition genuinely fails, a component flagged `requires_enablement` can't be lazy-loaded, or **dispatch is mechanically unavailable or disallowed in this session** — which is a Stop condition for the caller (`../executing-plans/SKILL.md` § Stop conditions), reported as such rather than resolved by quietly inlining the work. "I wasn't sure
 whether to fan out" is not one.
 
 ---
@@ -176,8 +176,8 @@ markdown rewrites → `skill-rewriter`, bulk read-only scans → `readonly-scann
 
 **When the matched agent's plugin isn't enabled**, its `plugin:agent` type isn't
 registered, so you can't set `subagent_type` to it. Don't just drop to
-`general-purpose` blind — resolve it from disk per `references/stack-routing.md`
-§ *Resolving a capability whose plugin isn't enabled*: dispatch `general-purpose` with
+`general-purpose` blind — resolve it from disk per `references/stack-routing.md` § *Resolving a capability
+whose plugin isn't enabled*: dispatch `general-purpose` with
 the agent's `.md` body (from its `path` in `capability-index.json`) injected as its
 instructions and its frontmatter `model` passed as the subagent model. A component
 flagged `requires_enablement` can't be lazy-loaded — surface it to the caller to enable
@@ -259,7 +259,7 @@ Return to `executing-plans` (or the calling session) with:
 
 ## Sources and rationale
 
-- **Dependency graph execution** — classic topological sort from graph theory; *Introduction to Algorithms* (CLRS) §22.4
+- **Dependency graph execution** — classic topological sort from graph theory; *Introduction to Algorithms* (CLRS) section 22.4
 - **Fan-out / fan-in pattern** — Communicating Sequential Processes (Hoare, 1978); Go's `sync.WaitGroup` and Erlang supervision trees
 - **Self-contained agent prompts** — Anthropic multi-agent orchestration guidance; sub-agents have no conversation context and must be briefed completely
 - **Trust-but-verify** — Reagan / Gorbachev; applied to sub-agent reports in *Google SRE Book* Ch. 9 on incident postmortems

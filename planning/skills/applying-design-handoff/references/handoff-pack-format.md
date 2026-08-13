@@ -9,7 +9,7 @@ referenced assets*.
 The pack format is proprietary and still moving (producer and consumer are both
 Anthropic systems). **Treat this contract as tolerant, not frozen** — detect what is
 present, normalize it, and degrade gracefully when a field is missing. Never hard-fail
-because a file name differs from the examples below; fail only when no recognizable
+because a file name differs from the examples in § Local bundle; fail only when no recognizable
 tokens/components/layout can be found at all.
 
 There are two ways a pack reaches the workflow. The skill **auto-detects** which is
@@ -51,7 +51,7 @@ handoff/
 Any of `tokens`, `components`, `layout`/`screens`, `assets` may be absent; normalize
 what exists. A pack with only `tokens` + `screens` is still valid input.
 
-The linter is name-tolerant. Beyond the names above it also recognizes: tokens as
+The linter is name-tolerant. Beyond the names in § Local bundle it also recognizes: tokens as
 `tokens.json|js|css|yaml|yml`; components in `components/` or `component/`; layout in
 `screens/`, `layouts/`, `layout/`, or `frames/` (and a manifest `frames` key); assets
 in `assets/`, `asset/`, or `media/`.

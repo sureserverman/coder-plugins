@@ -35,8 +35,8 @@ sample, claims nothing and still lands at `none`.
 `light` deliberately overlap (a docs-only plan also has "no new executable behavior"), and
 without a precedence rule the "default when unsure" line would push the cheapest plan in the
 ladder to the middle of it. Top-down is also why `high`'s risk list is checked first in
-practice — see the risk floor below, which overrides the row order in the one direction that
-matters.
+practice — see this file's risk-floor rule, **Escalation: risk raises a tier, size never
+does**, which overrides the row order in the one direction that matters.
 
 Pick the tier from the **plan's cumulative diff**, not per task, and pick it once. A plan
 that edits three markdown files is `light` even if it has four stages; a plan touching an
@@ -196,7 +196,7 @@ cheap sibling must not inherit the `high` one's cost. **The master's own close-o
 highest tier any sub-plan declared**, since per-sub-plan tiers leave the master itself
 ungoverned and its close-out is the only pass that sees the integrated result — a `high`
 sub-plan's risk does not stop being the master's because a cheap sibling landed after it.
-(`references/master-plans.md` applies this at step 5; the rule is stated here because this
+(`../references/master-plans.md` applies this at step 5; the rule is stated here because this
 file is the authority on tier selection.)
 
 **Why this is written down at all.** Before it existed, the two axes were each internally
@@ -208,7 +208,7 @@ took the lighter option both times, and skipped an evaluator this table requires
 
 ---
 
-**Review opt-out.** A review the declared tier mandates is default-on. Disable it per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). A task may also opt *in* below `high` with `Review: required`, which is how a plan buys per-task review for the one task that warrants it without raising the whole plan's tier. Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped without needing an annotation. **Two reasons excuse a mandated review, and the list is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A `git-github:code-reviewer` that cannot be dispatched is not a third one: it is the Stop condition for a mandated review that cannot be run (§ Stop conditions), on the same ground as an unrunnable test. An unrun review is not a passed review, and it leaves an artifact indistinguishable from a reviewed one — which is why the resolution is the user's to choose and not the executor's to assume.
+**Review opt-out.** A review the declared tier mandates is default-on. Disable it per task with a `Review: skip` field on the task line (use for non-code or throwaway tasks), or globally for a run when the user opts out (state it once at Preflight, mirroring the goal-evaluator opt-out). A task may also opt *in* below `high` with `Review: required`, which is how a plan buys per-task review for the one task that warrants it without raising the whole plan's tier. Trivial/non-code diffs — docs-only, config-only, pure version bumps, comment-only — are auto-skipped without needing an annotation. **Two reasons excuse a mandated review, and the list is closed at two: an evidenced user opt-out, and a trivial/non-code diff.** A `git-github:code-reviewer` that cannot be dispatched is not a third one: it is the Stop condition for a mandated review that cannot be run (`../SKILL.md` § Stop conditions), on the same ground as an unrunnable test. An unrun review is not a passed review, and it leaves an artifact indistinguishable from a reviewed one — which is why the resolution is the user's to choose and not the executor's to assume.
 
 **A tier that does not mandate a review is not an opt-out at all.** It is the machinery
 scaling as designed, and it is recorded by the declared tier rather than by a quote — the
@@ -229,7 +229,7 @@ Review skipped — user opt-out, Preflight: "don't bother with the reviewer on t
 ```
 
 **A `Review: skip` annotation counts as an opt-out when Preflight's snapshot lists it**
-(§ Dispatch roster and capability probe, step 3), and the snapshot is what makes it
+(`../SKILL.md` § Dispatch roster and capability probe, step 3), and the snapshot is what makes it
 evidence. The executor writes to the plan file throughout the run, so an annotation read
 at skip time proves nothing about who put it there; one recorded against the run's base
 commit was demonstrably there before the run began. An annotation missing from that

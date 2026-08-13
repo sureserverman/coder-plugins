@@ -2,7 +2,7 @@
 
 A minimal, well-formed **local** handoff pack, used both as a worked example of the
 [handoff-pack-format.md](../handoff-pack-format.md) contract and as the green fixture for
-`scripts/validate-handoff-pack.py`.
+`../../scripts/validate-handoff-pack.py`.
 
 ```
 example-pack/

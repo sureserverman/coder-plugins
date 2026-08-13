@@ -22,13 +22,13 @@ gate and surfaces only at the master close-out — the most expensive place to f
 **Execution model:**
 
 1. **Order by the register graph.** A sub-plan is dispatchable when every entry in its
-   `Depends on` is `[x]`. Execute it via the normal single-plan flow below — its own
+   `Depends on` is `[x]`. Execute it via the normal single-plan flow — its own
    Preflight, stages, Red-Green loops, gates, and close-out. `Parallel: YES` sub-plans
    with no repo/file overlap may run concurrently (separate sessions or worktrees), but
    the file-conflict rule applies at this level too: overlapping sub-plans run
    sequentially regardless of the graph.
 2. **One sub-plan per session, ideally.** Each sub-plan is a natural context-reset
-   boundary (see Context resets below, scaled up): finish a sub-plan, then recommend the
+   boundary (the trunk's Context resets at stage boundaries, scaled up): finish a sub-plan, then recommend the
    user start the next one in a fresh session pointed at the master path. The master
    file — register `Status` flips plus its handoff notes — is the cross-session handoff
    artifact; a fresh session needs the master, the next sub-plan, and nothing else.
@@ -54,7 +54,7 @@ gate and surfaces only at the master close-out — the most expensive place to f
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
 
    **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*
-   (§ Review scope), so none of them governs the master itself. The master takes the
+   (`../references/review-scope.md`), so none of them governs the master itself. The master takes the
    **highest tier any sub-plan declared** — its close-out is the only pass that sees the
    integrated result, and a `high` sub-plan's risk does not stop being the master's
    because a cheap sibling landed after it. Declare that tier in the master close-out

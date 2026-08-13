@@ -28,241 +28,84 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
 - **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
 
-**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|default>`."
+**Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
+
+---
+
+## Reference map
+
+The trunk carries what binds every run, whatever was invoked. These load when their condition is met — read the one you need rather than working from memory.
+
+| Read this | When |
+|---|---|
+| `references/subcommand-scan.md` | running `scan` — first-run seeding, drift detection |
+| `references/subcommand-unify.md` | running `unify` — the fan-out and its report |
+| `references/subcommand-maturity.md` | running `maturity`, or why the default flow gates it |
+| `references/subcommand-migrate.md` | running `migrate` — steps, preflight skips, rollback |
+| `references/subcommand-integrate.md` | running `integrate` |
+| `references/subcommand-rebuild.md` | running `rebuild` — the eight steps and both layers |
+| `references/subcommand-plan-status.md` | running `plan-status` — classes, evidence grades |
+| `references/registry-format.md` | the registry schema, or resolving a repo's vault home |
+| `references/plan-parser.md` | a plan is parsed for backlog candidates |
+| `references/maturity-axes.md` | reading or writing a MATURITY.md axis |
+| `references/global-formats.md` | writing `global-backlog.md` / `global-maturity.md` |
+| `references/decisions-format.md` | writing `global-decisions.md` |
+| `references/global-security-format.md` | writing `global-security.md` |
+| `references/sidecar-format.md` | writing a repo's `vault-context.md` block |
+| `references/integration-format.md` | reading or writing a project's `integration.md` |
+| `references/integration-plan-format.md` | an integration arc under `Portfolio/integrations/` |
+| `references/integration.md` | routing an ask to a neighbouring skill |
 
 ---
 
 ## Subcommands
 
+An explicit invocation runs exactly one; the default flow composes four, one of them gated (§ Staged rollout). Each procedure lives in its own reference.
+
 ### `scan` — load the registry, detect drift, optionally first-run-seed
 
-Inputs: optional `--write` (default off — dry-run shows the proposed registry diff but doesn't persist).
-
-Operation:
-
-1. Read `~/.claude/projects-registry.yaml` (path documented in `references/registry-format.md`).
-2. **First-run flow** — if the file does not exist:
-   - Walk `~/dev/` for project markers. A directory is classified as a project root if any of these three markers exists beneath it:
-     1. `docs/plans/` directory (has staged-plan output from `planning-projects`)
-     2. `docs/backlog.md` file (has the deferred-work register)
-     3. `.claude/vault-context.md` file (has been linked to the Obsidian vault by `vault-context:link` — strong "this is a real project I track" signal even when planning hasn't started)
-     Walk command: `find ~/dev -maxdepth 4 \( -type d -path '*/docs/plans' -o -type f -path '*/docs/backlog.md' -o -type f -path '*/.claude/vault-context.md' \)`. Parent-of-`docs` OR parent-of-`.claude` is the project root; dedup by realpath.
-   - Build candidate registry entries with auto-derived fields per the schema: `path` (absolute), `name` (final segment, slug), `area` (immediate child of `~/dev/`), `enabled: true`, `added: <today>`.
-   - Present the list to the user for pruning; on user confirm, write `~/.claude/projects-registry.yaml` for the very first time. **This is the only write `scan` performs during first-run.** No project files touched, no globals built.
-   - Exit; user re-invokes `portfolio` (or one of its other subcommands) for the actual work.
-3. **Subsequent runs — drift detection** — registry exists:
-   - Re-walk `~/dev/` as in step 2.
-   - Compute `found_not_in_registry: [paths]` and `registered_but_missing_on_disk: [paths]`.
-   - Print a drift report header even when both lists are empty (so the user knows the check happened).
-   - For each drifted entry, prompt: add (new) / remove (missing) / skip.
-   - On user confirm AND `--write`, update the registry; otherwise leave it alone.
-
-Drift reporting is the mitigation for the "registry rots" failure mode — every `portfolio` invocation surfaces it before doing anything else.
+Loads `~/.claude/projects-registry.yaml`, seeds it on first run and then **exits** (the user re-invokes for the actual work), and on every later run re-walks `~/dev/` and reports drift for add/remove/skip. The registry changes only on user confirm AND `--write`. Procedure: `references/subcommand-scan.md`.
 
 ### `unify` — derive backlog candidates for every enabled project, in parallel
 
-Inputs: optional `--project <abs-path>` (limit to one project; matched against the registry `path`), optional `--include-stale` (default off — surfaces unresolved items in plans older than 90 days by filename stamp), optional `--write` (default off).
-
-Operation:
-
-1. Load the registry; filter to entries with `enabled: true`. If `--project` is set, narrow to that one.
-2. For each project (up to 8 in flight), dispatch a sub-agent via the **dispatching-parallel-agents** skill. Each sub-agent invokes the `backlog` skill's `unify` subcommand on its project.
-3. Each sub-agent returns its `{candidates, existing, duplicates_skipped}` structure.
-4. Aggregate into a tree-shaped report grouped by `area/name`:
-
-   ```
-   anon-tools/multitor (8 existing, 0 duplicates skipped, 2 new candidates):
-     + Stage 3 / Task 3.2     (status-unexecuted) Wire MT slot frames through evdev
-     + Deferred / bullet 1    (deferred-section) Bluetooth HID jitter support
-   android/and-hole (3 existing, 1 duplicate skipped, 0 new candidates):
-     (no new candidates)
-   ...
-   ```
-
-5. Present to user — they pick accept-all / pick-some-per-project / skip-project.
-6. On accept, dispatch a second wave of sub-agents (same 8-in-flight cap) — each runs `backlog add` for that project's accepted candidates. **Never write during dry-run.**
-
-**Hard rules for `unify`:**
-
-- Dry-run is the default. `--write` is the only path to file mutations, and even then candidates must come from a user-confirmed list (the prompt in step 5 IS the confirm).
-- The 8-in-flight cap on parallel sub-agents prevents accidentally fan-out-DOS'ing a slow filesystem (e.g. NFS-mounted vault, slow CI runner).
+Dispatches one sub-agent per enabled project (up to 8 in flight) via `dispatching-parallel-agents`, each invoking the `backlog` skill's `unify`; the aggregated per-project report is presented for accept-all / pick-some / skip-project, and only then does a second wave run `backlog add`. **Never write during dry-run.** Procedure: `references/subcommand-unify.md`.
 
 ### `maturity` — audit per-project MATURITY.md and surface staleness
 
-Inputs: optional `--project <abs-path>`, optional `--init-missing` (off by default; when set, projects with no MATURITY.md get `project-maturity init` invoked instead of skipped).
-
-Operation:
-
-1. Load the registry (enabled-only, optionally narrowed by `--project`).
-2. For each project, dispatch a sub-agent (same 8-in-flight cap) that invokes the `project-maturity` skill's `audit` subcommand (with `--write`). The sub-agent additionally runs `get --format json` to obtain the parsed state for the roll-up.
-3. Aggregate. Report:
-   - Per-project audit summary lines.
-   - List of stale manual claims (>90 days old) across all projects, with `project: axis: item: claim-date`.
-   - List of projects with `[?] stale-detector` markers — these block ship-ready and warrant inspection.
-4. Prompt the user to refresh/keep stale claims (per project).
-
-`--init-missing` exists for the staged maturity rollout (see `## Staged rollout`). Default behavior is to skip projects without a MATURITY.md so first-time portfolio runs aren't a hard prerequisite of "scaffold 30 maturity files at once."
+Fans out `project-maturity audit --write` per project (same 8-in-flight cap), then reports stale manual claims (>90 days) and `[?] stale-detector` markers, which block ship-ready. **A project with no MATURITY.md is skipped, not scaffolded**, unless `--init-missing` is passed. Procedure: `references/subcommand-maturity.md`.
 
 ### `migrate` — move a project's operational docs from its repo into the vault (one-time)
 
-Inputs: `--project <abs-path>` (one project) or `--all` (every enabled project); `--write` (off by default — dry-run prints the plan and moves nothing).
-
-Moves `<repo>/docs/plans/*`, `<repo>/docs/backlog.md`, and `<repo>/docs/MATURITY.md` into the resolved `<vault_dir>/Portfolio/<area>/<name>/`. The vault is **not git-tracked** (NFS-shared Obsidian), so this is a filesystem move with a verification gate — never `git mv`, never a bare `mv`.
-
-Per-project procedure (all-or-nothing):
-
-1. Resolve `vault_home` via the resolver; `mkdir -p vault_home/plans`.
-2. **Preflight the project:**
-   - If `vault_home` already holds `plans/` or `backlog.md` or `MATURITY.md`, SKIP with `vault home already populated; resolve manually` (never overwrite/merge).
-   - **Dirty-guard (refined):** SKIP only if the migrate set contains a *tracked* file with **uncommitted modifications** (`git status --porcelain` shows ` M`/`MM`/`A ` for it) — those edits have no clean committed fallback and could be lost. *Untracked new files* (status `??`, e.g. a freshly-generated `MATURITY.md`) are fine to migrate: their content moves to the vault and nothing committed is lost. Pure-untracked migrate sets do NOT trigger the skip.
-   - **Non-git repos:** if `<project-path>` is not a git work tree, migration still proceeds, but step 5 uses plain `rm` (not `git rm`) and the report flags `no-git-fallback` for that project — the vault copy is then the *only* copy (the copy→verify gate is the sole safety net; there is no repo-git archaeology fallback). Acceptable for stub/scratch repos; surfaced so the user knows.
-3. **COPY** each source file → its vault destination (plans into `plans/`, `backlog.md` and `MATURITY.md` at the project root). Migrate set = whatever exists: plans always; `backlog.md` and `MATURITY.md` only if present.
-4. **VERIFY** — for every copied file, assert `sha256(source) == sha256(destination)`. This is the load-bearing gate; over NFS a truncated write is the realistic failure. Any mismatch → abort this project, delete the partial vault copies, leave the repo untouched, report.
-5. Only after ALL files verify: remove the sources from the repo — `git rm` in a git work tree, plain `rm` in a non-git repo (see preflight). The repo source is the **last** thing removed — an interruption before this step always leaves the repo intact (copy→verify→delete invariant).
-6. If `<repo>/docs/` is now empty, remove it. If other files remain, leave `docs/` and report what's left. **No tombstone** — the sidecar is the only pointer.
-7. Write/refresh the repo sidecar `portfolio_home: <abs vault_home>`.
-8. Rewrite the migrated `MATURITY.md` detector evidence paths with a `repo:` prefix (they point at repo files, now read from the vault checklist).
-
-Dry-run (`--all` without `--write`) prints, per project, the copy set and resolved target, flags already-populated targets as SKIP, and moves nothing. `--write` executes the procedure. Report: `migrated N, skipped M, failed K` with per-project sha256-verify status.
-
-**Rollback** (per project): copy `vault_home`'s docs back to `<repo>/docs/` and `git checkout` the repo deletion (originals are in the repo's git history). Reversible because the vault keeps the files and the repo git keeps the deletions.
+Moves `<repo>/docs/plans/*`, `docs/backlog.md` and `docs/MATURITY.md` into the resolved vault home. **All-or-nothing, and the invariant is copy → verify → delete:** COPY every file, VERIFY `sha256(source) == sha256(destination)` for each, and only then remove the repo sources — so an interruption always leaves the repo intact, and any mismatch aborts that project, deletes the partial vault copies and leaves the repo untouched. Never `git mv`, never a bare `mv`; dry-run unless `--write`. A vault home that already holds `plans/`, `backlog.md` or `MATURITY.md` is SKIPPED for manual resolution — **never overwritten or merged**. Per-project procedure, the other preflight skips and rollback: `references/subcommand-migrate.md`.
 
 ### `integrate` — roll up inter-project edges + integration backlog
 
-Inputs: optional `--write` (off by default).
-
-1. Read every `<vault>/Portfolio/<area>/<name>/integration.md` (schema in `references/integration-format.md`).
-2. Build `Portfolio/integration-graph.md`: the `depends_on → upstream` adjacency, plus a `## Asymmetries (review)` section. **Symmetry rule:** if A declares `impacts: [[B]]`, B must declare `depends_on: [[A]]` (and vice-versa). Asymmetries are reported, **never auto-fixed** — the user resolves by editing one side. Targets that aren't registered projects are flagged under `## Unresolved targets` (dangling) but don't block the rollup.
-3. Build `Portfolio/integration-backlog.md`: scan every project's `backlog.md` for entries tagged `integration` (or carrying an `Integration:` line); group them by `edge=<slug>` / `plan=<arc>`. Cross-project rollup view; the items themselves stay in their project's backlog.
-4. Integration plans live under `Portfolio/integrations/<arc>/` (schema in `references/integration-plan-format.md`); each spanned project's backlog carries an `Integration: plan=<arc>` pointer, which this rollup surfaces.
-
-Dry-run by default; `--write` persists the two generated files.
+Rolls every project's `integration.md` up into `Portfolio/integration-graph.md` and `Portfolio/integration-backlog.md`. **Symmetry rule:** if A declares `impacts: [[B]]`, B must declare `depends_on: [[A]]` (and vice-versa) — asymmetries are **reported, never auto-fixed**; the user resolves by editing one side. Dry-run by default; `--write` persists. Procedure: `references/subcommand-integrate.md`.
 
 ### `rebuild` — regenerate the global roll-ups (in the vault) + enrich sidecars
 
-Inputs: optional `--write` (off by default). Reads `vault_dir` from `~/.claude/portfolio-config.yaml`; refuses if unset (no silent fallback).
-
-The global roll-ups are **canonical in the vault** at `<vault_dir>/Portfolio/`. There is no `~/.claude/` or `Projects/` copy (those were retired when storage went vault-canonical).
-
-Operation:
-
-1. Load the registry (enabled-only — `enabled: false` projects are excluded).
-2. Build `<vault_dir>/Portfolio/global-backlog.md` per `references/global-formats.md`:
-   - For each project whose vault home has a `backlog.md`, emit a per-project section: `### <area>/[[<name>]] — N open`, the absolute backlog path, and the 3 newest entry titles. Project names are `[[wikilinks]]`.
-   - Use the format-tolerant entry counter (h2/h3 `BL-NNN` + legacy freeform; see `references/global-formats.md`).
-   - **Preserve the `<!-- BEGIN PRESERVE -->` ... `<!-- END PRESERVE -->` block** (the hand-curated `## Cross-project items`) byte-for-byte.
-   - Sort by `area/name`. Render `**Last rebuilt:**` only when the rest of the content changed (idempotency).
-3. Build `<vault_dir>/Portfolio/global-decisions.md` per `references/decisions-format.md`: a by-domain index of every `Portfolio/decisions/<domain>.md` register, a per-project count table (total / accepted / superseded) from each `<home>/decisions.md`, and three review sections — `Malformed entries`, `Asymmetries`, `Unresolved targets`. Link asymmetries between a project's `Global:` and a domain's `Applies to:` are **reported, never auto-fixed**: repairing one side would assert an edge about a project the run has not read, the same rule `integrate` follows. A project with no register contributes nothing and is not an error.
-4. Build `<vault_dir>/Portfolio/global-maturity.md`: a table row per project that has a vault `MATURITY.md`, names as `[[wikilinks]]`, cells per the sparse-model legend, `ship_ready` from the per-axis thresholds.
-5. **Sidecar enrichment (v2)** — for every registered project, write the sentinel-delimited block into `<repo>/.claude/vault-context.md` (create the file if absent) per `references/sidecar-format.md`:
-   ```
-   <!-- PORTFOLIO-STATUS-BEGIN — managed by /planning:portfolio rebuild; do not hand-edit -->
-   ## Portfolio status
-
-   - **Home:** `<portfolio_home>`   (plans/backlog/maturity live here, not in this repo's docs/)
-   - **Plans:** see [plans/](<portfolio_home>/plans/)
-   - **Backlog:** see [backlog.md](<portfolio_home>/backlog.md)
-   - **Maturity:** see [MATURITY.md](<portfolio_home>/MATURITY.md)
-   - **Ship-ready:** see [global dashboard](<vault_dir>/Portfolio/global-maturity.md)
-   - **Decisions:** see [decisions.md](<portfolio_home>/decisions.md)   (only when the file exists)
-   - **⬆ Depends on:** [[X]] (why), …          (from this project's integration.md, if any)
-   - **⬇ Impacts:** [[B]] (why), …             (from integration.md, if any)
-   - **Inbound integration debt:** see [integration-backlog.md](<vault_dir>/Portfolio/integration-backlog.md)
-   <!-- PORTFOLIO-STATUS-END -->
-   ```
-   Pointer-only: counts/verdicts (backlog, maturity, ship-ready, decisions, debt) are NOT snapshotted into the block — the repo-committed sidecar lags the live vault, so the lines link to the source files instead. The static **Plans:** pointer makes any plan saved under `<portfolio_home>/plans/` discoverable without a rebuild. Full contract in `references/sidecar-format.md`. Replace between sentinels if present; else append with a blank-line separator. Never touch content outside the block. Idempotent.
-6. **Business layer (optional, additive)** — if the sibling **business** plugin is installed (the `portfolio-rebuild.py` probe resolves `business/scripts/business-scan.py` under the marketplace root and finds it), `rebuild` also regenerates `<vault_dir>/Portfolio/global-business.md` by piping `business-scan.py | business-rollup.py` (per the business plugin's `global-business-format.md`). When the business plugin is **absent**, this step is skipped with a single `business layer: unavailable` line and nothing else changes — the global-backlog / global-maturity / sidecar outputs are byte-identical either way (guarded by `tests/test-business-degradation.py`). `portfolio-rebuild.py` handles this probe; the roll-up is never truncated on a failed business sweep.
-7. **Security layer (additive)** — `rebuild` also regenerates `<vault_dir>/Portfolio/global-security.md` by piping `scripts/security-scan.py | scripts/security-rollup.py`, sweeping each project's `security/history.jsonl` (written by sec-audit v1.29+) into one dashboard: open CRITICAL/HIGH, trend, days since the last audit, and which projects have never been audited. Format and full input contract: `references/global-security-format.md`. Three rules it must not break — an unrecorded count renders `?` and **never `0`** (unmeasured is not clean); a `mode: "feeds"` run is flagged `⚠` because it re-checked dependency advisories without running any code lane; and `total_open` already includes accepted findings, so "open and not suppressed" is `total_open − accepted`. If the scripts are missing, fail, or time out, the step degrades to one `security layer: unavailable` line, leaves any existing `global-security.md` **intact** (never truncated), and every other output is byte-identical (guarded by `tests/test-security-degradation.py`).
-8. Report: `Rebuilt: global-backlog.md (N), global-decisions.md (D), global-maturity.md (M), sidecars enriched: K` plus the business- and security-layer statuses. (0 writes when everything matches prior content.)
+Regenerates the vault-canonical roll-ups — `global-backlog.md`, `global-decisions.md`, `global-maturity.md`, plus the business and security dashboards — and refreshes every repo's `PORTFOLIO-STATUS` sidecar block. Refuses if `vault_dir` is unset. Three rules bind it whatever else changes: the hand-curated `<!-- BEGIN PRESERVE -->` block survives **byte-for-byte**; an absent or failed business/security layer degrades to one `<layer>: unavailable` line and **never truncates an existing roll-up**; an unrecorded security count renders `?` and **never `0`** (unmeasured is not clean). Eight-step procedure: `references/subcommand-rebuild.md`.
 
 ### `plan-status` — reconcile every vault plan's recorded status against its real progress
 
-Inputs: optional `--check`, `--json`, `--verbose`, `--fix`, `--restore <run-id>`. Runs
-`scripts/plan-status-audit.py`. **Report-first: the default invocation writes nothing.**
-
-Why it exists: a plan's recorded status and its actual task completion are read by two
-different code paths and never reconciled. `unify` emits an in-flight plan's open tasks as
-backlog candidates and `compass next` ranks projects by what is in flight, so a plan that is
-finished but never close-out-marked is a standing source of phantom work in both. Measured
-when this shipped: **15 plans at 100% of tasks done carrying no `**Completed:**` line.**
-
-1. Enumerate every `plans/*.md` under `<vault>/Portfolio/*/*/`. **The vault is the corpus, not
-   the registry** — 39 files across 7 projects have no registry entry, and skipping them while
-   reporting a portfolio-wide audit would claim coverage the run does not have. The registry
-   resolves each project's **repo path** for evidence, nothing more.
-2. Classify each plan: `abandoned` → `completed` → `unclassifiable` → `no-status` →
-   `never-started` → `started-unfinished`, in that order. Human-authored terminal markers win
-   first; nothing below overrules an author who already answered the question.
-3. **`unclassifiable`** is the load-bearing class: a plan carrying any bracketed `Status:`
-   marker outside the contract's `[ xX~]` (`[!]`, `[~ BLOCKED]`, `[~ N/A]` — see
-   `pu.ANY_STATUS_RE`) has a task invisible to the parser, so it reads **more finished than it
-   is**. Those plans are **never offered as completion candidates, under any flag.**
-4. Gather **graded** evidence, strongest first. Grades, in the order they are tried:
-   - **`register+commit`** — a master's `## Sub-plans` register marks this exact plan `[x]`
-     *and* names a commit that resolves in the repo. A human, in another document, naming the
-     plan and the work. The strongest thing available, and it lives in the **vault**, not git.
-   - **`register`** — the register marks it done but names no commit, or the one it names does
-     not resolve. Still identifies *the plan*.
-   - **`names-the-plan`** — a commit message contains the plan's filename, matched **anchored**
-     so `<plan>.md.orig` does not count. Currently unattested anywhere in the corpus.
-   - **`correlative`** — stage-completion commits dated on or after the plan. Identifies a repo
-     and a period, **never a plan**: the same commits get offered to every plan that repo ran.
-   - **`none`** — searched, found nothing. Distinct from "no repo to search".
-
-   Git is never run against the vault, which is not under version control; a repo path pointing
-   inside it is refused outright rather than allowed to fail and read as "no evidence".
-   Each candidate also shows its **stage-gate state**, because *all tasks `[x]`* is not the
-   same as *finished* — a plan can carry every task done and still have an unticked final gate.
-5. `--fix` presents one candidate at a time with its evidence and requires a per-plan `y`. It
-   takes a timestamped backup under `<portfolio_home>/plans/.audit-backups/<run-id>/` before
-   writing, and the write is atomic. `--restore <run-id>` reverts a run wholesale — the vault
-   has no version control behind it, so the backup is the only undo that exists.
-6. The recorded line states the evidence's **grade**: a correlative match is written as
-   `user-confirmed; no commit names this plan — correlated with stage commits <hashes>`, never
-   as a bare `evidence: <hashes>`. The line outlives the run by years and a future reader has
-   only its words to tell the two apart.
-
-**It never infers `**Abandoned:**`.** A marker nobody adopts degrades to the status quo; a
-heuristic false-positive is a *new* failure mode, because a plan wrongly marked abandoned
-disappears from the one view still listing its open work. `portfolio-unify.py` owns an advisory
-banner-prose detector and it is deliberately not consulted here.
-
-`--check` runs two separately-labelled sets: **invariants** (true of any corpus — the classes
-partition the enumeration, no plan lands in two, candidates and unclassifiable are disjoint),
-which gate the exit status; and **corpus observations** (true of the live vault when measured —
-`abandoned` is 0, `unclassifiable` is non-empty), which are reported and **never fatal**, so a
-human legitimately adopting a marker cannot turn a green audit red.
+Runs `scripts/plan-status-audit.py` over every plan in the vault. **Report-first: the default invocation writes nothing.** `--fix` presents one candidate at a time with its graded evidence and requires a per-plan `y`, taking a timestamped backup under `plans/.audit-backups/<run-id>/` first — `--restore <run-id>` is the only undo the vault has. A plan carrying a bracketed `Status:` marker outside `[ xX~]` is **never offered as a completion candidate, under any flag**, and the audit **never infers `**Abandoned:**`**. Classification order and evidence grades: `references/subcommand-plan-status.md`.
 
 ### Default flow (no subcommand, or explicit `portfolio` invocation)
 
 Composes the four ops in order: `scan` → `unify --dry-run` → `maturity` (with the `--include-maturity` gate, see `## Staged rollout`) → `rebuild`. Confirms with the user before any mutation. Exit when done; user can re-invoke individual subcommands to drill in.
 
-Sequence:
-
-```
-1. scan          — surface drift; if --write confirmed, update registry
-2. unify         — surface candidates per project; on confirm, accepted
-                   candidates land in their per-project backlog.md
-3. maturity      — only if --include-maturity is set (default off during
-                   the staged rollout window); audit existing MATURITY.md,
-                   surface stale claims for refresh
-4. rebuild       — regenerate the global roll-ups; report writes
-```
-
-**Idempotency guarantee:** if nothing has changed upstream (no new plans, no plan edits, no manual-claim refreshes), a second consecutive `portfolio` run produces ZERO writes — registry, per-project backlogs, MATURITY files, and both globals are byte-identical between runs. This is the §5 hard guarantee from the design doc.
+**Idempotency guarantee:** if nothing has changed upstream (no new plans, no plan edits, no manual-claim refreshes), a second consecutive `portfolio` run produces ZERO writes — registry, per-project backlogs, MATURITY files, and both globals are byte-identical between runs. This is the design doc's section 5 hard guarantee.
 
 ---
 
 ## Staged rollout
 
-Per the design's §7 rollout step 4: the `project-maturity` skill is shipped but excluded from the default `portfolio` flow for a staging window (~one week). During the staging window:
+The `project-maturity` skill is shipped but excluded from the default `portfolio` flow for a staging window (~one week). During the staging window:
 
 - `portfolio maturity` (explicit subcommand invocation) works normally.
 - `portfolio` (default flow) skips the maturity step UNLESS `--include-maturity` is passed.
 
-This prevents the default flow from dumping 30 unfilled checklist scaffolds in front of you on day one. After the staging window, the default flow's `## Default flow` description above is updated to drop the gate; `--include-maturity` becomes a no-op.
-
-Disabled by default; opt-in via `--include-maturity` during the staged rollout window.
+Why the gate exists and what changes when the window closes: `references/subcommand-maturity.md`.
 
 ---
 
@@ -273,11 +116,11 @@ Optional config sidecar to the registry. Holds settings that aren't per-project:
 ```yaml
 # ~/.claude/portfolio-config.yaml
 version: 1
-vault_dir: /mnt/vault         # if set, rebuild mirrors globals to <vault_dir>/Projects/
+vault_dir: /mnt/vault         # required; roll-ups land in <vault_dir>/Portfolio/
 include_maturity: false       # default flow opts out of maturity until staging window ends
 ```
 
-All keys optional. Missing file → all defaults (no vault mirror, maturity opt-out). If `vault_dir` is set but the directory doesn't exist, the rebuild logs a one-line warning and continues with `~/.claude/` writes only — never aborts.
+Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to. What a `vault_dir` that is *set* but names a missing directory should do is **not settled**: this section said "warn and continue with `~/.claude/` writes" from before the retirement, and that destination no longer exists. Do not rely on either reading until it is decided.
 
 ## File conflicts and write discipline
 
@@ -299,12 +142,7 @@ Hard rules:
 
 ## Integration
 
-- **planning-projects** — produces the plan files that `unify` parses for backlog candidates.
-- **executing-plans** — checks off Task N.N items as work lands; `unify` re-runs against the updated plans.
-- **backlog** — invoked per-project via sub-agent for `unify` candidate generation and `add` accepted entries.
-- **project-maturity** — invoked per-project via sub-agent for `audit` and `get`.
-- **dispatching-parallel-agents** — used for the parallel per-project fan-out in `unify` and `maturity`.
-- **compass** — "what should I work on next" / "what's in flight" / periodic-review asks route to the `compass` skill, which reads (never writes) the artifacts this skill maintains.
+Routes to `planning-projects` and `executing-plans` (which produce and tick the plans `unify` parses), `backlog` and `project-maturity` (invoked per-project via sub-agent), `dispatching-parallel-agents` (the fan-out), and `compass` (which reads, never writes, the artifacts this skill maintains). What each is for: `references/integration.md`.
 
 ## Remember
 

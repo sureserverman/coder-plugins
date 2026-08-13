@@ -76,7 +76,7 @@ transcript.
 
 1. **Capture**: Build the debug APK, then bring up the emulator stack and
    capture screenshots of every changed screen following the
-   android-mcp-orchestrator skill (`scripts/run.sh` is the canonical
+   android-mcp-orchestrator skill (`skills/android-mcp-orchestrator/scripts/run.sh` is the canonical
    entrypoint; honor its lifecycle rules — every up is paired with a down).
    Typical tool sequence: `start-android-tablet-emulators` →
    `install-app-on-emulators` → `capture-emulator-screenshots`.

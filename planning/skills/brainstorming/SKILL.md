@@ -28,7 +28,7 @@ Design work is about surfacing the assumptions that separate "what the user said
 Create a task for each of these and work them in order. Do not skip ahead.
 
 1. **Ground the idea in project context** — read relevant files, docs, recent commits, existing ADRs
-2. **Clarify purpose and constraints** — one question at a time, using the question heuristics below
+2. **Clarify purpose and constraints** — one question at a time, using the Phase 2 question heuristics
 3. **Surface alternatives** — propose 2-3 approaches with tradeoffs; name your recommendation
 4. **Pre-mortem the recommended approach** — what would cause this to fail or be regretted in 6 months?
 5. **Present the design in sections** — architecture, components, data flow, error handling, testing, rollout; each section scaled to its complexity; confirm after each

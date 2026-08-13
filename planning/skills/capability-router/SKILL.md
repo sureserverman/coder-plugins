@@ -33,8 +33,8 @@ narrow task profile, a disabled plugin) and you'd otherwise get generic behavior
    is the canonical stack→capability map if you want a curated pick over a raw search.
 
 3. **Resolve it from disk**, following
-   `../dispatching-parallel-agents/references/stack-routing.md`
-   § *Resolving a capability whose plugin isn't enabled* exactly:
+   `../dispatching-parallel-agents/references/stack-routing.md` § *Resolving a
+   capability whose plugin isn't enabled* exactly:
    - **skill** → Read its SKILL.md at `path` and follow it (its `allowed-tools` scoping
      won't apply on this path — note that if the skill relies on a restricted tool set);
    - **agent** → dispatch `general-purpose` with the agent's `.md` body injected as

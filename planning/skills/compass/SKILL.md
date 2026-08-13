@@ -37,7 +37,7 @@ assessed project also carries a `business` object: `{verdict, model, gtm_pct,
 last_reviewed_age_days, research_age_days, plan_age_days, stage}`. `research_age_days` and
 `plan_age_days` are the ages of the `market-research.md` / `plan.md` artifacts (or `null`
 when that artifact doesn't exist). When the plugin is absent, no project has a `business`
-key — every business-aware rule below is simply skipped (additive; compass is unchanged
+key — every business-aware rule in this skill is simply skipped (additive; compass is unchanged
 without it). Never invent a business fact for a project with no `business` key.
 A project belonging to a **business group** carries that group's business object plus a
 `group: <slug>` key: the verdict, model and targets are the whole suite's, not this repo's
@@ -156,7 +156,7 @@ Surface drift, one section each (explicit-negative when a section is empty):
   `/planning:portfolio rebuild` (never run it).
 - **Couldn't assess** — the footer, always.
 
-End with a **focused agenda**: 3 items max, drawn from the sections above,
+End with a **focused agenda**: 3 items max, drawn from the three subcommand views,
 each with its evidence line.
 
 ## Decision register

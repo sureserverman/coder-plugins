@@ -1,0 +1,59 @@
+# Extraction-integrity allowlist.
+#
+# One `path:CODE:token` line suppresses exactly ONE finding. The allowlist is
+# read as a MULTISET, not a set: N occurrences of a key need N lines, and the
+# N+1th surfaces. That is what makes the next sentence true — under the original
+# set membership it was false, because these tokens are low-entropy ("sections
+# below", "checks above") and a genuinely new dead pointer routinely collided
+# with an allowlisted one and vanished. Measured: three fresh dead pointers
+# appended to allowlisted files were absorbed silently, exit 0.
+#
+# Consequence worth knowing: a STALE line is unused suppression capacity that
+# will absorb the next real finding with that key. Re-seed after any fix rather
+# than leaving orphans — this file is regenerated, not hand-pruned.
+#
+# REGENERATED FROM SCRATCH by Stage 3 Task 3.3 of the token-efficiency plan, not
+# hand-pruned. The previous seed carried 75 entries, 48 of them belonging to the
+# plugin this plan restructured. All 48 are gone — every one FIXED in the prose,
+# none suppressed. Three were already stale by construction before this task
+# started, absorbed silently by Task 3.1's rewrites: the exact orphan hazard the
+# paragraph above describes, and the reason this file is regenerated, not edited.
+#
+# 27 entries. Every remaining one is BL-039 debt in a plugin the token-efficiency
+# plan did not touch — a pointer or a position word that resolved in a monolith
+# and resolves nowhere now. A burn-down list, not a permanent exemption.
+#
+# This file deliberately carries NO per-skill narrative in its comments, and NO
+# directory prefix either. The burn-down history lives in the commit log, so a
+# `grep -c '<name>'` over this file answers "are any entries left for that skill"
+# without a comment mentioning it by name skewing the count. That rule is why the
+# paragraphs above name no directory: a Stage 3 gate criterion is literally
+# `! grep -q '<prefix>/' <this file>`, and a comment saying the prefix is clear
+# would fail the check that proves it is.
+android-dev/skills/android-play-publish/SKILL.md:DEIXIS-POSITIONAL:is below
+android-dev/skills/android-ui-design-figma/SKILL.md:DEIXIS-POSITIONAL:loop below
+browser-extensions/skills/amo-compliance-check/SKILL.md:DEIXIS-POSITIONAL:check below
+browser-extensions/skills/amo-compliance-check/SKILL.md:DEIXIS-POSITIONAL:checks above
+browser-extensions/skills/amo-compliance-check/SKILL.md:DEIXIS-POSITIONAL:sections below
+business/skills/assess/SKILL.md:DEIXIS-POSITIONAL:per above
+business/skills/business-plan/SKILL.md:DEIXIS-POSITIONAL:research below
+git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:comment below
+git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:docblock above
+git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:docblock above
+git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:line above
+git-github/skills/gate-audit/SKILL.md:DEIXIS-POSITIONAL:checks above
+git-github/skills/gate-audit/SKILL.md:DEIXIS-POSITIONAL:jank above
+git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:lane below
+git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:section below
+git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:sections below
+git-github/skills/license-audit/SKILL.md:DEIXIS-POSITIONAL:phase below
+git-github/skills/request-external-reviews/SKILL.md:DEIXIS-POSITIONAL:matrix below
+git-github/skills/review-readme/SKILL.md:DEIXIS-POSITIONAL:checks below
+i18n/skills/i18n-audit/SKILL.md:DEIXIS-POSITIONAL:phases above
+i18n/skills/i18n-formats/SKILL.md:DEIXIS-POSITIONAL:mistakes below
+infra-build/skills/bash-script-audit/SKILL.md:DEIXIS-POSITIONAL:section below
+infra-build/skills/bash-script-audit/SKILL.md:DEIXIS-POSITIONAL:sections below
+infra-build/skills/build-readiness-check/SKILL.md:DEIXIS-POSITIONAL:checks below
+infra-build/skills/publish-images-register/SKILL.md:DEIXIS-POSITIONAL:forms below
+release-promo/skills/lobsters-post/SKILL.md:DEIXIS-POSITIONAL:text below
+rust-dev/skills/rust-coding/SKILL.md:DEIXIS-POSITIONAL:mapped above

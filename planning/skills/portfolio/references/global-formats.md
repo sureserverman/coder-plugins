@@ -119,7 +119,7 @@ Auto-generated from per-project `docs/MATURITY.md` files. Re-run
 ## ship_ready rule
 
 A project is ship-ready iff every axis meets its per-axis threshold
-(see references/maturity-axes.md → "## ship_ready aggregation").
+(see maturity-axes.md → "## ship_ready aggregation").
 ```
 
 ### Cell rendering rule
@@ -155,8 +155,18 @@ Rules:
   content (excluding the timestamp line itself) differs from the prior file.
   If nothing changed, retain the prior timestamp and write nothing.
 - **Never delete the PRESERVE block or its sentinels.** If the sentinel
-  lines are missing on read, insert them with an empty body and log a
+  lines are **entirely absent** on read, insert them with an empty body and log a
   warning. Do not silently drop previously curated GBL items.
+- **An AMBIGUOUS file is refused, not rewritten.** If the counts are anything
+  other than exactly one `BEGIN` and one `END` — duplicated pairs, an end sentinel
+  quoted inside a curated item, sentinels out of order — or the file is not valid
+  UTF-8, `rebuild` leaves `global-backlog.md` untouched, warns naming the counts,
+  and reports `SKIPPED (ambiguous PRESERVE)`. **The refusal is scoped:** the other
+  roll-ups and the sidecar pass still run. This is a THIRD outcome alongside
+  written and unchanged, and it is deliberate: the roll-up is regenerable, the
+  curated block is not, and the vault has no version control behind it.
+  Duplicated pairs are the common case, because they are what recovering a block
+  from a backup produces if the sentinels are pasted back in with the body.
 - **Per-project section is sorted by `area/name` ascending** (lexicographic,
   case-insensitive). The sort is stable so projects in the same area sort
   alphabetically by name.

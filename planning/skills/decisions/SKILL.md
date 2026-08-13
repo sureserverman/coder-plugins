@@ -55,7 +55,7 @@ So in this state the **global half is authoritative and sufficient**. Report
 on.
 
 **How the state ends.** `planning-projects` auto-registers the project as part of
-writing its first plan (its § Output location step 3 appends
+writing its first plan (`../planning-projects/SKILL.md`, Output location step 3, appends
 `path`/`name`/`area`/`enabled`/`added`). Once that entry exists, `portfolio_home`
 resolves and the first `decisions add` creates the per-project register. Nothing
 here needs to force registration; it happens on the normal path.

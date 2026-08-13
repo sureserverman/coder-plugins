@@ -3,6 +3,7 @@ name: architecture-researcher
 description: Use to research ONE candidate architecture — a pattern plus concrete module layout — returning cited findings (evidence, directory tree, boundaries, risks). Triggers include "research this architecture option", "evidence this candidate architecture", "validate this project layout".
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 model: sonnet
+effort: medium
 ---
 
 # architecture-researcher

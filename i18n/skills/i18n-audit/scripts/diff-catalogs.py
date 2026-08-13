@@ -19,7 +19,9 @@ Supported parsers (best-effort — see notes per format):
 
 Stale detection (source text changed after locale last touched) is intentionally
 left to a separate pass — git blame is slow and a script-only diff covers the
-common cases. Add --stale to enable it.
+common cases. There is NO --stale flag: this script emits missing / extra /
+placeholder_mismatch only, and source-text staleness is not computed anywhere in
+this plugin. Do not reconstruct it by hand.
 
 Output: JSON to stdout.
 """

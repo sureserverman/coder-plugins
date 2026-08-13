@@ -104,8 +104,9 @@ consumer that skips the scan because `portfolio_home` didn't resolve inverts the
 register's purpose — the newest codebase, the one still cheap to change,
 consults the fewest accumulated constraints.
 
-Registration happens on the normal path (`planning-projects` § Output location
-step 3 appends the registry entry when it writes a project's first plan), so this
+Registration happens on the normal path (`../../planning-projects/SKILL.md`,
+Output location step 3, appends the registry entry when it writes a project's
+first plan), so this
 state resolves itself without a separate step and **without any new registry
 field** — see DEC-002 on why `projects-registry.yaml`'s field set is not a cheap
 extension point.

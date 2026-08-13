@@ -22,7 +22,7 @@ Opinionated decision rules for writing high-quality Rust. Consult the matching `
 
 ## Determinism boundary
 
-The mechanically detectable slice of the rules below is script-owned, not
+The mechanically detectable slice of the rules in the reference files is script-owned, not
 prose-owned. When *auditing* existing code (not authoring new code), run the
 plugin's deterministic lane instead of grepping by hand:
 

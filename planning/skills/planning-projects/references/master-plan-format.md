@@ -48,7 +48,7 @@ The master plan holds the shared research, the sub-plan register (the cross-plan
 dependency graph), and the integration gates. It contains **no tasks and no Preflight** —
 sub-plans own those. Because it carries no tasks, it carries no `Scope:` fields either —
 those live on task lines only (see the Scope-marking rule in `../SKILL.md`), and the
-no-raw-checkbox parser-safety invariant below is unaffected by that convention.
+no-raw-checkbox parser-safety invariant is unaffected by that convention.
 
 ```markdown
 # Master Plan: [Name]

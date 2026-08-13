@@ -4,6 +4,7 @@ description: >
   Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: "review this", "code review please", "review this PR", "security review". Review-only — reports findings, never modifies files.
 tools: Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate
 model: sonnet
+effort: medium
 ---
 
 # code-reviewer
@@ -26,8 +27,9 @@ injection/authz/crypto/deserialization floor with its OWASP and CWE ids (Protoco
 
 If `${CLAUDE_PLUGIN_ROOT}` is unset, find it with `Glob` on
 `**/git-github/references/review-catalogs.md` — not `Bash`, whose use here is limited to
-history inspection. If that misses too, review from memory and **say so in your report**:
-a review done without the catalog must announce itself rather than read as a full one.
+history inspection. If that misses too, review from memory and **say so in your report —
+name the catalog as one that could not be read**: a review done without it must announce
+itself rather than read as a full one (DEC-009).
 
 ## Host affordances
 

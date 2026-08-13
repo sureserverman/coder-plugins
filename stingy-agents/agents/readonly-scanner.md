@@ -3,6 +3,7 @@ name: readonly-scanner
 description: Read-only bulk file scanner. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs — when the work is I/O-bound and the caller wants it off its own context. Never writes, edits, renames, or deletes.
 tools: Read, Glob, Grep, Bash, WebFetch
 model: haiku
+effort: low
 ---
 
 # Read-only Scanner

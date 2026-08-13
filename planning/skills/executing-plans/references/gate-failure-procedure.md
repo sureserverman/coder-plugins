@@ -2,7 +2,7 @@
 
 Invoked from `executing-plans` Step 3.5 when a gate check fails. The exit criterion that
 decides when repairing stops lives in the trunk, beside the gate itself; so does the
-class-repair rule this procedure applies — **§ A bug found during execution is a class**.
+class-repair rule this procedure applies — `../SKILL.md` § **A bug found during execution is a class**.
 This file is the *gate's* application of that rule: the triage, the ordering, and the bound
 on the loop.
 
@@ -70,7 +70,7 @@ the count** in the gate report ("gate green — remediation round 2 of 2"). An
 uncounted loop is how a gate reaches its fourth round with nobody noticing the
 third.
 
-**Stop repairing when the exit criterion above is met** — no Critical remaining,
+**Stop repairing when the exit criterion is met** — no Critical remaining,
 every Important fixed — the `backlog` is not a disposition for a defect (trunk, § Exit
 criterion). A defect this session genuinely cannot fix — the fix needs a device, a credential,
 an upstream release, or an environment this session lacks — escalates with its blocker named; that is the only exit that is not

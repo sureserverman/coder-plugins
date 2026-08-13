@@ -51,6 +51,37 @@ guardrail that a one-session job cannot need.
 | honest-gates integrity contract | Default goal-evaluator dispatch (opt-in at Light) |
 | | Mirror-grep version-bump ritual (one stated bump) |
 
+## Deltas from the Standard authoring flow — what each one means
+
+`../SKILL.md` § Light plans lists the five deltas as rules. This section is what each of them
+means in practice, for an author deciding how far to scale a step down.
+
+**Research is proportionate, not a mandated section.** The Research Summary is replaced by a
+1–3 sentence **Context** line at the top of the plan: the key facts that ground the change.
+Skip the online/vault research sweep unless a specific unknown demands it — at this size the
+sweep usually rediscovers what the author already knows. What does *not* scale down is the
+backlog scan and, where `docs/workflows/` exists, the workflow-spec declaration: a Light plan
+that silently duplicates an open backlog item is the same planning bug at any size, and
+behavior contracts do not get a size exemption.
+
+**Preflight collapses into the gate.** There is no Preflight section at all. The only
+pre-execution check that matters at this size — "baseline tests pass" — lives as a bullet
+inside the single `### Stage 1 Gate`, alongside the git bootstrap `executing-plans` always
+does. Everything else a Standard Preflight verifies (tool versions, API reachability, the
+dispatch probe and roster) is either irrelevant to a one-session job or moot with no fan-out.
+
+**No Risk / Rollback / Blocks / Parallel fields.** One low-risk stage does not need a rollback
+rehearsal, and with ≤5 tasks in one session there is no fan-out to coordinate. `Depends on`
+survives, but only where a task genuinely consumes a prior task's output.
+
+**Output location is unchanged.** A Light plan saves to the same `<portfolio_home>/plans/` in
+the vault under the same resolution and sidecar rules as any plan — project auto-registered,
+`PORTFOLIO-STATUS` block present. It is a first-class plan, just a small one, and the only
+thing its filename changes is which format `executing-plans` detects.
+
+**Use the Light checklist**, not the Standard one:
+`authoring-checklist.md` § Checklist — Light plans.
+
 ## Naming
 
 A Light plan lives in the same `plans/` directory as any other plan (vault

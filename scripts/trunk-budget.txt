@@ -1,0 +1,242 @@
+# Trunk size ratchet — `<repo-relative SKILL.md> <max bytes>`.
+#
+# A skill's body is loaded per invocation, not per session: every byte here is
+# paid each time the skill fires, in every project with the plugin enabled.
+#
+# Seeded 2026-08-11 by the token-efficiency plan, Stage 1 Task 1.2, at each
+# trunk's measured size. The ceiling is a RATCHET — a trunk may shrink freely
+# and may not grow. It is deliberately seeded at today's size rather than at a
+# target: the regression this stops is silent re-growth (executing-plans gained
+# 34% in six days), and that value does not depend on any extraction landing.
+#
+# Lower a ceiling by hand when an extraction lands — that is what makes the
+# reduction durable instead of a number that drifts back up. Stages 2 and 3
+# write their DERIVED ceilings here, computed from each trunk's
+# conditional/unconditional classification, never from a target picked ahead of
+# the measurement.
+#
+# Every trunk at or above 10000 B must carry an entry; check-trunk-budget.py
+# fails on one that does not, so the ratchet cannot be opted out of by omission.
+
+# Lowered 92987 -> 43217 by Stage 2 Task 2.1: the extraction landed. Task 2.0's
+# estimated ceiling was 32617; the cut retained 43217 and MISSED it by 10600 B.
+# The ceiling is re-derived from what was actually retained rather than met by
+# moving obligations into references/ — the failure mode the plan exists to
+# avoid. Every byte of the miss is rule text: the `rule+elaboration` estimate
+# assumed a rule compresses to ~30% of its section and it is 40-50%. The full
+# accounting, per section, is in
+# planning/skills/executing-plans/references/extraction-classification.md
+# § Derived ceiling — estimated at Task 2.0, re-derived at Task 2.1.
+#
+# Raised 43217 -> 44536 (+1319) by Stage 2 Task 2.2. NOT drift: the contract suite
+# is what found it. Task 2.1's compression dropped nine obligation-bearing
+# phrases while keeping each rule's gist — the gate-failure branch's routing to
+# the class rule, its `no-fafo-debugging` call, the `Scope:` derivation source,
+# "write the command down", the sweep's outer bound ("nothing wider"), Tier-2's
+# binding of an Important to the exit criterion, the evaluator's tier reference,
+# and the handoff's "carried here". Every one is a rule an executor must follow
+# and none belonged in a reference file, so they were restored to the trunk and
+# the ceiling follows the obligation rather than the obligation following the
+# ceiling. Still -52.1% against the 92987 B this stage started from.
+#
+# Raised 44536 -> 46135 (+1599) at the Stage 2 gate, remediation round 1.
+# Two obligations were surviving in the trunk only as NOUNS inside a pointer
+# sentence, found independently by the gate evaluator and the Tier-2 review: the
+# platform stage-verify hook (an executor on an Android project would run the gate
+# checks and never build the APK) and the evaluator's Blocking/Material/Minor
+# briefing (briefed from the trunk alone an evaluator returns bare pass/fail, and
+# the gate loop then has no reachable exit - the exact failure that text existed to
+# prevent). Both restored as rules. "A pointer is not a rule" is the standard this
+# stage set for itself; these two were the places it had not met it.
+# Raised 46135 -> 46280 (+145) by the Stage 5 close-out, BL-039 item (3): the operative "report which check failed and
+#   HOW" survived only in references/dispatch-fidelity.md, which the Reference map loads
+#   when the roster or probe needs justifying — i.e. NOT on the path where Preflight
+#   actually fails. Restored to the trunk's Preflight so the rule is where the failure is.
+# Raised 46280 -> 46311 (+31) at the close-out gate: a Tier-2 suggestion that
+#   the BL-039 fix had stolen the colon introducing Preflight's check list, so
+#   eleven bullets grammatically hung off the consequence-of-failure clause
+#   rather than off "run every check". The rule is now its own line after the
+#   bullets, which reads correctly and costs 31 B.
+planning/skills/executing-plans/SKILL.md 46311
+
+# derived-ceiling: 26976 — Stage 3 Task 3.0, from
+# planning/skills/planning-projects/references/extraction-classification.md.
+# 14 unconditional sections (6477 B) + 22 rule+elaboration (37762 B) + 1
+# conditional (977 B) + 886 B scaffolding, retaining 6650 + 19190 + 250 + 886.
+# A COMMENT, not the active ceiling: the trunk is still 46102 B, so promoting it
+# now would fail the ratchet and redden the suite between two green tasks. Task
+# 3.1 promotes it when the cut lands.
+#
+# rule+elaboration retention is estimated at 45%, NOT the 30% Task 2.0 assumed —
+# measured across executing-plans it is 40-50%, and that assumption is the whole
+# of Stage 2's 10600 B ceiling miss.
+#
+# Only ONE section is conditional, and that is the finding: planning-projects is
+# read once per plan and almost every section fires on that pass, so its
+# reduction (41.5%) comes from compressing justification rather than relocating
+# procedure. Stage 2's trunk reached 50% because it had procedure to relocate.
+
+# Lowered 46102 -> 35764 by Stage 3 Task 3.1: the extraction landed. Task 3.0's
+# estimated ceiling was 26976; the cut retained 35764 and MISSED it by 8788 B.
+# The ceiling is re-derived from what was actually retained, because every byte of
+# the miss is rule text and moving it would defeat the plan. The whole miss sits in
+# one row: rule+elaboration retained 73.6%, against the 45% Task 3.0 estimated —
+# and 45% was itself Stage 2's correction to a 30% assumption, applied and still
+# low by 28 points. The cause is the trunk's shape, not the cut's effort: this
+# trunk's rule+elaboration sections are mostly ENUMERATIONS of obligations
+# (Preflight's checks 84% kept, Phase 2.5's thresholds 85%) rather than prose over
+# a rule, and an enumeration has no justification layer to shed. The only section
+# that compressed as estimated was the pre-presentation checklist (46%), the one
+# section whose items restate rules other sections own. Full per-section
+# accounting, and what a future estimator should ask before picking a ratio, in
+# planning/skills/planning-projects/references/extraction-classification.md
+# § Re-derived at Task 3.1 — the ceiling was MISSED by 8788 B.
+# Raised 35764 -> 36430 (+666) by the Stage 3 gate, remediation round 1. The
+#   split, corrected at round 2 after the re-review recomputed it: +586 in
+#   § Task and stage fields for finding I3, +80 in § Checklist — Before
+#   Presenting the Plan for finding I2. The round-1 comment attributed all 666
+#   to I3, which was wrong in exactly the way this file exists to prevent —
+#   a raise whose stated reason does not match what grew. I3 was: four
+#   checklist obligations — both `Depends on`/`Blocks` required and symmetric,
+#   dependency order within a stage, no dependency on a later stage, and a
+#   `Parallel` field consistent with them — had left the trunk with the checklist,
+#   surviving only as NOUNS inside a pointer sentence ("including ... dependency
+#   symmetry, ordering rules ..."). That is the shape the Stage 2 gate rejected
+#   twice. Promoted to rules in § Task and stage fields. The ceiling follows the
+#   obligation, which is this plan's rule in both directions.
+# Raised 36430 -> 36489 (+59) by the Stage 5 close-out, BL-039 item (4): the field-semantics pointer promised "stage sizing"
+#   from references/task-fields.md, which ends at Rollback notes. The rule is trunk-resident
+#   in § Stage sizing, so the PROMISE was the defect. Corrected, and it now says where the
+#   rule actually is (net +59 B; a false pointer costs more than the words that fix it).
+planning/skills/planning-projects/SKILL.md 36489
+
+# derived-ceiling: 7728 — Stage 3 Task 3.0, from
+# planning/skills/portfolio/references/extraction-classification.md.
+# 4 unconditional (2121 B) + 3 rule+elaboration (2508 B) + 9 conditional
+# (21045 B) + 1597 B scaffolding + 700 B for a `## Reference map` section this
+# trunk does not yet have, retaining 2121 + 1200 + 2110 + 1597 + 700.
+# A COMMENT for the same reason as above; Task 3.2 promotes it.
+#
+# The 71.7% reduction is STRUCTURAL, not a bolder classification: portfolio is a
+# dispatcher of 7 subcommands and an explicit invocation runs exactly one, which
+# is the textbook conditional shape. Read the honest qualification in the
+# classification file before quoting that number — the DEFAULT flow runs
+# scan -> unify -> maturity -> rebuild, so a default invocation reads 4 of the 7
+# extracted references. The real shape is a 7.7 KB trunk plus 4 mandatory reads
+# on a default run, or exactly 1 on a named subcommand.
+#
+# 417 B of this assumes `## Remember` is DELETED rather than relocated, matching
+# Stage 2's treatment of the executing-plans section of the same name. That
+# deletion needs the register owner's approval; if withheld, this ceiling is 8145.
+
+# Lowered 27271 -> 11950 by Stage 3 Task 3.2: the extraction landed. The ACTIVE
+# target was 8145, not the 7728 recorded above: that approval for deleting
+# `## Remember` was never obtained, so the section was retained whole and the
+# ceiling it was measured against rose by its 417 B. The cut retained 11950 and
+# MISSED 8145 by 3805 B. The ceiling is re-derived from what was actually
+# retained, because the gap is branch-owned rules plus the index the extraction
+# itself created.
+#
+# The miss sits in the `conditional` row, which retained 22.6% against an
+# estimated 10% — and the cause is a per-pointer FLOOR, not a percentage. The
+# eight moved subcommand sections average 541 B of retained pointer with a range
+# of 361-833, and the ratio tracks the INVERSE of the source size (12.9% for the
+# 5686 B `rebuild`, 50.8% for the 711 B `Integration`). A pointer costs what it
+# costs: name the subcommand, state the input gate that decides whether it
+# writes, carry the invariants that bind even when the reference is never opened
+# (migrate's copy->verify->delete, integrate's never-auto-fixed asymmetries,
+# rebuild's PRESERVE block and degrade-but-never-truncate, plan-status'
+# report-first default), and cite the file. Size `conditional` as
+# n_sections x ~500 B, not as a share of bytes: that rule predicts 4500 here
+# against an actual 4747.
+#
+# Two smaller overruns, both already seen once. `Reference map` came in at 1648
+# against 700 — 17 rows at ~45 B of table syntax each before any prose; Task 3.1
+# measured the same direction. And `Configuration:` retained 614 of 614 against
+# an estimated 300, because the "sample block" the row proposed to move IS the
+# key list and the missing-file default — Task 3.1's finding that an enumeration
+# has no justification layer to shed, reproduced exactly. Full per-section
+# accounting in
+# planning/skills/portfolio/references/extraction-classification.md
+# § Re-derived at Task 3.2 — the ceiling was MISSED by 3805 B.
+#
+# Raised 11950 -> 12347 (+397) by a DEC-013 defect fix, not by drift. Task 3.0
+# recorded that this trunk's Resolver and Configuration sections gave opposite
+# guidance on an unresolvable vault_dir, and deferred it as a decision about
+# portfolio's behavior. Reading the extracted `rebuild` reference settled it as a
+# DEFECT instead: the roll-ups went vault-canonical and "there is no `~/.claude/`
+# or `Projects/` copy", so Configuration's "mirrors globals to <vault_dir>/Projects/"
+# and its "continues with `~/.claude/` writes only" both named storage that had been
+# retired out from under them. A fallback to a destination that no longer exists is
+# not an alternative policy, it is stale text.
+#
+# The genuinely undecided half is kept undecided and is now SAID to be: what a
+# vault_dir that is SET but names a missing directory should do. The old sentence
+# answered it by pointing at the retired mirror, which read as an answer while
+# being none. Also fixed here: the Announce line listed six subcommands and omitted
+# plan-status, which the frontmatter description does list.
+# Raised 12347 -> 12389 (+42) by the Stage 3 gate, remediation round 1: +42 for Tier-2 I4. `## Subcommands` claimed
+#   "the default flow runs four", contradicting § Staged rollout in the same trunk,
+#   which gates the maturity step behind `--include-maturity` (default off) — so the
+#   default flow runs THREE during the staging window. Now "composes four, one of
+#   them gated".
+planning/skills/portfolio/SKILL.md 12389
+android-dev/skills/android-play-publish/SKILL.md 18018
+# Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
+# out of the executing-plans trunk, leaving a citation here pointing at a section
+# that no longer exists in the file it named. Repointed at the file that now owns
+# it, which is longer than the bare skill name it replaced.
+planning/skills/backlog/SKILL.md 17706
+# The six raises below share one cause: Stage 3 Task 3.3 burned the BL-039
+# allowlist debt down to zero for this plugin by REWRITING the prose rather than
+# suppressing the findings, and position-neutral prose runs a little longer than
+# the deixis it replaces. 2-27 B each, 83 B total, against 48 findings fixed.
+# The ratchet fired on all six and is what forced this accounting.
+#
+# Raised 17361 -> 17381 (+20) by the Task 3.3 deixis burn-down:
+#   three fixes: the halts pointer now names its section, the stack-routing
+#   citation was joined onto one line so its path qualifies it, and a CLRS
+#   section number stopped being read as document deixis
+planning/skills/dispatching-parallel-agents/SKILL.md 17381
+# Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
+#   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
+#   citation stopped claiming a path that resolves nowhere from this file
+# Raised 16200 -> 16252 (+52) by the Stage 3 gate, remediation round 1: +52 for Tier-2 S6. The Task 3.3 DEAD-PATH
+#   fix had satisfied the guard by DELETING the ui-grading-rubric citation rather
+#   than repointing it — the one place in the 48 where information was lost to make
+#   a check green. Restored as a resolvable relative path into android-dev.
+planning/skills/applying-design-handoff/SKILL.md 16252
+# Raised 14834 -> 14843 (+9) by the Task 3.3 deixis burn-down:
+#   the AI-tool waiver names the step-2 rule it excepts, and the packaging
+#   detectors are named by axis rather than by position
+# Raised 14843 -> 14884 (+41) by Stage 4 Task 4.3's determinism-boundary audit.
+#   The trunk mandated `--portfolio-home` for `audit-detectors.py` in the resolver
+#   section and then printed the invocation WITHOUT it, so an executor copying the
+#   command block silently lost the Security axis for every audited project — the
+#   exact failure the resolver text exists to prevent. The flag is now in the
+#   command that is actually run.
+planning/skills/project-maturity/SKILL.md 14884
+# Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
+# lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
+# with the reason on the line above it.
+android-dev/skills/android-ui-design-figma/SKILL.md 13534
+git-github/skills/license-audit/SKILL.md 13335
+# Raised 13122 -> 13124 (+2) by the Task 3.3 deixis burn-down:
+#   the question heuristics are cited by phase instead of by direction
+planning/skills/brainstorming/SKILL.md 13124
+# Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
+#   the Output location citation now carries the path it refers to
+planning/skills/decisions/SKILL.md 13053
+android-dev/skills/android-fdroid-publish/SKILL.md 12879
+planning/skills/architecting-projects/SKILL.md 11935
+# Raised 11658 -> 11674 (+16) by the Task 3.3 deixis burn-down:
+#   the business-aware rules and the agenda sources are named rather than
+#   pointed at
+planning/skills/compass/SKILL.md 11674
+business/skills/business-plan/SKILL.md 11539
+git-github/skills/code-comment-audit/SKILL.md 10838
+business/skills/track/SKILL.md 10750
+planning/skills/workflow-spec/SKILL.md 10580
+android-dev/skills/android-release-signing/SKILL.md 10371
+business/skills/assess/SKILL.md 10277
+browser-extensions/skills/browser-extensions/SKILL.md 10263

@@ -4,6 +4,29 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-08-12
+
+### Changed
+- `market-researcher` carries a deliberate `effort: medium` pin alongside its existing
+  `model: sonnet`, and its reference path is `${CLAUDE_PLUGIN_ROOT}`-rooted rather than
+  relative (a dispatched agent's cwd is the repo under review, so the relative form
+  resolved nowhere). It also now discloses in its report when a reference or a cited
+  source could not be read — a sweep that silently skipped its format spec and one that
+  followed it return the same shape, so the disclosure is the only thing that tells them
+  apart. Honors DEC-009.
+
+## [0.6.2] - 2026-07-28
+
+### Changed
+- Version bump only, as part of the marketplace-wide `ui-*` retirement and
+  context-engineering release (`a34724c`). No change to this plugin's own behavior.
+
+## [0.6.1] - 2026-07-25
+
+### Changed
+- Version bump only, as part of the decisions-aware execution + full-usage docs release
+  (`a8a0303`). No change to this plugin's own behavior.
+
 ## [0.6.0] - 2026-07-25
 
 ### Added

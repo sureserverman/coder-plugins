@@ -17,7 +17,7 @@ Relevant patterns:
 A Task N.N section is considered "unchecked" (and therefore a candidate) when either of the following is true:
 
 - The section header is present and the body contains at least one `- [ ]` bullet and zero `- [x]` bullets.
-- The section header is present and the body contains no bullets at all (i.e. the task was never started — an orphan header is logged and skipped per the malformed-plan rule below, not emitted as a candidate).
+- The section header is present and the body contains no bullets at all (i.e. the task was never started — an orphan header is logged and skipped per the malformed-plan rule in § Hard rules, not emitted as a candidate).
 
 A section with a mix of `- [ ]` and `- [x]` bullets is partially done; each remaining `- [ ]` bullet is its own candidate, attributed to that Task N.N section.
 
@@ -120,7 +120,7 @@ Field definitions:
   - `unchecked-open` — an unchecked `- [ ]` bullet inside a Task N.N section. Preflight and Stage Gate bullets are NOT a source.
   - `deferred-section` — any bullet under an explicit Deferred heading.
 
-  - `stale-plan-unchecked` — an unresolved item in a plan older than 90 days by filename stamp, emitted **only** under `--include-stale` and only for items the four signals above did not already emit.
+  - `stale-plan-unchecked` — an unresolved item in a plan older than 90 days by filename stamp, emitted **only** under `--include-stale` and only for items the four § Input signals did not already emit.
 
   There is no `unchecked-task`; it was named here for months and never emitted.
 
@@ -176,7 +176,7 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   `Task N.N` when no enclosing stage is detectable). The task's body bullets
   are never emitted as separate candidates.
 - Task with `- **Status:** [~]` → **partial / in flight** → exactly ONE
-  candidate per task, identical in shape to the above but with
+  candidate per task, identical in shape to the unchecked-checkbox case but with
   `signal: status-partial`. A partial task counts toward a plan's `total` and
   never toward its `done`: it is unfinished work, and the distinct signal keeps
   "started but unfinished" separable from "never begun". Consumers classify via
@@ -194,7 +194,7 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   section (e.g. a master plan's `### Sub-plan N:` register entries) has no task
   context and emits nothing.
 - A plan with a `**Completed:** <date>` close-out line and all `[x]` is fully
-  done (and, by the rules above, yields zero task candidates).
+  done (and, by the rules in this section, yields zero task candidates).
 
 ### Abandonment: `**Abandoned:**` (terminal state, parsed — not prose)
 
@@ -219,7 +219,7 @@ Parsed by `plan_terminal_state()` in `portfolio-unify.py`. Rules:
   natural language as a gate: a false positive there hides live work, which is
   a worse and quieter failure than the missing suppression it would fix.
 
-The heuristic signals above (unchecked `[ ]` bullets, git-stage evidence)
+The heuristic § Input signals (unchecked `[ ]` bullets, git-stage evidence)
 remain the fallback for **legacy plans** that predate the `Status:` field.
 
 ## Master plans (plans from planning-projects v0.16.0+ multi-plan decomposition)

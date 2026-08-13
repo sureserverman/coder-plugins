@@ -34,6 +34,7 @@ from _frontmatter_common import (  # noqa: E402
     is_excluded,
     frontmatter_block,
     disable_model_invocation,
+    load_lines,
 )
 
 try:
@@ -43,15 +44,11 @@ except ImportError:  # pragma: no cover - CI installs pyyaml
 
 
 def load_allowlist(path=ALLOWLIST_PATH):
-    allowed = set()
-    if not os.path.exists(path):
-        return allowed
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            entry = line.split("#", 1)[0].strip()
-            if entry:
-                allowed.add(entry)
-    return allowed
+    # Was a third independent copy of the same comment-stripping loader. A
+    # reviewer caught that consolidating only the two new scripts left the drift
+    # this module exists to prevent open for exactly the script that had carried
+    # the logic longest.
+    return set(load_lines(path))
 
 
 def extract_description(text):

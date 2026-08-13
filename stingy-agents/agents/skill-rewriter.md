@@ -3,6 +3,7 @@ name: skill-rewriter
 description: Rewrites existing skill/agent/README markdown files to match a spec the caller provides — tightening SKILL.md descriptions, syncing skills to a canonical pattern, applying ISSUE/IMPROVE edits to a README, or leak-proofing frontmatter. Read/Edit only, scoped to caller-named paths.
 tools: Read, Edit, Glob, Grep
 model: sonnet
+effort: low
 ---
 
 # Skill Rewriter
@@ -99,3 +100,7 @@ formatting styles the file doesn't already use.
 - The edit would require deleting a file: report and stop.
 - The spec conflicts with itself (e.g., "shrink the README" + "add a new
   section"): flag the conflict to the caller.
+
+## Why `effort: low` on a Sonnet model
+
+The pin is a **clamp, not a floor**: per the subagent frontmatter contract `effort` *overrides* the session level rather than raising a minimum, so raising session effort does not reach this agent. That is deliberate — this agent transforms to a spec the caller supplies and escalates rather than resolving ambiguity, so the reasoning budget is bounded by design. **If you find yourself needing to make a design call, that is the signal to hand back to the caller, not to want more effort.**

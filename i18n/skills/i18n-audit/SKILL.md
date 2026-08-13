@@ -51,8 +51,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/i18n-audit/scripts/diff-catalogs.py <project-root> 
 Outputs:
 - `missing[locale]` — keys present in source but absent from this locale.
 - `extra[locale]` — keys in this locale that don't exist in source (likely stale).
-- `stale[locale]` — keys whose source text changed after the locale was last touched (uses git blame; falls back to mtime).
-- `placeholder_mismatch[locale]` — keys where the placeholder set differs between source and target.
+- `placeholder_mismatch[locale]` — keys where the placeholder set differs between source and target. This is the only staleness signal the lane emits (`validate-catalog-diff.sh` re-emits it as `i18n-stale-key`). Source-text staleness — "did the English change after this locale was last touched" — is deliberately NOT implemented (git blame is slow); the script emits no `stale[locale]` key, and you must not reconstruct one by hand.
 
 Report counts per locale, then a sorted list of which locales need attention.
 
@@ -67,8 +66,8 @@ i18n Audit — <project>
   Target locales:   <list>
   Hardcoded strings (likely user-facing): <count>
   Missing translations:  locale=<count>, ...
-  Stale translations:    locale=<count>, ...
-  Placeholder mismatches: locale=<count>, ...
+  Extra (removed-from-source) keys: locale=<count>, ...
+  Placeholder mismatches (stale): locale=<count>, ...
 
 Top 5 hardcoded strings to wrap:
   1. <file>:<line> — "<snippet>"
