@@ -84,8 +84,8 @@ existing domain entry at creation time.
 
 1. Read `<portfolio_home>/decisions.md`. If absent, create it with the header
    block from the format reference (no entries yet).
-2. Compute the next ID: scan for `DEC-\d{3}`, take max, add 1. **Never reuse an
-   ID**, including one whose entry is superseded.
+2. Next ID: scan `DEC-(?:[A-Z]{2,4}-)?\d{3}`, max + 1, keeping the tag form.
+   **Never reuse an ID**, even a superseded one.
 3. Insert the new block immediately below the top `---` separator (newest first).
 4. Save, and report `Recorded DEC-NNN — <title>.`
 

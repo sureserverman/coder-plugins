@@ -83,7 +83,12 @@ def count_backlog(home):
 # binding decision disappears silently, which is the one outcome this register
 # exists to prevent.
 BLOCK_HEAD_RE = re.compile(r"^## +(.+?)\s*$", re.M)
-DEC_ID_RE = re.compile(r"^(DEC-\d+)\s+—\s+(.+)$")
+# The project tag (`DEC-MT-003`) is optional. Untagged `DEC-003` is the
+# canonical form; a tag is accepted because a register whose entries are
+# cited from other projects' plans needs an ID that is unambiguous outside
+# its own file, and rewriting those citations to drop the tag would break
+# every existing reference to buy nothing.
+DEC_ID_RE = re.compile(r"^(DEC-(?:[A-Z]{2,4}-)?\d+)\s+—\s+(.+)$")
 GDEC_ID_RE = re.compile(r"^(GDEC-[A-Z]+-\d+)\s+—\s+(.+)$")
 RULE_RE = re.compile(r"^(-{3,}|\*{3,}|_{3,})$")
 FIELD_LINE_RE = re.compile(r"^\s*-\s+\*\*([^:*]+):\*\*\s*(.*)$")

@@ -38,6 +38,15 @@ preamble. IDs are zero-padded 3-digit, monotonic per project, and
 **never reused** — the same discipline as `BL-NNN` in the backlog register; the
 next ID is `max + 1` even when earlier entries have been superseded.
 
+A register may instead key its entries `DEC-<TAG>-NNN`, where `<TAG>` is a
+2–4 letter uppercase project tag (`DEC-MT-003` for multitor). Both forms
+parse; a register picks one and holds to it. The tag buys nothing inside the
+file — it exists because these IDs are cited from plans, backlogs and
+architecture docs elsewhere in the vault, where a bare `DEC-003` does not say
+whose decision it is. Untagged remains the default for a new register: the
+tag is only worth its cost once a project's decisions are routinely cited
+from outside the project.
+
 ```markdown
 # Decisions
 
@@ -205,8 +214,8 @@ The deterministic reader in `portfolio-rebuild.py` follows these, and
    dropped outright — if it were the first heading — or silently swallowed into
    the previous block's last field. Either way a binding decision disappears,
    which is the one outcome this register exists to prevent.
-2. A heading that fails `^DEC-\d+ — ` (project) or `^GDEC-[A-Z]+-\d+ — `
-   (domain) yields a **flagged entry** carrying the raw heading, not a skipped
+2. A heading that fails `^DEC-(?:[A-Z]{2,4}-)?\d+ — ` (project) or
+   `^GDEC-[A-Z]+-\d+ — ` (domain) yields a **flagged entry** carrying the raw heading, not a skipped
    one. It is listed by project and verbatim under `## Malformed entries
    (review)` in the roll-up. The heading must be repaired before the entry's
    other fields mean anything, so such an entry is excluded from counts, from
@@ -225,9 +234,12 @@ The deterministic reader in `portfolio-rebuild.py` follows these, and
    entries and one error line; it never aborts the rebuild.
 7. `Domains` values are lowercased and whitespace-stripped before grouping;
    `none` expands to no domains and is not a malformation.
-8. IDs are matched as `DEC-\d+` / `GDEC-[A-Z]+-\d+`. Zero-padding to three
-   digits is the authoring convention (above), not a parser requirement — a
-   `DEC-7` parses, it is simply not how entries should be written.
+8. IDs are matched as `DEC-(?:[A-Z]{2,4}-)?\d+` / `GDEC-[A-Z]+-\d+`.
+   Zero-padding to three digits is the authoring convention (above), not a
+   parser requirement — a `DEC-7` parses, it is simply not how entries
+   should be written. The project tag is likewise optional
+   (see § Per-project format): both `DEC-003` and `DEC-MT-003` parse, and a
+   register uses one form or the other throughout, never both.
 9. **An ID claimed by two blocks in the same file is reported** — every
    reference to it is ambiguous, and nothing here can know which block the
    author meant. Both blocks are still parsed and listed; the duplicate is
