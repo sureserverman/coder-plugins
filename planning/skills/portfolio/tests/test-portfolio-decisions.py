@@ -116,6 +116,26 @@ def main() -> int:
     last = entry(mh["entries"], "DEC-001")
     chk(last["fields"]["Reason"] == "Intact.", "the final well-formed block must survive intact")
 
+    # ---- optional project tag ---------------------------------------------
+    # `DEC-MT-003` keys the same entry as `DEC-003`. The tag exists so an ID
+    # cited from a plan in another project says whose decision it is; the
+    # parser must key it rather than flag the whole register unreadable.
+    tagged = pr.parse_decision_file(
+        "## DEC-MT-003 — Tagged\n\n- **Decided:** 2026-08-02\n- **Status:** accepted\n"
+        "- **Domains:** tor\n- **Source:** direct\n- **Reason:** Because.\n\n"
+        "## DEC-004 — Untagged\n\n- **Decided:** 2026-08-03\n- **Status:** accepted\n"
+        "- **Domains:** none\n- **Source:** direct\n- **Reason:** Also because.\n\n"
+        "## DEC-mt-005 — Lowercase tag\n\n- **Reason:** Not a tag.\n\n"
+        "## DEC-TOOLONG-006 — Overlong tag\n\n- **Reason:** Not a tag either.\n",
+        pr.DEC_ID_RE, pr.PROJECT_REQUIRED)
+    tids = [e["id"] for e in tagged]
+    chk(tids == ["DEC-MT-003", "DEC-004", None, None],
+        f"a 2-4 letter uppercase tag must key the entry; anything else flags: {tids}")
+    chk(tagged[0]["missing"] == [],
+        f"a complete tagged entry must not be flagged: {tagged[0]['missing']}")
+    chk(tagged[0]["title"] == "Tagged",
+        f"the tag must not bleed into the title: {tagged[0]['title']!r}")
+
     # ---- per-domain parse -------------------------------------------------
     doms = pr.read_domain_decisions(vault)
     chk(sorted(doms) == ["android", "rust", "tor"], f"domain files discovered: {sorted(doms)}")
