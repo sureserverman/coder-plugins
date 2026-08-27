@@ -147,11 +147,15 @@ bypass the config, and must not thereby bypass the rule. `vault_dir` is
 
 ### Auto-create on first write
 
-A registered project whose vault home directory does not yet exist gets
-`Portfolio/<area>/<name>/` created automatically on the first write
+A registered project whose vault home directory does not yet exist gets its
+`<area>/<name>/` created automatically under `Portfolio/` on the first write
 (`mkdir -p`), analogous to the backlog skill's auto-create-on-first-write
-behavior. This means onboarding a new project requires no manual vault setup —
-the directory materializes the moment any portfolio tool first writes to it.
+behavior. Onboarding a new PROJECT therefore requires no manual vault setup —
+its directory materializes the moment any portfolio tool first writes to it.
+
+Onboarding a new **vault** is the one thing that does: `Portfolio/` itself is
+never auto-created, because a vault without it is indistinguishable from an
+unmounted mountpoint, which `require_vault()` refuses. Create it once, by hand.
 
 **Bounded, and here is what actually enforces it:** the auto-create applies only
 *beneath a reachable vault*, where reachable is `require_vault()`'s definition —
