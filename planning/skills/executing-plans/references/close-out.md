@@ -123,10 +123,15 @@ ACTION NEEDED — <one line naming the decision>
 ```
 
 One block, last, options numbered. **A close-out report carrying an `ACTION NEEDED:` block
-does not also announce that it is proceeding** — to a merge, a tag, or anything else. The
-merge offer at step 10 is the exception only because it *is* the ask: fold it into the block
-rather than stating it twice. Anything the user does not have to decide is a residual, not an
-`ACTION NEEDED:` item.
+does not also announce that it is proceeding** — to a merge, a tag, or anything else.
+
+**Step 10's merge offer is always the block, and it is why close-out has no "or none" case.**
+A close-out always ends in a decision the user owns, so the block is always present: with no
+other decision it carries the merge options alone, and with one it carries both, numbered
+together. What may never happen is a separate `ACTION NEEDED:` block for some other decision
+*plus* a freestanding merge offer elsewhere in the report — that reconstructs the pairing this
+form exists to forbid, out of two individually well-formed halves. Anything the user does not
+have to decide is not an `ACTION NEEDED:` item at all.
 
 **Tier: untiered.** This mandate costs a line of text, not an agent dispatch, so per
 DEC-010 it runs at every review scope including `none` — named here because DEC-017

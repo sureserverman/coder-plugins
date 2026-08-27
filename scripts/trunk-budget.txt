@@ -57,7 +57,34 @@
 #   eleven bullets grammatically hung off the consequence-of-failure clause
 #   rather than off "run every check". The rule is now its own line after the
 #   bullets, which reads correctly and costs 31 B.
-planning/skills/executing-plans/SKILL.md 46311
+# Raised 46311 -> 46613 (+302) at the Stage 1 gate of the 2026-08-27 session-mined-flaws
+#   plan, remediation round 1. NOT drift, and not the plan's own five additions — those were
+#   each paid for by extraction inside this ratchet, which is why the trunk sat at exactly
+#   46311 when the gate opened. This raise funds three RULES that three Tier-1 reviews found
+#   missing, each a contradiction inside the trunk rather than an improvement to it:
+#     +176  § Step 3.5 — the boxed exit criterion claims to govern "every gate pass" while
+#           enumerating only Critical/Important findings, so the three conditions that fail a
+#           gate on their own (platform-verify hook, decisions-conformance sweep, unrecorded
+#           review substitution) were unreachable from the criterion that claims to be
+#           complete. A reader who evaluated only the box would never find them.
+#     +112  Step 3.3 rule 5 stated the Status flip happens "in the same change as the work"
+#           unconditionally, two items before rule 7 carved out the vault-resident plan where
+#           it cannot. Flatly contradictory on the axis Task 1.1 exists to clarify.
+#      +14  § Run to completion — the turn rule's lead said "an announcement" and its own
+#           elaboration said "stage or task", leaving this file's § Announce at start covered
+#           by one reading and not the other. Broadened the elaboration to match the lead.
+#   The alternative was to fund them by cutting elaboration, and after five extractions this
+#   stage there is no elaboration left to cut: a marker-free sweep of every paragraph over
+#   300 B returns procedure, obligations and the format contract, nothing else. Paying for a
+#   rule by deleting a rule is the trade this file was written to stop, and the standard it
+#   set for itself twice already — at the Stage 2 and Stage 3 gates of the token-efficiency
+#   plan — is that the ceiling follows the obligation, not the obligation the ceiling.
+#
+#   Recorded caveat: the 2026-08-27 plan's Research Summary asserts "any trunk addition must
+#   be paid for by extraction in the same change (DEC-018)". DEC-018 says no such thing — it
+#   governs how a claimed token SAVING is measured. No decision in force forbids a recorded
+#   raise; this file's own protocol is the governing rule, and it is followed here.
+planning/skills/executing-plans/SKILL.md 46613
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

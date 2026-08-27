@@ -69,8 +69,10 @@ produced three separate *"what do you want from me?"* replies across three sessi
 reader cannot tell whether the run stopped, and the cost of guessing wrong is asymmetric —
 answering a question the run already moved past is wasted, and not answering one it is
 blocked on stalls the plan silently. Either the decision blocks the next stage, in which case
-say so and stop, or it does not, in which case it is not `ACTION NEEDED:` at all but a
-residual and belongs on the `residuals:` line.
+say so and stop, or it does not, in which case it is not `ACTION NEEDED:` at all and routes
+where its kind already routes — a decision the user must make to the `backlog`, a Suggestion
+to the `residuals:` line. This adds no third destination; `residuals:` keeps the definition
+§ The handoff note's contents gives it.
 
 **One block per report, or none.** Scattering asks through the narrative is the same defect
 with better manners: three asks in three paragraphs is three chances to miss one.

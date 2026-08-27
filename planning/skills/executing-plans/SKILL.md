@@ -128,8 +128,9 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 
 **Never end a turn on an announcement.** *"Starting Stage 3."* as a turn's last words has not
 started Stage 3 — it hands the turn back on a promise, and the user has to ask again for work
-already authorized. The tool call opening the announced stage or task goes in the **same
-turn** as the sentence announcing it, or instead of it: the call is the announcement. This is
+already authorized. The tool call opening the announced work — a stage, a task, or
+anything else this skill has you announce — goes in the **same turn** as the sentence
+announcing it, or instead of it: the call is the announcement. This is
 run-to-completion at the granularity of a single turn.
 
 ---
@@ -444,7 +445,7 @@ write them.** The measured incident behind all three: `references/task-execution
 2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
-5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
+5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
 7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
 
@@ -560,6 +561,10 @@ one reached by repairing a failure:
 > A gate passes when **no Critical finding remains** and **every Important finding is
 > fixed**, its class swept under the class-sweep rule. Suggestions are **recorded in the gate report and carried into the stage handoff
 > note**, never blocking.
+
+**Findings are not the only way a gate fails.** The platform stage-verify hook, the
+decisions-conformance sweep and an unrecorded review substitution each fail it on their own,
+whatever the finding list says.
 
 **A defect is fixed. The backlog is for what is not a defect** — a significant improvement, or
 a decision the user must make. A defect you genuinely cannot fix here **escalates with its
