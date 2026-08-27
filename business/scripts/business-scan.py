@@ -86,12 +86,19 @@ def load_env():
     # resolve <vault>/Portfolio/global-business.md, the destination biz-portfolio
     # then writes. Unchecked, that pipeline would print a path under a vault that
     # is not mounted and write the roll-up into a directory it had to create.
-    # The ONLY hand-kept copy of this guard. `business` is a separately versioned
-    # plugin: from a cache install it and `planning` live in sibling version trees,
-    # so it cannot import portfolio-rebuild's canonical one. The wording and every
-    # branch are pinned against that original by the class sweep in
-    # planning/skills/portfolio/tests/test-vault-unreachable.py — which is what
-    # keeps a copy that cannot delegate from silently drifting anyway.
+    # One of TWO hand-kept copies of this guard (the other is repo-health-scan's
+    # `_vault_problem`). `business` is a separately versioned plugin: from a cache
+    # install it and `planning` live in sibling version trees, so it cannot import
+    # portfolio-rebuild's canonical one.
+    #
+    # What actually pins it is `branch_parity_case()` in
+    # planning/skills/portfolio/tests/test-vault-unreachable.py, which drives every
+    # vault shape through every copy and asserts they agree. The `CANON` wording
+    # sweep in that file does NOT pin this — it matches one sentence, so a copy
+    # missing a whole BRANCH still passes it. That is not hypothetical: this copy
+    # was left behind when the OSError branch was added, and emitted a traceback
+    # where every other consumer emitted the shared refusal, with the wording sweep
+    # green throughout. A sentence-level pin cannot see a missing condition.
     if not isinstance(vd, str):
         # Checked on the RAW value: Path(12345) raises inside pathlib, before any
         # guard placed after it could speak. Same ordering as the canonical copy.
@@ -102,11 +109,18 @@ def load_env():
         sys.exit(f"vault unreachable: vault_dir {vault} (from {config}) is a "
                  f"relative path, so it names a different directory depending on "
                  f"where you run from — refusing. Use an absolute path.")
-    if not vault.is_dir():
+    try:
+        existing = vault.is_dir()
+        sentinel = existing and (vault / "Portfolio").is_dir()
+    except OSError as e:
+        sys.exit(f"vault unreachable: vault_dir {vault} (from {config}) could not "
+                 f"be read ({e.__class__.__name__}: {e.strerror or e}) — refusing. "
+                 f"Check the mount and its permissions.")
+    if not existing:
         sys.exit(f"vault unreachable: vault_dir {vault} (from {config}) is not an "
                  f"existing directory — refusing, because a missing vault is not "
                  f"an empty vault. Mount the vault or correct vault_dir.")
-    if not (vault / "Portfolio").is_dir():
+    if not sentinel:
         sys.exit(f"vault unreachable: vault_dir {vault} (from {config}) exists but "
                  f"has no Portfolio/ — refusing, because that is what an UNMOUNTED "
                  f"mountpoint looks like, and writing here would build a phantom "

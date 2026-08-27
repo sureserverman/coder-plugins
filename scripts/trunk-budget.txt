@@ -287,7 +287,17 @@ planning/skills/planning-projects/SKILL.md 36902
 #   state what "unreachable" means, or the code refuses for reasons the doc never gave.
 #   Paid down first: the § Configuration paragraph was cut to a pointer, since § Resolver
 #   now carries the detail it used to duplicate.
-planning/skills/portfolio/SKILL.md 13184
+#
+# Raised 13184 -> 13254 (+70) at the Stage 4 gate, round 3. Two honesty edits, both
+#   corrections rather than elaboration: "unreachable" gained its fifth reason
+#   (unreadable — an EACCES/ESTALE stat refuses instead of raising, which the trunk
+#   had not said), and the Resolver's "every read/write goes through the resolver"
+#   was narrowed to every SCRIPTED one, because three skills resolve the vault in
+#   prose and branch only on unset (BL-101). The second is the important one: the
+#   sentence certified coverage the tree does not have, which is the exact claim
+#   shape this stage exists to stop. Paid down first — the bullet's explanatory
+#   tail was cut and the BL-101 detail pushed to the reference.
+planning/skills/portfolio/SKILL.md 13254
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

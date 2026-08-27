@@ -103,9 +103,16 @@ def _vault_problem(value, source):
 
     A hand-kept copy of portfolio-rebuild.py's `vault_problem()`. `git-github`
     ships as a separately versioned plugin: from a cache install it and `planning`
-    live in sibling version trees, so it cannot import the canonical one. The copy
-    is pinned against that original by the class sweep in
-    planning/skills/portfolio/tests/test-vault-unreachable.py.
+    live in sibling version trees, so it cannot import the canonical one.
+
+    Pinned by `branch_parity_case()` in
+    planning/skills/portfolio/tests/test-vault-unreachable.py, which drives every
+    vault shape through every copy and asserts identical classification. NOT pinned
+    by that file's `CANON` wording sweep: this file is classified `structured`
+    there, which exempts it — and even for a `literal` copy the sweep matches one
+    sentence, so a copy missing an entire BRANCH passes it. Both gaps were measured
+    rather than assumed: deleting this function's `isinstance` and `is_absolute`
+    branches left all 41 suites green before that parity case existed.
 
     **Why this exists at all, recorded because the gap it closes was expensive.**
     This file kept a bare `is_dir()` after the canonical guard grew three more
@@ -124,10 +131,13 @@ def _vault_problem(value, source):
     because the caller carries it into the JSON rather than abandoning a GitHub
     sweep over an unrelated unmount.
     """
-    if not isinstance(value, str):
+    if isinstance(value, str):
+        path = Path(value).expanduser()
+    elif isinstance(value, Path):
+        path = value          # canonical accepts a pre-built Path; so does this
+    else:
         return None, (f"vault unreachable: vault_dir (from {source}) must be a path, "
                       f"got {type(value).__name__}")
-    path = Path(value).expanduser()
     if not path.is_absolute():
         return path, (f"vault unreachable: vault_dir {path} (from {source}) is a "
                       f"relative path, so it names a different directory depending "
@@ -447,7 +457,7 @@ def main():
     }
     # Present ONLY when a configured vault could not be reached. Its absence
     # means the cross-check state in the line above is the whole story; its
-    # presence means every empty `backlog_refs` in this document is unmeasured,
+    # presence means every empty `backlog_zombies` in this document is unmeasured,
     # not clean — the same distinction the security roll-up draws between `?`
     # and `0`.
     if vault_unreachable:

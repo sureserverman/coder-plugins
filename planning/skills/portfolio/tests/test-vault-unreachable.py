@@ -624,6 +624,167 @@ def bad_value_cases():
             mod.CONFIG = old
 
 
+# The phrase unique to each guard branch. Comparing these rather than a bare
+# refuse/accept is what makes a deleted condition visible: a missing branch still
+# refuses, just one condition later and with a different sentence.
+BRANCH_PHRASE = {
+    "missing": "is not an existing directory",
+    "unmounted (no Portfolio/)": "has no Portfolio/",
+    "relative": "relative path",
+    "not a path": "must be a path",
+    "unreadable (OSError)": "could not be read",
+}
+
+
+def branch_parity_case():
+    """Every copy of the guard classifies every vault shape the same way.
+
+    This exists because the `CANON` sweep below cannot do it. That sweep matches
+    one SENTENCE — the existing-directory refusal — so a copy that is missing an
+    entire CONDITION still passes it. Measured, not supposed, twice over:
+
+      * `business-scan.py` was left behind when the `OSError` branch was added and
+        emitted a raw traceback where every other consumer emitted the shared
+        refusal, with the wording sweep green throughout.
+      * Deleting BOTH the `isinstance` and `is_absolute` branches from
+        repo-health's copy left all 41 suites green.
+
+    So the pin has to be over the branch SET, driven through each copy's real
+    entry point. Sentence-level agreement is not behavioural agreement, and the
+    thing that keeps drifting is a branch, not a phrase.
+
+    The `OSError` shape is the one this most needed: it was added by a remediation
+    round and had zero coverage in any of the three copies — reverting the
+    canonical `try/except` left the whole suite green.
+    """
+    print("branch parity — every copy agrees on every vault shape:")
+    consumers = [
+        ("portfolio-rebuild", SCRIPTS / "portfolio-rebuild.py", ["--write"]),
+        ("portfolio-unify", SCRIPTS / "portfolio-unify.py", ["--write"]),
+        ("portfolio-integrate", SCRIPTS / "portfolio-integrate.py", ["--write"]),
+        ("portfolio-migrate", SCRIPTS / "portfolio-migrate.py", ["--all", "--write"]),
+        ("security-scan", SCRIPTS / "security-scan.py", []),
+        ("compass-scan", ROOT / "planning" / "skills" / "compass" / "scripts"
+         / "compass-scan.py", []),
+        ("business-scan", ROOT / "business" / "scripts" / "business-scan.py", []),
+    ]
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+        home = rootp / "home"
+        (home / ".claude").mkdir(parents=True)
+        write_registry(home / ".claude" / "projects-registry.yaml", [])
+        cfg = home / ".claude" / "portfolio-config.yaml"
+
+        outer = rootp / "outer"
+        unreadable = outer / "vault"
+        (unreadable / "Portfolio").mkdir(parents=True)
+        unmounted = rootp / "mnt" / "vault"
+        unmounted.mkdir(parents=True)
+        under_tmp(unreadable, unmounted)
+
+        # (label, configured value, chmod-target or None)
+        # BRANCH_PHRASE below maps each to the phrase ONLY its branch emits.
+        shapes = [
+            ("missing", str(rootp / "not-mounted" / "vault"), None),
+            ("unmounted (no Portfolio/)", str(unmounted), None),
+            ("relative", "somevault", None),
+            ("not a path", 12345, None),
+            ("unreadable (OSError)", str(unreadable), outer),
+        ]
+        env_ = dict(os.environ, HOME=str(home))
+        env_.pop("PORTFOLIO_NO_STALE_WARNING", None)
+        for label, value, chmod_target in shapes:
+            body = {"version": 1, "vault_dir": value}
+            cfg.write_text(yaml.safe_dump(body))
+            if chmod_target:
+                os.chmod(chmod_target, 0o000)
+            try:
+                verdicts = {}
+                for name, path, args in consumers:
+                    r = subprocess.run([sys.executable, str(path)] + args, env=env_,
+                                       capture_output=True, text=True,
+                                       stdin=subprocess.DEVNULL, timeout=120)
+                    blob = r.stdout + r.stderr
+                    verdicts[name] = (r.returncode != 0,
+                                      TOKEN in blob,
+                                      "Traceback (most recent call last)" in blob)
+            finally:
+                if chmod_target:
+                    os.chmod(chmod_target, 0o755)
+
+            refused = [n for n, v in verdicts.items() if v[0]]
+            tokened = [n for n, v in verdicts.items() if v[1]]
+            crashed = [n for n, v in verdicts.items() if v[2]]
+            check(len(refused) == len(consumers),
+                  f"{label}: every copy refuses "
+                  f"({len(refused)}/{len(consumers)}; not: "
+                  f"{[n for n in verdicts if n not in refused] or 'none'})")
+            check(len(tokened) == len(consumers),
+                  f"{label}: ...with the SHARED refusal, not each its own "
+                  f"({[n for n in verdicts if n not in tokened] or 'none'} missing it)")
+            check(not crashed,
+                  f"{label}: ...and none of them crashes instead of refusing "
+                  f"({crashed or 'none'})")
+
+        # repo-health's copy cannot join the subprocess loop: its posture is
+        # continue-and-signal, so it exits 0 by design, and the real CLI bails
+        # early when `gh` is unauthenticated. Compared FUNCTION to function
+        # instead, against the canonical guard, on the same shapes — without this
+        # the loop above silently excluded it, and deleting a whole branch from it
+        # went undetected exactly as before.
+        canon = load(SCRIPTS / "portfolio-rebuild.py", "pr_parity")
+        rh = load(REPO_HEALTH, "rh_parity")
+        # Compared by WHICH branch fired, not merely that one did. Refuse-vs-accept
+        # is too weak to pin a branch set: strip `is_absolute` and a relative path
+        # still refuses — one condition later, as "not an existing directory". Both
+        # copies would agree, and the deletion would pass. Each shape therefore
+        # names the phrase only its own branch produces.
+        for label, value, chmod_target in shapes:
+            if chmod_target:
+                os.chmod(chmod_target, 0o000)
+            try:
+                verdicts = {}
+                for who, fn in (("canonical", canon.vault_problem),
+                                ("repo-health", rh._vault_problem)):
+                    try:
+                        verdicts[who] = fn(value, "cfg")[1] or ""
+                    except Exception as e:
+                        # A raised exception is a CRASH, not a refusal — the same
+                        # distinction the write-path cases draw. Scored red rather
+                        # than allowed to abort the file.
+                        verdicts[who] = f"<crashed: {type(e).__name__}>"
+            finally:
+                if chmod_target:
+                    os.chmod(chmod_target, 0o755)
+            want = BRANCH_PHRASE[label]
+            for who, got in verdicts.items():
+                check(want in got,
+                      f"{label}: {who} refuses via its own branch "
+                      f"(want {want!r}, got {got[:70]!r})")
+        good = rootp / "rh-good"
+        (good / "Portfolio").mkdir(parents=True)
+        _, c_ok = canon.vault_problem(str(good), "cfg")
+        _, r_ok = rh._vault_problem(str(good), "cfg")
+        check(c_ok is None and r_ok is None,
+              "reachable vault: both accept — the agreements above discriminate")
+
+        # Teeth: the reachable shape must be accepted by all of them, or the three
+        # assertions above would pass for a guard that simply refuses everything.
+        reachable = rootp / "good"
+        (reachable / "Portfolio").mkdir(parents=True)
+        cfg.write_text(yaml.safe_dump({"version": 1, "vault_dir": str(reachable)}))
+        accepted = []
+        for name, path, args in consumers:
+            r = subprocess.run([sys.executable, str(path)] + args, env=env_,
+                               capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, timeout=120)
+            if TOKEN not in (r.stdout + r.stderr):
+                accepted.append(name)
+        check(len(accepted) == len(consumers),
+              f"reachable vault: every copy ACCEPTS it — the refusals above "
+              f"discriminate ({[n for n, _, _ in consumers if n not in accepted] or 'none'} refused)")
+
+
 def sweep_case():
     """The class claim: every portfolio-config reader in the tree is accounted for.
 
@@ -721,6 +882,7 @@ if __name__ == "__main__":
     write_path_cases()
     unmounted_case()
     bad_value_cases()
+    branch_parity_case()
     expanduser_case()
     cli_cases()
     repo_health_case()

@@ -18,7 +18,7 @@ Single user-facing skill that ties together every project in `~/dev/`:
 
 ## Resolver (read this before any read/write)
 
-Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md`:
+Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md` — every *scripted* one; prose-resolved lanes are BL-101:
 
 ```
 repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
@@ -27,7 +27,7 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 - `vault_dir` is read from `~/.claude/portfolio-config.yaml`.
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
 - **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
-- **A missing vault is not an empty vault — and an unmounted one is not missing.** A `vault_dir` that is *set* but unreachable is refused identically (`vault unreachable: …`), creating no part of the tree. Unreachable = absent, relative, not a path, **or existing with no `Portfolio/`** — which is what an unmounted mountpoint looks like, a mountpoint being a directory whether or not anything is mounted on it. That last check is the load-bearing one: without it `migrate` builds a phantom vault at the mount point and moves a repo's only docs into it. Initialise a genuinely new vault by creating `<vault_dir>/Portfolio/` once, by hand. Read-only tools whose corpus IS the vault refuse too: an empty-but-well-formed result reads as "nothing is in flight anywhere". Divergences: `references/registry-format.md`.
+- **A missing vault is not an empty vault — and an unmounted one is not missing.** A `vault_dir` that is *set* but unreachable is refused identically (`vault unreachable: …`), creating no part of the tree. Unreachable = absent, relative, not a path, unreadable (EACCES/ESTALE refuses, never tracebacks), **or existing with no `Portfolio/`** — what an unmounted mountpoint looks like, a mountpoint being a directory whether or not anything is mounted on it. The `Portfolio/` check is load-bearing: without it `migrate` builds a phantom vault at the mount point and moves a repo's only docs into it. Initialise a new vault by creating `<vault_dir>/Portfolio/` once, by hand. Read-only tools whose corpus IS the vault refuse too — an empty result reads as "nothing is in flight". Divergences: `references/registry-format.md`.
 
 **Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
 
