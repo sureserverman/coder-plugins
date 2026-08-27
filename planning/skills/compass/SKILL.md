@@ -58,6 +58,7 @@ isolation. The group itself is not a registry project and has no row of its own.
   recommendations; mention parked items only in `review` (with their reason),
   or when their parked-until date has passed.
 - **Respect abandonment.** A plan carrying a `**Abandoned:** <date> — <reason>`
+- **Respect a blocked gate.** `blocked_gate` true keeps a plan active despite all-`[x]` and a close-out line; its `note` says why.
   marker arrives with `"abandoned": true` and `"active": false`. Never
   recommend it in `next`, and never count its open tasks as available work — it
   is suppressed from *recommendation*, not hidden from the *board*: it stays

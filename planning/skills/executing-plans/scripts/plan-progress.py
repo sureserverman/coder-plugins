@@ -318,7 +318,17 @@ def plan_is_eligible(text, path=None):
                 started = True
     if not started and not is_master:
         return False
-    return not (pu.COMPLETED_RE.search(text) or pu.ABANDONED_RE.search(text))
+    if pu.ABANDONED_RE.search(text):
+        return False
+    # A close-out line retires a plan — UNLESS a gate check could not be run.
+    # Without this the three consumers of one contract disagreed about the same
+    # plan: compass called it in flight, the audit called it blocked, and this
+    # renderer showed no bar at all. "One definition, so a change cannot alter
+    # what the gate passed means in one consumer and not another" was the stated
+    # premise of the change that introduced the disagreement.
+    if pu.COMPLETED_RE.search(text):
+        return pu.plan_has_blocked_gate(text)
+    return True
 
 
 MAX_BARS = 3
@@ -1055,7 +1065,7 @@ PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
 
 
 def status_lag(state, text, plan_path):
-    """` ⚠ status lag Nx` when the plan file trails the live run, else "".
+    """` ⚠ status lag N` when the plan file trails the live run, else "".
 
     BL-096. `Status` flips stopped mid-plan in all three audited sessions —
     tasks kept completing and the markers stopped moving. The RULE was never
@@ -1082,9 +1092,7 @@ def status_lag(state, text, plan_path):
     cannot occur — green, and measuring nothing. A master register that stops
     being flipped is still undetected here; that is a real residual, recorded
     rather than papered over, and it needs a different mechanism because the
-    register flip happens at a sub-plan close-out, outside any task transition. One is the ordinary case —
-    the current task is legitimately not done yet — so the warning starts at
-    two. Silent when the state names no task, when the task is not found in the
+    register flip happens at a sub-plan close-out, outside any task transition. Silent when the state names no task, when the task is not found in the
     plan, or when nothing is flipped yet and the run is still in the first
     couple of tasks.
     """
@@ -1118,6 +1126,14 @@ def status_lag(state, text, plan_path):
     for i, t in enumerate(order):
         if t["state"] in ("done", "partial"):
             last_marked = i
+    if not order:
+        # No heading this parser recognises — `#### Task N.M`, an em-dash form,
+        # a suffixed id. 181 such headings exist in the live vault and six plans
+        # have nothing but. The state file is not diverging from those plans;
+        # THIS parser cannot read them, and saying "not in plan" about a task
+        # sitting in the file the user is looking at is a warning that teaches
+        # the reader to distrust the next one.
+        return ""
     try:
         cur_i = [t["num"] for t in order].index(cur)
     except ValueError:
@@ -1125,7 +1141,7 @@ def status_lag(state, text, plan_path):
         # longer has is a WORSE divergence than an ordinary lag — the plan was
         # edited under a run whose markers had already stopped — and silence
         # made it indistinguishable from nothing to report.
-        return f" {RED}⚠ T{cur} not in plan{RESET}"
+        return f" {RED}⚠ not in plan{RESET}"
     # `Parallel: YES` siblings are dispatched together and do not finish in
     # document order, so an unmarked one between the last marker and the current
     # task is the format's own first-class concurrency, not a stall. Counting it
@@ -1193,7 +1209,7 @@ def _bar_line(name, done, total, colour, width):
 
 
 def blocked_gate_marker(text):
-    """` ⊘ BLOCKED` when any stage-gate check in the plan is `[~]`, else "".
+    """` ⊘ GATE BLOCKED` when any stage-gate check in the plan is `[~]`, else "".
 
     A property of the PLAN, not of the phase, so it renders whether or not this
     session is the one executing — a plan whose gate could not be run is blocked
@@ -1235,7 +1251,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
     out = _bar_line(label if label is not None else plan_name(plan),
-                    done, total, CYAN, width)
+                    done, total, CYAN, width) + blocked_gate_marker(text)
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -1252,7 +1268,6 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         if total:
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
-    out += blocked_gate_marker(text)
     out += status_lag(state, text, plan)
     out += staleness(state)
     return out

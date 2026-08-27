@@ -34,6 +34,15 @@ when a gate is being re-run after a failure, so the bar reads
 than inferred. Omit it on a gate's first run. `remediation_budget` is likewise
 optional and only changes the denominator; with neither field the gate renders
 exactly as before.
+**Markers the bar can append**, so an operator who sees one has somewhere to read:
+
+| Marker | Means |
+|---|---|
+| `⊘ GATE BLOCKED` | a stage-gate check in the plan is `[~]` — a check that could not be run. Rendered on the executing bar and on a discovered plan's bar alike, because a blocked plan is blocked for whoever looks next. Never affects done/total: the counts are about tasks. |
+| `⚠ status lag N` | the plan file's `Status:` markers trail the task this state file names by N sequential tasks. `Parallel: YES` siblings are excluded — they are dispatched together and do not finish in document order. `[~]` counts as a marker that moved. |
+| `⚠ not in plan` | this file names a task the plan does not contain. A worse divergence than a lag: the plan was edited under a run whose markers had already stopped. |
+| `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
+
 Done/total counts are **not** in the file — the renderer derives them from the
 plan's authoritative `Status:` fields, so a forgotten update can never show
 wrong progress, only a wrong current-task label. The file is ephemeral session

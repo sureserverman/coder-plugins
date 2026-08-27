@@ -203,6 +203,8 @@ def gate_state(text):
     live corpus, 3 of 14 completion candidates did, one of them with 4 of 4
     Stage 1 gate items unticked while presenting as "4/4 tasks done".
 
+    Reads this plan's own gate blocks only; a master carries none.
+
     Counts checkboxes only between a `### Stage N Gate` heading and the next
     `###` heading, so a Preflight or Research checklist elsewhere in the
     document is not mistaken for gate state. GATEHDR_RE comes from the contract
@@ -787,6 +789,18 @@ def print_report(report, verbose=False):
     for u in report["unclassifiable"]:
         print(f"  {u['path']}\n    {u['detail']}")
     print("\nThese are never offered as completion candidates, under any flag.")
+
+    # `blocked` is the one class that OVERRULES a human-authored close-out line,
+    # so it owes the reader the most explanation and was giving the least: one
+    # integer in the class table, with the reason computed, stored and reachable
+    # only through --json. A class that second-guesses an author has to say why,
+    # by name, where the author will see it.
+    blocked = report["classes"].get("blocked", [])
+    if blocked:
+        print(f"\nBlocked — a stage-gate check is `[~]`, so completion was never "
+              f"proven: {len(blocked)}")
+        for b in blocked:
+            print(f"  {b['path']}\n    {b.get('detail') or 'a gate check is [~]'}")
 
     if verbose:
         for c in CLASSES:

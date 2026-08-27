@@ -196,9 +196,11 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   its close-out line says: `**Completed:**` is the author's claim about the
   work, the gate box is the record of what was proven, and the second outranks
   the first. `plan_has_blocked_gate()` is the shared predicate; `plan-status-audit`
-  classifies such a plan `blocked` and `plan-progress.py` renders `⊘ BLOCKED`
-  on its bar. Measured cost of not having this: a fully-blocked master rendered
-  Completed while every gate box carried an amendment.
+  classifies such a plan `blocked` and `plan-progress.py` renders `⊘ GATE BLOCKED`
+  on its bar. **Scope:** the predicate reads a plan's OWN gate blocks. A master plan has no
+  `### Stage N Gate` section — its gate boxes live in its sub-plans — so a master
+  whose sub-plan is blocked still classifies on its own text. Propagation upward
+  is not built; the master half of BL-077 stays open.
 - Raw unchecked bullets outside task bodies (gates, ad-hoc checklists) are
   likewise ignored — in authoritative mode the ONLY candidate sources are
   `Status: [ ]` fields and Deferred blocks.

@@ -184,7 +184,11 @@ GATE_HEADING = re.compile(r"^#{2,4}\s+(?:Stage\s+\d+\s+)?Gates?\b[^\n]*$", re.M)
 GATE_MARKER = re.compile(r"^\s*\*\*Gates?:?\*\*\s*$", re.M)
 ANY_GATE_START = re.compile(
     r"^(?:#{2,4}\s+(?:Stage\s+\d+\s+)?Gates?\b[^\n]*|\s*\*\*Gates?:?\*\*\s*)$", re.M)
-BULLET = re.compile(r"^(\s*)- \[[ xX]\] (.*)$")
+# `~` included: a `- [~]` BLOCKED gate check (BL-077) is a gate check like any
+# other and must be classified, not silently dropped. Omitting it made this a
+# sixth consumer of the gate-checkbox contract that read only two of its three
+# states — invisible, because an unmatched line is simply not extracted.
+BULLET = re.compile(r"^(\s*)- \[[ xX~]\] (.*)$")
 NEXT_HEADING = re.compile(r"^#{2,4} ", re.M)
 
 

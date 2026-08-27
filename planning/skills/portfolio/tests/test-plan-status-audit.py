@@ -83,9 +83,10 @@ PLANS = {
     # BL-077. Every task done, a human-authored **Completed:** line, and a final
     # gate check that COULD NOT BE RUN. The close-out marker is the strongest
     # signal the classifier has and it is wrong here: the plan is blocked, not
-    # finished. Measured cost of not seeing this: a fully-blocked master rendered
-    # Completed while every gate box carried an amendment, and a register `[x]`
-    # against a `[~]` gate took a ten-tool-call manual audit to disprove.
+    # finished. Measured cost of not seeing this: a register `[x]` standing
+    # against a `[~]` gate took a ten-tool-call manual audit to disprove. This
+    # fixture is a SINGLE plan, which is the scope that works — a master carries
+    # no gate section and does not inherit its sub-plans' blocked state.
     "2026-01-14-blocked-gate-plan.md": (
         task("1.1", "x")
         + "### Stage 1 Gate\n\n- [x] the suite is green\n- [~] the device suite ran\n\n"

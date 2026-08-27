@@ -364,9 +364,15 @@ def status_state(ch):
 # not run) — and only BLOCKED needs a marker, because a RED gate is not written
 # down as passed, it is repaired.
 #
-# The measured cost of not having it: a fully-blocked master rendered Completed
-# while every gate box carried an amendment, and a register `[x]` standing
-# against a `[~]` gate took a ten-tool-call manual audit to disprove.
+# The measured cost of not having it: a register `[x]` standing against a `[~]`
+# gate took a ten-tool-call manual audit to disprove.
+#
+# SCOPE, stated because an earlier version of this comment overclaimed: this
+# predicate reads ONE plan's own gate blocks. A master plan carries no
+# `### Stage N Gate` section — 0 of 38 in the live vault do; a master's gate
+# boxes live in its sub-plan files — so a master whose sub-plan is blocked
+# still classifies on its own text. The master half of BL-077 is NOT closed by
+# this, and propagation is a separate capability.
 GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
 
 

@@ -78,6 +78,14 @@ human testers, missing secret, network-restricted). Then:
    preferred over escalating.
 4. **If it can't be unblocked here, escalate to the user** with the blocker and
    what you'd need. Mark the gate BLOCKED in your status, never green.
+5. **Write the checklist item as `- [~]`, never `- [x]` with a note explaining
+   it away.** `[~]` is the gate checklist's BLOCKED state and it parses
+   everywhere the plan tooling reads — a ticked box carrying
+   *(amended — exit 2; no hardware)* is a GREEN check to every reader, and the
+   prose that says otherwise is invisible to all of them. This is the exact
+   shape BL-077 was filed from: a plan rendered **Completed:** with every
+   hardware-in-the-loop box ticked and annotated. The annotation is still worth
+   writing; it goes beside the `[~]`, not instead of it.
 
 Preflight blockers (repo/SDK/device marked FAILED) are BLOCKED gates by
 definition. Building "around" them and declaring later gates green is the exact

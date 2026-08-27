@@ -297,7 +297,15 @@ planning/skills/architecting-projects/SKILL.md 11935
 # Raised 11658 -> 11674 (+16) by the Task 3.3 deixis burn-down:
 #   the business-aware rules and the agenda sources are named rather than
 #   pointed at
-planning/skills/compass/SKILL.md 11674
+# Raised 11674 -> 11805 (+131) at the Stage 2 gate of the 2026-08-27 session-mined-flaws
+#   plan, for ONE rule about ONE new field. compass-scan.py gained `blocked_gate` (BL-077):
+#   a plan whose stage-gate check is `[~]` stays ACTIVE even with every task `[x]` and a
+#   close-out line, because a check that could not run means the work is not proven. Without
+#   the rule a reader of this trunk cannot tell why a plan that looks finished is still on the
+#   board, and the judgment layer this trunk instructs is the thing that decides what to work
+#   on next. The sibling rule for `abandoned` is one line above it, and this field had none.
+#   compass ships no references/ directory, so the trunk is the only home available.
+planning/skills/compass/SKILL.md 11805
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750
