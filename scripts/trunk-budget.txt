@@ -173,7 +173,27 @@ planning/skills/executing-plans/SKILL.md 47334
 #   from references/task-fields.md, which ends at Rollback notes. The rule is trunk-resident
 #   in § Stage sizing, so the PROMISE was the defect. Corrected, and it now says where the
 #   rule actually is (net +59 B; a false pointer costs more than the words that fix it).
-planning/skills/planning-projects/SKILL.md 36489
+# Raised 36489 -> 36902 (+413) by Stage 3 Task 3.2 of the 2026-08-27 session-mined-flaws
+#   plan, for ONE checklist item about ONE new validator axis. The arithmetic, stated so it
+#   reconciles with the diff (the Stage 1 gate's correction to this file made that the
+#   standard): +418 B for the new bullet, -1 B for the count word above it (`Three` ->
+#   `Four`) = +417 B of content, of which 4 B came from existing headroom and 413 B from
+#   this raise.
+#
+#   What it funds: `validate-gate-checks.py` gained a THIRD axis, TASK-TEST-UNSCOPED — a
+#   task whose own `Test:` collects the whole suite on a plan that declares expensive-suite
+#   tiering. The trunk's § Checklist block restates exactly the items A COMMAND DECIDES
+#   rather than a reading, and says so in its own lead sentence; this is now the fourth such
+#   item, so leaving it in references/authoring-checklist.md alone would have made that
+#   sentence false about its own criterion. That is the shape the Stage 2 gate rejected
+#   twice — an obligation surviving in the trunk only as a noun inside a pointer.
+#
+#   Why the rule exists at all: `references/test-scope-tiers.md` asserted that task-level
+#   `Test:` fields are scoped by construction. A measured run falsified it — an unscoped
+#   task field ran ~3.5 h against a 3132-test collection inside one Red-Green loop, while
+#   the same plan's stage-scope command took ~7 min. Task 3.1 retracted the claim at all
+#   three sites it was made; this pays for the check that replaces it.
+planning/skills/planning-projects/SKILL.md 36902
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.

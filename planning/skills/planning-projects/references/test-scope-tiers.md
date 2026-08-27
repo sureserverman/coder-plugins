@@ -15,7 +15,8 @@ intermediate checkpoints**, and a *scoped* per-task test is cheap — targeted,
 class-filtered runs cost 1–3 minutes.
 
 Not all of it, though, and this file said otherwise from the day it was written
-until the retraction below. A task's
+until § A task-level `Test:` is task-scope only when the author scoped it retracted
+it. A task's
 `Test:` is scoped only because its author scoped it; when nobody did, the single
 most expensive run in a measured session was a task field
 (§ Plan-authoring declaration).
@@ -176,21 +177,28 @@ So on a project over the cost threshold, every task's `Test:` is either
 - **path- or suite-scoped** — it names a path, a module, a class filter or a marker
   selector that bounds what it *collects*; or
 - **explicitly flagged** `full-suite: accepted` on the task, recording that the author
-  priced the full run and chose it:
+  priced the full run and chose it — either on the `Test:` line it qualifies, or as a
+  field of its own:
 
   ```markdown
   - **Test:** `uv run --locked pytest`  (full-suite: accepted — the change is
     cross-cutting and no narrower selector covers it)
   ```
 
+  The flag has to be **attached to a field**. The token loose in the task's prose does not
+  count, and deliberately so: a sentence saying the task was *not* marked
+  `full-suite: accepted` contains the token, and a check reading the block as one string
+  would let that sentence grant the exemption it denies.
+
 A bare deselector like `-m 'not requires_session'` is **not** a scope: it collects the
 whole tree minus a slice. The question is what the command collects, not what it skips.
 
 **Tier: authoring-time.** This is checked at whichever pre-presentation checklist
-the plan's format uses — `authoring-checklist.md` § Checklist — Standard plans or
-§ Checklist — Light plans; the rule is in both — never per execution turn —
-one scan per authored plan on an expensive-suite project, and nothing at all below the
-threshold, where guard rail 1 already says there is nothing to bound.
+the plan's format uses: `authoring-checklist.md` § Checklist — Standard plans, or
+`authoring-checklist.md` § Checklist — Light plans. The rule is in both, and in neither
+does it run per execution turn — one scan per authored plan on an expensive-suite
+project, and none at all on a project under the threshold, where guard rail 1 already
+says there is nothing to bound.
 
 ## Worked example (Android, instrumented suite)
 

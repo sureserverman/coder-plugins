@@ -1,10 +1,10 @@
 # Pre-presentation checklist — the full item list
 
 `../SKILL.md` § Checklist — Before Presenting the Plan carries the imperative (run every item)
-and restates three of them — **the three a command decides rather than a reading**. This file
+and restates four of them — **the four a command decides rather than a reading**. This file
 is the list itself.
 
-*(An earlier version of this paragraph said those three were "the items no other section of
+*(An earlier version of this paragraph said those restated items were "the items no other section of
 that trunk states". That was false and a Tier-2 review caught it: the INSTANCE-SHAPED bar is
 stated at `../SKILL.md` § Write a set-valued check, and the save-location item at § Output
 location — which this file's own line 46 cites. Being command-decidable is the real reason
@@ -49,7 +49,7 @@ Run every item before showing the plan to the user.
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Parallel Execution)
-- [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it)
+- [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it; `../scripts/validate-gate-checks.py` reports zero TASK-TEST-UNSCOPED)
 
 **Where it lands, and what it reconciles**
 

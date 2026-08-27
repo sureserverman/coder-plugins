@@ -392,6 +392,164 @@ check(len(vgc.unmatched_selectors(plan_with_task(
         "a restart"))) == 1,
       "the remote-agents bot-live-view sub-01 gate would have been caught at authoring")
 
+print("group 10 — TASK-TEST-UNSCOPED: an unbounded task Test: on an expensive-suite plan")
+# The measured incident: a task whose `Test:` read `uv run --locked pytest -m 'not
+# requires_session'` ran ~3.5 h against a 3132-test collection, inside one Red-Green loop,
+# while the same plan's declared stage-scope command took ~7 min. No tier governed it —
+# the tiers govern GATES, fix-scope is derived per fix, and a task field had no upstream
+# check at all. Task 3.1 retracted the "task fields are scoped by construction" claim;
+# this is the check that replaces it.
+#
+# Scope of the check, pinned in BOTH directions because a false positive here blocks a
+# correct plan from being presented (the mandatory pre-presentation checklist runs it):
+# it fires ONLY on a plan that declares stage-scope AND plan-scope commands, i.e. one
+# whose project is over guard rail 1's ~5 min threshold. Everything else is untouched.
+
+
+def tiered_plan(test_field, task_extra="", tiers=True):
+    """A plan declaring expensive-suite tiering, with one task carrying `test_field`."""
+    block = ("**Test-scope commands** (per references/test-scope-tiers.md):\n"
+             "- stage-scope: `pytest tests/unit`\n"
+             "- plan-scope:  `pytest`\n\n") if tiers else ""
+    return (f"# Project Plan: x\n\n## Preflight\n\n{block}"
+            f"## Stage 1: x\n\n"
+            f"### Task 1.1: t\n\n- **Status:** [ ]\n- **Test:** {test_field}\n"
+            f"{task_extra}\n\n"
+            f"### Stage 1 Gate\n- [ ] `pytest tests/` passes\n")
+
+
+def n_unscoped(text, path=None):
+    return len(vgc.unscoped_task_tests(text, path))
+
+
+# --- the true positives -------------------------------------------------------------
+check(n_unscoped(tiered_plan("`pytest` passes")) == 1,
+      "a bare `pytest` task Test: on a tiered plan is TASK-TEST-UNSCOPED")
+check(n_unscoped(tiered_plan("`uv run --locked pytest -m 'not requires_session'`")) == 1,
+      "the measured incident's own command is flagged — a DESELECTOR is not a scope")
+check(n_unscoped(tiered_plan("`./gradlew test`")) == 1,
+      "a bare `./gradlew test` is flagged too — the class is runners, not pytest")
+
+# --- the exemptions -----------------------------------------------------------------
+for field, why in [
+    ("`pytest tests/unit/test_parse.py`", "a positional path bounds what is collected"),
+    ("`pytest -k parses`", "a -k filter bounds it"),
+    ("`pytest tests/unit/test_parse.py::test_one`", "a node id bounds it"),
+    ("`pytest -m unit`", "a marker SELECTOR bounds it (unlike `-m 'not x'`)"),
+    ("`./gradlew :features:test`", "a gradle task path bounds it"),
+    ("`./gradlew test --tests '*ParserTest'`", "--tests bounds it"),
+]:
+    check(n_unscoped(tiered_plan(field)) == 0, f"scoped: {why}")
+
+check(n_unscoped(tiered_plan("`pytest`", "\n- **full-suite: accepted** — cross-cutting")) == 0,
+      "an explicit `full-suite: accepted` on the task exempts it — the author priced it")
+
+# --- guard rail 1: a cheap-suite plan is untouched -----------------------------------
+check(n_unscoped(tiered_plan("`pytest`", tiers=False)) == 0,
+      "a plan that declares NO tiering is not checked at all (guard rail 1: below the "
+      "~5 min threshold there is nothing to bound)")
+# Found in the frozen corpus before this check was written: a plan can carry the block
+# heading and use it to say the opposite. `**Test-scope commands:** not tiered — the full
+# suite is 3.9s` must not arm the check, or the guard fires hardest on the author who
+# documented the threshold decision most carefully.
+check(n_unscoped("# Project Plan: x\n\n**Test-scope commands:** not tiered — the full "
+                 "suite is 3.9s, well under the ~5 min threshold.\n\n## Stage 1: x\n\n"
+                 "### Task 1.1: t\n\n- **Test:** `pytest`\n\n"
+                 "### Stage 1 Gate\n- [ ] `pytest tests/` passes\n") == 0,
+      "a 'not tiered' declaration does not arm the check — the block heading is not the "
+      "trigger, the stage-scope/plan-scope commands are")
+
+# --- a master plan carries no tasks --------------------------------------------------
+check(n_unscoped("# Master Plan: x\n\n**Test-scope commands**\n- stage-scope: `pytest a`\n"
+                 "- plan-scope: `pytest`\n\n## Sub-plans\n\n### 1. sub-01\n\n"
+                 "**Gate:** \n- [ ] `pytest` — integrated\n") == 0,
+      "a master plan is skipped — its tasks live in its sub-plans, same as the selector check")
+
+# --- non-runner commands are not the class -------------------------------------------
+for field in ["`grep -q x README.md`", "`python3 scripts/check-versions.py`",
+              "`bash scripts/run-tests.sh`"]:
+    check(n_unscoped(tiered_plan(field)) == 0,
+          f"a non-suite-runner command is not flagged: {field}")
+
+# --- measured false-positive shapes, pinned ------------------------------------------
+# Measured over 602 real vault plans. The first implementation flagged 21 fields; 15 were
+# false positives — 14 Gradle (any `gradlew` invocation read as unbounded, `--version`
+# included) and 1 `cargo test --no-run`, which compiles the tests and runs none. These
+# matter more than the true positives: this check is wired into the MANDATORY
+# pre-presentation checklist, so a false positive does not merely miss a defect, it blocks
+# a correct plan from being presented. After the fix: 6 flags, 6 true positives
+# (`cargo test` x3, `pytest -q` x2, `./gradlew check assembleDebug` — so Gradle keeps a
+# true positive too; the family is read correctly, not disarmed).
+#
+# The same figures are stated in the script's GRADLE_AGGREGATE comment. They are cited in
+# two files, so they are written once and copied — an earlier draft had 12 here and 15
+# there, which is the citation-mismatch class DEC-005 is about.
+for field, why in [
+    ("`git rev-parse --is-inside-work-tree && ./gradlew --version | rg 'Gradle 9.5'`",
+     "`gradlew --version` runs no tests at all"),
+    ("`./gradlew verifyArchitecture`", "a specifically named Gradle task IS its own scope"),
+    ("`./gradlew verifyArchitecture verifyArchitectureFixtures`", "two named tasks, still scoped"),
+    ("`./gradlew securityTest verifyNoSensitiveLogging -PlargeTests=true`",
+     "a named test task is not an aggregate lifecycle task"),
+    ("`./gradlew benchmarkRelease -PlargeTests=true`", "likewise for a benchmark task"),
+    ("`./gradlew projects && ./gradlew :poetry:test :app:assembleDebug`",
+     "a chained invocation is judged per link, and both links are bounded"),
+    ("`./gradlew :app:connectedDebugAndroidTest "
+     "-Pandroid.testInstrumentationRunnerArguments.class=dev.x.Y`",
+     "the instrumentation class filter bounds an Android device run"),
+    ("`./phone/gradlew -p phone :app:testDebugUnitTest --tests '*SnapshotStoreTest'`",
+     "a wrapper reached by path, with -p and --tests, is bounded"),
+    ("`make bootstrap-check && cargo test --workspace --no-run && make lint`",
+     "`--no-run` compiles the tests and runs none of them"),
+    ("`xcodebuild -scheme App build`", "xcodebuild without a `test` action runs no suite"),
+]:
+    check(n_unscoped(tiered_plan(field)) == 0, f"not flagged: {why}")
+
+# And the aggregates that ARE unbounded, so the fix above did not simply disarm Gradle.
+for field in ["`./gradlew check assembleDebug`", "`./gradlew test`",
+              "`./gradlew connectedCheck`"]:
+    check(n_unscoped(tiered_plan(field)) == 1,
+          f"still flagged — an aggregate lifecycle task collects everything: {field}")
+
+# --- gaps review found in the first cut, pinned so they cannot come back ---------------
+check(n_unscoped(tiered_plan("`npm run test`")) == 1,
+      "`npm run test` is flagged — adjacency made the commoner shape invisible")
+check(n_unscoped(tiered_plan("`npm test`")) == 1, "`npm test` still flagged")
+check(n_unscoped(tiered_plan("`./gradlew testProductionReleaseUnitTest`")) == 1,
+      "a product-flavor unit-test variant is an aggregate — matched by SHAPE, because the "
+      "flavor/build-type matrix generates names no literal list can enumerate")
+check(n_unscoped(tiered_plan("`./gradlew connectedStagingDebugAndroidTest`")) == 1,
+      "the same for a flavored connected-test variant")
+check(n_unscoped(tiered_plan("`./gradlew securityTest`")) == 0,
+      "a named task that merely CONTAINS 'Test' is still its own scope")
+
+# The exemption must be ATTACHED to a field. Prose that DENIES it must not grant it —
+# the same defect the sibling contract suite's RETRACTED exclusion exists to stop.
+check(n_unscoped(tiered_plan(
+        "`pytest`", "\n- **Note:** we deliberately did not mark this `full-suite: accepted`")) == 1,
+      "a sentence denying the exemption does not grant it")
+check(n_unscoped(tiered_plan(
+        "`pytest`  (full-suite: accepted — cross-cutting)")) == 0,
+      "the inline form on the Test: line exempts — it is what test-scope-tiers.md documents")
+check(n_unscoped(tiered_plan("`pytest`", "\n- **full-suite: accepted** — cross-cutting")) == 0,
+      "the field form exempts too")
+
+# The report names the INVOCATION, not the whole backticked span: a chained command is
+# usually mostly fine and unbounded in one link.
+_flag = vgc.unscoped_task_tests(tiered_plan("`make lint && pytest -q && make docs`"))
+check(len(_flag) == 1 and _flag[0][1] == "pytest -q",
+      "the message names the offending invocation, not the line it sits in")
+
+# --- exit codes and reporting --------------------------------------------------------
+rc, out = run(tiered_plan("`pytest` passes"))
+check(rc == 1, "a plan with an unscoped task Test: exits 1")
+check("task-test-unscoped" in out.lower(),
+      "the failure is reported under its own name, on its own axis")
+check(run(tiered_plan("`pytest tests/unit/test_parse.py`"))[0] == 0,
+      "the same plan with a scoped task Test: exits 0")
+check(run(tiered_plan("`pytest`", "\n- **full-suite: accepted** — cross-cutting"))[0] == 0,
+      "the flagged fixture exits 0")
+
 print("group 9 — the docstring's calibration numbers match the frozen corpus")
 # Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
 # including CI, where the old vault-conditioned version skipped silently and pinned

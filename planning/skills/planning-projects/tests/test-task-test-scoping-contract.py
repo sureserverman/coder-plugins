@@ -88,6 +88,19 @@ FALSIFIED = re.compile(
 
 SKIP_DIRS = (".git", "__pycache__", "node_modules")
 
+# A claim quoted in order to DENY it is not an assertion of it. test-scope-tiers.md
+# already carries one — "on the belief that per-task runs were already targeted. They
+# were not." — written when the file corrected a NARROWER version of this same mistake.
+# Without this exclusion the sweep reports the file's own retraction as the defect, which
+# would teach the next author that retracting a claim in prose is what trips the guard.
+# Pinned in both directions by the assertions below: a denied claim passes, a bare one
+# does not.
+RETRACTED = re.compile(
+    r"\A[^.]{0,40}\.\s*(?:They were not|That was false|Not so|Falsified|"
+    r"That claim is (?:retracted|false)|This file said otherwise)",
+    re.I,
+)
+
 
 def check(name, ok, detail=""):
     RAN.append(name)
@@ -127,8 +140,12 @@ def sweep_tree():
             text = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        if FALSIFIED.search(flat(text)):
+        flatm = flat(text)
+        for m in FALSIFIED.finditer(flatm):
+            if RETRACTED.match(flatm[m.end():]):
+                continue
             hits.append(str(p.relative_to(REPO)))
+            break
     return hits
 
 
@@ -140,6 +157,21 @@ def main():
     check("the falsified 'scoped by construction' claim is gone tree-wide",
           not hits,
           "still asserted at: " + ", ".join(hits))
+
+    # The retraction exclusion, both ways. A sweep that cannot tell an assertion from a
+    # denial of it is a sweep whose green means nothing on a file that documents its own
+    # corrections — which is every file in this plugin.
+    check("a claim quoted in order to deny it is not counted as asserted",
+          FALSIFIED.search("per-task runs were already targeted. They were not.")
+          is not None
+          and RETRACTED.match(
+              "per-task runs were already targeted. They were not."[
+                  FALSIFIED.search("per-task runs were already targeted. "
+                                   "They were not.").end():]) is not None,
+          "the exclusion does not fire on the file's own retraction")
+    check("a BARE assertion is still counted",
+          RETRACTED.match(" and so the field needs no bound.") is None,
+          "the exclusion is too broad — it would swallow a live claim")
 
     check("test-scope-tiers.md states the expensive-suite scoping rule for task `Test:`",
           re.search(r"expensive[^.]{0,200}?task[^.]{0,120}?`?Test:?`?[^.]{0,200}?scoped"

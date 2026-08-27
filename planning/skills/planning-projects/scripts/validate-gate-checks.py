@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify a plan's stage-gate checks, and fail on instance-shaped ones.
+"""Classify a plan's stage-gate checks and audit its task `Test:` fields.
 
 Why this exists: a gate check asserting a property of a *set* — "no file still
 claims X", "every example sets Y" — must be written as the command that sweeps
@@ -41,9 +41,24 @@ impossible to run:
                         never a selector (a whole-file regression run is legitimate, and
                         syntax cannot tell it from the defect).
 
-Exit 0 when no INSTANCE-SHAPED and no SELECTOR-UNMATCHED check is found, 1 otherwise,
-2 on bad usage. Always prints a per-class count and the total examined: an empty sweep
-must not read as a pass (honest-gates).
+A THIRD axis, and the only one that leaves the gate section entirely — it reads the
+plan's TASK fields:
+
+    TASK-TEST-UNSCOPED  on a plan that declares expensive-suite tiering, a task whose own
+                        `Test:` command collects the whole suite: no path, no filter, and
+                        no explicit `full-suite: accepted` on the task. Measured incident:
+                        `uv run --locked pytest -m 'not requires_session'` ran ~3.5 h
+                        against a 3132-test collection inside one Red-Green loop, while
+                        the same plan's stage-scope command took ~7 min. references/
+                        test-scope-tiers.md asserted such fields were scoped "by
+                        construction"; that claim is retracted and this replaces it.
+                        Armed only by a plan declaring stage-scope AND plan-scope
+                        commands — below guard rail 1's ~5 min threshold there is nothing
+                        to bound. Master plans are skipped: they carry no tasks.
+
+Exit 0 when no INSTANCE-SHAPED, no SELECTOR-UNMATCHED and no TASK-TEST-UNSCOPED finding
+is present, 1 otherwise, 2 on bad usage. Always prints a per-class count and the total
+examined: an empty sweep must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
 tests/test-validate-gate-checks.py group 9 against the frozen corpus in
@@ -524,6 +539,205 @@ def unswept_scopes(text):
     return out
 
 
+# --- TASK-TEST-UNSCOPED ------------------------------------------------------------
+#
+# A THIRD axis, separate from shape and from selector-matchability: not "is this gate
+# check well formed" but "can this task's own test command finish". The measured
+# incident: a task whose `Test:` read `uv run --locked pytest -m 'not requires_session'`
+# ran ~3.5 h against a 3132-test collection inside one Red-Green loop, while the same
+# plan's declared stage-scope command took ~7 min. Nothing detected it, and nothing in
+# the tier policy could have — the tiers govern GATES, `fix-scope` is derived per fix,
+# and a task field was the one place with no upstream check. references/test-scope-tiers.md
+# asserted those fields were scoped "by construction"; that claim is retracted and this
+# is what replaces it.
+#
+# Armed ONLY by a plan that declares stage-scope AND plan-scope commands — i.e. a project
+# over guard rail 1's ~5 min threshold. Below it there is nothing to bound, and a check
+# that fired anyway would be pure ceremony on a 90-second suite.
+
+TIERS_STAGE = re.compile(r"^\s*[-*]?\s*`?\*{0,2}stage-scope", re.MULTILINE | re.IGNORECASE)
+TIERS_PLAN = re.compile(r"^\s*[-*]?\s*`?\*{0,2}plan-scope", re.MULTILINE | re.IGNORECASE)
+
+# The block HEADING is deliberately not the trigger. A plan may carry it to record the
+# opposite conclusion — the frozen corpus has one: "**Test-scope commands:** not tiered —
+# the full suite is 3.9s, well under the ~5 min threshold". Arming on the heading would
+# fire hardest on the author who documented the threshold decision most carefully.
+def declares_tiering(text):
+    return bool(TIERS_STAGE.search(text) and TIERS_PLAN.search(text))
+
+
+TASK_HEADING = re.compile(r"^#{2,6}\s+(?:\*\*)?Task\b", re.MULTILINE)
+ANY_HEADING = re.compile(r"^#{1,6}\s", re.MULTILINE)
+
+# Suite runners whose default scope is "everything". The list is FIXED and short, and
+# that is a stated limit rather than an oversight: a runner absent from it is not
+# checked, so this catches the shapes that have actually cost hours, not every possible
+# one. Adding a runner is a one-line change with a fixture.
+RUNNER = re.compile(
+    r"(?:\./[\w./-]*)?\b(pytest|gradlew|gradle|jest|vitest|xcodebuild)\b"
+    # `npm run test` is at least as common as `npm test` in a package.json project, and
+    # the adjacency requirement made the more common shape invisible. Found by review.
+    r"|\b(?:go|cargo)\s+test\b|\b(?:npm|yarn|pnpm)\s+(?:run\s+)?test\b"
+)
+SEPARATOR = re.compile(r"&&|\|\||;|\|")
+# `-k expr`, and the selector flags of the other runners. Any of them bounds the run.
+SCOPING_FLAG = re.compile(
+    r"(?:^|\s)(?:-k|-t|--tests?|--testNamePattern|-p|--package|--lib|--bin|--doc)\b"
+    r"|-Pandroid\.testInstrumentationRunnerArguments\."
+)
+# `-m <expr>` is a scope when it SELECTS and not when it DESELECTS. That distinction is
+# the incident itself: `-m 'not requires_session'` still collects the whole tree minus a
+# slice. The question the rule asks is what a command collects, never what it skips.
+MARKER = re.compile(r"(?:^|\s)-m\s+(?P<q>['\"]?)(?P<expr>[^'\"`]+?)(?P=q)(?=\s|$)")
+TOKEN = re.compile(r"(?:^|\s)(?P<tok>[^\s]+)")
+PATHISH = re.compile(r"/|::|\.(?:py|kt|kts|java|rs|ts|tsx|js|jsx|swift|go)$")
+
+# Gradle is the one family where the DEFAULT is bounded and the exceptions are not.
+# `./gradlew verifyArchitecture` names a specific task, and the name IS the scope; so do
+# `recoveryTest`, `securityTest`, `benchmarkRelease`, `managedDeviceCheck`. Only the
+# aggregate tasks below collect everything.
+#
+# Measured over 602 real vault plans, and stated so the two files that cite it agree — an
+# earlier draft of this comment said 12 and "0 true ones for this family", both wrong.
+# Treating every `gradlew` invocation as unbounded produced 21 flags. Recalibration left
+# 6. Of the 15 removed, 14 were Gradle (a specifically named task, or `--version`, which
+# runs no tests at all) and 1 was `cargo test --no-run`, which compiles and runs nothing.
+# Gradle also keeps ONE true positive — `./gradlew check assembleDebug` — so the family is
+# not being disarmed, only read correctly.
+#
+# That direction of error is what matters here: this check is wired into a MANDATORY
+# pre-presentation checklist, so a false positive blocks a correct plan from being
+# presented, which is worse than a miss.
+# Matched by SHAPE, not by a literal list. A literal list is an allowlist-by-omission,
+# and review found the miss it was always going to have: `testProductionReleaseUnitTest`
+# and every other product-flavor variant read as a safely-named task, in the same bucket
+# as `verifyArchitecture`. The variants are generated from the flavor/build-type matrix,
+# so there is no finite list to enumerate — only a shape.
+GRADLE_AGGREGATE = re.compile(
+    r"\A(?:test|tests|check|build|allTests|cleanTest|connectedCheck|androidTest"
+    r"|test[A-Z]\w*UnitTest|connected[A-Z]\w*AndroidTest)\Z"
+)
+
+
+def _tokens(body):
+    return [m.group("tok") for m in TOKEN.finditer(body) if not m.group("tok").startswith("-")]
+
+
+def _bounded(runner, body):
+    """Whether one runner invocation's argument list bounds what it collects."""
+    body = SEPARATOR.split(body)[0]
+    toks = _tokens(body)
+
+    if "gradle" in runner:
+        if any(tok.startswith(":") for tok in toks):
+            return True          # a module-qualified task path
+        if SCOPING_FLAG.search(body):
+            return True          # --tests, -p, the instrumentation class filter
+        # A named task is its own scope; only the aggregates below are unbounded.
+        return not any(GRADLE_AGGREGATE.match(tok) for tok in toks)
+
+    if runner.startswith("xcodebuild"):
+        # `xcodebuild` alone builds; only a `test` action runs a suite.
+        if "test" not in toks:
+            return True
+
+    # `cargo test --no-run` COMPILES the tests and runs none of them.
+    if re.search(r"(?:^|\s)--no-run\b", body):
+        return True
+
+    if SCOPING_FLAG.search(body):
+        return True
+    m = MARKER.search(body)
+    if m and not re.match(r"not\b", m.group("expr").strip()):
+        return True
+    for tok in toks:
+        if tok.startswith(":"):
+            return True
+        if tok in ("./...", ".", "..."):   # Go's whole module is not a bound
+            continue
+        if PATHISH.search(tok):
+            return True
+    return False
+
+
+# The exemption must be ATTACHED to the task's fields, never merely present in its prose.
+# A bare substring search over the block exempts a task whose prose says "we deliberately
+# did NOT mark this `full-suite: accepted`" — the sentence denying the exemption grants it.
+# That is the same failure the sibling contract suite's RETRACTED exclusion exists to stop,
+# reproduced in the check written days later; review found it by construction.
+#
+# Two attached forms, both documented in references/test-scope-tiers.md: a field of its own,
+# or the token on the `Test:` line it qualifies.
+FULL_SUITE_FIELD = re.compile(r"^\s*[-*]\s*\*{0,2}full-suite:\s*accepted", re.MULTILINE | re.I)
+FULL_SUITE_INLINE = re.compile(r"full-suite:\s*accepted", re.I)
+
+
+def _accepts_full_suite(block):
+    if FULL_SUITE_FIELD.search(block):
+        return True
+    return any(FULL_SUITE_INLINE.search(m.group(1)) for m in TEST_FIELD.finditer(block))
+
+
+def unscoped_task_tests(text, path=None):
+    """-> [(task, command, why)] task `Test:` commands that collect the whole suite.
+
+    Only on a plan that declares tiering (`declares_tiering`), and never on a master
+    plan, which carries no tasks by construction — the same skip the selector check
+    makes, for the same reason.
+
+    Two ways a task satisfies the rule (references/test-scope-tiers.md § A task-level
+    `Test:` is task-scope only when the author scoped it): the command is path- or
+    suite-scoped, or the task carries an explicit `full-suite: accepted`, which records
+    that the author priced the full run and chose it.
+
+    Known limits, stated rather than implied (honest-gates). A command is judged on its
+    own text, with no reference to the plan's declared tiers — so a task `Test:` that is
+    verbatim the plan's own `stage-scope:` command still flags. Two of the six live-corpus
+    findings are that shape (a multi-crate project whose stage-scope IS `cargo test`), and
+    they are correct under the rule as written: the rule asks the author to say
+    `full-suite: accepted` and price it, which is exactly the sentence such a plan is
+    missing. Treating a stage-scope match as bounded was considered and rejected — most
+    plans declare a plan-scope command that IS the full suite, and the equivalence would
+    have gutted the check on the projects it exists for. The runner list is fixed,
+    so a suite runner not in `RUNNER` is not checked at all. And "bounded" is judged
+    from the command's SYNTAX: `pytest tests/` is accepted as scoped even where that
+    directory holds the entire suite. Both are deliberate — this check exists to catch
+    the unbounded default, and a stricter reading would flag correct plans, which on a
+    mandatory pre-presentation checklist blocks authoring rather than merely nagging.
+    """
+    if not declares_tiering(text) or is_master_plan(text, path):
+        return []
+    out = []
+    for m in TASK_HEADING.finditer(text):
+        nxt = ANY_HEADING.search(text, m.end())
+        block = text[m.start(): nxt.start() if nxt else len(text)]
+        label = block.splitlines()[0].lstrip("# ").strip()
+        if _accepts_full_suite(block):
+            continue
+        flagged = False
+        for tf in TEST_FIELD.finditer(block):
+            for span in backticked(tf.group(1)):
+                for r in RUNNER.finditer(span):
+                    nr = RUNNER.search(span, r.end())
+                    body = span[r.end(): nr.start() if nr else len(span)]
+                    if _bounded(r.group(0), body):
+                        continue
+                    # The INVOCATION, not the span. A chained command is usually mostly
+                    # fine and unbounded in one link; naming the span sends the author
+                    # hunting through a line they have to re-derive the fault in.
+                    out.append((label,
+                                (r.group(0) + SEPARATOR.split(body)[0]).strip(),
+                                "collects the whole suite — no path, no filter, and the "
+                                "task carries no `full-suite: accepted`"))
+                    flagged = True
+                    break
+                if flagged:
+                    break
+            if flagged:
+                break
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="validate-gate-checks")
     ap.add_argument("plans", nargs="+", type=pathlib.Path)
@@ -534,6 +748,7 @@ def main(argv=None):
     totals = {"EXECUTABLE": 0, "JUDGMENT": 0, "SCOPED": 0, "INSTANCE-SHAPED": 0, "PROSE": 0}
     failures = []
     selector_failures = []
+    task_test_failures = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -549,6 +764,8 @@ def main(argv=None):
             scope_notes.append((path, unswept))
         for c, sel_path, expr, why in unmatched_selectors(raw, path):
             selector_failures.append((path, c, sel_path, expr, why))
+        for task, cmd, why in unscoped_task_tests(raw, path):
+            task_test_failures.append((path, task, cmd, why))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -584,6 +801,16 @@ def main(argv=None):
             print(f"  {path.name}: {c[:96]}\n      → `{sel_path} -k {expr}` — {why}",
                   file=sys.stderr)
 
+    # Third axis again: reported under its own name and kept out of the shape totals,
+    # so the frozen-corpus calibration stays comparable.
+    if task_test_failures:
+        print(f"\nFAIL: {len(task_test_failures)} task-test-unscoped field(s) — the plan "
+              f"declares expensive-suite tiering and a task's own Test: runs the whole "
+              f"suite:", file=sys.stderr)
+        for path, task, cmd, why in task_test_failures:
+            print(f"  {path.name}: {task[:80]}\n      → `{cmd[:96]}` — {why}",
+                  file=sys.stderr)
+
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
     # while the aggregate looked healthy.
@@ -601,7 +828,9 @@ def main(argv=None):
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))
     if selector_failures:
         print(f"selector-unmatched {len(selector_failures)} (separate axis — see above)")
-    return 1 if (failures or selector_failures) else 0
+    if task_test_failures:
+        print(f"task-test-unscoped {len(task_test_failures)} (separate axis — see above)")
+    return 1 if (failures or selector_failures or task_test_failures) else 0
 
 
 if __name__ == "__main__":

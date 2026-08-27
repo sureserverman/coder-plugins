@@ -528,11 +528,12 @@ applies to Standard plans (and, with the decomposition addendum, Master plans).
 Before showing the plan to the user, verify **every** item in
 `references/authoring-checklist.md` — that file is the full list, and most items name the
 section that owns the rule they enforce. **It is a mandatory read on the Standard path, not
-a conditional one.** Three items are restated here, because they are the ones a command
+a conditional one.** Four items are restated here, because they are the ones a command
 decides rather than a reading:
 
 - [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
 - [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
+- [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted`. A task field is the one place the tier policy never reached, and an unbounded one has cost 3.5 h in a single Red-Green loop (`references/test-scope-tiers.md`)
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 
 **Additionally, for a decomposed project (master plan + sub-plans):**
