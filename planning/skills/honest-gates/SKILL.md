@@ -142,6 +142,58 @@ section is deliberately a write-time discipline plus a thing reviewers look for
 (`executing-plans`, both review tiers). Saying so is itself the rule: claiming a
 guard exists here would be the very falsehood the section forbids.
 
+## A test does not exist until its mutant dies
+
+The rules above govern claims about runs and about code. This one governs the
+**check itself**, because a green suite is the claim everything else is built on,
+and a test derived from the fix it is meant to guard cannot fail on it.
+
+**The rule this backs up already exists and already failed.** `executing-plans`
+Step 3.3 opens "the test is written first and must go RED for the right reason" —
+correct, and unenforceable after the fact: a test written first and a test
+transcribed from the fix are byte-identical in a passing suite. Every failure
+below happened with that rule in force. What follows is the part that leaves
+evidence.
+
+Three rules, in the order they have to happen. They cost a command each and no
+agent dispatch, so they are **untiered — they run at every review scope including
+`none`** (DEC-010's cost line: a mandate costing a line of text or a local
+re-run is not tiered; a mandate costing an agent is).
+
+1. **Write the set down before the fix.** Before patching, enumerate the
+   population the defect belongs to — as a *command*, in the commit: `grep -rl`,
+   a list of siblings, every caller of the changed symbol. Fix every member, then
+   derive one test from the set. A fix scoped from the counterexample that
+   revealed it will regenerate the finding on the next sibling, and each round
+   reads as progress.
+
+2. **Revert the fix; the suite must go red.** If it stays green you do not have a
+   weak test, you have **no test** — and you cannot know which, because both look
+   identical from a passing run. Name the mutation and the count in the commit
+   ("reverting the `active` expression turns 3 checks red"). This is the whole
+   rule: a check that cannot fail is not evidence, and it is indistinguishable
+   from one that can until you try.
+
+3. **Build fixtures from the requirement, never from observed behavior.** The
+   moment a fixture is shaped by what the code currently does, it can no longer
+   falsify what the code currently does. This is not theoretical: a vault fixture
+   built without `Portfolio/` — because that was what the code then accepted —
+   asserted the accepting behavior as correct, so a suite of 41 stayed green over
+   the defect it was written to catch.
+
+**Assert the discriminating cause, not the outcome.** `refused` is satisfied by
+an argparse error, an ImportError, and the guard under test; `refused with the
+guard's own wording` is satisfied by one of them. Whenever an assertion can be
+made true by something other than the mechanism you are testing, it will
+eventually be made true that way, and the suite will report it as a pass. Every
+instance of this found so far was an outcome assertion standing in for a cause.
+
+**Why this is not covered by § *Prohibited* or § *A behavioral claim is a gate too*.** Those catch a false sentence
+about behavior. This catches a *true* sentence — "the suite passes" — that means
+less than the reader takes it to mean. Nothing in a passing run distinguishes a
+test that would catch the regression from one that would not, which is why the
+distinguishing step has to be performed rather than assumed.
+
 ## Reporting
 
 When you report status, every gate is one of: **GREEN** (real command + passed,

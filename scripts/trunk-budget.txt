@@ -122,7 +122,24 @@
 #   Research Summary asserts "any trunk addition must be paid for by extraction in the same
 #   change (DEC-018)". DEC-018 says no such thing — it governs how a claimed token SAVING is
 #   measured. No decision in force forbids a recorded raise; this file's protocol governs.
-planning/skills/executing-plans/SKILL.md 47334
+#
+# Raised 47334 -> 48423 (+1089) 2026-08-27 for Step 3.3 rule 4a — a test the task wrote
+#   is not green until its mutant dies. Paid for in argument, not bytes: the rationale
+#   and the observed failures live in honest-gates § "A test does not exist until its
+#   mutant dies"; the trunk carries only the obligation and the two corollaries, and
+#   points there. It is here rather than in a reference because it fires INSIDE the
+#   Red-Green loop, between the test going green and the Status flip — a rule the
+#   executor must meet at that moment, and a pointer followed afterwards is the same as
+#   no rule. Untiered by DEC-010's cost line (a local re-run, not an agent), so it
+#   needs no tier declaration under DEC-017; the tier is named in the rule itself.
+#
+#   Why it was worth the bytes: across one 4-round stage gate, six defects shipped
+#   through green suites — a teeth-call argparse short-circuited before its guard, a
+#   fixture built to match current behaviour, an assertion satisfied by the wrong
+#   cause, and three copies of a guard where reverting a branch left 41 suites green.
+#   Every one was caught by a reviewer and then confirmed by a mutation that should
+#   have been run before the commit.
+planning/skills/executing-plans/SKILL.md 48423
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -298,6 +315,15 @@ planning/skills/planning-projects/SKILL.md 36902
 #   shape this stage exists to stop. Paid down first — the bullet's explanatory
 #   tail was cut and the BL-101 detail pushed to the reference.
 planning/skills/portfolio/SKILL.md 13254
+
+# Seeded 2026-08-27 at 12519 B, its first entry: honest-gates crossed 10000 B when
+#   it gained § "A test does not exist until its mutant dies". The section is here
+#   rather than in a reference because it is a WRITE-TIME discipline — it has to be
+#   in front of whoever is writing the test, and a pointer they follow after the
+#   fact is the same as no rule. Untiered by DEC-010's cost line: it costs a
+#   re-run, not an agent. It is the fourth trunk rule this skill carries and the
+#   only one about the check rather than the claim.
+planning/skills/honest-gates/SKILL.md 12519
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
