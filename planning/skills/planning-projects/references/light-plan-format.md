@@ -43,7 +43,7 @@ guardrail that a one-session job cannot need.
 | Kept at Light (invariants) | Dropped at Light (long-horizon artifacts) |
 |----------------------------|-------------------------------------------|
 | Concrete runnable `Test:` per task | Mandated **Research Summary** section (findings go inline as a short **Context** line) |
-| `- **Status:** [ ]` per task, flipped on green | Full **Preflight** checklist (only "baseline tests pass", folded into the gate) |
+| `- **Status:** [ ]` per task, flipped on green | Full **Preflight** checklist (only "baseline tests pass", folded into the gate) — **except** the `**Test-scope commands**` block on an expensive-suite project, which is kept; see below |
 | Commit per green task | **Risk** / **Rollback** stage fields |
 | Red-Green cycle budget (default 3) | `Blocks:` field (derivable from `Depends on` at ≤5 tasks) |
 | Run-to-completion + stop conditions | `Parallel:` field (no fan-out at this size) |
@@ -69,6 +69,26 @@ pre-execution check that matters at this size — "baseline tests pass" — live
 inside the single `### Stage 1 Gate`, alongside the git bootstrap `executing-plans` always
 does. Everything else a Standard Preflight verifies (tool versions, API reachability, the
 dispatch probe and roster) is either irrelevant to a one-session job or moot with no fan-out.
+
+**One exception, and it is a fact rather than a ceremony.** On a project whose full suite
+crosses the ~5 min threshold (`test-scope-tiers.md` guard rail 1), a Light plan carries the
+`**Test-scope commands**` block — the `stage-scope:` / `plan-scope:` pair — immediately after
+its `Context:` line:
+
+```markdown
+**Test-scope commands** (per references/test-scope-tiers.md):
+- stage-scope: `./gradlew :app:testDebugUnitTest`
+- plan-scope:  `./gradlew clean check connectedCheck`
+```
+
+What the Light format drops is long-horizon *guardrail*. How expensive this project's suite is
+is not guardrail — it is a property of the project, true whatever the plan's size, and the
+authoring checklist's rule that a task `Test:` be scoped or carry `full-suite: accepted` is
+**armed by this declaration and by nothing else**. Without the block that rule is unenforceable
+at Light, which is exactly what it was: found at a stage gate by two independent reviewers, a
+Light plan carrying the literal 3.5 h incident command reported zero findings. A rule stated
+in a checklist and unreachable by its checker is the "measures nothing" class this repo tracks.
+Below the threshold the block is omitted, as at any size.
 
 **No Risk / Rollback / Blocks / Parallel fields.** One low-risk stage does not need a rollback
 rehearsal, and with ≤5 tasks in one session there is no fan-out to coordinate. `Depends on`

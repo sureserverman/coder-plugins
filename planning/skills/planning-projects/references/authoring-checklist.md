@@ -79,7 +79,7 @@ these eight — the Standard checklist does not apply:
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
-- [ ] On an expensive-suite project, every task's `Test:` is path- or suite-scoped or carries `full-suite: accepted` — the same bar as any plan, and an **authoring-time** check (`test-scope-tiers.md`). A Light plan has task `Test:` fields, so this is not one of the items the format drops
+- [ ] On an expensive-suite project, every task's `Test:` is path- or suite-scoped, or the **task** carries a `full-suite: accepted` field with a reason — the same bar as any plan, and an **authoring-time** check (`test-scope-tiers.md`). A Light plan has task `Test:` fields, so this is not one of the items the format drops; it also carries the `**Test-scope commands**` block that arms the check (`light-plan-format.md` § Preflight collapses into the gate), without which this item is unenforceable
 
 **Why the Light list is shorter rather than softer.** Every item it drops is a field the Light
 format does not have (Risk, Rollback, Blocks, Parallel, a Preflight section) or a long-horizon

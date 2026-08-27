@@ -131,6 +131,7 @@ Usage:
 import argparse
 import pathlib
 import re
+import shlex
 import sys
 
 # INVOKERS run a program whose scope is genuinely opaque: `pytest tests/one_test.py`
@@ -555,8 +556,13 @@ def unswept_scopes(text):
 # over guard rail 1's ~5 min threshold. Below it there is nothing to bound, and a check
 # that fired anyway would be pure ceremony on a 90-second suite.
 
-TIERS_STAGE = re.compile(r"^\s*[-*]?\s*`?\*{0,2}stage-scope", re.MULTILINE | re.IGNORECASE)
-TIERS_PLAN = re.compile(r"^\s*[-*]?\s*`?\*{0,2}plan-scope", re.MULTILINE | re.IGNORECASE)
+# The DECLARATION form, not the words. `- stage-scope: <command>` declares a tier;
+# `- Stage-scope pass green` is a gate bullet, and an earlier cut armed the whole check on
+# it. A checkbox line is a gate check and never a declaration, so it is excluded outright.
+TIERS_STAGE = re.compile(r"^\s*(?![-*]\s*\[)[-*]?\s*`?\*{0,2}stage-scope\*{0,2}`?\s*:",
+                         re.MULTILINE | re.IGNORECASE)
+TIERS_PLAN = re.compile(r"^\s*(?![-*]\s*\[)[-*]?\s*`?\*{0,2}plan-scope\*{0,2}`?\s*:",
+                        re.MULTILINE | re.IGNORECASE)
 
 # The block HEADING is deliberately not the trigger. A plan may carry it to record the
 # opposite conclusion — the frozen corpus has one: "**Test-scope commands:** not tiered —
@@ -574,129 +580,167 @@ ANY_HEADING = re.compile(r"^#{1,6}\s", re.MULTILINE)
 # checked, so this catches the shapes that have actually cost hours, not every possible
 # one. Adding a runner is a one-line change with a fixture.
 RUNNER = re.compile(
-    r"(?:\./[\w./-]*)?\b(pytest|gradlew|gradle|jest|vitest|xcodebuild)\b"
+    r"(?:\./[\w./-]*)?(?<!\.)\b(pytest|gradlew|gradle|jest|vitest|xcodebuild)\b"
     # `npm run test` is at least as common as `npm test` in a package.json project, and
-    # the adjacency requirement made the more common shape invisible. Found by review.
-    r"|\b(?:go|cargo)\s+test\b|\b(?:npm|yarn|pnpm)\s+(?:run\s+)?test(?=\s|$)"
+    # the adjacency requirement made the more common shape invisible. `cargo nextest run`
+    # is now the default cargo runner in many projects. Both found by review.
+    r"|\b(?:go|cargo)\s+test\b|\bcargo\s+nextest\s+run\b"
+    r"|\b(?:npm|yarn|pnpm)\s+(?:run\s+)?test(?=\s|$)"
 )
 SEPARATOR = re.compile(r"&&|\|\||;|\|")
-# `-k expr`, and the selector flags of the other runners. Any of them bounds the run.
-SCOPING_FLAG = re.compile(
-    r"(?:^|\s)(?:-t|--testNamePattern|-p|--package|--lib|--bin|--doc)\b"
-    r"|-Pandroid\.testInstrumentationRunnerArguments\."
-)
-# A flag that TAKES an expression narrows only if the expression narrows. Accepting the
-# flag's mere presence is how `-k ''` — which collects everything — read as scoped, and the
-# prose rule this implements already said "bounds what it COLLECTS", so the divergence was
-# the implementation's, not the rule's. Found by running the stage gate's own `(judgment)`
-# check adversarially instead of reasoning about it.
+
+# THE ROOT CAUSE OF ROUND 2, fixed once here rather than per-symptom. An earlier cut dropped
+# a token beginning with `-` and kept the token after it, so a FLAG'S VALUE read as a positive
+# path argument. That one defect produced most of a gate's findings: `pytest -p no:randomly`
+# disarmed the check on the incident's own command; `--ignore tests/slow` and `--deselect
+# tests/x.py` passed as scoped while `--ignore=tests/slow` was caught, which is why the `=`
+# fixture in SET A proved less than it looked. Parse the values, and "a positional argument
+# bounds the run" becomes true for every runner instead of being approximated per runner.
+VALUE_FLAGS = {
+    "-k", "-m", "-p", "-t", "-n", "--tests", "--test", "--testNamePattern", "--package",
+    "--deselect", "--ignore", "--run", "-run", "--project", "--testPathPattern",
+    "-scheme", "-destination", "-sdk", "-configuration", "-workspace", "-project",
+}
+# Flags whose VALUE, when it is a real expression, bounds the run. `-p` is deliberately NOT
+# here for pytest: in pytest `-p` loads a plugin and bounds nothing, while in cargo/go it
+# names a package. Both reviews found that collision independently; it is runner-gated below.
+NARROWING_FLAGS = r"-k|--tests?|-t|--testNamePattern|--testPathPattern|--run|-run|--project"
 EXPR_FLAG = re.compile(
-    r"(?:^|\s)(?:-k|--tests?)\s+(?P<q>['\"]?)(?P<expr>[^'\"`]*?)(?P=q)(?=\s|$)")
-# Whole-tree arguments. A path that names the root is not a bound, however path-shaped.
-WHOLE_TREE = {".", "./", "...", "./...", "*", "'*'", '"*"'}
-
-
-def _expr_narrows(expr):
-    """Whether a selector expression actually bounds the collection."""
-    expr = expr.strip().strip("'\"")
-    if not expr or expr in WHOLE_TREE:
-        return False        # `-k ''`, `--tests '*'`
-    if re.match(r"not\b", expr):
-        return False        # subtractive: everything minus a slice is still everything
-    return True
-# `-m <expr>` is a scope when it SELECTS and not when it DESELECTS. That distinction is
-# the incident itself: `-m 'not requires_session'` still collects the whole tree minus a
-# slice. The question the rule asks is what a command collects, never what it skips.
-MARKER = re.compile(r"(?:^|\s)-m\s+(?P<q>['\"]?)(?P<expr>[^'\"`]+?)(?P=q)(?=\s|$)")
-TOKEN = re.compile(r"(?:^|\s)(?P<tok>[^\s]+)")
-PATHISH = re.compile(r"/|::|\.(?:py|kt|kts|java|rs|ts|tsx|js|jsx|swift|go)$")
+    r"(?:^|\s)(?:" + NARROWING_FLAGS + r")(?:\s+|=)(?P<q>['\"]?)(?P<expr>[^'\"`]*?)(?P=q)(?=\s|$)")
+# xcodebuild joins its selector with a colon, so it needs its own shape. `-skip-testing:` is
+# deliberately absent: it subtracts, and subtracting from everything is still everything.
+ONLY_TESTING = re.compile(r"-only-testing:\S+")
+CARGO_PKG = re.compile(r"(?:^|\s)(?:-p|--package)\s+\S+")
+# Cargo's TARGET selectors take no value and are real bounds: `--lib` runs only the library
+# target, `--doc` only doc-tests. Dropped by a rewrite that folded the old flag list into a
+# value-parsing one, which turned `cargo test --lib` — 11 live occurrences in the corpus —
+# into a false positive. Caught by re-running the corpus sweep after the rewrite rather than
+# trusting the unit table, which had no `--lib` cell to fail.
+CARGO_TARGET = re.compile(r"(?:^|\s)--(?:lib|bins?|doc|examples?|benches?|all-targets)\b")
+INSTRUMENTATION = re.compile(r"-Pandroid\.testInstrumentationRunnerArguments\.")
+# `-m <expr>` is a scope when it SELECTS and not when it DESELECTS — the incident itself.
+MARKER = re.compile(r"(?:^|\s)-m(?:\s+|=)(?P<q>['\"]?)(?P<expr>[^'\"`]+?)(?P=q)(?=\s|$)")
+# Whole-tree arguments. A path naming the root is not a bound, however path-shaped.
+WHOLE_TREE = {".", "./", "...", "./...", "*"}
 
 # Gradle is the one family where the DEFAULT is bounded and the exceptions are not.
 # `./gradlew verifyArchitecture` names a specific task, and the name IS the scope; so do
 # `recoveryTest`, `securityTest`, `benchmarkRelease`, `managedDeviceCheck`. Only the
-# aggregate tasks below collect everything.
+# aggregate lifecycle tasks below collect everything. Matched by SHAPE, not by a literal
+# list: the flavour/build-type matrix generates names no list can enumerate, and the
+# flavour infix is OPTIONAL because bare `connectedAndroidTest` is the commonest member.
 #
-# REPRODUCIBLE, and the only figure here that is: run this validator over the vault plan
-# corpus and it reports **6** task-test-unscoped findings, one of them Gradle
-# (`./gradlew check assembleDebug`) — so the family is read correctly, not disarmed.
+# REPRODUCIBLE: run this validator over `/mnt/vault/Portfolio/*/*/plans/*.md` (this project's
+# own plans yield 0 — the figure needs the whole tree) and it reports 6 task-test-unscoped
+# findings, one of them Gradle (`./gradlew check assembleDebug`), so the family is read
+# correctly rather than disarmed.
 #
-# HISTORICAL, and marked as such because a future reader cannot check it: an earlier cut
-# that treated every `gradlew` invocation as unbounded reported 21 findings over the same
-# corpus, of which 15 went away here — 14 Gradle plus one `cargo test --no-run`. That
-# implementation is preserved nowhere, so the split is a record of a measurement rather
-# than a measurement. (An earlier draft of this comment stated it as fact, and gave 12
-# where a sibling file gave 15. Both are corrected; the disagreement was the tell.)
+# BEFORE RECALIBRATION: 21 findings, composed 16 Gradle / 3 cargo / 2 other — so the 15 that
+# went away were 15 Gradle and 0 cargo. Two earlier drafts of this comment got that wrong,
+# first "12", then "14 Gradle plus one `cargo test --no-run`", and the second draft then
+# labelled the split UNREPRODUCIBLE, which is what stopped it being checked. A gate reviewer
+# reconstructed the earlier cut in about ten lines and measured it. The label was the defect:
+# "you cannot check this" needs evidence exactly like any other claim.
 #
-# That direction of error is what matters here: this check is wired into a MANDATORY
-# pre-presentation checklist, so a false positive blocks a correct plan from being
-# presented, which is worse than a miss.
-# Matched by SHAPE, not by a literal list. A literal list is an allowlist-by-omission,
-# and review found the miss it was always going to have: `testProductionReleaseUnitTest`
-# and every other product-flavor variant read as a safely-named task, in the same bucket
-# as `verifyArchitecture`. The variants are generated from the flavor/build-type matrix,
-# so there is no finite list to enumerate — only a shape.
+# The direction of error is what matters: this check is wired into a MANDATORY
+# pre-presentation checklist, so a false positive blocks a correct plan from being presented,
+# which is worse than a miss.
 GRADLE_AGGREGATE = re.compile(
-    r"\A(?:test|tests|check|build|allTests|cleanTest|connectedCheck|androidTest"
+    r"\A(?:test|tests|check|build|allTests|testAll|jvmTest|cleanTest|connectedCheck|androidTest"
     r"|test(?:[A-Z]\w*)?UnitTest|connected(?:[A-Z]\w*)?AndroidTest)\Z"
 )
 
 
-def _tokens(body):
-    return [m.group("tok") for m in TOKEN.finditer(body) if not m.group("tok").startswith("-")]
+def _split(body):
+    """Shell-ish tokens, quotes respected. Falls back to whitespace on unbalanced quotes —
+    a plan's `Test:` field is prose-adjacent and may not be a valid shell word list."""
+    try:
+        return shlex.split(body)
+    except ValueError:
+        return body.split()
+
+
+def _positional(body):
+    """Tokens that are neither flags NOR the values of flags.
+
+    The second half is the whole point; see VALUE_FLAGS above."""
+    toks = _split(body)
+    out, i = [], 0
+    while i < len(toks):
+        tok = toks[i]
+        if tok.startswith("-"):
+            i += 2 if (tok in VALUE_FLAGS and "=" not in tok) else 1
+            continue
+        out.append(tok)
+        i += 1
+    return out
+
+
+def _expr_narrows(expr):
+    """Whether a selector expression actually bounds the collection.
+
+    Presence of the flag is not enough — `-k ''` collects everything, and the prose rule
+    this implements says a selector must bound what the command COLLECTS."""
+    expr = expr.strip().strip("'\"")
+    if not expr or expr in WHOLE_TREE:
+        return False
+    if re.match(r"not\b", expr):
+        return False        # subtractive: everything minus a slice is still everything
+    return True
 
 
 def _bounded(runner, body):
     """Whether one runner invocation's argument list bounds what it collects."""
     body = SEPARATOR.split(body)[0]
-    toks = _tokens(body)
 
     if "gradle" in runner:
+        toks = _positional(body)
         if any(tok.startswith(":") for tok in toks):
-            return True          # a module-qualified task path
-        if SCOPING_FLAG.search(body) or any(
+            return True                      # a module-qualified task path
+        if INSTRUMENTATION.search(body) or any(
                 _expr_narrows(m.group("expr")) for m in EXPR_FLAG.finditer(body)):
-            return True          # --tests, -p, the instrumentation class filter
-        # A named task is its own scope; only the aggregates below are unbounded.
+            return True                      # --tests '*Foo', the instrumentation filter
+        # A named task is its own scope; only the aggregates are unbounded.
         return not any(GRADLE_AGGREGATE.match(tok) for tok in toks)
 
     if runner.startswith("xcodebuild"):
-        # `xcodebuild` alone builds; only a `test` action runs a suite.
-        if "test" not in toks:
-            return True
+        if "test" not in _split(body):
+            return True                      # it is building, not running a suite
+        return bool(ONLY_TESTING.search(body))
 
-    # `cargo test --no-run` COMPILES the tests and runs none of them.
     if re.search(r"(?:^|\s)--no-run\b", body):
+        return True                          # compiles the tests, runs none
+
+    if runner.startswith("cargo") and (CARGO_PKG.search(body) or CARGO_TARGET.search(body)):
+        # `-p` means --package for CARGO only. In go it is the parallelism count
+        # (`go test -p 4 ./...` still runs everything) and in pytest it loads a plugin
+        # (`pytest -p no:randomly`). Both were disarming the check before it was gated.
         return True
 
-    if SCOPING_FLAG.search(body):
-        return True
     if any(_expr_narrows(m.group("expr")) for m in EXPR_FLAG.finditer(body)):
         return True
-    m = MARKER.search(body)
-    if m and not re.match(r"not\b", m.group("expr").strip()):
+    if ONLY_TESTING.search(body) or INSTRUMENTATION.search(body):
         return True
-    for tok in toks:
-        if tok.startswith(":"):
-            return True
-        if tok in WHOLE_TREE:              # the repo root is not a bound, however path-shaped
-            continue
-        if PATHISH.search(tok):
-            return True
-    return False
+    m = MARKER.search(body)
+    if m and _expr_narrows(m.group("expr")):
+        return True
+
+    # Any positional argument that is not the whole tree. True for every runner now that
+    # flag values are parsed out, so this replaces the per-runner path heuristics.
+    return any(tok not in WHOLE_TREE for tok in _positional(body))
 
 
-# The exemption must be ATTACHED to the task's fields, never merely present in its prose.
-# A bare substring search over the block exempts a task whose prose says "we deliberately
-# did NOT mark this `full-suite: accepted`" — the sentence denying the exemption grants it.
-# That is the same failure the sibling contract suite's RETRACTED exclusion exists to stop,
-# reproduced in the check written days later; review found it by construction.
-#
-# ONE form: a field of its own. An earlier cut also honoured the token inline on the `Test:`
-# line, which made the exemption a 2x2 of placement x polarity — and the fourth cell was a
-# hole a review found by construction: `- **Test:** `pytest`  (we are not using full-suite:
-# accepted here)` exempted the task by SAYING IT HAD NOT. One placement has no cross-product
-# to miss, and a denial cannot be written as a `full-suite:` field without being one.
-FULL_SUITE_FIELD = re.compile(r"^\s*[-*]\s*\*{0,2}full-suite:\s*accepted", re.MULTILINE | re.I)
+# ONE placement for the exemption: a field of its own. An earlier cut also honoured the token
+# inline on the `Test:` line, which made the exemption a 2x2 of placement x polarity — and the
+# fourth cell was a hole a review found by construction: a task saying it had NOT been marked
+# contains the marker's own words, and so was exempted by the sentence denying it.
+# Both checklists say "with a reason", and an earlier cut accepted a bare marker — so the
+# rule and its checker disagreed about what the exemption costs. The reason IS the exemption:
+# a token with nothing after it records that someone typed the words, not that they priced
+# the run.
+FULL_SUITE_FIELD = re.compile(
+    r"^\s*[-*]\s*\*{0,2}full-suite:\s*accepted\*{0,2}\s*[—:-]?\s*(?P<reason>[^\s*].*)$",
+    re.MULTILINE | re.I)
 
 
 def _accepts_full_suite(block):
@@ -724,7 +768,29 @@ def unscoped_task_tests(text, path=None):
     nothing or only subtracts (`-m 'not x'`, `--ignore=`), because subtracting from
     everything is still everything. That is decidable from the text; cost is not.
 
-    Known limits, stated rather than implied (honest-gates). A command is judged on its
+    **Arming reaches every format, but only through a declaration.** The trigger is a
+    `stage-scope:` / `plan-scope:` pair anywhere in the document. A **Light** plan has no
+    Preflight section, so until `references/light-plan-format.md` sanctioned the declaration
+    block explicitly this check could not fire on a Light plan at all — the incident shape
+    passed silently for the entire format. Found at the Stage 3 gate by two independent
+    reviewers, neither task's own review having looked at the other's artifact. An undeclared
+    plan of any format is still not checked, which is guard rail 1 working as designed.
+
+    Known limits, stated rather than implied (honest-gates), each one found by a gate
+    reviewer and left rather than fixed:
+
+      * A `Test:` field is read one line at a time and only inside backticks, so a command
+        on a wrapped continuation line, or one written without backticks, is never examined.
+        No live corpus instance; fixing it means changing how every axis in this file reads
+        a task field.
+      * A tautological selector (`-k 'x or not x'`) and a root-relative path
+        (`pytest tests/../`) both read as narrowing. The prose rule excludes them; the
+        checker cannot see it. The rule is stricter than its checker here, which is the
+        right direction but is a real divergence.
+      * `cargo test --workspace` flags while a workspace really is this project's whole
+        world — correct under the rule, and worth knowing before reading a finding.
+
+    A command is judged on its
     own text, with no reference to the plan's declared tiers — so a task `Test:` that is
     verbatim the plan's own `stage-scope:` command still flags. Two of the six live-corpus
     findings are that shape (a multi-crate project whose stage-scope IS `cargo test`), and
@@ -764,11 +830,9 @@ def unscoped_task_tests(text, path=None):
                                 "collects the whole suite — no path, no filter, and the "
                                 "task carries no `full-suite: accepted`"))
                     flagged = True
-                    break
-                if flagged:
-                    break
-            if flagged:
-                break
+        # No early break: a task with two unbounded commands reports both. Stopping at the
+        # first is the instance-shaped habit this whole stage is about, inside the checker.
+        _ = flagged
     return out
 
 
