@@ -130,7 +130,8 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 started Stage 3 — it hands the turn back on a promise, and the user has to ask again for work
 already authorized. The tool call opening the announced work — a stage, a task, or
 anything else this skill has you announce — goes in the **same turn** as the sentence
-announcing it, or instead of it: the call is the announcement. This is
+announcing it, or instead of it where the sentence was yours to choose. An announcement this
+skill mandates is still made — in the same turn as the call, never in place of it. This is
 run-to-completion at the granularity of a single turn.
 
 ---
@@ -447,7 +448,7 @@ write them.** The measured incident behind all three: `references/task-execution
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
-7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
+7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and — where this repo contains the plan — the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
 
    **The plan file may not live in the repo you are committing to.** A plan can sit outside
    the repo it plans — the portfolio convention keeps it in the vault — so **edit the plan at
@@ -482,14 +483,18 @@ When a task finishes green, scan its `Blocks` field. For each blocked task, chec
 
 ### Step 3.5 — Stage gate
 
-**honest-gates, restated because the pointer went unread** (BL-083):
+**These four bind every gate**, restated rather than cited — BL-083 measured the pointer
+unread:
 
 > **A gate is green only when its real command ran in the current environment and actually
 > passed. Nothing else counts as green.** **If you cannot make the real check run here, the
 > gate is BLOCKED, not green** — one that ran and failed is RED, and takes the gate-failure
 > procedure below. **Violating the letter of a gate is violating its spirit.** **And a
 > sentence asserting behavior is itself a claim that something was verified** — cite the
-> `file:line`. **Never collapse BLOCKED into GREEN.** Full rules: `honest-gates`.
+> `file:line`. **Never collapse BLOCKED into GREEN.** **A gate whose commands ran over
+> uncommitted edits proved nothing about what is recorded** — commit first, then run it.
+> A BLOCKED gate takes neither branch: stop on it, name the blocker and the exact
+> command that cannot run, try to unblock it, and escalate. Prohibitions: `honest-gates`.
 
 When every task in the stage is green, run the stage gate:
 
@@ -504,7 +509,9 @@ When every task in the stage is green, run the stage gate:
   where the **user** authorised it — an undispatchable reviewer is a Stop condition, not a
   licence. The review line records it, quoting them; **with no recorded reason the gate
   fails.** Bound (DEC-014): only reviews the declared tier mandates, never a dispatch beyond
-  it — and within it, the mandate IS the authorization.
+  it — and within it, the mandate IS the authorization to **dispatch** it.
+
+- **One `ACTION NEEDED:` block, or none** — a report that carries one does not also say it is proceeding. Either the decision blocks the next stage, so say so and stop, or it is not an ask at all (`references/stage-gate.md`).
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, **if the project's
 platform ships a stage-verify skill, invoke it as the final gate step** — it proves the stage
@@ -596,8 +603,9 @@ indefinitely because each pass is "just confirming the fix". On exhaustion, esca
 residual list — a documented Stop condition, not a licence to keep looping. Full procedure:
 `references/gate-failure-procedure.md`.
 
-**If the gate passes** (no Critical remains and every Important is fixed, or escalated with
-its blocker named): mark the stage complete, append the stage's handoff note to the plan,
+**If the gate passes** — no Critical remains, every Important is fixed, and no
+finding-independent condition is outstanding — mark the
+stage complete, append the stage's handoff note to the plan,
 commit with `"Stage N green"`, and start Step 3.1 for the next stage. The gate report states
 the remediation rounds spent, every Suggestion recorded, and any finding escalated rather than
 fixed, so "green" never reads as "nothing was found".

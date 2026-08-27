@@ -117,7 +117,7 @@ same reason: a close-out ends with a merge offer, which is itself a decision, so
 that also carries an unresolved question is the report most likely to bury one.
 
 ```
-ACTION NEEDED — <one line naming the decision>
+ACTION NEEDED: <one line naming the decision>
   1. <option>
   2. <option>
 ```

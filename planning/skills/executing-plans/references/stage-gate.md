@@ -58,7 +58,7 @@ in **one** block, **last**, under this exact heading, with the options numbered 
 can be a number rather than a reconstruction of the choice:
 
 ```
-ACTION NEEDED — <one line naming the decision>
+ACTION NEEDED: <one line naming the decision>
   1. <option>
   2. <option>
 ```
@@ -310,7 +310,8 @@ counters and only one limit: repairs are bounded at 2, while fix → re-review �
 fix can run indefinitely because each pass is "just confirming the fix". The failure mode is
 not hypothetical — a fresh judgment agent reading a real artifact essentially always returns
 *something*, so a loop that re-dispatches until the reviewer goes quiet has no reachable exit.
-The exit is the exit criterion (no Critical remains, every Important fixed), evaluated after
+The exit is the exit criterion (no Critical remains, every Important fixed, and no
+finding-independent condition outstanding), evaluated after
 each round; the budget is what stops the loop when that criterion is not converging.
 
 The full procedure — how to derive the set, when the task's `Scope:` field is the authority
@@ -349,8 +350,9 @@ without the old transcript, the note was too thin, and that is the bug to fix.
 ## The dispatched-vs-inline review ledger
 
 A review the executor ran itself is byte-identical, in every artifact, to one a fresh agent
-ran — which is why all five audited dogfooding sessions recorded `Executor: inline` for every
-mandated review, dispatched nothing, and produced no artifact that said so. The ledger exists
+ran — which is why all five audited dogfooding sessions ran every mandated review inline,
+dispatched nothing, and produced no artifact that said so. The `Executor:` trailer could not
+have said it either — it is a per-task record, and a review is not a task. The ledger exists
 because nothing else can tell the two apart.
 
 **A mandated review the executor ran itself is a substitution, not a review.** It is recorded

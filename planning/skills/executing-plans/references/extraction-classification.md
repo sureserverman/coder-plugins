@@ -168,8 +168,9 @@ Tier-2 review that reached them separately:
   inside the guard meant to enforce them.
 
 **A marker may not span a line wrap.** `check-trunk-retention.py` matches plain
-case-sensitive substrings against the raw file, so a marker crossing a newline plus the next
-line's indent (or a `> ` blockquote prefix) can never match, and the guard reports MISSING-RULE
+case-sensitive substrings against **the body of the section that claims the marker** — not the
+raw file, and not including that section's own heading line. So a marker crossing a newline
+plus the next line's indent (or a `> ` blockquote prefix) can never match, and the guard reports MISSING-RULE
 for a rule that is present. Pick a marker that sits on one physical line. Found the hard way
 adding the three Step 3.5 rows below.
 
@@ -220,6 +221,11 @@ adding the three Step 3.5 rows below.
 | Step 3.4 — Propagate unblock | scan its `Blocks` field |
 | Step 3.5 — Stage gate | A gate passes when **no Critical finding remains** |
 | Step 3.5 — Stage gate | A gate is green only when its real command ran |
+| Step 3.5 — Stage gate | is a substitution, not a review |
+| Step 3.5 — Stage gate | with no recorded reason the gate |
+| Step 3.3 — Red-Green loop (per task) | keeps it in the vault |
+| Step 3.3 — Red-Green loop (per task) | from the repo root |
+| Run to completion — don't stop until you have to | Never end a turn on an announcement |
 | Step 3.5 — Stage gate | gate is BLOCKED, not green |
 | Step 3.5 — Stage gate | Never collapse BLOCKED into GREEN |
 | Step 3.5 — Stage gate | Regressions check runs at stage-scope |

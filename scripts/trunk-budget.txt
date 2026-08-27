@@ -57,34 +57,72 @@
 #   eleven bullets grammatically hung off the consequence-of-failure clause
 #   rather than off "run every check". The rule is now its own line after the
 #   bullets, which reads correctly and costs 31 B.
-# Raised 46311 -> 46613 (+302) at the Stage 1 gate of the 2026-08-27 session-mined-flaws
-#   plan, remediation round 1. NOT drift, and not the plan's own five additions — those were
-#   each paid for by extraction inside this ratchet, which is why the trunk sat at exactly
-#   46311 when the gate opened. This raise funds three RULES that three Tier-1 reviews found
-#   missing, each a contradiction inside the trunk rather than an improvement to it:
-#     +176  § Step 3.5 — the boxed exit criterion claims to govern "every gate pass" while
-#           enumerating only Critical/Important findings, so the three conditions that fail a
-#           gate on their own (platform-verify hook, decisions-conformance sweep, unrecorded
-#           review substitution) were unreachable from the criterion that claims to be
-#           complete. A reader who evaluated only the box would never find them.
-#     +112  Step 3.3 rule 5 stated the Status flip happens "in the same change as the work"
-#           unconditionally, two items before rule 7 carved out the vault-resident plan where
-#           it cannot. Flatly contradictory on the axis Task 1.1 exists to clarify.
-#      +14  § Run to completion — the turn rule's lead said "an announcement" and its own
-#           elaboration said "stage or task", leaving this file's § Announce at start covered
-#           by one reading and not the other. Broadened the elaboration to match the lead.
-#   The alternative was to fund them by cutting elaboration, and after five extractions this
-#   stage there is no elaboration left to cut: a marker-free sweep of every paragraph over
-#   300 B returns procedure, obligations and the format contract, nothing else. Paying for a
-#   rule by deleting a rule is the trade this file was written to stop, and the standard it
-#   set for itself twice already — at the Stage 2 and Stage 3 gates of the token-efficiency
-#   plan — is that the ceiling follows the obligation, not the obligation the ceiling.
+# Raised 46311 -> 47334 (+1023) across the two remediation rounds of the Stage 1 gate of the
+#   2026-08-27 session-mined-flaws plan. This entry REPLACES a round-1 entry whose numbers
+#   were wrong; the correction is recorded rather than quietly overwritten, because a raise's
+#   reason block is the only audit this ratchet has and one that cannot be reconciled with
+#   the diff is worse than a bigger number honestly stated.
 #
-#   Recorded caveat: the 2026-08-27 plan's Research Summary asserts "any trunk addition must
-#   be paid for by extraction in the same change (DEC-018)". DEC-018 says no such thing — it
-#   governs how a claimed token SAVING is measured. No decision in force forbids a recorded
-#   raise; this file's own protocol is the governing rule, and it is followed here.
-planning/skills/executing-plans/SKILL.md 46613
+#   WHAT THE ROUND-1 ENTRY GOT WRONG. It said "the trunk sat at exactly 46311 when the gate
+#   opened". It sat at 46254 — 57 B UNDER the ceiling. And it itemized the raise as
+#   +176/+112/+14, three figures summing to the CEILING delta (302) rather than to anything
+#   measured. The real per-rule costs were +210/+88/+61 = 359 B, of which 57 B came from
+#   existing headroom and 302 B from the raise. Caught independently by the gate evaluator
+#   and both Tier-2 reviewers. The class was swept — 20 accounting claims in this file, 0
+#   other arithmetic mismatches:
+#     python3 - <<'EOF'  # regex over "Raised|Lowered A -> B (+/-N)"; assert B-A == N
+#   The stage's five TASK additions are not part of this raise: each was paid for by
+#   extraction inside the original ratchet, which is why the trunk was under it at gate-open.
+#
+#   ROUND 1 (+359 B of content, 302 B of ceiling), three rules three Tier-1 reviews found
+#   missing, each a contradiction inside the trunk rather than an improvement to it:
+#     +210  the boxed exit criterion claimed to govern "every gate pass" while enumerating
+#           only Critical/Important findings, leaving the platform-verify hook, the decisions
+#           sweep and an unrecorded review substitution unreachable from it
+#      +88  Step 3.3 rule 5 stated the Status flip happens "in the same change as the work"
+#           unconditionally, two items before rule 7 carved out the case where it cannot
+#      +61  the turn rule's lead said "an announcement" and its elaboration "stage or task"
+#
+#   ROUND 2 (+721 B net: 1525 added, 804 removed), clearing two Criticals and ten Importants
+#   raised by the gate evaluator, a Tier-2 review and a second independent pass:
+#     - rule 7's LEAD still read "including ... the flipped `Status: [x]`" unqualified — the
+#       exact sentence the plan's research names as the defect. Round 1 had qualified rule 5
+#       and left the site the plan identified. (Critical)
+#     - the exit criterion had FIVE mirrors and round 1 patched one. The operative branch
+#       ("If the gate passes") restated a findings-only version and was the line an executor
+#       actually acts on; three reference mirrors did the same. All five now agree. (Critical)
+#     - the honest-gates capsule routed RED and orphaned BLOCKED, which took neither branch;
+#       and it omitted the prohibition most likely to bite at a stage gate, since the
+#       "Stage N green" commit lands AFTER the gate runs: a gate whose commands ran over
+#       uncommitted edits proved nothing about what is recorded.
+#     - the capsule's header read as provenance ("restated because the pointer went unread"),
+#       inviting a reader who believes they know honest-gates to skip the block. It now
+#       states the obligation.
+#     - "the mandate IS the authorization" sat in a paragraph about running a review inline,
+#       where the fast read is that the substitution authorizes itself. Names the dispatch now.
+#     - the turn rule's "or instead of it" licensed dropping an announcement this skill
+#       MANDATES — the round-1 broadening manufactured a collision on the same axis it fixed.
+#     - the ACTION NEEDED rule had zero trunk presence while the trunk pushes toward
+#       "proceeding" three sections earlier, so the trunk supplied half the failing shape and
+#       stationed the counter-rule in another file.
+#
+#   ON "NO ELABORATION LEFT TO CUT", which the round-1 entry asserted flatly. The sweep was
+#     python3 - <<'EOF'  # every paragraph >=300 B in the trunk carrying no retention marker
+#   and it returns procedure, obligations and the format contract — with one exception a
+#   reviewer found and this entry did not: the Step 3.3 test-first rationale ("A test written
+#   after the implementation cannot distinguish...") restates an imperative one sentence
+#   earlier, ~100 B of genuine elaboration predating this stage. It is left in place; the
+#   claim is corrected rather than the file trimmed to make the claim true.
+#
+#   The standard this file set for itself twice already — at the Stage 2 and Stage 3 gates of
+#   the token-efficiency plan — is that the ceiling follows the obligation, not the obligation
+#   the ceiling. Paying for a rule by deleting a rule is the trade it exists to stop.
+#
+#   Recorded caveat, unchanged and verified by the gate evaluator: the 2026-08-27 plan's
+#   Research Summary asserts "any trunk addition must be paid for by extraction in the same
+#   change (DEC-018)". DEC-018 says no such thing — it governs how a claimed token SAVING is
+#   measured. No decision in force forbids a recorded raise; this file's protocol governs.
+planning/skills/executing-plans/SKILL.md 47334
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
