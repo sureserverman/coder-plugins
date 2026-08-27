@@ -472,6 +472,30 @@ for cmd, why in [
 ]:
     check(n_unscoped(tiered_plan(cmd)) == 0, f"does not flag: {cmd} — {why}")
 
+# --- SET E: vacuous narrowing — the flag is present, its VALUE bounds nothing ---------
+# Found by running THIS STAGE'S OWN `(judgment)` gate check adversarially rather than
+# reasoning about it: "the scoping rule's wording cannot be satisfied by a vacuous filter
+# (e.g. `-k \'\')". It could. The prose rule was already right — it says a selector must
+# bound what it COLLECTS — and the implementation had been accepting the flag's presence
+# instead of its effect.
+for cmd, why in [
+    ("`pytest -k ''`", "an empty selector collects everything"),
+    ('`pytest -k ""`', "the double-quoted spelling of the same"),
+    ("`pytest -k 'not slow'`", "subtractive: everything minus a slice is still everything"),
+    ("`pytest .`", "the repo root is not a bound"),
+    ("`pytest ./`", "nor is it when spelled with a slash — these two disagreed before"),
+    ("`./gradlew test --tests '*'`", "a universal wildcard bounds nothing"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 1, f"flags vacuous filter: {cmd} — {why}")
+
+for cmd, why in [
+    ("`pytest -k parses`", "a real selector"),
+    ("`pytest -k 'parse and not slow'`", "a positive term makes it narrowing, `not` and all"),
+    ("`./gradlew test --tests '*ParserTest'`", "a wildcard with a stem narrows"),
+    ("`pytest tests/`", "a subdirectory is a bound"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 0, f"still does not flag: {cmd} — {why}")
+
 # --- SET C: the exemption, enumerated as placement x polarity ------------------------
 # ONE placement, so there is no fourth cell to forget. An earlier cut honoured the token
 # inline on the `Test:` line too, and a review found the hole by construction: prose SAYING

@@ -582,9 +582,28 @@ RUNNER = re.compile(
 SEPARATOR = re.compile(r"&&|\|\||;|\|")
 # `-k expr`, and the selector flags of the other runners. Any of them bounds the run.
 SCOPING_FLAG = re.compile(
-    r"(?:^|\s)(?:-k|-t|--tests?|--testNamePattern|-p|--package|--lib|--bin|--doc)\b"
+    r"(?:^|\s)(?:-t|--testNamePattern|-p|--package|--lib|--bin|--doc)\b"
     r"|-Pandroid\.testInstrumentationRunnerArguments\."
 )
+# A flag that TAKES an expression narrows only if the expression narrows. Accepting the
+# flag's mere presence is how `-k ''` — which collects everything — read as scoped, and the
+# prose rule this implements already said "bounds what it COLLECTS", so the divergence was
+# the implementation's, not the rule's. Found by running the stage gate's own `(judgment)`
+# check adversarially instead of reasoning about it.
+EXPR_FLAG = re.compile(
+    r"(?:^|\s)(?:-k|--tests?)\s+(?P<q>['\"]?)(?P<expr>[^'\"`]*?)(?P=q)(?=\s|$)")
+# Whole-tree arguments. A path that names the root is not a bound, however path-shaped.
+WHOLE_TREE = {".", "./", "...", "./...", "*", "'*'", '"*"'}
+
+
+def _expr_narrows(expr):
+    """Whether a selector expression actually bounds the collection."""
+    expr = expr.strip().strip("'\"")
+    if not expr or expr in WHOLE_TREE:
+        return False        # `-k ''`, `--tests '*'`
+    if re.match(r"not\b", expr):
+        return False        # subtractive: everything minus a slice is still everything
+    return True
 # `-m <expr>` is a scope when it SELECTS and not when it DESELECTS. That distinction is
 # the incident itself: `-m 'not requires_session'` still collects the whole tree minus a
 # slice. The question the rule asks is what a command collects, never what it skips.
@@ -634,7 +653,8 @@ def _bounded(runner, body):
     if "gradle" in runner:
         if any(tok.startswith(":") for tok in toks):
             return True          # a module-qualified task path
-        if SCOPING_FLAG.search(body):
+        if SCOPING_FLAG.search(body) or any(
+                _expr_narrows(m.group("expr")) for m in EXPR_FLAG.finditer(body)):
             return True          # --tests, -p, the instrumentation class filter
         # A named task is its own scope; only the aggregates below are unbounded.
         return not any(GRADLE_AGGREGATE.match(tok) for tok in toks)
@@ -650,13 +670,15 @@ def _bounded(runner, body):
 
     if SCOPING_FLAG.search(body):
         return True
+    if any(_expr_narrows(m.group("expr")) for m in EXPR_FLAG.finditer(body)):
+        return True
     m = MARKER.search(body)
     if m and not re.match(r"not\b", m.group("expr").strip()):
         return True
     for tok in toks:
         if tok.startswith(":"):
             return True
-        if tok in ("./...", ".", "..."):   # Go's whole module is not a bound
+        if tok in WHOLE_TREE:              # the repo root is not a bound, however path-shaped
             continue
         if PATHISH.search(tok):
             return True
