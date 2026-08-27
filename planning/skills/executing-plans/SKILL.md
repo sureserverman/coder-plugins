@@ -130,6 +130,12 @@ with evidence, and what you need to resume. The context-reset guidance is an eff
 tactic for very large plans, **not** a licence to stop early: prefer a fresh session over a
 *degraded* one, never over *finishing the work*.
 
+**Never end a turn on an announcement.** *"Starting Stage 3."* as a turn's last words has not
+started Stage 3 — it hands the turn back on a promise, and the user has to ask again for work
+already authorized. The tool call opening the announced stage or task goes in the **same
+turn** as the sentence announcing it, or instead of it: the call is the announcement. This is
+run-to-completion at the granularity of a single turn.
+
 ---
 
 ## The plan is the authorization — dispatch without a confirmation turn
@@ -145,11 +151,7 @@ given when the plan was handed to you.
 **Why this needs saying at all.** A session usually carries a standing caution of roughly the
 form *"do not call the Agent tool unless the user requested it"*. That caution is
 **conditional, not absolute**, and a plan whose execution model names dispatch points is the
-condition being met: **approving the plan WAS the request.** The two rules live in different
-places — one in the session's standing instructions, one in a file the user pointed at — and
-nothing forces a reader to reconcile them, so the more general and more recently read rule
-wins by default. Stating the precedence here is what stops each session having to re-derive
-it, and getting it wrong differently each time.
+condition being met: **approving the plan WAS the request.**
 
 **The bound, which carries equal weight.** With **no plan in play and no mandate**, the
 caution stands and you ask. This rule deletes a confirmation turn where a plan already

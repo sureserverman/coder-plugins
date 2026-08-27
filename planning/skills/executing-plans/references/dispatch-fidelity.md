@@ -151,3 +151,9 @@ user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through
 `planning-projects`, or accept inline execution knowingly. What the executor may not do is
 make that call silently on their behalf, which is exactly what happened in the incident this
 rule comes from.
+
+**Why the precedence needs stating rather than deriving.** The two rules live in different
+places — one in the session's standing instructions, one in a file the user pointed at — and
+nothing forces a reader to reconcile them, so the more general and more recently read rule
+wins by default. Stating the precedence in the trunk is what stops each session having to
+re-derive it, and getting it wrong differently each time.

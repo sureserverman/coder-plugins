@@ -25,7 +25,16 @@ file is inside the repo. With a vault-resident plan it is not, and the observed
 executor behaviour was to chain a directory change into the plan's directory
 before the git command — ~20-25 failed commits across four sessions.
 
-Task 1.2 extends this suite with the turn-discipline case.
+What it pins (Task 1.2 — turn discipline):
+  6. § Run to completion forbids ending a turn on a stage or task announcement,
+     and requires the tool call that opens the next stage/task in the SAME turn
+     as the sentence announcing it, or instead of it.
+  7. It names the observed shape — a turn whose last words are "Starting Stage
+     N." with no tool call — so the rule is evidenced rather than stylistic.
+
+The two tasks share one suite because they share one failure mode: a rule the
+executor reads and then does not apply at the moment of pressure. Rule text is
+the only artifact either can be checked against.
 
 Read-only. Exit 0 when every promise holds, 1 otherwise.
 """
@@ -132,6 +141,33 @@ def main():
           re.search(r"Status: \[x\]|`Status:` flip|Status flip", ref) is not None,
           f"{TASK_EXECUTION.name} does not say what becomes of the Status flip when "
           "the plan file is not in the repo — the question rule 7 raises and does not answer")
+
+    # ---- Task 1.2: turn discipline ----------------------------------------
+    # Scoped to § Run to completion rather than to the whole trunk: the rule
+    # belongs with the other rules about not handing the turn back, and a
+    # trunk-wide match would pass on a sentence buried anywhere at all.
+    rtc, rtc_anchored = slice_between(
+        text, "## Run to completion", "## The plan is the authorization", "Run to completion")
+    check("§ Run to completion's anchors both resolve", rtc_anchored,
+          "the section could not be sliced — its heading or the next section's heading "
+          "moved, and the turn-discipline assertions read the whole file instead")
+
+    check("§ Run to completion forbids ending a turn on an announcement",
+          re.search(r"end a turn on an announcement|end a turn on a (stage|task)", rtc)
+          is not None,
+          "nothing forbids a turn whose last words announce work it never started")
+    check("§ Run to completion requires the opening tool call in the same turn",
+          re.search(r"same turn", rtc) is not None,
+          "the rule does not say WHEN the announced work must start, so 'Starting "
+          "Stage 3.' followed by nothing still satisfies it")
+    check("§ Run to completion allows the announcement to be dropped entirely",
+          re.search(r"instead of it|or instead", rtc) is not None,
+          "the rule mandates an announcement-plus-call pairing without saying the "
+          "announcement is optional, which reads as requiring the announcement")
+    check("§ Run to completion names the observed shape",
+          re.search(r"Starting Stage", rtc) is not None,
+          "the literal shape the rule prevents is not quoted, so a future editor "
+          "cannot tell what the rule is protecting against")
 
     print(f"assertions run ({len(RAN)}):")
     for name in RAN:
