@@ -378,20 +378,31 @@ def repo_health_case():
     """
     print("repo-health-scan (divergence: optional corpus, structured signal):")
     mod = load(REPO_HEALTH, "repo_health_scan")
-    # All three configurations, because the claim is that they stay DISTINCT.
+    # FOUR configurations, because the claim is that they stay DISTINCT — and the
+    # fourth is the one this case previously got wrong in a way that PINNED a bug.
+    # `present` used to be a bare mkdir() with no Portfolio/ beneath it, i.e. an
+    # unmounted-shaped vault, asserted as `expect_vault=True`. When the shared
+    # guard gained the Portfolio/ sentinel this file was left on the old bare
+    # is_dir(), and this fixture is what made the suite stay green over it: the
+    # test encoded the defect as the expected result. A fixture that is itself
+    # the wrong shape cannot fail on the right one.
     for label, vault, expect_vault, expect_unreachable in (
             ("configured and present", "present", True, False),
             ("configured but missing", "missing", False, True),
+            ("configured but UNMOUNTED (exists, no Portfolio/)", "unmounted", False, True),
             ("not configured at all", None, False, False)):
         with tempfile.TemporaryDirectory() as root:
             rootp = Path(root)
             missing = rootp / "not-mounted" / "vault"
             present = rootp / "vault"
-            present.mkdir()
-            under_tmp(missing, present)
+            (present / "Portfolio").mkdir(parents=True)   # a REACHABLE vault
+            unmounted = rootp / "mnt" / "vault"
+            unmounted.mkdir(parents=True)                 # mountpoint, nothing mounted
+            under_tmp(missing, present, unmounted)
             repo = rootp / "repo"
             repo.mkdir()
-            chosen = {"present": present, "missing": missing, None: None}[vault]
+            chosen = {"present": present, "missing": missing,
+                      "unmounted": unmounted, None: None}[vault]
             home = fake_home(rootp, chosen, [
                 {"path": str(repo), "name": "alpha", "area": "ai-tools"}])
             err = io.StringIO()
@@ -412,10 +423,13 @@ def repo_health_case():
                   f"{label}: vault_unreachable {'is reported' if expect_unreachable else 'is absent'}")
             check(len(projects) == 1, f"{label}: the sweep still has its projects")
             if expect_unreachable:
-                check(unreachable == str(missing) and TOKEN in err.getvalue(),
+                # Against `chosen`, not a hardcoded `missing`: an assertion that
+                # names one fixture can only ever describe one case, and would
+                # have reported the unmounted case as broken while it worked.
+                check(unreachable == str(chosen) and TOKEN in err.getvalue(),
                       f"{label}: the reason names the path, on stderr and in the return")
-                check(not missing.exists(),
-                      f"{label}: read-only — the missing directory was not created")
+                check(not missing.exists() and not (unmounted / "Portfolio").exists(),
+                      f"{label}: read-only — nothing was created at either bad path")
 
 
 def plan_progress_case():

@@ -103,11 +103,23 @@ def vault_problem(path, source):
         return None, (f"vault unreachable: vault_dir {path} (from {source}) is a "
                       f"relative path, so it names a different directory depending "
                       f"on where you run from — refusing. Use an absolute path.")
-    if not path.is_dir():
+    try:
+        existing = path.is_dir()
+        sentinel = existing and (path / "Portfolio").is_dir()
+    except OSError as e:
+        # A vault that cannot be STATTED is unreachable, not a traceback. Python
+        # 3.12's Path.is_dir() propagates OSError rather than returning False, and
+        # a dropped or re-exported NFS mount usually surfaces as EACCES or ESTALE
+        # rather than ENOENT — so the likeliest real-world failure was the one that
+        # escaped this function, which exists to turn unreachability into a message.
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) could "
+                      f"not be read ({e.__class__.__name__}: {e.strerror or e}) — "
+                      f"refusing. Check the mount and its permissions.")
+    if not existing:
         return None, (f"vault unreachable: vault_dir {path} (from {source}) is not an "
                       f"existing directory — refusing, because a missing vault is not "
                       f"an empty vault. Mount the vault or correct vault_dir.")
-    if not (path / "Portfolio").is_dir():
+    if not sentinel:
         return None, (f"vault unreachable: vault_dir {path} (from {source}) exists but "
                       f"has no Portfolio/ — refusing, because that is what an UNMOUNTED "
                       f"mountpoint looks like, and writing here would build a phantom "

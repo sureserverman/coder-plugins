@@ -88,16 +88,64 @@ def load_env():
         cfg = yaml.safe_load(config.read_text()) or {}
         vd = cfg.get("vault_dir")
         if vd:
-            candidate = Path(vd).expanduser()
-            if candidate.is_dir():
-                vault = candidate
+            candidate, why = _vault_problem(vd, config)
+            if why:
+                unreachable = str(candidate) if candidate else str(vd)
+                print(f"{why} — the backlog cross-check is OFF for this run; its "
+                      f"absence is not a clean result.", file=sys.stderr)
             else:
-                unreachable = str(candidate)
-                print(f"vault unreachable: vault_dir {candidate} (from {config}) is "
-                      f"not an existing directory — the backlog cross-check is OFF "
-                      f"for this run; its absence is not a clean result.",
-                      file=sys.stderr)
+                vault = candidate
     return vault, unreachable, [p for p in reg["projects"] if p.get("enabled", True)]
+
+
+def _vault_problem(value, source):
+    """(Path|None, reason|None) — is `value` a reachable vault?
+
+    A hand-kept copy of portfolio-rebuild.py's `vault_problem()`. `git-github`
+    ships as a separately versioned plugin: from a cache install it and `planning`
+    live in sibling version trees, so it cannot import the canonical one. The copy
+    is pinned against that original by the class sweep in
+    planning/skills/portfolio/tests/test-vault-unreachable.py.
+
+    **Why this exists at all, recorded because the gap it closes was expensive.**
+    This file kept a bare `is_dir()` after the canonical guard grew three more
+    conditions, so for one round it was the only consumer still on the v1
+    definition of "reachable" — and an unmounted vault (an existing, empty
+    mountpoint) resolved as present here. The envelope then reported
+    `backlog_cross_check: true` with `backlog_zombies: []` and no
+    `vault_unreachable` key, which is unmeasured rendering as clean: exactly the
+    outcome load_env()'s own docstring says it must never produce. DEC-011 is the
+    rule that was broken — every function taking the corpus as an argument must
+    use the same definition of it — and a divergence in POSTURE (this tool keeps
+    scanning) was quietly allowed to become a divergence in DEFINITION, which was
+    argued nowhere.
+
+    The posture divergence stays: this returns a reason instead of exiting,
+    because the caller carries it into the JSON rather than abandoning a GitHub
+    sweep over an unrelated unmount.
+    """
+    if not isinstance(value, str):
+        return None, (f"vault unreachable: vault_dir (from {source}) must be a path, "
+                      f"got {type(value).__name__}")
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) is a "
+                      f"relative path, so it names a different directory depending "
+                      f"on where you run from")
+    try:
+        existing = path.is_dir()
+        sentinel = existing and (path / "Portfolio").is_dir()
+    except OSError as e:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) could "
+                      f"not be read ({e.__class__.__name__}: {e.strerror or e})")
+    if not existing:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) is not "
+                      f"an existing directory")
+    if not sentinel:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) exists "
+                      f"but has no Portfolio/, which is what an UNMOUNTED mountpoint "
+                      f"looks like")
+    return path, None
 
 
 def run(cmd, timeout=60):
