@@ -577,7 +577,7 @@ RUNNER = re.compile(
     r"(?:\./[\w./-]*)?\b(pytest|gradlew|gradle|jest|vitest|xcodebuild)\b"
     # `npm run test` is at least as common as `npm test` in a package.json project, and
     # the adjacency requirement made the more common shape invisible. Found by review.
-    r"|\b(?:go|cargo)\s+test\b|\b(?:npm|yarn|pnpm)\s+(?:run\s+)?test\b"
+    r"|\b(?:go|cargo)\s+test\b|\b(?:npm|yarn|pnpm)\s+(?:run\s+)?test(?=\s|$)"
 )
 SEPARATOR = re.compile(r"&&|\|\||;|\|")
 # `-k expr`, and the selector flags of the other runners. Any of them bounds the run.
@@ -597,13 +597,16 @@ PATHISH = re.compile(r"/|::|\.(?:py|kt|kts|java|rs|ts|tsx|js|jsx|swift|go)$")
 # `recoveryTest`, `securityTest`, `benchmarkRelease`, `managedDeviceCheck`. Only the
 # aggregate tasks below collect everything.
 #
-# Measured over 602 real vault plans, and stated so the two files that cite it agree — an
-# earlier draft of this comment said 12 and "0 true ones for this family", both wrong.
-# Treating every `gradlew` invocation as unbounded produced 21 flags. Recalibration left
-# 6. Of the 15 removed, 14 were Gradle (a specifically named task, or `--version`, which
-# runs no tests at all) and 1 was `cargo test --no-run`, which compiles and runs nothing.
-# Gradle also keeps ONE true positive — `./gradlew check assembleDebug` — so the family is
-# not being disarmed, only read correctly.
+# REPRODUCIBLE, and the only figure here that is: run this validator over the vault plan
+# corpus and it reports **6** task-test-unscoped findings, one of them Gradle
+# (`./gradlew check assembleDebug`) — so the family is read correctly, not disarmed.
+#
+# HISTORICAL, and marked as such because a future reader cannot check it: an earlier cut
+# that treated every `gradlew` invocation as unbounded reported 21 findings over the same
+# corpus, of which 15 went away here — 14 Gradle plus one `cargo test --no-run`. That
+# implementation is preserved nowhere, so the split is a record of a measurement rather
+# than a measurement. (An earlier draft of this comment stated it as fact, and gave 12
+# where a sibling file gave 15. Both are corrected; the disagreement was the tell.)
 #
 # That direction of error is what matters here: this check is wired into a MANDATORY
 # pre-presentation checklist, so a false positive blocks a correct plan from being
@@ -615,7 +618,7 @@ PATHISH = re.compile(r"/|::|\.(?:py|kt|kts|java|rs|ts|tsx|js|jsx|swift|go)$")
 # so there is no finite list to enumerate — only a shape.
 GRADLE_AGGREGATE = re.compile(
     r"\A(?:test|tests|check|build|allTests|cleanTest|connectedCheck|androidTest"
-    r"|test[A-Z]\w*UnitTest|connected[A-Z]\w*AndroidTest)\Z"
+    r"|test(?:[A-Z]\w*)?UnitTest|connected(?:[A-Z]\w*)?AndroidTest)\Z"
 )
 
 
@@ -666,16 +669,16 @@ def _bounded(runner, body):
 # That is the same failure the sibling contract suite's RETRACTED exclusion exists to stop,
 # reproduced in the check written days later; review found it by construction.
 #
-# Two attached forms, both documented in references/test-scope-tiers.md: a field of its own,
-# or the token on the `Test:` line it qualifies.
+# ONE form: a field of its own. An earlier cut also honoured the token inline on the `Test:`
+# line, which made the exemption a 2x2 of placement x polarity — and the fourth cell was a
+# hole a review found by construction: `- **Test:** `pytest`  (we are not using full-suite:
+# accepted here)` exempted the task by SAYING IT HAD NOT. One placement has no cross-product
+# to miss, and a denial cannot be written as a `full-suite:` field without being one.
 FULL_SUITE_FIELD = re.compile(r"^\s*[-*]\s*\*{0,2}full-suite:\s*accepted", re.MULTILINE | re.I)
-FULL_SUITE_INLINE = re.compile(r"full-suite:\s*accepted", re.I)
 
 
 def _accepts_full_suite(block):
-    if FULL_SUITE_FIELD.search(block):
-        return True
-    return any(FULL_SUITE_INLINE.search(m.group(1)) for m in TEST_FIELD.finditer(block))
+    return bool(FULL_SUITE_FIELD.search(block))
 
 
 def unscoped_task_tests(text, path=None):
@@ -689,6 +692,15 @@ def unscoped_task_tests(text, path=None):
     `Test:` is task-scope only when the author scoped it): the command is path- or
     suite-scoped, or the task carries an explicit `full-suite: accepted`, which records
     that the author priced the full run and chose it.
+
+    **The question this answers is deliberately narrow, and closed.** Not "is this command
+    cheap" — that is open-ended, unanswerable from text, and chasing it is what produced two
+    review rounds that found only defects in the previous round's fixes. It answers: *does
+    anything in this command narrow what it collects?* A command carrying any positive
+    selector — a path, a filter, a package, a module task — is NOT JUDGED, however expensive
+    it really is. What is flagged is a command that starts from everything and either adds
+    nothing or only subtracts (`-m 'not x'`, `--ignore=`), because subtracting from
+    everything is still everything. That is decidable from the text; cost is not.
 
     Known limits, stated rather than implied (honest-gates). A command is judged on its
     own text, with no reference to the plan's declared tiers — so a task `Test:` that is

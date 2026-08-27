@@ -176,19 +176,22 @@ So on a project over the cost threshold, every task's `Test:` is either
 
 - **path- or suite-scoped** — it names a path, a module, a class filter or a marker
   selector that bounds what it *collects*; or
-- **explicitly flagged** `full-suite: accepted` on the task, recording that the author
-  priced the full run and chose it — either on the `Test:` line it qualifies, or as a
-  field of its own:
+- **explicitly flagged** with a `full-suite: accepted` **field on the task**, recording
+  that the author priced the full run and chose it:
 
   ```markdown
-  - **Test:** `uv run --locked pytest`  (full-suite: accepted — the change is
-    cross-cutting and no narrower selector covers it)
+  - **Test:** `uv run --locked pytest`
+  - **full-suite: accepted** — the change is cross-cutting and no narrower selector covers it
   ```
 
-  The flag has to be **attached to a field**. The token loose in the task's prose does not
-  count, and deliberately so: a sentence saying the task was *not* marked
-  `full-suite: accepted` contains the token, and a check reading the block as one string
-  would let that sentence grant the exemption it denies.
+  **A field of its own, and nowhere else.** Not on the `Test:` line, not loose in the task's
+  prose. The reason is worth stating, because the narrower rule looks arbitrary until you see
+  it: a sentence saying the task was *not* marked `full-suite: accepted` contains those exact
+  words, so any check reading free text for them lets that sentence grant the exemption it
+  denies. Allowing two placements meant four cases to get right — two placements times
+  granting and denying — and the fourth was a hole a review found by construction. One
+  placement has no cross-product to miss, and a denial cannot be written *as* a
+  `full-suite:` field without being one.
 
 A bare deselector like `-m 'not requires_session'` is **not** a scope: it collects the
 whole tree minus a slice. The question is what the command collects, not what it skips.
