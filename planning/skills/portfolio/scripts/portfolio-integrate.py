@@ -41,7 +41,11 @@ def vault_dir():
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    # Set-but-missing `vault_dir` is REFUSED, never created (SKILL.md § Resolver);
+    # rationale in portfolio-rebuild.py's vault_dir(). This file already imports
+    # that module for write_if_changed, so it borrows the check rather than
+    # keeping a fourth copy of the wording the class test pins.
+    return _pr.require_vault(Path(vd).expanduser(), CONFIG)
 
 
 def parse_frontmatter(text):

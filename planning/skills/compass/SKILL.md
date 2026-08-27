@@ -32,6 +32,11 @@ This skill's job is **judgment only**: ranking, narration, and the agenda.
 Never re-derive facts the JSON already carries; never present a fact the JSON
 doesn't back.
 
+**No JSON means no report.** The scanner exits non-zero and prints nothing on
+stdout when the vault is unset or unreachable. Relay its message and stop —
+"nothing is in flight" and "the corpus could not be read" would otherwise
+render identically.
+
 **Optional business layer.** When the sibling **business** plugin is installed, each
 assessed project also carries a `business` object: `{verdict, model, gtm_pct,
 last_reviewed_age_days, research_age_days, plan_age_days, stage}`. `research_age_days` and

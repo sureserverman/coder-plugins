@@ -30,7 +30,19 @@ def vault_dir():
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (SKILL.md § Resolver). Full rationale, including the
+    # migrate-into-an-unmounted-mountpoint case this prevents, in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, which is the same defect by another
+    # route. The message is deliberately distinct from the unset one above: the
+    # operator needs to know the key is set and the path is wrong.
+    p = Path(vd).expanduser()
+    if not p.is_dir():
+        sys.exit(f"vault unreachable: vault_dir {p} (from {CONFIG}) is not an "
+                 f"existing directory — refusing, because a missing vault is not "
+                 f"an empty vault. Mount the vault or correct vault_dir.")
+    return p
 
 
 def is_git(repo: Path) -> bool:

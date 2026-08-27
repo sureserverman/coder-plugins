@@ -241,7 +241,16 @@ def main(argv=None):
     # The one place the user's config is read. Missing vault_dir exits loudly
     # here rather than falling back to a path inside the repo — the
     # vault-canonical storage law (see SKILL.md § Where the files live).
-    vault = args.vault_dir if args.vault_dir is not None else pr.vault_dir()
+    #
+    # Both halves, not just the config half. pr.vault_dir() now refuses a
+    # vault_dir that is set but names a missing directory; --vault-dir is a raw
+    # path from the caller and gets the same check, because the failure it
+    # prevents is this script's worst one: list_domains() over a vault that is
+    # not there returns [], and "no domain registers found" is indistinguishable
+    # from "this project is bound by no global decisions". An unreachable corpus
+    # must never render as an empty one.
+    vault = (pr.require_vault(args.vault_dir.expanduser(), "--vault-dir")
+             if args.vault_dir is not None else pr.vault_dir())
 
     if args.list_domains:
         rows = list_domains(vault)

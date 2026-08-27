@@ -25,11 +25,52 @@ STRUCTURAL = {"backlog", "open", "closed", "done", "archive", "cross-project ite
 
 
 def vault_dir():
+    """The configured vault root, or a loud refusal. Never a fallback destination.
+
+    Two ways this can be wrong, and they are ONE posture, not two (SKILL.md
+    § Resolver, § Configuration):
+
+      * **Unset** — no config, or no `vault_dir` key. Refused since storage went
+        vault-canonical; the `~/.claude/` mirror that used to absorb this was
+        retired, so there is nothing left to fall back TO.
+      * **Set but missing** — the key names a directory that is not there: an
+        unmounted NFS vault, a typo, a machine that never had one. Left
+        unchecked this was strictly WORSE than the unset case, because nothing
+        downstream refuses on its behalf. `portfolio-migrate.py` mkdir(parents=
+        True)s the project home, so a run against an unmounted /mnt/vault would
+        materialise a second, empty vault tree at the mount point and migrate a
+        repo's only copy of its docs into it — a silent fallback write with the
+        real vault still holding the divergent original. A missing vault is not
+        an empty vault, and the only safe answer is to stop.
+
+    expanduser() runs BEFORE the check on purpose. `vault_dir: ~/vault` is not
+    an absolute path to Python; unexpanded it is RELATIVE, and every write would
+    land in `<cwd>/~/vault` — the same defect reached by a different route. It
+    also keeps this resolver's definition of the corpus identical to
+    plan-progress.py's, which has always expanded (DEC-011: every function
+    taking the corpus as an argument must use the same definition of it).
+    """
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    return require_vault(Path(vd).expanduser(), CONFIG)
+
+
+def require_vault(path, source):
+    """`path` if it is an existing directory, else exit with a specific message.
+
+    Separate from vault_dir() because the same rule binds the paths that never
+    came from the config at all — `plan-status-audit.py --vault`,
+    `decisions-relevant.py --vault-dir` — and those write backups into the tree
+    they are handed. `source` names where the bad value came from, so the
+    operator is told which knob to turn rather than just that one is wrong.
+    """
+    if not path.is_dir():
+        sys.exit(f"vault unreachable: vault_dir {path} (from {source}) is not an "
+                 f"existing directory — refusing, because a missing vault is not "
+                 f"an empty vault. Mount the vault or correct vault_dir.")
+    return path
 
 
 def read_utf8(path):

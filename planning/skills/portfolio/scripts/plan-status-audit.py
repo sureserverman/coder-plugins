@@ -986,10 +986,26 @@ def main():
     ap.add_argument("--registry", default=str(REGISTRY))
     args = ap.parse_args()
 
-    vault = Path(args.vault) if args.vault else pu.vault_dir()
-    if vault is None:
-        print("no vault_dir configured (~/.claude/portfolio-config.yaml)", file=sys.stderr)
-        return 2
+    # `--vault` bypasses the config resolver, so it would have bypassed the
+    # resolver's existence guard too — and this tool WRITES into whatever tree it
+    # is handed: --fix mkdirs `.audit-backups/<run-id>/` next to each plan. A
+    # nonexistent --vault would have found no plans, reported "0 candidates" as a
+    # clean bill of health, and --restore would have looked for backups that were
+    # never taken. Same rule and same message whichever knob supplied the path.
+    #
+    # (The `vault is None` branch that used to stand here was dead: pu.vault_dir()
+    # exits rather than returning None, and Path(args.vault) is never None. It is
+    # replaced rather than kept, because a dead guard reads as a live one.)
+    if args.vault:
+        vault = Path(args.vault).expanduser()
+        if not vault.is_dir():
+            print(f"vault unreachable: vault_dir {vault} (from --vault) is not an "
+                  f"existing directory — refusing, because a missing vault is not "
+                  f"an empty vault. Mount the vault or correct vault_dir.",
+                  file=sys.stderr)
+            return 2
+    else:
+        vault = pu.vault_dir()
     projects = load_registry(args.registry)
     if not projects:
         print("no enabled projects in the registry", file=sys.stderr)

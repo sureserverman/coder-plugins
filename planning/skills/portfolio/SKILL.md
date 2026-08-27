@@ -27,6 +27,7 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 - `vault_dir` is read from `~/.claude/portfolio-config.yaml`.
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
 - **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
+- **A missing vault is not an empty vault.** A `vault_dir` that is *set* but names a directory that is not there (unmounted, stale, mistyped) is refused identically — `vault unreachable: … Mount the vault or correct vault_dir` — and no part of the missing tree is created on the way to a write. Read-only tools whose corpus IS the vault refuse too: an empty-but-well-formed result reads as "nothing is in flight anywhere". Who diverges, and why: `references/registry-format.md`.
 
 **Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
 
@@ -120,7 +121,9 @@ vault_dir: /mnt/vault         # required; roll-ups land in <vault_dir>/Portfolio
 include_maturity: false       # default flow opts out of maturity until staging window ends
 ```
 
-Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to. What a `vault_dir` that is *set* but names a missing directory should do is **not settled**: this section said "warn and continue with `~/.claude/` writes" from before the retirement, and that destination no longer exists. Do not rely on either reading until it is decided.
+Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to.
+
+A `vault_dir` that is *set* but names a missing directory is settled: **the same refusal**, under the Resolver rules at the top of this file. It is not the lesser failure — unset has no destination to get wrong, while a stale path is one `mkdir -p` from a plausible second vault. `vault_dir` is `~`-expanded before use; written literally, `~/vault` is cwd-relative.
 
 ## File conflicts and write discipline
 

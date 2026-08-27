@@ -78,7 +78,20 @@ def load_env():
     reg = yaml.safe_load(registry.read_text()) or {}
     if not isinstance(reg, dict) or "projects" not in reg:
         sys.exit(f"portfolio not configured: {registry} has no 'projects' key")
-    return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (portfolio/SKILL.md § Resolver). Full rationale in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, the same defect by another route.
+    # Not merely the scan's own read path: resolve-dest.py calls this function to
+    # resolve <vault>/Portfolio/global-business.md, the destination biz-portfolio
+    # then writes. Unchecked, that pipeline would print a path under a vault that
+    # is not mounted and write the roll-up into a directory it had to create.
+    vault = Path(vd).expanduser()
+    if not vault.is_dir():
+        sys.exit(f"vault unreachable: vault_dir {vault} (from {config}) is not an "
+                 f"existing directory — refusing, because a missing vault is not "
+                 f"an empty vault. Mount the vault or correct vault_dir.")
+    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 def _isodate(v):

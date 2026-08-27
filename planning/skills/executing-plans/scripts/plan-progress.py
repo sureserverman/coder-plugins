@@ -186,6 +186,21 @@ def portfolio_plans_dir(repo_root):
             return None
     if not isinstance(vault, str) or not vault:
         return None
+    # A THIRD answer, and this file is the one place it is not an error: a
+    # `vault_dir` that is set but names a missing directory. Every other
+    # portfolio consumer refuses loudly on it (portfolio/SKILL.md § Resolver) —
+    # this one must not, and does not, and the difference is deliberate.
+    #
+    # This function runs on EVERY prompt render. A sys.exit here is a broken
+    # shell prompt, and a warning here is a warning printed forever; neither is
+    # a thing the operator can act on from inside a statusline. The safety the
+    # loud refusal buys elsewhere is already bought here structurally, because
+    # this path never writes and never falls back: the `plans.is_dir()` test at
+    # the end of this function is False for a missing vault, so the caller gets
+    # None — no bars — rather than the `<repo>/docs/plans` fallback above, which
+    # is reachable ONLY from `vault is None`. Absent bars are honest; bars built
+    # from in-tree plans while the vault is unreachable would not be. Pinned by
+    # test-vault-unreachable.py so the two cases cannot quietly merge.
 
     reg = _load_yaml(REGISTRY_PATH)
     if not reg:

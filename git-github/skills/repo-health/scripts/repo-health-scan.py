@@ -60,20 +60,44 @@ def config_paths():
 
 
 def load_env():
-    """Registry is required; vault_dir is optional (backlog cross-check only)."""
+    """(vault | None, unreachable | None, projects). Registry required, vault optional.
+
+    The deliberate divergence from every other portfolio consumer, which refuses
+    outright on a `vault_dir` that is set but names a missing directory
+    (planning/skills/portfolio/SKILL.md § Resolver). This tool's corpus is
+    GitHub, not the vault — the vault is a secondary cross-check, and an
+    unmounted one is no reason to abandon a CI-health sweep. But it may not be
+    swallowed either, because "no vault configured" and "the configured vault is
+    not there" are different answers and collapsing them is the actual defect:
+    with `vault` silently None the envelope would say `backlog_cross_check:
+    false`, which reads as "you never asked for one" — and leaving `vault` set
+    would be worse still, claiming a cross-check ran and found nothing.
+
+    So the run continues with the cross-check OFF and the reason carried out in
+    the JSON as `vault_unreachable`, plus a line on stderr. Read-only either way
+    (module docstring): nothing here creates the missing directory.
+    """
     config, registry = config_paths()
     if not registry.exists():
         sys.exit(f"portfolio not configured: {registry} missing")
     reg = yaml.safe_load(registry.read_text()) or {}
     if not isinstance(reg, dict) or "projects" not in reg:
         sys.exit(f"portfolio not configured: {registry} has no 'projects' key")
-    vault = None
+    vault = unreachable = None
     if config.exists():
         cfg = yaml.safe_load(config.read_text()) or {}
         vd = cfg.get("vault_dir")
         if vd:
-            vault = Path(vd)
-    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
+            candidate = Path(vd).expanduser()
+            if candidate.is_dir():
+                vault = candidate
+            else:
+                unreachable = str(candidate)
+                print(f"vault unreachable: vault_dir {candidate} (from {config}) is "
+                      f"not an existing directory — the backlog cross-check is OFF "
+                      f"for this run; its absence is not a clean result.",
+                      file=sys.stderr)
+    return vault, unreachable, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 def run(cmd, timeout=60):
@@ -358,7 +382,7 @@ def main():
     if rc != 0:
         sys.exit(f"gh not authenticated: {err or 'run `gh auth login`'}")
 
-    vault, projects = load_env()
+    vault, vault_unreachable, projects = load_env()
     if args.project:
         wanted = set(args.project)
         missing = wanted - {p["name"] for p in projects}
@@ -373,6 +397,13 @@ def main():
         "backlog_cross_check": vault is not None,
         "projects": [], "no_remote": [], "couldnt_assess": [],
     }
+    # Present ONLY when a configured vault could not be reached. Its absence
+    # means the cross-check state in the line above is the whole story; its
+    # presence means every empty `backlog_refs` in this document is unmeasured,
+    # not clean — the same distinction the security roll-up draws between `?`
+    # and `0`.
+    if vault_unreachable:
+        result["vault_unreachable"] = vault_unreachable
     with ThreadPoolExecutor(max_workers=8) as pool:
         for bucket, entry in pool.map(
                 lambda p: scan_project(p, vault, now, args.stale_days), projects):

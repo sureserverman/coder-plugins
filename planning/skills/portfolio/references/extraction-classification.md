@@ -232,11 +232,19 @@ to stay.
 
 **Retiring a marker is the move this guard's `UNMARKED-SECTION` check exists to
 make expensive**, because deleting a marker silences a row just as effectively as
-keeping its rule. So it is replaced, not merely removed: `optional except` and
-`not settled` pin what the section now actually promises — that `vault_dir` is the
-one required key, and that the set-but-missing case is openly undecided rather
-than answered by a pointer at retired storage. The section's marker count went
-2 → 3.
+keeping its rule. So it is replaced, not merely removed: `optional except` and a
+marker for the set-but-missing case pin what the section now actually promises.
+The section's marker count went 2 → 3.
+
+**Second replacement, Task 4.3 (BL-071).** That third marker was `not settled`,
+pinning the admission that set-but-missing `vault_dir` was undecided. The task
+decided it — same refusal as unset, across every resolver in the portfolio — so
+the marker was pinning a question that no longer exists, and keeping it would
+have forced the trunk to keep saying the behavior was undecided while the code
+refused. Replaced by `the same refusal`, which pins the answer the way the old
+one pinned the question: a `vault_dir` naming a missing directory is refused, not
+degraded. A marker that outlives its decision is the same failure as one that
+outlives its destination.
 
 | section | must appear in the trunk |
 |---|---|
@@ -254,7 +262,7 @@ than answered by a pointer at retired storage. The section's marker count went
 | Staged rollout | works normally |
 | Configuration: `~/.claude/portfolio-config.yaml` | never a fallback |
 | Configuration: `~/.claude/portfolio-config.yaml` | optional except |
-| Configuration: `~/.claude/portfolio-config.yaml` | not settled |
+| Configuration: `~/.claude/portfolio-config.yaml` | the same refusal |
 | File conflicts and write discipline | Never mutate a project's |
 | File conflicts and write discipline | no two agents touch the same path |
 | Hard rules | Dry-run is the default for every write-capable subcommand |

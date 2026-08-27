@@ -265,7 +265,19 @@ planning/skills/planning-projects/SKILL.md 36902
 #   which gates the maturity step behind `--include-maturity` (default off) — so the
 #   default flow runs THREE during the staging window. Now "composes four, one of
 #   them gated".
-planning/skills/portfolio/SKILL.md 12389
+# Raised 12389 -> 12969 (+580) by Task 4.3 (BL-071), which SETTLES the undecided
+#   half described above: a vault_dir that is set but names a missing directory is
+#   refused exactly as an unset one is, in every resolver, and no part of the
+#   missing tree is created on the way to a write. Two sections change because the
+#   trunk gives two answers about it — § Resolver states the rule (with the message
+#   an operator will actually see, and the read-only posture that stops an empty
+#   envelope reading as "nothing is in flight"), and § Configuration replaces the
+#   "not settled" paragraph with the decision. The elaboration — which consumers
+#   diverge, why, and the mkdir -p that made this dangerous — went to
+#   references/registry-format.md, which is not budgeted; what is left here is the
+#   rule itself, which cannot live one level down without the trunk asserting a
+#   behavior it does not state.
+planning/skills/portfolio/SKILL.md 12969
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
@@ -339,7 +351,15 @@ planning/skills/architecting-projects/SKILL.md 11935
 #   board, what `next` may rank, and where the bucket surfaces (`review`). Leaving any
 #   of them stale would leave a reader counting the plan the scanner stopped counting.
 #   compass ships no references/ directory, so the trunk is the only home available.
-planning/skills/compass/SKILL.md 12549
+#
+# Raised 12549 -> 12800 (+251) by Task 4.3 (BL-071): compass-scan.py now exits
+#   rather than emitting an envelope with an empty `projects` list when the vault
+#   is unreachable, and this trunk's determinism boundary had to say so. Without
+#   it the skill's own rule — judgment only, never present a fact the JSON doesn't
+#   back — would have had the skill faithfully reporting that nothing is in flight
+#   anywhere, which is the one wrong answer the scanner change exists to prevent.
+#   As noted for the raise above, compass ships no references/ directory.
+planning/skills/compass/SKILL.md 12800
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750

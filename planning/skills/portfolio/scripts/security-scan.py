@@ -54,7 +54,21 @@ def load_env():
     reg = yaml.safe_load(reg_p.read_text()) or {}
     if "projects" not in reg:
         sys.exit(f"portfolio not configured: {reg_p} has no `projects` key")
-    return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (portfolio/SKILL.md § Resolver). Full rationale in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, the same defect by another route.
+    # This scan only READS <vault>/…/security/history.jsonl, but its JSON is what
+    # portfolio-rebuild writes the security dashboard from, and an unreachable
+    # vault would hand that writer a full set of "no history recorded" projects.
+    # `?` for unmeasured and `0` for clean are different answers (SKILL.md
+    # § rebuild); refusing here is what keeps them different.
+    vault = Path(vd).expanduser()
+    if not vault.is_dir():
+        sys.exit(f"vault unreachable: vault_dir {vault} (from {cfg_p}) is not an "
+                 f"existing directory — refusing, because a missing vault is not "
+                 f"an empty vault. Mount the vault or correct vault_dir.")
+    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 def _read_runs(path):

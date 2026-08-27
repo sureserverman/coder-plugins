@@ -132,6 +132,19 @@ substitute. Doing so would re-fragment the docs that were just centralized into
 the vault — exactly the outcome this migration exists to prevent. The tool
 **fails loudly** and stops. There is **no silent fallback**.
 
+The same rule binds a `vault_dir` that is **set but names a missing directory**
+(unmounted vault, stale path, typo). It is refused on the same terms, with a
+message naming the path and its source:
+
+```
+vault unreachable: vault_dir /mnt/vault (from /home/<you>/.claude/portfolio-config.yaml) is not an existing directory — refusing, because a missing vault is not an empty vault. Mount the vault or correct vault_dir.
+```
+
+A path handed in on the command line (`plan-status-audit.py --vault`,
+`decisions-relevant.py --vault-dir`) gets the identical check — those flags
+bypass the config, and must not thereby bypass the rule. `vault_dir` is
+`~`-expanded before it is checked; unexpanded, `~/vault` is cwd-relative.
+
 ### Auto-create on first write
 
 A registered project whose vault home directory does not yet exist gets
@@ -139,6 +152,12 @@ A registered project whose vault home directory does not yet exist gets
 (`mkdir -p`), analogous to the backlog skill's auto-create-on-first-write
 behavior. This means onboarding a new project requires no manual vault setup —
 the directory materializes the moment any portfolio tool first writes to it.
+
+**Bounded by the hard rule:** the auto-create applies only *beneath a vault
+root that already exists*. `mkdir -p` is happy to build the whole chain from
+nothing, so without that bound this convenience is exactly the mechanism that
+turns an unmounted `/mnt/vault` into a real, empty directory tree holding the
+only copy of a migrated project's docs.
 
 ## Auto-registration on first plan
 

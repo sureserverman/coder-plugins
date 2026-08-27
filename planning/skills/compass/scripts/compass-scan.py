@@ -61,7 +61,28 @@ def load_env():
     reg = yaml.safe_load(registry.read_text()) or {}
     if not isinstance(reg, dict) or "projects" not in reg:
         sys.exit(f"portfolio not configured: {registry} has no 'projects' key")
-    return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (portfolio/SKILL.md § Resolver). Full rationale in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, the same defect by another route.
+    # READ-ONLY, and refused anyway — the shape matters more here than the write
+    # paths. This script emits ONE JSON document, and against an unreachable
+    # vault every project would simply fail to resolve a portfolio home: the
+    # envelope would still be well-formed, `projects` would be empty, and the
+    # skill reading it — whose own rule is "never present a fact the JSON
+    # doesn't back" — would truthfully report that nothing is in flight across
+    # the whole portfolio. That is the empty-results-as-truth failure, and no
+    # per-project `couldnt_assess` reason fixes it, because the answer the
+    # operator acts on is the summary. A non-zero exit with nothing on stdout
+    # cannot be mistaken for an answer; callers already handle it, because the
+    # unset case three lines up has always exited the same way.
+    vault = Path(vd).expanduser()
+    if not vault.is_dir():
+        # Delegated, not restated: `pr` is already loaded above for the decisions
+        # register, so the shared refusal costs nothing extra here — and this file
+        # is read-only, which makes it the copy most likely to drift unnoticed.
+        pr.require_vault(vault, config)
+    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(\S+)", re.M)
