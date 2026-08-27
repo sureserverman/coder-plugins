@@ -118,7 +118,15 @@ def migrate_project(proj, vd: Path, write: bool):
         dests = ", ".join(rel for _, rel in items)
         return ("dry", label, f"{len(items)} files → {home}{flag}  ({dests})")
 
-    # COPY
+    # COPY. A ONE-TIME move, not a regenerate-in-place, so a changed-check has
+    # nothing to compare against: once the repo docs/ has been emptied migrate_set()
+    # returns nothing and the project is skipped before reaching here, and the
+    # preflight above independently refuses an already-populated vault home. Those
+    # two guards are what make a re-run a no-op. Note the ORDER — the emptied-docs
+    # guard runs first and, on any real re-run, is the one that fires; the preflight
+    # is reached only when docs/ has been repopulated. Both are exercised in
+    # tests/test-vault-write-idempotency.py, the preflight by a case that repopulates
+    # docs/ on purpose, because nothing else can reach it.
     (home / "plans").mkdir(parents=True, exist_ok=True)
     copied = []
     try:
@@ -186,9 +194,15 @@ def write_sidecar_home(repo: Path, home: Path):
                           block, cur, count=1, flags=_re.DOTALL)
         else:
             new = cur.rstrip("\n") + "\n\n" + block + "\n"
+        # The equality check IS the write discipline here: portfolio-rebuild.py's
+        # shared helper adds nothing but a `**Last rebuilt:**` strip, and this
+        # block carries no timestamp to normalise (nor may it grow one). A second
+        # call with the same home writes nothing — pinned in
+        # tests/test-vault-write-idempotency.py.
         if new != cur:
             sc.write_text(new)
     else:
+        # Creation, not regeneration: reached only when no sidecar exists.
         sc.write_text(f"# Vault context for {repo.name}\n\n{block}\n")
 
 
@@ -209,6 +223,9 @@ def rewrite_maturity_evidence(mat: Path):
             changed = True
         else:
             out.append(line)
+    # Same discipline as write_sidecar_home: a line-level equality check, no
+    # timestamp to strip, and a second pass over already-prefixed evidence
+    # writes nothing. Pinned in tests/test-vault-write-idempotency.py.
     if changed:
         mat.write_text("\n".join(out) + "\n")
 

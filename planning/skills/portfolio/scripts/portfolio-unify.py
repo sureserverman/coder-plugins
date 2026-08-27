@@ -700,6 +700,18 @@ def unify_project(home, write, repo_path, include_stale=False):
     have = existing_sources(btext)
     new = [c for c in cands if c["source"] not in have]
     dups = len(cands) - len(new)
+    # Deliberately NOT routed through portfolio-rebuild.py's shared changed-check
+    # helper. This is an APPEND to a hand-curated register, not a
+    # regenerate-in-place: `btext` is the file's existing bytes carried through
+    # untouched and `add` holds only candidates whose Source is absent from them.
+    # A changed-check around `btext + add` would compare a strictly longer string
+    # and therefore fire every time — a guard that guards nothing. The real guard
+    # is `new` above: when every candidate is already registered it is empty and
+    # the file is never opened. That holds across a date change even though
+    # render_entry() stamps TODAY, because dedup keys on **Source:**, not on the
+    # rendered entry. Both halves are pinned by
+    # tests/test-vault-write-idempotency.py, which is what makes this an
+    # exception rather than an assertion.
     if write and new:
         nid = max_bl(btext)
         # ensure file ends clean
