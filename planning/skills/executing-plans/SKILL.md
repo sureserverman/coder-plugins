@@ -596,11 +596,12 @@ news.
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
-**Remediation budget — default 2 rounds per gate.** A plan may override it. Count the rounds
-and report the count. **A re-dispatched review or evaluator is a round** — otherwise the gate
-has two counters and only one limit, and fix → re-review → new findings → fix runs
-indefinitely because each pass is "just confirming the fix". On exhaustion, escalate with the
-residual list — a documented Stop condition, not a licence to keep looping. Full procedure:
+**Remediation budget — default 2 rounds per gate.** A plan may override it, and the gate
+report states the count. **A re-dispatched review or evaluator is a round.**
+**Before dispatching a further round, run `scripts/plan-progress.py --budget-check`** —
+untiered per DEC-010, a command not a dispatch. **It binds only on a recorded round.**
+Non-zero means exhausted: escalate with the residual list, never another round — a Stop
+condition. Full procedure:
 `references/gate-failure-procedure.md`.
 
 **If the gate passes** — no Critical remains, every Important is fixed, and no

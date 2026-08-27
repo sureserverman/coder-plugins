@@ -1991,6 +1991,70 @@ def case_status_lag_warns():
           f"a discovered plan carries no lag marker (got {line!r})")
 
 
+def case_budget_check():
+    """Task 2.3 — the remediation budget stops being prose the executor tracks.
+
+    A 4th review round was dispatched after a declared budget of 3, ~160K
+    subagent tokens in that round alone and ~604K across four rounds for one
+    Critical, ending in "stop it and fix plans". `plan-progress.json` already
+    carried `remediation_round`; nothing read it as a stop.
+    """
+    print("Task 2.3 — --budget-check exits non-zero at the declared ceiling:")
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-budget-"))
+    repo = tmp / "repo"
+    (repo / ".claude").mkdir(parents=True)
+    (repo / "plans").mkdir()
+    plan = repo / "plans" / "b-plan.md"
+    plan.write_text(PLAN)
+
+    def budget_check(**kw):
+        st = {"plan": str(plan), "phase": "gate", "stage": 1,
+              "updated": datetime.now(timezone.utc).isoformat()}
+        st.update(kw)
+        (repo / ".claude" / "plan-progress.json").write_text(json.dumps(st))
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--budget-check"], cwd=repo,
+            capture_output=True, text=True)
+
+    r = budget_check(remediation_round=1)
+    check(r.returncode == 0, f"round 1 of the default 2 exits 0 (got {r.returncode})")
+    r = budget_check(remediation_round=2)
+    check(r.returncode != 0,
+          f"round 2 of 2 — the budget is SPENT — exits non-zero (got {r.returncode})")
+    check("escalat" in (r.stderr + r.stdout).lower(),
+          f"and it names escalation, not another round ({(r.stderr + r.stdout)!r})")
+    r = budget_check(remediation_round=3)
+    check(r.returncode != 0, "past the ceiling still exits non-zero")
+
+    print("  a plan-declared budget overrides the default:")
+    r = budget_check(remediation_round=2, remediation_budget=3)
+    check(r.returncode == 0,
+          f"round 2 of a declared 3 exits 0 (got {r.returncode})")
+    r = budget_check(remediation_round=3, remediation_budget=3)
+    check(r.returncode != 0, "round 3 of a declared 3 exits non-zero")
+
+    print("  the phase lagging the round does not reopen the budget:")
+    # Step 4 of the gate-failure procedure re-enters the task's Red-Green loop,
+    # and the state file legitimately flips back to phase "task" while the gate
+    # is still mid-remediation. Requiring phase == "gate" meant a spent budget
+    # at exactly that moment exited 0 and permitted another round — the failure
+    # this task exists to close, hiding one layer down. A recorded round is
+    # meaningful whatever the phase says.
+    r = budget_check(phase="task", task="1.2", remediation_round=2)
+    check(r.returncode != 0,
+          f"a spent budget still stops while the phase reads 'task' (got {r.returncode})")
+
+    print("  and it is silent-zero where there is no gate to bound:")
+    r = budget_check(phase="task", task="1.2")
+    check(r.returncode == 0,
+          "a task phase with NO recorded round carries no budget and exits 0")
+    (repo / ".claude" / "plan-progress.json").unlink()
+    r = subprocess.run([sys.executable, str(SCRIPT), "--budget-check"], cwd=repo,
+                       capture_output=True, text=True)
+    check(r.returncode == 0, "no state file at all exits 0, never a traceback")
+    check("Traceback" not in r.stderr, f"no traceback ({r.stderr!r})")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -2111,6 +2175,7 @@ def main():
     case_alignment_and_composition()
     case_blocked_gate_renders()
     case_status_lag_warns()
+    case_budget_check()
 
     print()
     if FAILURES:

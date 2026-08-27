@@ -994,7 +994,7 @@ def phase_part(state):
             # The fallback duplicates the default stated in ../SKILL.md ("Remediation
             # budget — default 2 rounds per gate"); test-gate-remediation-contract.py
             # asserts the two stay equal, so change both or neither.
-            total = budget if type(budget) is int and budget > 0 else 2
+            total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
             colour = RED if rnd >= total else YELLOW
             part += f" {colour}↻{rnd}/{total}{RESET}"
         return part
@@ -1046,6 +1046,11 @@ def staleness(state):
 
 
 LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
+# ../SKILL.md § Step 3.5 states this number in prose; the contract suite asserts
+# the two are equal. ONE copy in this file — the renderer's fallback and
+# --budget-check's ceiling are the same rule, and two literals would let the bar
+# and the stop disagree about when a budget is spent.
+DEFAULT_REMEDIATION_BUDGET = 2
 PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
 
 
@@ -1357,7 +1362,67 @@ def render(cwd):
     return lines
 
 
+def budget_check(cwd):
+    """Exit status for `--budget-check`: 0 to continue, 2 when the budget is spent.
+
+    The remediation budget was prose the executor tracked about itself, and the
+    measured failure is what that produces: a 4th review round dispatched after
+    a declared budget of 3, ~160K subagent tokens in that round alone and ~604K
+    across the four for one Critical, ending in "stop it and fix plans". The
+    state file already carried `remediation_round` at every gate transition;
+    nothing ever read it as a stop.
+
+    Deliberately NOT a renderer. The bar shows `↻2/2` and a bar is a thing you
+    glance at; this is a thing that fails. That difference is the whole point —
+    an executor mid-gate is exactly the reader least likely to notice a glyph
+    and most likely to obey a non-zero exit.
+
+    Silent 0 wherever there is no round to bound: no state file, unreadable
+    state, no recorded round.
+
+    THE RESIDUAL, stated because a check that overstates its reach is the thing
+    this plan exists to stop: `remediation_round` is optional by schema, so an
+    executor that never writes it is indistinguishable from one on round 1 and
+    gets a silent 0 forever. This closes the documented incident — the counter
+    existed and nothing read it as a stop — and it is exactly as strong as the
+    discipline that writes the counter, which is still prose. A check that fired on absence would be noise at every
+    ordinary transition, and this one has to be trustworthy on the one occasion
+    it says stop.
+    """
+    sf = find_state(cwd)
+    if sf is None:
+        return 0
+    try:
+        state = json.loads(sf.read_text())
+    except (OSError, ValueError):
+        return 0
+    if not isinstance(state, dict):
+        return 0
+    # Deliberately NOT conditioned on phase == "gate". Step 4 of the gate-failure
+    # procedure re-enters the task's Red-Green loop, so the phase legitimately
+    # reads "task" while the gate is still mid-remediation — and requiring the
+    # gate phase meant a spent budget exited 0 at exactly that moment, permitting
+    # the round it exists to stop. A RECORDED ROUND is the signal; the phase is
+    # not. Safe because the schema mandates writing the whole file at each
+    # transition, so an ordinary task write carries no stale round.
+    rnd = state.get("remediation_round")
+    if type(rnd) is not int or rnd <= 0:
+        return 0
+    budget = state.get("remediation_budget")
+    total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
+    if rnd < total:
+        return 0
+    stage = _stage_int(state.get("stage"))
+    where = f"Stage {stage} gate" if stage is not None else "this gate"
+    print(f"BUDGET SPENT — {where} has used {rnd} of {total} remediation round(s). "
+          f"Do not dispatch another round: escalate to the user with the residual "
+          f"list of findings that remain.", file=sys.stderr)
+    return 2
+
+
 def main():
+    if "--budget-check" in sys.argv[1:]:
+        sys.exit(budget_check(os.getcwd()))
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."
@@ -1370,4 +1435,6 @@ if __name__ == "__main__":
         main()
     except Exception:
         # A statusline must never print a traceback — blank line beats noise.
+        # SystemExit is not an Exception, so --budget-check's status survives
+        # this handler; that is load-bearing, not incidental.
         sys.exit(0)
