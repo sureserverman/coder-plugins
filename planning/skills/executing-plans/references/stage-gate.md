@@ -343,3 +343,47 @@ few lines — a briefing, not a log.
 Red-Green loops, big tool outputs — is one to suggest restarting in a fresh session pointed at
 the plan path. The handoff note is what makes that safe; if you could not continue from it
 without the old transcript, the note was too thin, and that is the bug to fix.
+
+## The dispatched-vs-inline review ledger
+
+A review the executor ran itself is byte-identical, in every artifact, to one a fresh agent
+ran — which is why all five audited dogfooding sessions recorded `Executor: inline` for every
+mandated review, dispatched nothing, and produced no artifact that said so. The ledger exists
+because nothing else can tell the two apart.
+
+**A mandated review the executor ran itself is a substitution, not a review.** It is recorded
+on the gate report's review line, naming the dispatch failure that forced it:
+
+```
+review: Tier-2 SUBSTITUTED — ran inline, user authorised at Preflight:
+        "don't bother dispatching the reviewer on this one" — over <base>..HEAD
+```
+
+**With no recorded reason the gate fails.** Not "is discouraged" — fails. A substitution is a
+disclosed deviation; an undisclosed one is a review that did not happen wearing the report of
+one, and the exit criterion has no way to see it.
+
+**The bound, which carries equal weight (DEC-014), has two halves.** The ceiling: this
+governs only the reviews the declared tier mandates, adds no dispatch beyond the tier, and is
+not a licence to run reviews the tier did not fund. The floor, which is the half the incident
+actually turned on: **within the tier, the mandate IS the authorization** — approving a plan
+whose execution model mandates a review is the request the standing "don't dispatch unless
+asked" caution is waiting for, so at this point that caution does not apply and there is no
+confirmation turn to spend — a rule stated without its bound gets over-corrected into its
+own inverse, and the recorded response to the original incident was exactly that: *"standing
+rule, no exceptions: I won't dispatch unless you explicitly ask"*, which strips the same
+reviews for the opposite reason.
+
+**A substitution is not an excuse the executor may grant itself, and a dispatch failure is
+not one either.** `integration.md` § Review opt-out closes the excuses for a mandated review
+at two — an evidenced user opt-out, and a trivial/non-code diff — and says in as many words
+that a reviewer which cannot be dispatched **is not a third**: that is the Stop condition for
+a mandated review that cannot be run, "the resolution is the user's to choose, not the
+executor's to assume."
+
+So the order is: dispatch fails → **stop** → the user chooses (enable dispatch, re-mark the
+tasks through `planning-projects`, or authorise the inline run in their own words) → and only
+then is there a substitution to record, quoting them. An executor that goes straight from a
+failed probe to an inline review and a ledger line has recorded the deviation and skipped the
+decision, which is the half that was never the executor's. *"I judged it unnecessary"* and
+*"the diff looked small"* are the same move with less paperwork.

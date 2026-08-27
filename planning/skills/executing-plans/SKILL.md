@@ -22,18 +22,15 @@ The plan file was produced by `planning-projects`. It contains:
 
 If the plan doesn't have these fields, stop — it wasn't produced by `planning-projects` and must be either rewritten through that skill or executed manually.
 
-**Exception — master plans.** A file whose name ends in `-master-plan.md` or whose first
-heading is `# Master Plan:` is a **master plan** (format:
-`../planning-projects/references/master-plan-format.md`). It deliberately has no
-Preflight, Stages, or Tasks — do NOT reject it; execute it per the **Master plans**
-section of this trunk.
+**Exception — master plans.** A `*-master-plan.md`, or a first heading of `# Master Plan:`
+(format: `../planning-projects/references/master-plan-format.md`). It deliberately has no
+Preflight, Stages, or Tasks — do NOT reject it; execute it per **Master plans** below.
 
-**Exception — light plans.** A file whose name ends in `-light-plan.md` or whose first
-heading is `# Light Plan:` is a **light plan** (format:
-`../planning-projects/references/light-plan-format.md`). It deliberately has **no
-Research Summary section, no Preflight section, and no Risk / Rollback / Blocks /
-Parallel fields** — a single stage of 2–5 Status-carrying tasks and one gate. Do NOT
-reject it for those missing fields; execute it per the **Light plans** section of this trunk.
+**Exception — light plans.** A `*-light-plan.md`, or `# Light Plan:` (format:
+`../planning-projects/references/light-plan-format.md`). It deliberately has no Research
+Summary, no Preflight, and no Risk / Rollback / Blocks / Parallel fields — a single stage of
+2–5 Status-carrying tasks and one gate. Do NOT reject it for those; execute it per **Light
+plans** below.
 
 ---
 
@@ -94,10 +91,9 @@ run a separate stage-gate Tier-2 pass**; and close-out applies a single stated v
 adds a second pass and Tier-1 even here, on the risk-listed tasks its declaration names.
 
 Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
-Stop conditions, honest gates. A light plan is a small plan, not a sloppy one.
+Stop conditions, honest gates.
 
-Full deltas, including how the review shape composes with the declared tier:
-`references/light-plans.md`.
+Full deltas: `references/light-plans.md`.
 
 ---
 
@@ -258,7 +254,7 @@ Run every check in the Preflight section and report pass/fail:
 - **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
 
 **If any check fails, stop and report which check failed and how it failed.** Do not
-proceed to Stage 1: a baseline nobody trusts makes every downstream Red-Green loop noise.
+proceed to Stage 1.
 
 The procedure for each — the steps, the worked examples, the incidents behind them:
 `references/preflight-checks.md`.
@@ -358,9 +354,8 @@ replacement: `references/dispatch-fidelity.md`.
 
 **Declare a tier at Preflight and restate it in every gate report** (`review-scope: light —
 prose edits to 3 skill files`). An undeclared run is `standard`. Pick it once, from the
-plan's **cumulative diff**, not per task. This is the honest-gates disclosure rule applied to
-review effort: downgrading silently and downgrading openly produce the same diff, so **the
-declaration is what makes the choice reviewable**.
+plan's **cumulative diff**, not per task. **The declaration is what makes the choice
+reviewable** — downgrading silently and openly produce the same diff.
 
 **What the tier gates** is both review tiers, the gate evaluator, the close-out evaluator and
 `high`'s second pass. What it does **not** gate is the dispatch roster, the executor trailer,
@@ -403,10 +398,10 @@ hand a sequential task to a subagent anyway — and none, in the other direction
 first: a `YES` is dispatched **without asking**
 (§ The plan is the authorization — dispatch without a confirmation turn).
 
-**If a `Parallel: YES` task ends up inline, that is a deviation**, and it needs the same
-justification a Stop condition does: dispatch was mechanically unavailable, or the user
-authorised the substitution. *"It seemed easier inline"* and *"I judged it unnecessary"* are
-not on that list. Run it, say so in the gate report's dispatch line with the reason, and let
+**If a `Parallel: YES` task ends up inline, that is a deviation the user authorised.** An
+unavailable dispatch *raises* the Stop condition, it does not resolve it — the choice that
+follows is the user's. *"It seemed easier inline"* and *"I judged it unnecessary"* are not on
+that list. Run it, say so in the gate report's dispatch line with the reason, and let
 the trailer record `Executor: inline (dispatch failed)` or `Executor: inline (user
 authorised)` — a bare `Executor: inline` on a task the plan marked `YES` is the shape that
 hides a silent downgrade.
@@ -504,6 +499,11 @@ When every task in the stage is green, run the stage gate:
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`."
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
+  **A mandated review the executor ran itself is a substitution, not a review**, legal only
+  where the **user** authorised it — an undispatchable reviewer is a Stop condition, not a
+  licence. The review line records it, quoting them; **with no recorded reason the gate
+  fails.** Bound (DEC-014): only reviews the declared tier mandates, never a dispatch beyond
+  it — and within it, the mandate IS the authorization.
 
 **Platform stage-verify hook.** After the stage's own gate checks pass, **if the project's
 platform ships a stage-verify skill, invoke it as the final gate step** — it proves the stage

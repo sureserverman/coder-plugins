@@ -16,9 +16,10 @@ conflicting task is dispatched on its own once the first returns, and its commit
 
 ## An inlined `Parallel: YES` task is a deviation
 
-It needs the same justification a Stop condition does: dispatch was mechanically
-unavailable, or the user authorised the substitution. *"It seemed easier inline"* and *"I
-judged it unnecessary"* are not on that list — `../SKILL.md` § The plan is the authorization
+It is a deviation the user authorised. An unavailable dispatch *raises* the Stop condition
+rather than resolving it: the run halts, the user chooses, and only then is there an inline
+run to record. *"It seemed easier inline"* and *"I judged it unnecessary"* are not on that
+list — `../SKILL.md` § The plan is the authorization
 — dispatch without a confirmation turn is explicit that the substitution is not the
 executor's call to make. When it does happen, run it, say so in the gate report's dispatch
 line with the reason, and let the trailer record `Executor: inline (dispatch failed)` or

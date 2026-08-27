@@ -64,7 +64,18 @@ What it pins (Task 1.4 — the honest-gates capsule, BL-083):
      That is the general lesson: the four quotes were faithful and the sentence
      joining them was not.
 
-The four tasks share one suite because they share one failure mode: a rule the
+What it pins (Task 1.5 — the dispatched-vs-inline review ledger):
+ 13. Both the trunk's gate-report review line and stage-gate.md's ledger name an
+     inline-run mandated review a SUBSTITUTION, require a recorded reason, and
+     state that an unrecorded one FAILS THE GATE — a consequence, not a request.
+ 14. The trunk states DEC-014's bound in proximity to the citation, not as two
+     unrelated mentions. A Tier-1 Critical here was the reverse error to 1.4's:
+     the first draft let a DISPATCH FAILURE authorise the substitution, when
+     integration.md § Review opt-out closes the excuses at two and says an
+     undispatchable reviewer is neither — it is a Stop condition, and the choice
+     is the user's. The rule had inverted the source it cited.
+
+The five tasks share one suite because they share one failure mode: a rule the
 executor reads and then does not apply at the moment of pressure. Rule text is
 the only artifact any of them can be checked against.
 
@@ -95,9 +106,8 @@ def flat(s):
     The trunk is hard-wrapped at ~95 columns, so any phrase this suite looks for
     may carry a newline plus indentation — or a blockquote marker — in the middle
     of it. Matching the raw text makes every assertion depend on where the
-    paragraph happened to wrap —
-    it reports "the rule is missing" for a rule that is present, which is the one
-    failure mode a prose contract must not have. The sibling suite
+    paragraph happened to wrap — it reports "the rule is missing" for a rule that
+    is present, which is the one failure mode a prose contract must not have. The sibling suite
     test-gate-remediation-contract.py normalizes for the same reason.
     """
     # Blockquote markers go too. A rule the trunk QUOTES rather than states is
@@ -339,6 +349,71 @@ def main():
           not absent,
           "the gate still reaches these only by opening honest-gates, which BL-083 "
           "measured as happening once per 26 reads of this trunk: " + ", ".join(absent))
+
+    # ---- Task 1.5: an inline-run mandated review is a recorded substitution --
+    # Checked at BOTH sites as a set — the trunk states the rule, stage-gate.md
+    # carries the ledger it is recorded in. A rule at one site and a ledger at
+    # the other that do not agree is how the substitution stayed invisible: all
+    # five audited dogfooding sessions ran every mandated review as
+    # "Executor: inline" with zero dispatches, and no artifact said so.
+    STAGE_GATE = HERE.parent / "references" / "stage-gate.md"
+    sg = flat(STAGE_GATE.read_text(encoding="utf-8"))
+    sites = {"trunk Step 3.5": gate, "stage-gate.md": sg}
+
+    # WHAT THESE CANNOT SCREEN, per DEC-008 and the convention this file already
+    # applies to the RED guard: all four are proximity matches with no polarity
+    # awareness. "This substitution never fails the gate even with no recorded
+    # reason" matches the same window as the rule it inverts. Strongest against
+    # DELETION, which is how a rule actually decays here; an in-place inversion
+    # survives them, exactly as check-trunk-retention.py discloses for markers.
+    no_subst, no_reason, no_failure, no_bound = [], [], [], []
+    for label, body in sites.items():
+        if re.search(r"substitution", body) is None:
+            no_subst.append(label)
+        if re.search(r"substitution.{0,400}?reason|reason.{0,400}?substitution",
+                     body) is None:
+            no_reason.append(label)
+        # The consequence must be stated. Without it the rule is a request.
+        if re.search(r"(no recorded reason|without a recorded reason|unrecorded)"
+                     r".{0,160}?(fails the gate|gate fails|is a gate failure)"
+                     r"|(fails the gate|is a gate failure).{0,160}?(no recorded reason"
+                     r"|without a recorded reason)", body) is None:
+            no_failure.append(label)
+
+    # The bound carries equal weight (DEC-014). A rule stated without it gets
+    # over-corrected into its own inverse — the recorded response to the
+    # original incident was "I won't dispatch unless you explicitly ask", which
+    # strips the same reviews for the opposite reason.
+    # Proximity, not two unanchored existence checks. A reviewer demonstrated the
+    # unanchored form passing against a section whose bound sentence had been
+    # deleted, with a stray "DEC-014" footnote elsewhere and pre-existing
+    # unrelated "the declared tier" prose carrying the second half — a guard
+    # measuring nothing while reporting green.
+    ceiling = re.search(r"DEC-014.{0,200}?(tier mandates|the declared tier)"
+                        r"|(tier mandates|the declared tier).{0,200}?DEC-014", gate)
+    # BOTH halves, not just the ceiling. stage-gate.md calls the floor "the half
+    # the incident actually turned on", and a check that verifies only the
+    # ceiling would pass green through the deletion of exactly that sentence —
+    # measuring nothing about the thing it names in its own failure message.
+    floor = re.search(r"mandate\s+IS\s+the\s+authorization", gate)
+    if ceiling is None or floor is None:
+        no_bound.append("trunk Step 3.5")
+
+    check("both sites name an inline-run mandated review a substitution",
+          not no_subst, "not named a substitution at: " + ", ".join(no_subst))
+    check("both sites require the substitution to carry a recorded reason",
+          not no_reason, "no reason is required at: " + ", ".join(no_reason))
+    check("both sites state that an unrecorded substitution fails the gate",
+          not no_failure,
+          "the rule has no stated consequence, so it is a request rather than a "
+          "gate criterion, at: " + ", ".join(no_failure))
+    check("the trunk states BOTH halves of the DEC-014 bound, by the citation",
+          not no_bound,
+          "the rule is missing its ceiling (only the reviews the declared tier mandates) "
+          "or its floor (within the tier, the mandate IS the authorization). Without the "
+          "ceiling it licenses dispatches the tier never funded; without the floor it "
+          "inverts into 'never dispatch unless explicitly asked' — the recorded "
+          "over-correction DEC-014 exists to block")
 
     print(f"assertions run ({len(RAN)}):")
     for name in RAN:

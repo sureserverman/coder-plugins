@@ -52,7 +52,7 @@ than the detection side.
 | --- | --- |
 | user asks a question, no plan in play | No — inline |
 | plan approved, execution model names dispatch points | YES — the approval is the request |
-| plan approved, dispatch mechanically unavailable | No — but say so at the gate and list what actually ran |
+| plan approved, dispatch mechanically unavailable | **Stop** — a Preflight failure; the user chooses, and the gate report lists what actually ran |
 | no plan; a task merely *would benefit* from fan-out | No — ask first |
 
 ### Dispatch roster and capability probe
