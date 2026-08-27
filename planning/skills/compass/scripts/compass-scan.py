@@ -424,6 +424,21 @@ def business_map():
 
 
 def main():
+    # Staleness probe (see portfolio/scripts/_staleness.py). Loaded by path, not
+    # by name: this file lives in a sibling skill, so the helper is not on
+    # sys.path — the same importlib reach this module already makes twice above.
+    # Diagnostic only, and it writes to stderr because THIS script's stdout is a
+    # single JSON document somebody else parses.
+    try:
+        _stale_path = (Path(__file__).resolve().parents[2] / "portfolio"
+                       / "scripts" / "_staleness.py")
+        _sspec = importlib.util.spec_from_file_location("_staleness", _stale_path)
+        _ss = importlib.util.module_from_spec(_sspec)
+        _sspec.loader.exec_module(_ss)
+        _ss.warn_if_stale(__file__)
+    except Exception:
+        pass
+
     vault, projects = load_env()
     out = {
         "generated": datetime.date.today().isoformat(),

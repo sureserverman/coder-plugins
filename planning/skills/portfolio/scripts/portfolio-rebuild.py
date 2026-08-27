@@ -748,6 +748,18 @@ def rebuild_global_security(vd, write):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")

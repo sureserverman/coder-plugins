@@ -974,6 +974,18 @@ def cmd_restore(run_id, vault, projects):
 # --------------------------------------------------------------------------
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--fix", action="store_true",
                     help="offer to record a close-out line per candidate (asks per plan)")

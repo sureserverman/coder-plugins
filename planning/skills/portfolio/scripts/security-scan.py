@@ -200,6 +200,18 @@ def scan_project(proj, vault, now):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     vault, projects = load_env()
     now = datetime.now(timezone.utc)
     out = {"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
