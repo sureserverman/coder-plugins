@@ -110,4 +110,26 @@ procedure. Work the steps in order.
 10. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge
     without explicit confirmation.
 
+## ACTION NEEDED — the one place the close-out report asks for something
+
+Same form as the gate report's (`stage-gate.md` § ACTION NEEDED), and it binds here for the
+same reason: a close-out ends with a merge offer, which is itself a decision, so a close-out
+that also carries an unresolved question is the report most likely to bury one.
+
+```
+ACTION NEEDED — <one line naming the decision>
+  1. <option>
+  2. <option>
+```
+
+One block, last, options numbered. **A close-out report carrying an `ACTION NEEDED:` block
+does not also announce that it is proceeding** — to a merge, a tag, or anything else. The
+merge offer at step 10 is the exception only because it *is* the ask: fold it into the block
+rather than stating it twice. Anything the user does not have to decide is a residual, not an
+`ACTION NEEDED:` item.
+
+**Tier: untiered.** This mandate costs a line of text, not an agent dispatch, so per
+DEC-010 it runs at every review scope including `none` — named here because DEC-017
+requires a new mandate to state the rule that gates it rather than leave it inferred.
+
 Delete `.claude/plan-progress.json` as the last step, once the report is out.

@@ -3,10 +3,13 @@
     python3 planning/skills/executing-plans/tests/test-commit-mechanics-contract.py
 
 A PROSE contract, not behavior. The suite asserts that the skill text states the
-rules an executor must follow when the plan file it is flipping `Status:` in does
-not live in the repo it is committing to. It cannot verify that an executor obeys
+execution-discipline rules Stage 1 of the session-mined-flaws plan added — the
+commit mechanics for a plan that lives outside the repo, the turn discipline that
+keeps an announcement from standing in for the work, and the single form a report
+uses to ask the user for something. It cannot verify that an executor obeys any of
 them — stated plainly, because a structure suite that implies behavioral coverage
-is the falsehood class `honest-gates` exists to catch.
+is the falsehood class `honest-gates` exists to catch. The file keeps its original
+name so the plan's Task 1.1 `Test:` field still resolves.
 
 What it pins (Task 1.1):
   1. The trunk NAMES the vault-resident-plan case — that a plan can live outside
@@ -32,9 +35,25 @@ What it pins (Task 1.2 — turn discipline):
   7. It names the observed shape — a turn whose last words are "Starting Stage
      N." with no tool call — so the rule is evidenced rather than stylistic.
 
-The two tasks share one suite because they share one failure mode: a rule the
+What it pins (Task 1.3 — the ACTION NEEDED callout):
+  8. Both report-owning references — stage-gate.md and close-out.md — define an
+     `ACTION NEEDED:` block with NUMBERED options.
+  9. Both forbid a report that carries one from also announcing that it is
+     proceeding.
+ 10. Both state that a report carries at most ONE such block.
+     Checked as a SET across the two files, because a gate report and a close-out
+     report are two instances of one defect class and a check naming only one of
+     them cannot fail on the other.
+
+     **Coverage limit, stated because overstating it is the defect this suite
+     exists to catch.** The plan's `Test:` field calls for "a single isolated"
+     form. What is checked is that each reference *states* the one-block rule —
+     a prose contract has no report to count blocks in. A report that violates
+     the rule at runtime is not something any assertion here can see.
+
+The three tasks share one suite because they share one failure mode: a rule the
 executor reads and then does not apply at the moment of pressure. Rule text is
-the only artifact either can be checked against.
+the only artifact any of them can be checked against.
 
 Read-only. Exit 0 when every promise holds, 1 otherwise.
 """
@@ -168,6 +187,66 @@ def main():
           re.search(r"Starting Stage", rtc) is not None,
           "the literal shape the rule prevents is not quoted, so a future editor "
           "cannot tell what the rule is protecting against")
+
+    # ---- Task 1.3: the ACTION NEEDED callout -------------------------------
+    # Checked as a SET over both report-owning references rather than one at a
+    # time: the defect is that a report buries what it wants from the user, and
+    # a gate report and a close-out report are two instances of one class. A
+    # check naming only one of them cannot fail on the other.
+    report_sites = {
+        "stage-gate.md": HERE.parent / "references" / "stage-gate.md",
+        "close-out.md": HERE.parent / "references" / "close-out.md",
+    }
+    missing_form, missing_numbered, missing_exclusive = [], [], []
+    missing_single = []
+    for label, path in report_sites.items():
+        body = flat(path.read_text(encoding="utf-8"))
+        if "ACTION NEEDED" not in body:
+            # Recorded against all three lists, not skipped with `continue`: a
+            # site with no callout at all has no numbered options and no
+            # exclusivity rule either, and letting those two assertions go quiet
+            # would report two passes for a site that carries nothing.
+            missing_form.append(label)
+            missing_numbered.append(label)
+            missing_exclusive.append(label)
+            missing_single.append(label)
+            continue
+        # The options are numbered, so the user answers with a number rather
+        # than by reconstructing the choice from prose.
+        if re.search(r"ACTION NEEDED.{0,600}?1\.\s", body) is None:
+            missing_numbered.append(label)
+        # And the report may not both ask and proceed. The phrasing is pinned
+        # loosely (any of the proceeding/next-stage forms) because what must not
+        # happen is the PAIRING, not one particular sentence.
+        if re.search(
+                r"(does not also|never also|not).{0,80}(proceed|proceeding)"
+                r"|(proceed|proceeding).{0,120}(and|while).{0,60}ACTION NEEDED",
+                body) is None:
+            missing_exclusive.append(label)
+        # "Single isolated" is the plan's Test: wording. What a PROSE contract can
+        # check is that the rule is stated — a report is not an artifact this suite
+        # can count blocks in. Stated here rather than left implied, because a
+        # docstring claiming more coverage than the assertions carry is the exact
+        # honest-gates falsehood this suite exists to catch.
+        if re.search(r"[Oo]ne block per report|[Oo]ne block, last", body) is None:
+            missing_single.append(label)
+
+    check("both report references define the ACTION NEEDED form",
+          not missing_form,
+          "no ACTION NEEDED callout at: " + ", ".join(missing_form))
+    check("the ACTION NEEDED form carries numbered options",
+          not missing_numbered,
+          "no numbered options under the callout at: "
+          + ", ".join(missing_numbered))
+    check("a report may not both ask and announce it is proceeding",
+          not missing_exclusive,
+          "nothing forbids pairing an unresolved decision with 'proceeding to the "
+          "next stage' in one report at: " + ", ".join(missing_exclusive))
+    check("both references mandate ONE such block per report",
+          not missing_single,
+          "the form is defined but nothing says a report carries at most one of them, "
+          "so three asks in three paragraphs still satisfies it at: "
+          + ", ".join(missing_single))
 
     print(f"assertions run ({len(RAN)}):")
     for name in RAN:

@@ -51,6 +51,34 @@ reads identically either way. An inlined `Parallel: YES` task is a **deviation b
 disclosed**, not one being ratified — a gate report that keeps producing them is evidence the
 plan's `Parallel` fields belong back in `planning-projects`.
 
+## ACTION NEEDED — the one place a report asks the user for something
+
+A gate report either needs something from the user or it does not. When it does, the ask goes
+in **one** block, **last**, under this exact heading, with the options numbered so the reply
+can be a number rather than a reconstruction of the choice:
+
+```
+ACTION NEEDED — <one line naming the decision>
+  1. <option>
+  2. <option>
+```
+
+**A report carrying an `ACTION NEEDED:` block does not also say it is proceeding.** "Two
+things for you" in one paragraph and "proceeding to Stage 3" in the next is the shape that
+produced three separate *"what do you want from me?"* replies across three sessions: the
+reader cannot tell whether the run stopped, and the cost of guessing wrong is asymmetric —
+answering a question the run already moved past is wasted, and not answering one it is
+blocked on stalls the plan silently. Either the decision blocks the next stage, in which case
+say so and stop, or it does not, in which case it is not `ACTION NEEDED:` at all but a
+residual and belongs on the `residuals:` line.
+
+**One block per report, or none.** Scattering asks through the narrative is the same defect
+with better manners: three asks in three paragraphs is three chances to miss one.
+
+**Tier: untiered.** This mandate costs a line of text, not an agent dispatch, so per
+DEC-010 it runs at every review scope including `none` — named here because DEC-017
+requires a new mandate to state the rule that gates it rather than leave it inferred.
+
 ## Platform stage-verify hook
 
 After the stage's own gate checks pass, if the project's platform ships a stage-verify skill,
