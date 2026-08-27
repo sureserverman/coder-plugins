@@ -54,22 +54,80 @@ def vault_dir():
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return require_vault(Path(vd).expanduser(), CONFIG)
+    return require_vault(vd, CONFIG)
+
+
+def vault_problem(path, source):
+    """The vault at `path` if it is REACHABLE, else exit with a specific message.
+
+    `path` is the raw configured value (str) or an already-built Path; a str is
+    `~`-expanded here so every caller expands identically (DEC-011: one definition
+    of the corpus).
+
+    Separate from vault_dir() because the same rule binds paths that never came
+    from the config at all — `plan-status-audit.py --vault` (which writes
+    `.audit-backups/` into the tree it is handed) and `decisions-relevant.py
+    --vault-dir` (which writes nothing, but would otherwise render an unreachable
+    register as "bound by no global decisions", an empty result read as truth).
+    `source` names where the bad value came from, so the operator is told which
+    knob to turn rather than just that one is wrong.
+
+    Three conditions, and the second is the one that matters most in practice:
+
+      * **Not absolute.** `vault_dir: vault` is resolved against the process cwd,
+        so one config silently means a different vault per directory you run from.
+        Refused rather than resolved, because resolving it would pick one of them.
+      * **Not a mounted vault.** `is_dir()` alone CANNOT see the headline case this
+        guard exists for. A mountpoint is a directory whether or not anything is
+        mounted on it, so an unmounted NFS vault — the exact scenario named here —
+        passes `is_dir()` as a local, empty directory. `portfolio-migrate` then
+        mkdir(parents=True)s into it and moves a repo's only copy of its docs to a
+        phantom tree, with the real vault still holding the divergent original and
+        nothing git-tracked to recover from. So a vault is defined by CONTENT:
+        it contains `Portfolio/`. An unmounted mountpoint does not.
+        (`android-mcp-orchestrator/scripts/up.sh:133` records the same lesson for
+        bind mounts: the layer below will happily create an empty directory for a
+        source that is not there.)
+      * **Missing entirely.** The original case, unchanged.
+
+    First-run is deliberate, not accidental: a brand-new vault is initialised by
+    creating `<vault>/Portfolio/` once, by hand. That is the whole cost of making
+    an unmounted mount indistinguishable from a fresh one impossible.
+    """
+    if isinstance(path, str):
+        path = Path(path).expanduser()
+    elif not isinstance(path, Path):
+        return None, (f"vault unreachable: vault_dir (from {source}) must be a path, "
+                      f"got {type(path).__name__} — correct vault_dir.")
+    if not path.is_absolute():
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) is a "
+                      f"relative path, so it names a different directory depending "
+                      f"on where you run from — refusing. Use an absolute path.")
+    if not path.is_dir():
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) is not an "
+                      f"existing directory — refusing, because a missing vault is not "
+                      f"an empty vault. Mount the vault or correct vault_dir.")
+    if not (path / "Portfolio").is_dir():
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) exists but "
+                      f"has no Portfolio/ — refusing, because that is what an UNMOUNTED "
+                      f"mountpoint looks like, and writing here would build a phantom "
+                      f"vault. Mount the vault; or, for a genuinely new one, create "
+                      f"{path / 'Portfolio'} first.")
+    return path, None
 
 
 def require_vault(path, source):
-    """`path` if it is an existing directory, else exit with a specific message.
+    """vault_problem(), for the callers that exit rather than return a code.
 
-    Separate from vault_dir() because the same rule binds the paths that never
-    came from the config at all — `plan-status-audit.py --vault`,
-    `decisions-relevant.py --vault-dir` — and those write backups into the tree
-    they are handed. `source` names where the bad value came from, so the
-    operator is told which knob to turn rather than just that one is wrong.
+    Split so `plan-status-audit.py` can apply the SAME conditions and still return
+    its own rc 2 instead of sys.exit's 1. Before the split it carried a hand-copied
+    single-condition check and therefore silently kept the v1 guard while every
+    other reader grew three more — on the one tool here that writes backups into
+    whatever tree it is handed.
     """
-    if not path.is_dir():
-        sys.exit(f"vault unreachable: vault_dir {path} (from {source}) is not an "
-                 f"existing directory — refusing, because a missing vault is not "
-                 f"an empty vault. Mount the vault or correct vault_dir.")
+    path, problem = vault_problem(path, source)
+    if problem:
+        sys.exit(problem)
     return path
 
 
@@ -667,7 +725,18 @@ def render_global_decisions(vd, projects):
 
 
 def write_if_changed(path, content):
-    def strip_ts(s): return re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
+    # TWO stamp forms, because the roll-ups do not agree on one. Four of them use
+    # `**Last rebuilt:**` (rendered here); `global-business.md` comes from
+    # business-rollup.py, a separately versioned plugin, and stamps a bare
+    # `Generated:` on line 2 instead. Normalising only the first form meant
+    # global-business.md was the one roll-up that still rewrote itself on every
+    # date change — invisible in a same-day double-run, and it survived the
+    # stage that set out to stop exactly this churn. Anchored to line start and
+    # limited to the header region (count=1), so a `Generated:` occurring in a
+    # project's own content further down is left alone.
+    def strip_ts(s):
+        s = re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
+        return re.sub(r"(?m)^Generated:[^\n]*$", "TS", s, count=1)
     if path.exists():
         cur = read_utf8(path)
         if cur is None:

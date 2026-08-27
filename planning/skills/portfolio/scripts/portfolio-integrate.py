@@ -45,7 +45,7 @@ def vault_dir():
     # rationale in portfolio-rebuild.py's vault_dir(). This file already imports
     # that module for write_if_changed, so it borrows the check rather than
     # keeping a fourth copy of the wording the class test pins.
-    return _pr.require_vault(Path(vd).expanduser(), CONFIG)
+    return _pr.require_vault(vd, CONFIG)
 
 
 def parse_frontmatter(text):

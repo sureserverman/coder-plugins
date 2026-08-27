@@ -96,7 +96,8 @@ List projects that have at least one plan with `"active": true`, ordered by
 git recency (freshest first). Per project: the plan file, current stage,
 next task (verbatim from `next_task`), done/total counts, and `age_days`.
 Plans with a `note` go in the same board with the note shown; `unmeasurable`
-plans are not in flight and belong to `review`.
+plans are not in flight and belong to `review` — and, like abandoned ones, they
+join a full listing when asked for, in their own separated group with the note.
 Declared-abandoned plans (`"abandoned": true`) are not in-flight and so are not
 on this board by default; when the user asks for a full listing, include them
 in a clearly separated "abandoned" group with their reason rather than omitting
@@ -146,9 +147,10 @@ Surface drift, one section each (explicit-negative when a section is empty):
   marker) — these are still active and still ranked; the ask is for the author
   to add the marker or drop the banner.
 - **Legacy / unmeasurable plans** — `"unmeasurable": true`, with their note.
-  `next` never ranks them, so this is the only place they surface. Ask the
-  author for an `**Abandoned:**` marker if it is dead, or `- **Status:**` fields
-  if it is live; never infer which.
+  `next` never ranks them (it names them only in its closing line), so this is
+  where they are actually listed. Ask the author for an `**Abandoned:**` marker
+  if it is dead, or task `- **Status:**` fields if it is live; never infer which
+  — and if the plan already carries an `**Abandoned:**` marker, no ask is needed.
 - **Stale backlogs** — projects with open backlog items and no commit in 60+
   days.
 - **Ship-ready but unshipped** — maturity open-count of 0 (or only claims

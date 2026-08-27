@@ -289,7 +289,7 @@ def expanduser_case():
     with tempfile.TemporaryDirectory() as root:
         rootp = Path(root)
         real = rootp / "vault"
-        real.mkdir()
+        (real / "Portfolio").mkdir(parents=True)   # a REACHABLE vault: see require_vault
         under_tmp(real)
         cfg = write_config(rootp / "config.yaml", "~/vault")
         old = mod.CONFIG
@@ -324,7 +324,8 @@ def run_script(script: Path, home: Path, extra_env=None, args=()):
     e.pop("SECURITY_REGISTRY", None)
     e.update(extra_env or {})
     return subprocess.run([sys.executable, str(script), *args],
-                          capture_output=True, text=True, timeout=120, env=e)
+                          capture_output=True, text=True, timeout=120, env=e,
+                          stdin=subprocess.DEVNULL)
 
 
 def fake_home(root: Path, vault, projects) -> Path:
@@ -513,6 +514,102 @@ def override_cases():
 
 
 # --------------------------------------------------------------------------
+def unmounted_case():
+    """The scenario the guard is NAMED for, which `is_dir()` alone cannot see.
+
+    A mountpoint is a directory whether or not anything is mounted on it. So an
+    unmounted NFS vault — `/mnt/vault` on the machine this was written for is
+    `192.168.0.209:/home/rumata/vault` over nfs4 — presents as a local, empty,
+    EXISTING directory, and sails through an existence check. The original guard
+    therefore missed its own headline case while its docstring claimed to cover
+    it, and `portfolio-migrate --all --write` would then mkdir(parents=True) a
+    phantom tree and move a repo's only copy of its docs into it, leaving the
+    real vault holding the divergent original and nothing git-tracked to recover
+    from. A vault is defined by CONTENT — it contains `Portfolio/`.
+
+    Driven through the real entry points as subprocesses, and asserted at the
+    FILESYSTEM: rc and message are not enough, because the whole failure mode is
+    a tree that gets built anyway.
+    """
+    print("unmounted mountpoint — an existing empty dir is not a vault:")
+    scripts = [
+        ("portfolio-rebuild", SCRIPTS / "portfolio-rebuild.py", ["--write"]),
+        ("portfolio-unify", SCRIPTS / "portfolio-unify.py", ["--write"]),
+        ("portfolio-migrate", SCRIPTS / "portfolio-migrate.py", ["--all", "--write"]),
+        ("portfolio-integrate", SCRIPTS / "portfolio-integrate.py", ["--write"]),
+        ("security-scan", SCRIPTS / "security-scan.py", []),
+        ("compass-scan", ROOT / "planning" / "skills" / "compass" / "scripts"
+         / "compass-scan.py", []),
+        ("business-scan", ROOT / "business" / "scripts" / "business-scan.py", []),
+    ]
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+        home = rootp / "home"
+        (home / ".claude").mkdir(parents=True)
+        vault = rootp / "mnt" / "vault"
+        vault.mkdir(parents=True)                  # the mountpoint, nothing mounted
+        under_tmp(vault)
+        repo = rootp / "dev" / "proj"
+        (repo / "docs" / "plans").mkdir(parents=True)
+        (repo / "docs" / "plans" / "2026-01-01-a-plan.md").write_text("# Plan\n")
+        (repo / "docs" / "backlog.md").write_text("# Backlog\n")
+        (repo / "docs" / "MATURITY.md").write_text("# Maturity\n")
+        write_config(home / ".claude" / "portfolio-config.yaml", vault)
+        write_registry(home / ".claude" / "projects-registry.yaml",
+                       [{"path": str(repo), "name": "proj", "area": "ai-tools"}])
+        env = dict(os.environ, HOME=str(home))
+        env.pop("PORTFOLIO_NO_STALE_WARNING", None)
+        for name, path, args in scripts:
+            r = subprocess.run([sys.executable, str(path)] + args, env=env,
+                               capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, timeout=120)
+            blob = r.stdout + r.stderr
+            check(r.returncode != 0 and TOKEN in blob,
+                  f"{name}: refuses an unmounted mountpoint (rc={r.returncode})")
+        check(not (vault / "Portfolio").exists(),
+              "...and NO part of a phantom vault tree was created")
+        survivors = sorted(q.name for q in (repo / "docs").rglob("*") if q.is_file())
+        check(survivors == ["2026-01-01-a-plan.md", "MATURITY.md", "backlog.md"],
+              f"...and the repo's docs/ is untouched — nothing was moved ({survivors})")
+
+        # Teeth: the SAME vault with Portfolio/ present is accepted, so the checks
+        # above are the sentinel firing and not the scripts failing for some other
+        # reason. portfolio-integrate is the cheapest real writer to prove it with.
+        (vault / "Portfolio").mkdir()
+        r = subprocess.run([sys.executable, str(SCRIPTS / "portfolio-integrate.py"),
+                            "--write"], env=env, capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, timeout=120)
+        check(r.returncode == 0 and TOKEN not in (r.stdout + r.stderr),
+              f"...while the same vault WITH Portfolio/ is accepted (rc={r.returncode})")
+
+
+def bad_value_cases():
+    """A relative path, and a value that is not a path at all."""
+    print("malformed vault_dir — refused with a message naming the knob:")
+    mod = load(SCRIPTS / "portfolio-rebuild.py", "portfolio_rebuild_badval")
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+        old = mod.CONFIG
+        try:
+            # Relative: one config means a different vault per cwd. Refused rather
+            # than resolved, because resolving it would silently pick one.
+            mod.CONFIG = write_config(rootp / "rel.yaml", "vault")
+            r = call(mod.vault_dir)
+            check(r.refused and "relative path" in r.text,
+                  f"a relative vault_dir is refused, not resolved against cwd ({r.text[:60]!r})")
+
+            # Not a string. Guarded on the RAW value: Path(12345) raises inside
+            # pathlib, so a guard placed after it could never speak.
+            (rootp / "int.yaml").write_text("version: 1\nvault_dir: 12345\n")
+            mod.CONFIG = rootp / "int.yaml"
+            r = call(mod.vault_dir)
+            check(r.refused and "must be a path" in r.text,
+                  f"a non-path vault_dir gets the shared refusal, not a TypeError "
+                  f"({r.kind}: {r.text[:60]!r})")
+        finally:
+            mod.CONFIG = old
+
+
 def sweep_case():
     """The class claim: every portfolio-config reader in the tree is accounted for.
 
@@ -545,10 +642,10 @@ def sweep_case():
     #                       emit the refusal at all
     covered = {
         "planning/skills/portfolio/scripts/portfolio-integrate.py": ("write_path_cases", "delegates"),
-        "planning/skills/portfolio/scripts/portfolio-unify.py": ("write_path_cases", "literal"),
+        "planning/skills/portfolio/scripts/portfolio-unify.py": ("write_path_cases", "delegates"),
         "planning/skills/portfolio/scripts/portfolio-rebuild.py": ("write_path_cases", "literal"),
-        "planning/skills/portfolio/scripts/portfolio-migrate.py": ("write_path_cases", "literal"),
-        "planning/skills/portfolio/scripts/security-scan.py": ("cli_cases", "literal"),
+        "planning/skills/portfolio/scripts/portfolio-migrate.py": ("write_path_cases", "delegates"),
+        "planning/skills/portfolio/scripts/security-scan.py": ("cli_cases", "delegates"),
         "planning/skills/compass/scripts/compass-scan.py": ("cli_cases", "delegates"),
         "business/scripts/business-scan.py": ("cli_cases", "literal"),
         "git-github/skills/repo-health/scripts/repo-health-scan.py": ("repo_health_case", "structured"),
@@ -558,7 +655,7 @@ def sweep_case():
     # the config, so the sweep predicate cannot see them. Listed here so the
     # wording check still binds them, and exercised by override_cases().
     off_sweep = {
-        "planning/skills/portfolio/scripts/plan-status-audit.py": "literal",
+        "planning/skills/portfolio/scripts/plan-status-audit.py": "delegates",
     }
     found = set()
     for path in ROOT.rglob("*.py"):
@@ -591,14 +688,25 @@ def sweep_case():
     # The delegating one must still actually delegate: a copy-paste that dropped
     # the call would leave it silently returning a Path to nowhere while the
     # wording check above kept passing (it was never asked about that file).
+    # Either entry point into the shared guard counts: require_vault() exits, and
+    # vault_problem() returns (path, message) for the one caller that must return
+    # its own rc instead. Accepting only the exiting form would have pushed
+    # plan-status-audit back to a hand-copied condition to keep its rc 2 — which
+    # is exactly how it came to be the last reader still on the v1 check.
     delegating = [rel for rel, kind in sorted(kinds.items()) if kind == "delegates"]
-    check(all("require_vault(" in (ROOT / rel).read_text(encoding="utf-8", errors="replace")
-              for rel in delegating) and delegating,
-          f"every delegating reader still calls require_vault() ({delegating})")
+    missing_call = [rel for rel in delegating
+                    if not any(fn in (ROOT / rel).read_text(encoding="utf-8",
+                                                            errors="replace")
+                               for fn in ("require_vault(", "vault_problem("))]
+    check(delegating and not missing_call,
+          f"every delegating reader calls require_vault() or vault_problem() "
+          f"(missing: {missing_call or 'none'})")
 
 
 if __name__ == "__main__":
     write_path_cases()
+    unmounted_case()
+    bad_value_cases()
     expanduser_case()
     cli_cases()
     repo_health_case()

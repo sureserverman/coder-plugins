@@ -132,6 +132,24 @@ GATE_BOLD = re.compile(
     re.I)
 
 
+def _require_vault(path, source):
+    """Delegate to portfolio-rebuild.py's canonical guard.
+
+    Loaded by path and LAZILY: this module is importlib-loaded by siblings (for
+    its regexes, not its resolver), so a bare `import` would resolve against the
+    CALLER's sys.path, and a module-scope load would make every such importer pay
+    for a resolver it never calls. The guard is not restated here — it is four
+    conditions with four messages now, and a fourth copy of that is a fourth place
+    for it to drift from the one the class test pins.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_rebuild", Path(__file__).resolve().parent / "portfolio-rebuild.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.require_vault(path, source)
+
+
 def vault_dir():
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = cfg.get("vault_dir")
@@ -144,12 +162,7 @@ def vault_dir():
     # unexpanded `~/vault` is cwd-RELATIVE, which is the same defect by another
     # route. The message is deliberately distinct from the unset one above: the
     # operator needs to know the key is set and the path is wrong.
-    p = Path(vd).expanduser()
-    if not p.is_dir():
-        sys.exit(f"vault unreachable: vault_dir {p} (from {CONFIG}) is not an "
-                 f"existing directory — refusing, because a missing vault is not "
-                 f"an empty vault. Mount the vault or correct vault_dir.")
-    return p
+    return _require_vault(vd, CONFIG)
 
 
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)

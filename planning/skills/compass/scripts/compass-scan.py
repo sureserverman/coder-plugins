@@ -76,12 +76,16 @@ def load_env():
     # operator acts on is the summary. A non-zero exit with nothing on stdout
     # cannot be mistaken for an answer; callers already handle it, because the
     # unset case three lines up has always exited the same way.
-    vault = Path(vd).expanduser()
-    if not vault.is_dir():
-        # Delegated, not restated: `pr` is already loaded above for the decisions
-        # register, so the shared refusal costs nothing extra here — and this file
-        # is read-only, which makes it the copy most likely to drift unnoticed.
-        pr.require_vault(vault, config)
+    vault = pr.require_vault(vd, config)
+    # Delegated, not restated: `pr` is already loaded above for the decisions
+    # register, so the shared refusal costs nothing extra here — and this file is
+    # read-only, which makes it the copy most likely to drift unnoticed.
+    # Called UNCONDITIONALLY, and its return value is the vault. It was previously
+    # guarded by `if not vault.is_dir():`, which meant every condition the guard
+    # grew after that day — a relative path, a non-path type, an unmounted
+    # mountpoint that is_dir() accepts — could never fire here. A delegation behind
+    # a copy of one of the delegate's own branches is not a delegation; it is a
+    # fifth copy that silently stopped at v1.
     return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
@@ -169,7 +173,13 @@ def plan_state(text, fname, path=None):
         # `review` so a legacy plan never becomes invisible by being quiet.
         state["unmeasurable"] = True
         state["active"] = False
-        _add_note(state, "stage unknown (no parseable Status fields) — "
+        # "no Status fields the PARSER found", not "no Status fields": a plan can
+        # carry perfectly good `- **Status:** [ ]` lines and still land here when
+        # its task headings are `#### Task` rather than `### Task`, because TASK_RE
+        # never matches and no Status line is ever attributed. Sending the author
+        # to the Status fields would point at the one part of the file that is fine.
+        _add_note(state, "stage unknown (no task/Status pair the parser could read "
+                         "— check the `### Task N.M` heading level too) — "
                          "legacy/unmeasurable, not counted as in-flight")
         return state
     # Partial tasks are still open: an in-flight task is the natural `next_task`

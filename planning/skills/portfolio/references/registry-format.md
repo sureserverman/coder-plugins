@@ -153,11 +153,25 @@ A registered project whose vault home directory does not yet exist gets
 behavior. This means onboarding a new project requires no manual vault setup —
 the directory materializes the moment any portfolio tool first writes to it.
 
-**Bounded by the hard rule:** the auto-create applies only *beneath a vault
-root that already exists*. `mkdir -p` is happy to build the whole chain from
-nothing, so without that bound this convenience is exactly the mechanism that
-turns an unmounted `/mnt/vault` into a real, empty directory tree holding the
-only copy of a migrated project's docs.
+**Bounded, and here is what actually enforces it:** the auto-create applies only
+*beneath a reachable vault*, where reachable is `require_vault()`'s definition —
+absolute, existing, and **containing `Portfolio/`**. `mkdir -p` will happily build
+the whole chain from nothing, so without that bound this convenience is exactly
+the mechanism that turns an unmounted `/mnt/vault` into a real, empty tree holding
+the only copy of a migrated project's docs.
+
+The `Portfolio/` clause is the part that does the work, and it was added after an
+earlier cut of this section claimed the bound while only an existence check backed
+it. An existence check cannot see the case: a mountpoint is a directory whether or
+not anything is mounted on it, so an unmounted vault is an existing empty directory
+and passes. Reproduced against `portfolio-migrate --all --write`, which built the
+phantom tree and moved the repo's `docs/` into it.
+
+**What is still not bounded, stated rather than implied:** the check runs once, in
+`main()`, and the writes follow. A vault that disappears *between* the check and a
+write — an NFS mount dropping mid-run, which `--all` makes a realistic window —
+will be recreated by the `mkdir(parents=True)` calls downstream. Closing that
+needs a re-check at each write site, not one at resolve time. Recorded, not fixed.
 
 ## Auto-registration on first plan
 

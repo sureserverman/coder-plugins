@@ -1009,12 +1009,19 @@ def main():
     # exits rather than returning None, and Path(args.vault) is never None. It is
     # replaced rather than kept, because a dead guard reads as a live one.)
     if args.vault:
-        vault = Path(args.vault).expanduser()
-        if not vault.is_dir():
-            print(f"vault unreachable: vault_dir {vault} (from --vault) is not an "
-                  f"existing directory — refusing, because a missing vault is not "
-                  f"an empty vault. Mount the vault or correct vault_dir.",
-                  file=sys.stderr)
+        # Shared predicate, not a hand-copied condition. This check used to test
+        # `is_dir()` alone, so when the resolver grew three more conditions this
+        # tool silently kept the v1 guard — on the one path here that WRITES into
+        # the tree it is handed. vault_problem() exists precisely so this caller
+        # can apply identical conditions and still return its own rc 2.
+        import importlib.util as _ilu
+        _sp = Path(__file__).resolve().parent / "portfolio-rebuild.py"
+        _spec = _ilu.spec_from_file_location("portfolio_rebuild", _sp)
+        _pr = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_pr)
+        vault, problem = _pr.vault_problem(args.vault, "--vault")
+        if problem:
+            print(problem, file=sys.stderr)
             return 2
     else:
         vault = pu.vault_dir()

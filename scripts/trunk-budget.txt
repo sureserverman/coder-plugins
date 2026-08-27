@@ -277,7 +277,17 @@ planning/skills/planning-projects/SKILL.md 36902
 #   references/registry-format.md, which is not budgeted; what is left here is the
 #   rule itself, which cannot live one level down without the trunk asserting a
 #   behavior it does not state.
-planning/skills/portfolio/SKILL.md 12969
+#
+# Raised 12969 -> 13184 (+215) at the Stage 4 gate of the same plan. Task 4.3 settled
+#   set-but-missing `vault_dir` as a refusal; the gate's adversarial pass then showed the
+#   check could not see the case its own docstring named — a mountpoint is a directory
+#   whether or not anything is mounted on it, so an unmounted NFS vault passed `is_dir()`
+#   and `migrate` moved a repo's only docs into a phantom tree. The rule now has three
+#   more conditions (absolute, a real path, contains `Portfolio/`) and the trunk has to
+#   state what "unreachable" means, or the code refuses for reasons the doc never gave.
+#   Paid down first: the § Configuration paragraph was cut to a pointer, since § Resolver
+#   now carries the detail it used to duplicate.
+planning/skills/portfolio/SKILL.md 13184
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
@@ -359,7 +369,14 @@ planning/skills/architecting-projects/SKILL.md 11935
 #   back — would have had the skill faithfully reporting that nothing is in flight
 #   anywhere, which is the one wrong answer the scanner change exists to prevent.
 #   As noted for the raise above, compass ships no references/ directory.
-planning/skills/compass/SKILL.md 12800
+#
+# Raised 12800 -> 13046 (+246) at the Stage 4 gate. The gate's independent evaluator and
+#   Task 4.1's own review both found the same hole from opposite directions: `now` promised
+#   abandoned plans a full listing and gave `unmeasurable` ones no equivalent, and `review`
+#   claimed to be "the only place they surface" while `next`'s closing-line rule names them
+#   too. Two sentences that cannot both be true is the failure this trunk's own degrade-loudly
+#   rule exists to prevent, so both were corrected rather than one silenced.
+planning/skills/compass/SKILL.md 13046
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750

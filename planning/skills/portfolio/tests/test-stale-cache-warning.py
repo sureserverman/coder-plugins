@@ -29,6 +29,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -345,6 +346,7 @@ WIRED = [
     ("portfolio", "security-scan.py"),
     ("portfolio", "security-rollup.py"),
     ("compass", "compass-scan.py"),
+    ("decisions", "decisions-relevant.py"),
 ]
 
 
@@ -374,7 +376,10 @@ def wiring_case():
 
         cache = (rootp / "plugins" / "cache" / "coder-plugins" / "planning"
                  / "0.43.1" / "skills")
-        for skill in ("portfolio", "compass"):
+        # Copy whatever WIRED names, not a hardcoded pair — otherwise adding an
+        # entry point in a new skill silently fails the fixture rather than the
+        # thing under test, which is how a wiring test starts reporting on itself.
+        for skill in sorted({s for s, _ in WIRED}):
             shutil.copytree(ROOT / "planning" / "skills" / skill / "scripts",
                             cache / skill / "scripts",
                             ignore=shutil.ignore_patterns("__pycache__"))
@@ -396,7 +401,7 @@ def wiring_case():
         # If these still "warn", the assertions above are matching something else.
         fresh = (rootp / "plugins" / "cache" / "coder-plugins" / "planning"
                  / "0.44.0" / "skills")
-        for skill in ("portfolio", "compass"):
+        for skill in sorted({s for s, _ in WIRED}):
             shutil.copytree(ROOT / "planning" / "skills" / skill / "scripts",
                             fresh / skill / "scripts",
                             ignore=shutil.ignore_patterns("__pycache__"))
@@ -419,22 +424,46 @@ def wiring_sweep():
     compares that list against what is actually on disk.
     """
     print("wiring sweep — every entry point is listed and every listed one calls it:")
+    # Swept across EVERY skill in the planning plugin, not just the two this task
+    # named, and matching `def main(` rather than the exact `def main():` — the
+    # earlier form was blind on both counts at once, and `decisions-relevant.py`
+    # (a third directory, and `def main(argv=None):`) sat in the gap: same plugin,
+    # same per-version cache tree, reads the vault, carries no probe.
     found = set()
-    for skill in ("portfolio", "compass"):
-        d = ROOT / "planning" / "skills" / skill / "scripts"
+    for d in sorted((ROOT / "planning" / "skills").glob("*/scripts")):
+        skill = d.parent.name
         for p in sorted(d.glob("*.py")):
             if p.name.startswith("_"):
                 continue                     # helper module, not an entry point
             text = p.read_text(encoding="utf-8", errors="replace")
-            if "\ndef main():" in text:
+            if re.search(r"^def main\(", text, re.M):
                 found.add((skill, p.name))
-    listed = set(WIRED)
+    # Considered and deliberately NOT wired, each with its reason. An entry point
+    # is in exactly one of these two tables — that is what makes the sweep a
+    # decision record rather than a list of whatever happened to get wired.
+    not_wired = {
+        ("executing-plans", "plan-progress.py"):
+            "statusline renderer — runs on EVERY prompt render; a warning there is "
+            "noise on every keystroke, and this script already diverges deliberately "
+            "on the vault refusal for the same reason",
+        ("executing-plans", "statusline-install.py"):
+            "one-shot installer, run by hand from a checkout",
+        ("planning-projects", "validate-gate-checks.py"):
+            "validator: takes plan paths, reports on them, reads no vault state",
+        ("dispatching-parallel-agents", "validate-stack-routing.py"):
+            "validator over in-repo routing tables; no vault, no cache-sensitive output",
+        ("applying-design-handoff", "validate-handoff-pack.py"):
+            "validator over a handoff pack path; no vault",
+        ("project-maturity", "audit-detectors.py"):
+            "detector library run against a repo path; no vault",
+    }
+    listed = set(WIRED) | set(not_wired)
     check(not (found - listed),
           f"no unlisted entry point (unlisted: {sorted(found - listed) or 'none'})")
     check(not (listed - found),
           f"no stale listing (gone: {sorted(listed - found) or 'none'})")
     missing = []
-    for skill, name in sorted(listed & found):
+    for skill, name in sorted(set(WIRED) & found):
         text = (ROOT / "planning" / "skills" / skill / "scripts"
                 / name).read_text(encoding="utf-8", errors="replace")
         if "warn_if_stale" not in text:

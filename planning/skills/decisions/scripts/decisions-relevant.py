@@ -223,6 +223,21 @@ def _render_row(r):
 
 
 def main(argv=None):
+    # Staleness probe (planning/skills/portfolio/scripts/_staleness.py). Loaded by
+    # path because this is a third skill directory; diagnostic only, and guarded so
+    # it can never stop the command. Wired for the same reason as the portfolio
+    # scripts: this reads the vault's decision registers, and a stale copy answers
+    # "what binds this project" from superseded parsing rules.
+    try:
+        import importlib.util as _ilu
+        _sp = (Path(__file__).resolve().parents[2] / "portfolio" / "scripts"
+               / "_staleness.py")
+        _s = _ilu.module_from_spec(_ilu.spec_from_file_location("_staleness", _sp))
+        _ilu.spec_from_file_location("_staleness", _sp).loader.exec_module(_s)
+        _s.warn_if_stale(__file__)
+    except Exception:
+        pass
+
     ap = argparse.ArgumentParser(
         prog="decisions-relevant",
         description="Digest the decisions that bind a project on given stacks.")

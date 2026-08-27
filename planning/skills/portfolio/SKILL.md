@@ -27,7 +27,7 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 - `vault_dir` is read from `~/.claude/portfolio-config.yaml`.
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
 - **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
-- **A missing vault is not an empty vault.** A `vault_dir` that is *set* but names a directory that is not there (unmounted, stale, mistyped) is refused identically — `vault unreachable: … Mount the vault or correct vault_dir` — and no part of the missing tree is created on the way to a write. Read-only tools whose corpus IS the vault refuse too: an empty-but-well-formed result reads as "nothing is in flight anywhere". Who diverges, and why: `references/registry-format.md`.
+- **A missing vault is not an empty vault — and an unmounted one is not missing.** A `vault_dir` that is *set* but unreachable is refused identically (`vault unreachable: …`), creating no part of the tree. Unreachable = absent, relative, not a path, **or existing with no `Portfolio/`** — which is what an unmounted mountpoint looks like, a mountpoint being a directory whether or not anything is mounted on it. That last check is the load-bearing one: without it `migrate` builds a phantom vault at the mount point and moves a repo's only docs into it. Initialise a genuinely new vault by creating `<vault_dir>/Portfolio/` once, by hand. Read-only tools whose corpus IS the vault refuse too: an empty-but-well-formed result reads as "nothing is in flight anywhere". Divergences: `references/registry-format.md`.
 
 **Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
 
@@ -123,7 +123,7 @@ include_maturity: false       # default flow opts out of maturity until staging 
 
 Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to.
 
-A `vault_dir` that is *set* but names a missing directory is settled: **the same refusal**, under the Resolver rules at the top of this file. It is not the lesser failure — unset has no destination to get wrong, while a stale path is one `mkdir -p` from a plausible second vault. `vault_dir` is `~`-expanded before use; written literally, `~/vault` is cwd-relative.
+A `vault_dir` that is *set* but unreachable is settled: **the same refusal** (Resolver, above). It is not the lesser failure — unset has no destination to get wrong, while a stale or unmounted path is one `mkdir -p` from a plausible second vault.
 
 ## File conflicts and write discipline
 
