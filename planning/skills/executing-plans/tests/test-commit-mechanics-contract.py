@@ -51,7 +51,20 @@ What it pins (Task 1.3 — the ACTION NEEDED callout):
      a prose contract has no report to count blocks in. A report that violates
      the rule at runtime is not something any assertion here can see.
 
-The three tasks share one suite because they share one failure mode: a rule the
+What it pins (Task 1.4 — the honest-gates capsule, BL-083):
+ 11. The four load-bearing honest-gates rules, plus the BLOCKED antecedent, appear
+     verbatim BOTH in honest-gates/SKILL.md and in the trunk's Step 3.5. Pinning
+     both directions is the point: a one-way check would let the restatement rot
+     the moment honest-gates was reworded.
+ 12. The capsule keeps RED as its own state, routed to the gate-failure procedure.
+     Entry 11's fifth phrase and this assertion were both added after a Tier-1
+     Critical: the first draft's connective glue ("Otherwise BLOCKED, never green")
+     negated the conjunction "ran AND passed" and so swallowed RED — and because
+     the glue was original prose rather than a quoted rule, nothing pinned it.
+     That is the general lesson: the four quotes were faithful and the sentence
+     joining them was not.
+
+The four tasks share one suite because they share one failure mode: a rule the
 executor reads and then does not apply at the moment of pressure. Rule text is
 the only artifact any of them can be checked against.
 
@@ -80,13 +93,17 @@ def flat(s):
     """Collapse whitespace so a matcher is not defeated by a line wrap.
 
     The trunk is hard-wrapped at ~95 columns, so any phrase this suite looks for
-    may carry a newline plus indentation in the middle of it. Matching the raw
-    text makes every assertion depend on where the paragraph happened to wrap —
+    may carry a newline plus indentation — or a blockquote marker — in the middle
+    of it. Matching the raw text makes every assertion depend on where the
+    paragraph happened to wrap —
     it reports "the rule is missing" for a rule that is present, which is the one
     failure mode a prose contract must not have. The sibling suite
     test-gate-remediation-contract.py normalizes for the same reason.
     """
-    return re.sub(r"\s+", " ", s)
+    # Blockquote markers go too. A rule the trunk QUOTES rather than states is
+    # still the rule, but `\s+` collapsing turns "> " into an interleaved token
+    # that splits every phrase spanning a line — a present rule reads as absent.
+    return re.sub(r"\s+", " ", re.sub(r"(?m)^\s*>\s?", "", s))
 
 
 def slice_between(text, start, end, label):
@@ -247,6 +264,81 @@ def main():
           "the form is defined but nothing says a report carries at most one of them, "
           "so three asks in three paragraphs still satisfies it at: "
           + ", ".join(missing_single))
+
+    # ---- Task 1.4: honest-gates restated inline at the gate (BL-083) -------
+    # Pinned in BOTH directions. Each phrase must still be in honest-gates
+    # (the source of the rule) AND in the trunk's Step 3.5 (where the executor
+    # is standing when it binds). A one-way check would let the restatement rot
+    # silently the moment honest-gates was reworded — which is the failure this
+    # task exists to end, arriving from the other side.
+    #
+    # BL-083's measurement is the reason a pointer was not enough: across three
+    # audited sessions this trunk was read 26 times and honest-gates was opened
+    # once. A rule reachable only by opening a second file is a rule that does
+    # not fire at the moment of pressure.
+    HONEST_GATES = HERE.parent.parent / "honest-gates" / "SKILL.md"
+    LOAD_BEARING = {
+        "the one rule":
+            "A gate is green only when its real command ran in the current environment "
+            "and actually passed. Nothing else counts as green.",
+        "letter vs spirit":
+            "Violating the letter of a gate is violating its spirit.",
+        "a behavioral claim is a gate too":
+            "a sentence asserting behavior is itself a claim that something was verified",
+        "BLOCKED never collapses into GREEN":
+            "Never collapse BLOCKED into GREEN.",
+        # Added after a Tier-1 Critical. The first draft bridged the first two
+        # rules with an invented "Otherwise BLOCKED, never green", which negates
+        # the conjunction "ran AND passed" and so swallowed "ran and failed" —
+        # a state honest-gates calls RED and routes to the gate-failure
+        # procedure, not to a blocker escalation. The bridge was original glue
+        # and therefore pinned by nothing, which is exactly why the drift was
+        # invisible to the four assertions above.
+        "BLOCKED is the check that could not run":
+            "If you cannot make the real check run here, the gate is BLOCKED, not green",
+    }
+    hg = flat(HONEST_GATES.read_text(encoding="utf-8"))
+    gate, gate_anchored = slice_between(
+        text, "### Step 3.5 — Stage gate", "## Context resets", "Step 3.5")
+    check("Step 3.5's anchors both resolve", gate_anchored,
+          "the stage-gate section could not be sliced — its heading or the next "
+          "section's heading moved, and the honest-gates assertions read the whole file")
+
+    drifted, absent = [], []
+    for label, phrase in LOAD_BEARING.items():
+        # Strip the emphasis markers the trunk and honest-gates may each apply
+        # differently; the RULE is the words, not the bolding.
+        needle = phrase.replace("**", "")
+        if needle not in hg.replace("**", ""):
+            drifted.append(label)
+        if needle not in gate.replace("**", ""):
+            absent.append(label)
+
+    check("the load-bearing rules are still worded this way in honest-gates",
+          not drifted,
+          "honest-gates no longer carries these verbatim, so the trunk's restatement "
+          "is now a paraphrase of something that changed: " + ", ".join(drifted))
+    # RED must survive as its own state in the capsule, and must still be routed
+    # to the gate-failure procedure rather than to the blocker escalation.
+    # Adjacency, not token presence: the defect being guarded is not "the word
+    # RED disappeared" but "RED was folded back into BLOCKED", and a rewording
+    # can do the second while keeping the first.
+    #
+    # WHAT THIS CANNOT SCREEN, per DEC-008. It pins the routing clause as
+    # written. Prose that keeps this clause and adds a contradicting one further
+    # off ("...though a failed check escalates the same way") passes. The guard
+    # is strongest against DELETION and against the specific collapse that
+    # actually happened; an inversion worded away from the anchor survives it,
+    # the same limitation check-trunk-retention.py discloses for its markers.
+    check("the capsule keeps RED distinct and routes it to the gate-failure procedure",
+          re.search(r"\bRED\b,?\s+and takes the gate-failure procedure", gate) is not None,
+          "the Step 3.5 capsule no longer names RED as its own state routed to the "
+          "gate-failure procedure, so a check that ran and failed reads as BLOCKED "
+          "and takes the blocker escalation instead of the remediation loop")
+    check("the load-bearing rules are restated verbatim at Step 3.5",
+          not absent,
+          "the gate still reaches these only by opening honest-gates, which BL-083 "
+          "measured as happening once per 26 reads of this trunk: " + ", ".join(absent))
 
     print(f"assertions run ({len(RAN)}):")
     for name in RAN:

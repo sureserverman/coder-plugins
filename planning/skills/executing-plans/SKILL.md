@@ -225,13 +225,10 @@ risk-listed area: `references/bug-is-a-class.md`.
    the defect class — each survivor costs another remediation round, and catching it here is
    the cheapest it will ever be.
 
-   **Advisory on an existing plan, mandatory on a new one** — retro-failing old plans would
-   only teach executors to route around the check, so note a flagged existing plan and
-   execute it anyway, while `planning-projects` may not present a *newly authored* plan that
+   **Advisory on an existing plan, mandatory on a new one** — note a flagged existing plan
+   and execute it anyway; `planning-projects` may not present a *newly authored* plan that
    fails. Say which case you are in. The `(judgment)` marker is the sanctioned escape hatch:
    a check that genuinely needs a reader carries it and routes to the evaluator at the gate.
-   A plan with no marked checks and no executable sweeps is usually one whose gates were
-   never written to be run.
 
 5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
    carried into the file so a session that never reads the register still implements under
@@ -489,6 +486,15 @@ When a task finishes green, scan its `Blocks` field. For each blocked task, chec
 
 ### Step 3.5 — Stage gate
 
+**honest-gates, restated because the pointer went unread** (BL-083):
+
+> **A gate is green only when its real command ran in the current environment and actually
+> passed. Nothing else counts as green.** **If you cannot make the real check run here, the
+> gate is BLOCKED, not green** — one that ran and failed is RED, and takes the gate-failure
+> procedure below. **Violating the letter of a gate is violating its spirit.** **And a
+> sentence asserting behavior is itself a claim that something was verified** — cite the
+> `file:line`. **Never collapse BLOCKED into GREEN.** Full rules: `honest-gates`.
+
 When every task in the stage is green, run the stage gate:
 
 - Each gate check has a specific pass criterion (a command output, a test result, a manual verification)
@@ -536,9 +542,8 @@ finds *something*, so "no adverse findings" is not a reachable state to wait for
 **Deep code review (Tier 2).** Whether it runs, and at what shape, comes from
 `references/review-scope.md`. It is a gate criterion, not advisory — a **Critical** here is a
 **gate failure**, and every **Important** leaves the gate **fixed** per the exit criterion,
-its class swept. **Brief it to audit the stage's behavioral claims as a set**, per
-`honest-gates`: the stage view is where a claim that was true when written and false after a
-later task shows up.
+its class swept. **Brief it to audit the stage's behavioral claims as a set**: the stage
+view is where a claim that was true when written and false after a later task shows up.
 
 **Decisions-conformance check (gate criterion, not advisory).** Run it at the **final** stage
 gate and at close-out, over the plan's cumulative diff — not at every intermediate gate. A
@@ -613,8 +618,6 @@ degraded context — and the plan file is already the handoff artifact.
   reading the Research Summary, the `Status:` flips, and the handoff notes — never by needing
   the prior transcript. If you find yourself unable to continue without the old transcript,
   the handoff notes were too thin; that's the bug to fix.
-- **On large plans, prefer the reset** — a stage that closed with heavy diagnostic noise is
-  one to suggest restarting in a fresh session pointed at the plan path.
 
 ---
 
@@ -650,9 +653,7 @@ Stop immediately and escalate to the user when:
 **Equally: never ask through a dispatch the plan mandated.** These conditions fire when a
 mandated dispatch *cannot be performed*, never when you are merely unsure whether to perform
 one — that question is answered by the plan
-(§ The plan is the authorization — dispatch without a confirmation turn). A turn spent
-confirming a dispatch the plan already ordered is the run-to-completion failure this skill
-exists to prevent, arriving through a different door.
+(§ The plan is the authorization — dispatch without a confirmation turn).
 
 Why an unperformable dispatch needs a rule rather than judgment, and why the choice is the
 user's: `references/dispatch-fidelity.md`.

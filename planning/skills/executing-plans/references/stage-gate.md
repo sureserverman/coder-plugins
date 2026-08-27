@@ -338,3 +338,8 @@ agent saw which diff exists only in the gate report, so a reset without it turns
 was reviewed" into a claim with no artifact behind it. Copy the lines the gate already
 produced; do not re-derive them. Committed with the `"Stage N green"` commit, and kept to a
 few lines — a briefing, not a log.
+
+**On large plans, prefer the reset.** A stage that closed with heavy diagnostic noise — long
+Red-Green loops, big tool outputs — is one to suggest restarting in a fresh session pointed at
+the plan path. The handoff note is what makes that safe; if you could not continue from it
+without the old transcript, the note was too thin, and that is the bug to fix.
