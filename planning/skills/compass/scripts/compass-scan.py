@@ -113,6 +113,13 @@ def plan_state(text, fname, path=None):
              # must therefore carry it, not just the boolean.
              "abandoned_reason": abandon_reason,
              "completed": cm.group(1) if cm else None, "note": None,
+             # Zero parseable Status fields — no stage, no next task, no
+             # done/total. Carried as its own flag rather than left for a
+             # consumer to infer from `total == 0`: a plan can reach zero tasks
+             # by being unparseable, and that is the one case where every other
+             # field in this dict is empty for a reason the reader must know.
+             # Set in the `if not tasks:` branch below, where the bucket is argued.
+             "unmeasurable": False,
              # BL-077. A `[~]` gate check says a check could not be RUN — the one
              # thing no task marker can express. Carried here because compass
              # retires a plan whose tasks are all done, and a blocked plan that
@@ -127,9 +134,22 @@ def plan_state(text, fname, path=None):
     if abandon_advisory:
         _add_note(state, abandon_advisory)
     if not tasks:
-        # legacy/malformed plan: degrade, never drop
-        state["active"] = state["active"] and not cm
-        _add_note(state, "stage unknown (no parseable Status fields)")
+        # legacy/malformed plan: degrade, never drop — and never count it as
+        # in-flight. `active` used to mean "no close-out line was found here",
+        # which for an unmeasurable plan is a fact about the FILE, not about the
+        # work: nothing in it says what stage it is at, what comes next, or how
+        # much is left. Counting it among in-flight work padded that population
+        # with an item no reader can act on and no gate can check — so it gets
+        # its own bucket instead. plan-status-audit.py reaches the same split by
+        # its own route: a plan with no Status fields is `no-status` there, never
+        # `started-unfinished`.
+        # Suppressed from the in-flight count, NOT hidden: the entry is still
+        # emitted with its note, and compass SKILL.md lists the bucket in
+        # `review` so a legacy plan never becomes invisible by being quiet.
+        state["unmeasurable"] = True
+        state["active"] = False
+        _add_note(state, "stage unknown (no parseable Status fields) — "
+                         "legacy/unmeasurable, not counted as in-flight")
         return state
     # Partial tasks are still open: an in-flight task is the natural `next_task`
     # and must not let a plan read as finished.

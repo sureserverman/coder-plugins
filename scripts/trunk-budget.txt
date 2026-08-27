@@ -330,7 +330,16 @@ planning/skills/architecting-projects/SKILL.md 11935
 #   same rule: `**Blocked-accepted:**` retires the plan again. A rule that keeps a
 #   plan on the board without naming the marker that takes it off is the half that
 #   makes the tool unanswerable, which is what the user's decision was about.
-planning/skills/compass/SKILL.md 11899
+#
+# Raised 11899 -> 12549 (+650) by Task 4.1 of the same plan, for the `unmeasurable`
+#   field: a plan with zero parseable `Status:` fields is now its own bucket rather
+#   than an active plan at an unknown stage, so it is emitted and reviewed but never
+#   counted as in-flight. Four sites change because the field changes four answers
+#   this trunk gives — what "degrade loudly" costs (hard rule), what is on the `now`
+#   board, what `next` may rank, and where the bucket surfaces (`review`). Leaving any
+#   of them stale would leave a reader counting the plan the scanner stopped counting.
+#   compass ships no references/ directory, so the trunk is the only home available.
+planning/skills/compass/SKILL.md 12549
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750

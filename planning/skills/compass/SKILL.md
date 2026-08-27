@@ -69,8 +69,11 @@ isolation. The group itself is not a registry project and has no row of its own.
   Surface that advisory; do not act on it. Treating unbounded prose as a gate
   would hide live work — the same failure as recommending dead work, only
   quieter.
-- **Degrade loudly.** Plans with `"note": "stage unknown …"` are still active
-  work — list them as such. Every scan `errors` entry and every
+- **Degrade loudly.** A plan with no parseable `Status:` fields arrives
+  `"unmeasurable": true`, `"active": false`, with a `stage unknown …` note: no
+  stage, no next task, no counts — so it is not in-flight work and not in that
+  count. It is still listed, in `review`, with its note; a plan with parseable
+  open tasks is unaffected and stays active. Every scan `errors` entry and every
   `couldnt_assess` project appears in a **"Couldn't assess"** footer on every
   report. Silence is never coverage.
 
@@ -87,7 +90,8 @@ isolation. The group itself is not a registry project and has no row of its own.
 List projects that have at least one plan with `"active": true`, ordered by
 git recency (freshest first). Per project: the plan file, current stage,
 next task (verbatim from `next_task`), done/total counts, and `age_days`.
-Plans with a degradation `note` go in the same board with the note shown.
+Plans with a `note` go in the same board with the note shown; `unmeasurable`
+plans are not in flight and belong to `review`.
 Declared-abandoned plans (`"abandoned": true`) are not in-flight and so are not
 on this board by default; when the user asks for a full listing, include them
 in a clearly separated "abandoned" group with their reason rather than omitting
@@ -112,7 +116,8 @@ Rank candidate work items with these signals, in this order:
    GTM 0%) — launch next". This boosts *shipping something already validated to sell*
    above a fresh start; it never fires for projects with no `business` key.
 
-Only plans with `"abandoned": false` are ever ranked here.
+Only plans with `"abandoned": false` and `"unmeasurable": false` are ranked
+here — an unmeasurable plan has no `next_task` to recommend.
 
 Output the top 5–7 as a ranked list; each entry = one sentence of
 recommendation + one line of cited evidence. Parked items are excluded
@@ -135,6 +140,10 @@ Surface drift, one section each (explicit-negative when a section is empty):
   section, plans carrying the missing-marker advisory `note` (banner prose, no
   marker) — these are still active and still ranked; the ask is for the author
   to add the marker or drop the banner.
+- **Legacy / unmeasurable plans** — `"unmeasurable": true`, with their note.
+  `next` never ranks them, so this is the only place they surface. Ask the
+  author for an `**Abandoned:**` marker if it is dead, or `- **Status:**` fields
+  if it is live; never infer which.
 - **Stale backlogs** — projects with open backlog items and no commit in 60+
   days.
 - **Ship-ready but unshipped** — maturity open-count of 0 (or only claims
