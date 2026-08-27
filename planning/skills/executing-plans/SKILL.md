@@ -454,6 +454,14 @@ write them.** The measured incident behind all three: `references/task-execution
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
 7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
 
+   **The plan file may not live in the repo you are committing to.** A plan can sit outside
+   the repo it plans — the portfolio convention keeps it in the vault — so **edit the plan at
+   its absolute path and run every git command from the repo root**. Never `cd` to the plan's
+   directory first: the vault is not a git repository, so a directory change chained ahead of
+   `git add`/`git commit` dies on `fatal: not a git repository`, the plan edit already
+   landed. A vault-resident plan's `Status: [x]` flip therefore rides no commit
+   (`references/task-execution.md`).
+
    **Every per-task commit ends with an executor trailer** — the last line of the message, taking one of these shapes:
 
    ```
@@ -644,7 +652,8 @@ one — that question is answered by the plan
 confirming a dispatch the plan already ordered is the run-to-completion failure this skill
 exists to prevent, arriving through a different door.
 
-The dispatch entry restores a symmetry the list already had and had lost. "A test cannot be run" blocks, because an unrunnable check is not a passed check — and a mandated dispatch or review that cannot be run is the same fact about a different mechanism. What made the asymmetry survive is that the substitute looks like the work: an inlined task produces the same diff, and an unreviewed gate reads exactly like a reviewed one. That is the reason it needs a rule rather than judgment — the failure is invisible in the artifact, so nothing downstream will raise it. **The choice belongs to the user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through `planning-projects`, or accept inline execution knowingly. What the executor may not do is make that call silently on their behalf, which is exactly what happened in the incident this rule comes from.
+Why an unperformable dispatch needs a rule rather than judgment, and why the choice is the
+user's: `references/dispatch-fidelity.md`.
 
 ## When to revisit earlier steps
 
