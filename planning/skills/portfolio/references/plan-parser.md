@@ -182,6 +182,23 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   "started but unfinished" separable from "never begun". Consumers classify via
   `status_state()` in `portfolio-unify.py` — testing the captured character
   with `!= " "` reads a partial task as DONE and is never correct.
+- **Gate checkbox `- [~]` → BLOCKED** (BL-077). A gate check is a different
+  marker from a task `Status:` and carries its own state set — read it with
+  `gate_item_state()` in `portfolio-unify.py`, never with `status_state()`.
+  `[ ]` is open, `[x]` done, and `[~]` means **the check could not be run in
+  this environment**: not "partly done", not a softer `[x]`. The vocabulary is
+  deliberately not shared with a task's `partial`, because a task is partial
+  while work proceeds and a gate is blocked because a command would not run —
+  the same word would invite the same treatment. `honest-gates` makes the split
+  load-bearing (GREEN ran-and-passed / RED ran-and-failed / BLOCKED could-not-run);
+  only BLOCKED needs a marker, since a RED gate is repaired rather than recorded.
+  **A plan with any `[~]` gate check can never classify as completed**, whatever
+  its close-out line says: `**Completed:**` is the author's claim about the
+  work, the gate box is the record of what was proven, and the second outranks
+  the first. `plan_has_blocked_gate()` is the shared predicate; `plan-status-audit`
+  classifies such a plan `blocked` and `plan-progress.py` renders `⊘ BLOCKED`
+  on its bar. Measured cost of not having this: a fully-blocked master rendered
+  Completed while every gate box carried an amendment.
 - Raw unchecked bullets outside task bodies (gates, ad-hoc checklists) are
   likewise ignored — in authoritative mode the ONLY candidate sources are
   `Status: [ ]` fields and Deferred blocks.

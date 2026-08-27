@@ -447,6 +447,47 @@ check("future-dated stamp is not stale",
       mod.stale_age_days("2099-01-01-x-plan.md", TODAY_) < 0, "negative age")
 
 
+def case_gate_item_contract():
+    """Task 2.1 / BL-077 — the gate-checkbox state is defined ONCE, here.
+
+    STATUS_RE lives in portfolio-unify.py because a change to it silently alters
+    done/total math in every consumer at once. A gate checkbox is the same kind
+    of shared marker and was NOT here: plan-status-audit.py had defined its own
+    GATE_ITEM_RE, so the two could drift with nothing to catch it. That is the
+    lockstep break this task closes, not merely the missing state.
+    """
+    print("gate-item contract — single owner, `[~]` is BLOCKED:")
+    check("portfolio-unify.py owns GATE_ITEM_RE (the contract's single definition)",
+          hasattr(mod, "GATE_ITEM_RE"))
+    if not hasattr(mod, "GATE_ITEM_RE"):
+        return
+    for mark, want in ((" ", "open"), ("x", "done"), ("X", "done"), ("~", "blocked")):
+        m = mod.GATE_ITEM_RE.match(f"- [{mark}] a gate check")
+        got = mod.gate_item_state(m.group(1)) if m else None
+        check(f"`- [{mark}]` -> {want}", got == want, f"got {got}")
+    check("an out-of-contract marker matches nothing, as with STATUS_RE",
+          mod.GATE_ITEM_RE.match("- [!] out of contract") is None)
+    check("the contract exposes plan_has_blocked_gate() for its consumers",
+          hasattr(mod, "plan_has_blocked_gate"))
+    if not hasattr(mod, "plan_has_blocked_gate"):
+        return
+    # The SCOPING boundary, which is the whole risk in this predicate: a `[~]`
+    # anywhere else in a plan — a Preflight checklist, a research list — is not
+    # gate state, and counting it would block plans that are merely mid-flight.
+    inside = ("# P\n\n### Stage 1 Gate\n\n- [x] ok\n- [~] could not run\n")
+    outside = ("# P\n\n### Preflight\n\n- [~] could not run\n\n"
+               "### Stage 1 Gate\n\n- [x] ok\n")
+    after = ("# P\n\n### Stage 1 Gate\n\n- [x] ok\n\n### Task 1.1: t\n\n- [~] a bullet\n")
+    check("a `[~]` INSIDE a Stage N Gate block is blocked",
+          mod.plan_has_blocked_gate(inside) is True)
+    check("a `[~]` under Preflight is NOT gate state",
+          mod.plan_has_blocked_gate(outside) is False,
+          "a Preflight checklist item would block every plan that has one")
+    check("a `[~]` after the gate block closes is NOT gate state",
+          mod.plan_has_blocked_gate(after) is False,
+          "the scope must end at the next ### heading")
+
+
 def run_unify(names, include_stale, evidence, extra=None):
     """unify_project end-to-end over a throwaway vault home. git_stage_evidence
     is stubbed because signal 3 only ADDS items the git-stage suppression hid —
@@ -602,6 +643,8 @@ check("stale diff is whole-stage: every item surfaces when its stage is done",
       all_suppressed == none_suppressed,
       f"done-stage={all_suppressed} no-evidence={none_suppressed} — a partial "
       f"difference would make the Source-key collision reachable")
+
+case_gate_item_contract()
 
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")

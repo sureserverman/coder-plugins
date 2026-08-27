@@ -183,6 +183,21 @@ def test_partial_and_abandoned(tmp):
           "an in-flight task is the next task, not skipped over")
     check(partial["active"] is True, "a plan with partial work is still active")
 
+    # --- BL-077: a `[~]` gate check outranks a close-out line ---------------
+    # Every task is `[x]` and the plan carries **Completed:**, so the old path
+    # set active=False and compass reported it finished. It is not: a gate check
+    # could not be run, which is the one thing a task marker cannot say.
+    blocked = plans_a.get("2026-07-25-blocked-plan.md")
+    check(blocked is not None, "the blocked-gate plan is listed at all")
+    if blocked:
+        check(blocked.get("blocked_gate") is True,
+              f"a `[~]` gate check is reported ({blocked.get('blocked_gate')!r})")
+        check(blocked["active"] is True,
+              "a plan whose gate could not be run is STILL ACTIVE — all tasks "
+              "done plus a close-out line must not retire it")
+        check(blocked.get("note") and "gate" in blocked["note"].lower(),
+              f"and the note says why ({blocked.get('note')!r})")
+
     # --- abandoned: suppressed from recommendation, NOT hidden --------------
     ghost = plans_a["2026-07-24-ghost-plan.md"]
     check(ghost["abandoned"] is True, "**Abandoned:** marker parsed")

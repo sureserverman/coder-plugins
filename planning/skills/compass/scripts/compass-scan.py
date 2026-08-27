@@ -112,7 +112,12 @@ def plan_state(text, fname):
              # SKILL.md lists a suppressed plan WITH its reason — the scanner
              # must therefore carry it, not just the boolean.
              "abandoned_reason": abandon_reason,
-             "completed": cm.group(1) if cm else None, "note": None}
+             "completed": cm.group(1) if cm else None, "note": None,
+             # BL-077. A `[~]` gate check says a check could not be RUN — the one
+             # thing no task marker can express. Carried here because compass
+             # retires a plan whose tasks are all done, and a blocked plan that
+             # retires is a plan nobody looks at again.
+             "blocked_gate": pu.plan_has_blocked_gate(text)}
     if abandoned:
         # Terminal state: parsed and listed like any other plan, but never
         # ranked as available work (see rank-eligible filtering in SKILL.md).
@@ -137,9 +142,16 @@ def plan_state(text, fname):
             _add_note(state,
                       f"completed marker present but {len(open_tasks)} task(s) still open")
     else:
-        state["active"] = False
-        if not cm and not abandoned:
-            _add_note(state, "all tasks done but no close-out line")
+        # All tasks done — but "done" is about tasks, and a gate check that could
+        # not run is about proof. Retiring on the weaker fact is exactly the
+        # inference BL-077 was filed against, so a blocked gate keeps the plan on
+        # the board with its reason attached.
+        if state["blocked_gate"]:
+            _add_note(state, "all tasks done but a stage-gate check is `[~]` BLOCKED")
+        else:
+            state["active"] = False
+            if not cm and not abandoned:
+                _add_note(state, "all tasks done but no close-out line")
     return state
 
 

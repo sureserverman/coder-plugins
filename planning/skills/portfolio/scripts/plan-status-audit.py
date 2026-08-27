@@ -66,7 +66,7 @@ GIT_TIMEOUT = 20        # seconds per repo; a hung git must not hang the audit
 
 # The classes, in the order classify() decides them. Order is load-bearing and
 # argued at classify() — do not reorder to make a count look better.
-CLASSES = ("abandoned", "completed", "unclassifiable", "no-status",
+CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "no-status",
            "never-started", "started-unfinished")
 
 
@@ -186,7 +186,11 @@ def task_counts(text, path):
     return done, total
 
 
-GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
+# GATE_ITEM_RE moved to portfolio-unify.py, the contract owner, when BL-077 gave
+# `[~]` a meaning that classify() acts on. A private copy here was a lockstep
+# break with nothing to catch it: the two could disagree about what a gate
+# checkbox says, silently, in opposite directions.
+GATE_ITEM_RE = pu.GATE_ITEM_RE
 
 
 def gate_state(text):
@@ -214,7 +218,7 @@ def gate_state(text):
             m = GATE_ITEM_RE.match(line)
             if m:
                 total += 1
-                ticked += pu.status_state(m.group(1)) == "done"
+                ticked += pu.gate_item_state(m.group(1)) == "done"
     return ticked, total
 
 
@@ -223,14 +227,25 @@ def classify(text, path):
 
     ORDER, AND WHY IT IS THIS ORDER:
 
-    1. `abandoned` and 2. `completed` come first because they are HUMAN-AUTHORED
-       terminal markers. A plan whose author wrote a close-out line has already
-       answered the question this tool asks, and nothing below should overrule
-       it. A plan carrying BOTH resolves to `abandoned` — deterministically, so
-       the classification is stable — and the fact that it carries both is
-       reported as detail rather than hidden.
+    1. `abandoned` comes first because it is a HUMAN-AUTHORED terminal marker.
+       A plan whose author wrote one has already answered the question this tool
+       asks. A plan carrying BOTH markers resolves to `abandoned` —
+       deterministically, so the classification is stable — and the fact that it
+       carries both is reported as detail rather than hidden.
 
-    3. `unclassifiable` is checked next, and only for plans with no terminal
+    2. `blocked` (BL-077) is the ONE place a human-authored terminal marker is
+       overruled, and it sits here rather than lower for that reason. A
+       `**Completed:**` line is the author's claim about the WORK; a `[~]` gate
+       check is the record of what could not be PROVEN, and proof outranks
+       claim. Deciding it after `completed` would make it unreachable on exactly
+       the plans that need it — the measured failure was a fully-blocked master
+       rendering as Completed. It stays BELOW `abandoned`: an abandoned plan is
+       not blocked, it is over.
+
+    3. `completed` is the remaining human-authored terminal marker, and nothing
+       after this point overrules it.
+
+    4. `unclassifiable` is checked next, and only for plans with no terminal
        marker, because that is exactly the population whose completion this tool
        would otherwise INFER. A Status marker outside the contract's `[ xX~]`
        class is invisible to STATUS_RE: its task counts toward neither `done`
@@ -246,6 +261,17 @@ def classify(text, path):
     if abandoned:
         detail = "carries **Completed:** too" if completed else None
         return "abandoned", detail
+    if pu.plan_has_blocked_gate(text):
+        # BL-077. A `[~]` gate check says a check could not be run here, so the
+        # plan's completion was never proven — whatever its close-out line says.
+        # This sits ABOVE `completed` deliberately, and it is the one place a
+        # human-authored terminal marker is overruled: the marker is a claim
+        # about the work, the gate box is the record of the proof. Overruling
+        # it in the other direction is what produced a fully-blocked master
+        # rendering as Completed.
+        detail = ("a stage-gate check is `[~]` BLOCKED"
+                  + (" — and the plan carries **Completed:**" if completed else ""))
+        return "blocked", detail
     if completed:
         return "completed", None
 

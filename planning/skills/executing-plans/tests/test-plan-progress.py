@@ -1796,6 +1796,69 @@ def date_stamped(p):
     return re.match(r"^\d{4}-\d{2}-\d{2}", p.name) is not None
 
 
+BLOCKED_GATE_PLAN = """# Plan: a gate that could not be run
+
+## Stage 1 — the work
+
+### Task 1.1: done
+- **Status:** [x]
+
+### Stage 1 Gate
+
+- [x] the host suite is green
+- [~] the device suite ran on hardware
+"""
+
+
+def case_blocked_gate_renders():
+    """Task 2.1 / BL-077 — a `[~]` gate check is BLOCKED, and the bar says so.
+
+    The measured failure: a fully-blocked master rendered as Completed while
+    every gate box carried an amendment. Whatever else the bar shows, a plan
+    whose gate could not be run must not read as one whose gate passed.
+    """
+    print("Task 2.1 — a `[~]` gate check renders BLOCKED:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-blocked-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "blocked-plan.md"
+    plan.write_text(BLOCKED_GATE_PLAN)
+    write_state(repo, plan=str(plan), phase="gate", stage=1)
+
+    out = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+    check("GATE BLOCKED" in out,
+          f"the rendered line names the gate BLOCKED (got {out!r})")
+    check("1/1" in out,
+          f"the task count is untouched — BLOCKED is about the GATE, not the "
+          f"tasks (got {out!r})")
+
+    print("  and a DISCOVERED (non-executing) plan carries it too:")
+    # render_other() has its own append, and only render_pinned()'s was reachable
+    # from the fixture above — the discovered path goes through the portfolio
+    # vault resolver, not the repo's plans/ dir. Exercised directly rather than
+    # plumbed a vault for, because the gap being closed is one line in one
+    # function: reverting it broke no test.
+    other = repo / "plans" / "second-plan.md"
+    other.write_text(BLOCKED_GATE_PLAN)
+    line = ANSI_RE.sub("", mod.render_other(other))
+    check("GATE BLOCKED" in line,
+          f"a discovered, non-executing plan is marked too (got {line!r})")
+    other.write_text(BLOCKED_GATE_PLAN.replace(
+        "- [~] the device suite ran on hardware", "- [x] the device suite ran on hardware"))
+    line2 = ANSI_RE.sub("", mod.render_other(other))
+    check("GATE BLOCKED" not in line2,
+          f"and a discovered plan with a passed gate is not (got {line2!r})")
+    other.unlink()
+
+    print("  and an all-`[x]` gate does NOT render BLOCKED:")
+    plan.write_text(BLOCKED_GATE_PLAN.replace(
+        "- [~] the device suite ran on hardware", "- [x] the device suite ran on hardware"))
+    out2 = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+    check("GATE BLOCKED" not in out2,
+          f"a passed gate carries no BLOCKED marker (got {out2!r})")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -1914,6 +1977,7 @@ def main():
     case_master_grouping()
     case_phase_indicator()
     case_alignment_and_composition()
+    case_blocked_gate_renders()
 
     print()
     if FAILURES:

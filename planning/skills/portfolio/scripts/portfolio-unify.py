@@ -351,6 +351,60 @@ def status_state(ch):
     return "open"
 
 
+# --- GATE-CHECKBOX CONTRACT (BL-077) ---------------------------------------
+# A gate check is a different marker from a task `Status:` and needs its own
+# state set, but it belongs HERE for exactly the reason STATUS_RE does: one
+# definition, so a change cannot alter what "the gate passed" means in one
+# consumer and not another. It was NOT here — plan-status-audit.py carried its
+# own copy of this regex, which is a lockstep break with nothing to catch it.
+#
+# `[~]` means BLOCKED: the check could not be run in this environment. It is
+# NOT "partially done" and NOT a softer `[x]`. honest-gates makes the three-way
+# split load-bearing — GREEN (ran, passed), RED (ran, failed), BLOCKED (could
+# not run) — and only BLOCKED needs a marker, because a RED gate is not written
+# down as passed, it is repaired.
+#
+# The measured cost of not having it: a fully-blocked master rendered Completed
+# while every gate box carried an amendment, and a register `[x]` standing
+# against a `[~]` gate took a ten-tool-call manual audit to disprove.
+GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
+
+
+def gate_item_state(ch):
+    """Classify a GATE_ITEM_RE capture. The ONLY sanctioned way to read one.
+
+    Deliberately different words from status_state(): a task is `partial`
+    because work is under way, a gate check is `blocked` because a command
+    could not run. Sharing the vocabulary would invite sharing the treatment,
+    and a blocked gate is not a gate in progress.
+    """
+    if ch == "~":
+        return "blocked"
+    if ch in ("x", "X"):
+        return "done"
+    return "open"
+
+
+def plan_has_blocked_gate(text):
+    """True when any stage-gate checkbox in the plan is `[~]`.
+
+    Scoped between a `### Stage N Gate` heading and the next `###`, so a
+    Preflight or Research checklist elsewhere in the document is never mistaken
+    for gate state — the same scoping plan-status-audit's gate_state() uses,
+    now sharing one implementation with it rather than two copies of the idea.
+    """
+    in_gate = False
+    for line in text.splitlines():
+        if line.startswith("###"):
+            in_gate = bool(GATEHDR_RE.match(line))
+            continue
+        if in_gate:
+            m = GATE_ITEM_RE.match(line)
+            if m and gate_item_state(m.group(1)) == "blocked":
+                return True
+    return False
+
+
 def plan_terminal_state(text):
     """(abandoned, advisory, reason) for one plan's full text.
 

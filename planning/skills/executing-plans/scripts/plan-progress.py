@@ -1093,6 +1093,29 @@ def _bar_line(name, done, total, colour, width):
     return out
 
 
+def blocked_gate_marker(text):
+    """` ⊘ BLOCKED` when any stage-gate check in the plan is `[~]`, else "".
+
+    A property of the PLAN, not of the phase, so it renders whether or not this
+    session is the one executing — a plan whose gate could not be run is blocked
+    for whoever looks at it next, and the bar is often the only place anyone
+    looks. Appended rather than woven into the counts: the task counts are about
+    tasks and stay honest; BL-077's failure was a plan reading as finished
+    because nothing on the line spoke for the gate.
+
+    Reads the contract through portfolio-unify, like every other marker here.
+
+    NAMED `GATE BLOCKED`, not `BLOCKED`, because phase_part() already renders
+    `✘ blocked <note>` in the same colour on the same line for a different
+    subject — an execution this session has STOPPED, versus a gate check that
+    could not be proven, possibly in an earlier session. Both can appear at
+    once. gate_item_state() argues for not sharing vocabulary with
+    status_state()'s `partial`; the same care was owed to this file's own
+    vocabulary one screen away, and a review had to supply it.
+    """
+    return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_has_blocked_gate(text) else ""
+
+
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
     """The one line for the plan the state file names.
 
@@ -1130,6 +1153,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         if total:
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
+    out += blocked_gate_marker(text)
     out += staleness(state)
     return out
 
@@ -1145,7 +1169,7 @@ def render_other(plan_path, width=0, label=None, text=None):
         text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
     return _bar_line(label if label is not None else plan_name(plan_path),
-                     done, total, DIM, width)
+                     done, total, DIM, width) + blocked_gate_marker(text)
 
 
 def render(cwd):
