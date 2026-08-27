@@ -1022,7 +1022,12 @@ def phase_part(state):
         label = ""
     if not label and not desc:
         return ""       # nothing to say -- the bare glyph was noise, not data
-    return f"{GREEN}▶ {label}{RESET}{desc}"
+    # The separator between label and desc belongs BETWEEN them, not welded to
+    # the label: with no desc the old form left a trailing space inside the
+    # phase part, invisible until Task 2.2 appended a marker after it and the
+    # bar rendered "T1.3  ⚠". Cosmetic, pre-existing, and in a file already open.
+    sep = " " if (label and desc) else ""
+    return f"{GREEN}▶ {label.rstrip()}{sep}{RESET}{desc}"
 
 
 def staleness(state):
@@ -1038,6 +1043,95 @@ def staleness(state):
     if hours >= STALE_AFTER_H:
         return f" {DIM}(stale {int(hours)}h){RESET}"
     return ""
+
+
+LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
+PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
+
+
+def status_lag(state, text, plan_path):
+    """` ⚠ status lag Nx` when the plan file trails the live run, else "".
+
+    BL-096. `Status` flips stopped mid-plan in all three audited sessions —
+    tasks kept completing and the markers stopped moving. The RULE was never
+    missing (Step 3.3 rule 5 says flip it in the same change as the work); the
+    SIGNAL was. Everything that could notice fired after the fact: `portfolio
+    plan-status` classifies finished-but-unmarked plans on a later sweep, and a
+    flip audit catches the bulk catch-up flip a stall eventually produces. Both
+    report damage already in the file.
+
+    Both artifacts are already maintained at every transition. The only new
+    thing here is noticing that they disagree, and saying so while the run is
+    still going.
+
+    LAG counts the SEQUENTIAL tasks between the last marker that moved (`[x]` or
+    `[~]`) and the task the state file names, plus the current one. `Parallel:
+    YES` siblings are excluded: they are dispatched together and do not finish
+    in document order, so an unmarked one is concurrency the plan asked for.
+
+    NOT extended to master plans, deliberately. The state-file contract
+    (`../references/progress-state-file.md`) says a master's state file always
+    points at the SUB-PLAN currently executing, so a master's own register is
+    never the file this function reads. An earlier version branched on
+    is_master_plan() and shipped a test for a state shape the contract says
+    cannot occur — green, and measuring nothing. A master register that stops
+    being flipped is still undetected here; that is a real residual, recorded
+    rather than papered over, and it needs a different mechanism because the
+    register flip happens at a sub-plan close-out, outside any task transition. One is the ordinary case —
+    the current task is legitimately not done yet — so the warning starts at
+    two. Silent when the state names no task, when the task is not found in the
+    plan, or when nothing is flipped yet and the run is still in the first
+    couple of tasks.
+    """
+    cur = state.get("task")
+    if not isinstance(cur, str) or not cur.strip():
+        return ""
+    cur = cur.strip()
+    # A `task` that is not schema-shaped is phase_part()'s problem, not a lag
+    # signal: it already drops the label for exactly these values. Reporting
+    # them here pasted a prose `task` back into the bar — the defect two
+    # existing cases were written to prevent, reintroduced from a new direction.
+    if not TASK_ID_RE.match(cur):
+        return ""
+    order, last_marked = [], -1
+    for line in text.splitlines():
+        tm = pu.TASK_RE.match(line)
+        if tm:
+            order.append({"num": tm.group(1), "state": None, "parallel": False})
+            continue
+        if not order:
+            continue
+        sm = pu.STATUS_RE.match(line)
+        if sm and order[-1]["state"] is None:
+            order[-1]["state"] = pu.status_state(sm.group(1))
+        elif PARALLEL_YES_RE.match(line):
+            order[-1]["parallel"] = True
+    # Measured from the last marker that MOVED, not the last `[x]`. BL-096 is
+    # about markers that stop moving, and `[~]` is a marker that moved — warning
+    # on a correctly in-flight task would be a false positive against the very
+    # state the contract added to express it.
+    for i, t in enumerate(order):
+        if t["state"] in ("done", "partial"):
+            last_marked = i
+    try:
+        cur_i = [t["num"] for t in order].index(cur)
+    except ValueError:
+        # NOT folded into the silent cases. The state naming a task the plan no
+        # longer has is a WORSE divergence than an ordinary lag — the plan was
+        # edited under a run whose markers had already stopped — and silence
+        # made it indistinguishable from nothing to report.
+        return f" {RED}⚠ T{cur} not in plan{RESET}"
+    # `Parallel: YES` siblings are dispatched together and do not finish in
+    # document order, so an unmarked one between the last marker and the current
+    # task is the format's own first-class concurrency, not a stall. Counting it
+    # made the warning fire on sanctioned behaviour — and a signal that cries
+    # wolf on the thing the plan told it to expect is worse than the silence it
+    # replaces, because it teaches the reader to ignore it.
+    gap = [t for t in order[last_marked + 1:cur_i] if not t["parallel"]]
+    lag = len(gap) + 1
+    if lag <= LAG_TOLERANCE:
+        return ""
+    return f" {YELLOW}⚠ status lag {lag}{RESET}"
 
 
 def pinned_plan_path(state, state_file):
@@ -1154,6 +1248,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
     out += blocked_gate_marker(text)
+    out += status_lag(state, text, plan)
     out += staleness(state)
     return out
 

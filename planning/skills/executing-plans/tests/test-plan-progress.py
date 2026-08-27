@@ -1859,6 +1859,138 @@ def case_blocked_gate_renders():
           f"a passed gate carries no BLOCKED marker (got {out2!r})")
 
 
+LAGGING_PLAN = """# Plan: markers that stopped moving
+
+## Stage 1: The work
+
+### Task 1.1: first
+- **Status:** [x]
+
+### Task 1.2: second
+- **Status:** [ ]
+
+### Task 1.3: third
+- **Status:** [ ]
+
+### Task 1.4: fourth
+- **Status:** [ ]
+"""
+
+
+def case_status_lag_warns():
+    """Task 2.2 / BL-096 — the file lagging the live state is visible WHILE it
+    happens, not on a sweep weeks later.
+
+    `Status` flips stopped mid-plan in all three audited sessions: tasks kept
+    completing and the markers stopped moving. The rule already existed (Step 3.3
+    rule 5, flip it in the same change as the work); what was missing was any
+    signal at the time. Both artifacts are already maintained — the only new
+    thing is noticing they disagree.
+    """
+    # The fixture is NOT named *lag*: an earlier draft was, and every assertion
+    # below matched the plan's own name in the bar. The positive check passed
+    # for the wrong reason and only the negative cases exposed it.
+    print("Task 2.2 — the plan file lagging the live state warns on the bar:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-lag-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "slow-plan.md"
+    plan.write_text(LAGGING_PLAN)
+
+    def bar_at(task):
+        write_state(repo, plan=str(plan), phase="task", stage=1, task=task)
+        return ANSI_RE.sub("", "".join(mod.render(str(repo))))
+
+    print("  markers at 1.1, executor at 1.3 — two tasks of lag:")
+    out = bar_at("1.3")
+    check("lag" in out.lower(),
+          f"the bar warns that the file trails the run (got {out!r})")
+
+    print("  markers at 1.1, executor at 1.2 — one task, the ordinary case:")
+    out1 = bar_at("1.2")
+    check("lag" not in out1.lower(),
+          f"one task of lag is a task in flight, not a stall (got {out1!r})")
+
+    print("  and it clears the moment the markers catch up:")
+    plan.write_text(LAGGING_PLAN.replace(
+        "### Task 1.2: second\n- **Status:** [ ]",
+        "### Task 1.2: second\n- **Status:** [x]"))
+    out2 = bar_at("1.3")
+    check("lag" not in out2.lower(),
+          f"flipping the missing marker silences it (got {out2!r})")
+
+    print("  a `[~]` marker is the marker MOVING, not a stall:")
+    # BL-096 is about markers that stop moving. `[~]` is a marker that moved.
+    # Measuring lag from the last `[x]` alone warns on a task that is correctly
+    # marked in-flight, which is a false positive against the very state the
+    # contract added for this purpose.
+    inflight = repo / "plans" / "inflight-plan.md"
+    inflight.write_text(LAGGING_PLAN.replace(
+        "### Task 1.2: second\n- **Status:** [ ]",
+        "### Task 1.2: second\n- **Status:** [~]"))
+    write_state(repo, plan=str(inflight), phase="task", stage=1, task="1.3")
+    iout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in iout,
+          f"a `[~]` between last-done and current is not lag (got {iout!r})")
+    inflight.unlink()
+
+    print("  concurrency the plan format SANCTIONS is not a stall:")
+    # A stage may mark tasks `Parallel: YES`; those are dispatched together and
+    # do not finish in document order. The state file names one of them while
+    # its siblings are legitimately still `[ ]`, so raw ordinal distance fires
+    # on the format's own first-class feature. A warning that cries wolf on
+    # sanctioned behaviour is worse than the silence it replaces — it teaches
+    # the reader to ignore it, which is the trust BL-096 is trying to buy.
+    par = repo / "plans" / "fanout-plan.md"
+    par.write_text("""# Plan
+
+## Stage 1: fan out
+
+### Task 1.1: first
+- **Status:** [x]
+- **Parallel:** NO
+
+### Task 1.2: concurrent sibling
+- **Status:** [ ]
+- **Parallel:** YES
+
+### Task 1.3: concurrent sibling
+- **Status:** [ ]
+- **Parallel:** YES
+""")
+    write_state(repo, plan=str(par), phase="task", stage=1, task="1.3")
+    pout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in pout,
+          f"an unmarked `Parallel: YES` sibling is concurrency, not lag (got {pout!r})")
+
+    print("  but a SEQUENTIAL gap between them still warns:")
+    par.write_text(par.read_text().replace(
+        "### Task 1.2: concurrent sibling\n- **Status:** [ ]\n- **Parallel:** YES",
+        "### Task 1.2: sequential\n- **Status:** [ ]\n- **Parallel:** NO"))
+    pout2 = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" in pout2,
+          f"a `Parallel: NO` task left unmarked is still a stall (got {pout2!r})")
+    par.unlink()
+
+    print("  a state file naming a task the plan no longer has says so:")
+    # Silently returning "" folded this into the ordinary cases. It is a WORSE
+    # divergence than a two-task lag — the plan was edited under a run whose
+    # markers had already stopped — and it was indistinguishable from nothing
+    # to report.
+    write_state(repo, plan=str(plan), phase="task", stage=9, task="9.9")
+    gout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("not in plan" in gout,
+          f"the bar names the divergence rather than going quiet (got {gout!r})")
+
+    print("  a plan nobody is executing is never warned about:")
+    # render_other has no state to compare against; the warning is a statement
+    # about THIS session's run, not about a file sitting in the vault.
+    line = ANSI_RE.sub("", mod.render_other(plan))
+    check("lag" not in line.lower(),
+          f"a discovered plan carries no lag marker (got {line!r})")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -1978,6 +2110,7 @@ def main():
     case_phase_indicator()
     case_alignment_and_composition()
     case_blocked_gate_renders()
+    case_status_lag_warns()
 
     print()
     if FAILURES:
