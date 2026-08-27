@@ -198,6 +198,16 @@ def test_partial_and_abandoned(tmp):
         check(blocked.get("note") and "gate" in blocked["note"].lower(),
               f"and the note says why ({blocked.get('note')!r})")
 
+    # --- the author's answer-back retires the plan again --------------------
+    acc = plans_a.get("2026-07-26-accepted-plan.md")
+    check(acc is not None, "the accepted plan is listed")
+    if acc:
+        check(acc["active"] is False,
+              "a `**Blocked-accepted:**` plan is retired — the author looked, "
+              "understood, and closed it, and the tool stops arguing")
+        check(acc.get("blocked_gate") is False,
+              f"and it no longer reports as blocked ({acc.get('blocked_gate')!r})")
+
     # --- abandoned: suppressed from recommendation, NOT hidden --------------
     ghost = plans_a["2026-07-24-ghost-plan.md"]
     check(ghost["abandoned"] is True, "**Abandoned:** marker parsed")

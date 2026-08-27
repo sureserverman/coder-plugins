@@ -1851,6 +1851,20 @@ def case_blocked_gate_renders():
           f"and a discovered plan with a passed gate is not (got {line2!r})")
     other.unlink()
 
+    print("  an accepted block is closed: no marker, and no bar at all:")
+    # The author's answer-back. Before it, a closed-out plan with a `[~]` gate
+    # was un-retirable — no marker could close it and editing the `[~]` would
+    # falsify the record.
+    acc = repo / "plans" / "accepted-plan.md"
+    acc.write_text(BLOCKED_GATE_PLAN
+                   + "\n**Completed:** 2026-08-27 — commits: abc1234\n"
+                   + "**Blocked-accepted:** 2026-08-27 — no hardware here; closed knowingly\n")
+    check("GATE BLOCKED" not in ANSI_RE.sub("", mod.render_other(acc)),
+          "an accepted plan carries no blocked marker")
+    check(mod.plan_is_eligible(acc.read_text(), acc) is False,
+          "and it is retired from the bar entirely, like any closed-out plan")
+    acc.unlink()
+
     print("  and an all-`[x]` gate does NOT render BLOCKED:")
     plan.write_text(BLOCKED_GATE_PLAN.replace(
         "- [~] the device suite ran on hardware", "- [x] the device suite ran on hardware"))

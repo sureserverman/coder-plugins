@@ -305,7 +305,12 @@ planning/skills/architecting-projects/SKILL.md 11935
 #   board, and the judgment layer this trunk instructs is the thing that decides what to work
 #   on next. The sibling rule for `abandoned` is one line above it, and this field had none.
 #   compass ships no references/ directory, so the trunk is the only home available.
-planning/skills/compass/SKILL.md 11805
+#
+# Raised 11805 -> 11899 (+94) in the same gate's round 2, for the other half of the
+#   same rule: `**Blocked-accepted:**` retires the plan again. A rule that keeps a
+#   plan on the board without naming the marker that takes it off is the half that
+#   makes the tool unanswerable, which is what the user's decision was about.
+planning/skills/compass/SKILL.md 11899
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750

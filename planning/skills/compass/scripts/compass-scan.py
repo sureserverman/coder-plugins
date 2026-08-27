@@ -75,7 +75,7 @@ def _add_note(state, msg):
     state["note"] = f"{state['note']}; {msg}" if state.get("note") else msg
 
 
-def plan_state(text, fname):
+def plan_state(text, fname, path=None):
     """State of one executing-plans plan file, via the authoritative Status
     path (portfolio-unify regexes). Returns None for master plans (register
     format — no Task context, tracked through their sub-plans instead)."""
@@ -117,7 +117,9 @@ def plan_state(text, fname):
              # thing no task marker can express. Carried here because compass
              # retires a plan whose tasks are all done, and a blocked plan that
              # retires is a plan nobody looks at again.
-             "blocked_gate": pu.plan_has_blocked_gate(text)}
+             # Through plan_blocked(), so `**Blocked-accepted:**` retires it
+             # again and a master inherits its sub-plans' state.
+             "blocked_gate": pu.plan_blocked(text, path)[0]}
     if abandoned:
         # Terminal state: parsed and listed like any other plan, but never
         # ranked as available work (see rank-eligible filtering in SKILL.md).
@@ -161,7 +163,7 @@ def collect_plans(home):
         return []
     out = []
     for pf in sorted(plans_dir.glob("*-plan.md")):
-        st = plan_state(pf.read_text(errors="ignore"), pf.name)
+        st = plan_state(pf.read_text(errors="ignore"), pf.name, pf)
         if st is not None:
             out.append(st)
     return out

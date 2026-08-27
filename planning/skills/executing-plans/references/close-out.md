@@ -137,4 +137,18 @@ have to decide is not an `ACTION NEEDED:` item at all.
 DEC-010 it runs at every review scope including `none` — named here because DEC-017
 requires a new mandate to state the rule that gates it rather than leave it inferred.
 
+## Closing a plan whose gate could not be run
+
+A `[~]` gate check outranks the close-out line: the plan classifies `blocked`, stays on
+compass's in-flight board and keeps its `⊘ GATE BLOCKED` bar, because a check that could not
+run means completion was never proven. That is correct and it is not the end of the story —
+a plan can be genuinely finished with a check that will never run here.
+
+**Write `**Blocked-accepted:** <date> — <why>` beside the `**Completed:**` line.** It records
+that someone looked, understood, and closed the plan anyway; it does not claim the gate ran.
+It is the only thing that retires such a plan.
+
+**Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
+and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.
+
 Delete `.claude/plan-progress.json` as the last step, once the report is out.

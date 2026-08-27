@@ -327,7 +327,7 @@ def plan_is_eligible(text, path=None):
     # what the gate passed means in one consumer and not another" was the stated
     # premise of the change that introduced the disagreement.
     if pu.COMPLETED_RE.search(text):
-        return pu.plan_has_blocked_gate(text)
+        return pu.plan_blocked(text, path)[0]
     return True
 
 
@@ -1208,7 +1208,7 @@ def _bar_line(name, done, total, colour, width):
     return out
 
 
-def blocked_gate_marker(text):
+def blocked_gate_marker(text, plan_path=None):
     """` ⊘ GATE BLOCKED` when any stage-gate check in the plan is `[~]`, else "".
 
     A property of the PLAN, not of the phase, so it renders whether or not this
@@ -1228,7 +1228,7 @@ def blocked_gate_marker(text):
     status_state()'s `partial`; the same care was owed to this file's own
     vocabulary one screen away, and a review had to supply it.
     """
-    return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_has_blocked_gate(text) else ""
+    return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_blocked(text, plan_path)[0] else ""
 
 
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
@@ -1251,7 +1251,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
     out = _bar_line(label if label is not None else plan_name(plan),
-                    done, total, CYAN, width) + blocked_gate_marker(text)
+                    done, total, CYAN, width) + blocked_gate_marker(text, plan)
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -1284,7 +1284,7 @@ def render_other(plan_path, width=0, label=None, text=None):
         text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
     return _bar_line(label if label is not None else plan_name(plan_path),
-                     done, total, DIM, width) + blocked_gate_marker(text)
+                     done, total, DIM, width) + blocked_gate_marker(text, plan_path)
 
 
 def render(cwd):

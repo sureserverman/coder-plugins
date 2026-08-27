@@ -201,6 +201,29 @@ Implemented by `parse_plan_status()` in `portfolio-unify.py`:
   `### Stage N Gate` section — its gate boxes live in its sub-plans — so a master
   whose sub-plan is blocked still classifies on its own text. Propagation upward
   is not built; the master half of BL-077 stays open.
+- **`**Blocked-accepted:** <date> — <why>` → the author's answer to a blocked
+  gate**, and a terminal marker like `**Completed:**` and `**Abandoned:**`. It
+  does not claim the gate ran; it records that someone looked, understood, and
+  closed the plan anyway. A plan carrying one is **not** blocked: it classifies
+  on its close-out line again, compass retires it, and the bar stops rendering
+  it. Without it the `[~]` rule was correct and unliveable — 22 real vault plans
+  went onto the in-flight board permanently, with no marker an author could
+  write, because `**Completed:**` no longer retired them, `**Abandoned:**` would
+  have been a lie, and editing the `[~]` to `[x]` would have falsified the record
+  the convention exists to keep. It penalised hardest the plans that had used
+  `[~]` most honestly, which is how a convention dies.
+- **A master inherits its sub-plans' blocked state.** A master plan carries no
+  `### Stage N Gate` section of its own — 0 of 38 in the live vault do; its gate
+  boxes live in its sub-plan files — so reading only its own text left the
+  master half of BL-077 unreachable. `plan_blocked()` resolves each
+  `- **Plan:** <path>` link and is blocked when any linked sub-plan is.
+  Acceptance propagates upward the same way: a master whose sub-plans are all
+  accepted is not blocked, and a master's own acceptance closes it whatever its
+  sub-plans say. An unresolvable link is not evidence of blockage.
+- **Consumers call `plan_blocked()`, never `plan_has_blocked_gate()` directly.**
+  The raw predicate answers "does this file contain a `[~]` box", which is a
+  different question — it misses a master and ignores acceptance — and three
+  consumers reading it disagreed about the same 22 plans.
 - Raw unchecked bullets outside task bodies (gates, ad-hoc checklists) are
   likewise ignored — in authoritative mode the ONLY candidate sources are
   `Status: [ ]` fields and Deferred blocks.

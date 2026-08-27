@@ -263,16 +263,20 @@ def classify(text, path):
     if abandoned:
         detail = "carries **Completed:** too" if completed else None
         return "abandoned", detail
-    if pu.plan_has_blocked_gate(text):
+    blocked, why = pu.plan_blocked(text, path)
+    if blocked:
         # BL-077. A `[~]` gate check says a check could not be run here, so the
         # plan's completion was never proven — whatever its close-out line says.
+        # Routed through pu.plan_blocked(), not the raw gate predicate: that one
+        # answers "does this file contain a `[~]` box", which misses a master
+        # (no gate section of its own) and ignores `**Blocked-accepted:**`, the
+        # marker an author writes to close a knowingly-blocked plan.
         # This sits ABOVE `completed` deliberately, and it is the one place a
         # human-authored terminal marker is overruled: the marker is a claim
         # about the work, the gate box is the record of the proof. Overruling
         # it in the other direction is what produced a fully-blocked master
         # rendering as Completed.
-        detail = ("a stage-gate check is `[~]` BLOCKED"
-                  + (" — and the plan carries **Completed:**" if completed else ""))
+        detail = why + (" — and the plan carries **Completed:**" if completed else "")
         return "blocked", detail
     if completed:
         return "completed", None

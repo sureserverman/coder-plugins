@@ -411,6 +411,80 @@ def plan_has_blocked_gate(text):
     return False
 
 
+# --- BLOCKED ACCEPTANCE, and propagation to a master --------------------------
+# `[~]` overrules a human-authored `**Completed:**` because proof outranks claim.
+# Shipped without an answer-back, that rule was correct and unliveable: 22 real
+# vault plans went onto the in-flight board permanently, with no marker an author
+# could write to close one knowingly. `**Completed:**` no longer retired them,
+# `**Abandoned:**` would have been a lie, and editing the `[~]` to `[x]` would
+# have falsified the record the convention exists to keep. It penalised hardest
+# the plans that had used `[~]` most honestly — which is how a convention dies.
+#
+# `**Blocked-accepted:** <date> — <why>` is the author's answer. It does not
+# claim the gate ran; it records that someone looked, understood, and closed the
+# plan anyway. Terminal, like the other two markers, and carrying its reason for
+# the same purpose theirs do.
+BLOCKED_ACCEPTED_RE = re.compile(r"^\*\*Blocked-accepted:\*\*\s*(.+)$", re.M)
+
+_MAX_SUBPLAN_DEPTH = 2       # a master links sub-plans; a sub-plan is not a master
+
+
+def blocked_acceptance(text):
+    """The `**Blocked-accepted:**` reason, or None. Contract API."""
+    m = BLOCKED_ACCEPTED_RE.search(text)
+    return m.group(1).strip() if m else None
+
+
+def plan_blocked(text, path=None, _depth=0):
+    """(is_blocked, why) — the ONE question every consumer asks about blockage.
+
+    Consumers must call this rather than `plan_has_blocked_gate()` directly:
+    that predicate answers "does this file contain a `[~]` gate box", which is
+    not the same question and was letting three consumers disagree about the
+    same plan.
+
+    Two things it adds over the raw predicate:
+
+    ACCEPTANCE. `**Blocked-accepted:**` closes a plan whose gate could not run.
+    Checked first, so an accepted plan is never blocked whatever else is true.
+
+    PROPAGATION. A master plan carries no `### Stage N Gate` section of its own
+    — 0 of 38 in the live vault do; a master's gate boxes live in its sub-plan
+    files — so reading only its own text made the master half of BL-077 dead
+    code. A master is blocked when any sub-plan it links is, and acceptance
+    propagates upward the same way blockage does: a master whose sub-plans are
+    all accepted is not blocked.
+
+    Degrades rather than raising: an unresolvable or unreadable sub-plan link is
+    not evidence of blockage, and a plan-status tool that throws on a broken
+    link is worse than one that under-reports a rare case.
+    """
+    if blocked_acceptance(text):
+        return False, None
+    if plan_has_blocked_gate(text):
+        return True, "a stage-gate check is `[~]` BLOCKED"
+    if path is None or _depth >= _MAX_SUBPLAN_DEPTH:
+        return False, None
+    try:
+        if not is_master_plan(text, Path(path)):
+            return False, None
+    except Exception:
+        return False, None
+    base = Path(path).parent
+    hit = []
+    for link in SUBPLAN_LINK_RE.findall(text):
+        target = (base / link.strip()).resolve()
+        try:
+            sub = target.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue                      # a link that resolves nowhere is not blockage
+        if plan_blocked(sub, target, _depth + 1)[0]:
+            hit.append(target.name)
+    if hit:
+        return True, "blocked sub-plan(s): " + ", ".join(sorted(hit))
+    return False, None
+
+
 def plan_terminal_state(text):
     """(abandoned, advisory, reason) for one plan's full text.
 

@@ -87,6 +87,22 @@ PLANS = {
     # against a `[~]` gate took a ten-tool-call manual audit to disprove. This
     # fixture is a SINGLE plan, which is the scope that works — a master carries
     # no gate section and does not inherit its sub-plans' blocked state.
+    # The author's answer-back: a gate that could not run, acknowledged and
+    # closed on purpose. Without this the tool overrules the author forever.
+    "2026-01-15-accepted-plan.md": (
+        task("1.1", "x")
+        + "### Stage 1 Gate\n\n- [x] host suite\n- [~] the device suite ran\n\n"
+        + "**Completed:** 2026-01-16 — commits: 5555555\n"
+        + "**Blocked-accepted:** 2026-01-16 — no CM4 in this lab; shipped knowingly\n"),
+    # A master carries no gate section of its own — 0 of 38 in the live vault do
+    # — so its blocked state can only come from the sub-plans it links.
+    "2026-01-16-beta-master-plan.md": (
+        "# Master Plan: beta\n\n## Sub-plans\n\n"
+        "### Sub-plan 1: one\n- **Status:** [x]\n"
+        "- **Plan:** ./2026-01-17-beta-sub-01-plan.md\n"),
+    "2026-01-17-beta-sub-01-plan.md": (
+        task("1.1", "x")
+        + "### Stage 1 Gate\n\n- [~] the device suite ran\n"),
     "2026-01-14-blocked-gate-plan.md": (
         task("1.1", "x")
         + "### Stage 1 Gate\n\n- [x] the suite is green\n- [~] the device suite ran\n\n"
@@ -168,6 +184,11 @@ def case_classification():
         # A `[~]` gate check outranks the close-out marker: the author's claim is
         # about the work, the gate box is about whether it was PROVEN.
         "2026-01-14-blocked-gate-plan.md": "blocked",
+        # acceptance hands the plan back to its author
+        "2026-01-15-accepted-plan.md": "completed",
+        # and a master inherits what its own text cannot say
+        "2026-01-16-beta-master-plan.md": "blocked",
+        "2026-01-17-beta-sub-01-plan.md": "blocked",
     }
     for fname, want in expected.items():
         got = cls_of(fname)
@@ -184,6 +205,13 @@ def case_classification():
     completed_names = [Path(e["path"]).name for e in report["classes"].get("completed", [])]
     check("2026-01-14-blocked-gate-plan.md" not in completed_names,
           "it is absent from `completed` — the roll-up cannot offer it as finished")
+
+    print("  a master's blocked detail names the sub-plan, not a bare gate:")
+    mb = [e for e in report["classes"].get("blocked", [])
+          if Path(e["path"]).name == "2026-01-16-beta-master-plan.md"]
+    check(mb and "sub-01" in (mb[0].get("detail") or ""),
+          f"the master says WHICH sub-plan blocks it "
+          f"(got {mb[0].get('detail') if mb else 'n/a'})")
 
     print("  a plan carrying BOTH markers resolves deterministically:")
     both = [e for e in report["classes"]["abandoned"]

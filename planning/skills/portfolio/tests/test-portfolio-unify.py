@@ -488,6 +488,82 @@ def case_gate_item_contract():
           "the scope must end at the next ### heading")
 
 
+def case_blocked_acceptance_and_propagation():
+    """The author's answer-back, and a master inheriting its sub-plans' state.
+
+    A `[~]` gate overrules a human-authored `**Completed:**`, which is right —
+    proof outranks claim — but as first shipped it left the author no way to
+    say "I know, and I closed it anyway": 22 real vault plans went onto the
+    in-flight board permanently, and the ones penalised hardest were the ones
+    that had used `[~]` most honestly. `**Blocked-accepted:**` is that answer.
+
+    And a master carries no gate section of its own — 0 of 38 in the live vault
+    do — so without propagation the master half of BL-077 never fires at all.
+    """
+    print("blocked acceptance + master propagation:")
+    import tempfile as _t
+    check("the contract owns BLOCKED_ACCEPTED_RE", hasattr(mod, "BLOCKED_ACCEPTED_RE"))
+    check("and exposes plan_blocked() as the one question consumers ask",
+          hasattr(mod, "plan_blocked"))
+    if not (hasattr(mod, "BLOCKED_ACCEPTED_RE") and hasattr(mod, "plan_blocked")):
+        return
+
+    gate = "### Stage 1 Gate\n\n- [x] host suite\n- [~] device suite\n"
+    plain = "# P\n\n### Task 1.1: a\n- **Status:** [x]\n\n" + gate
+
+    b, why = mod.plan_blocked(plain, None)
+    check("an unaccepted `[~]` gate is blocked", b is True, f"got {b}")
+    check("and the reason names the gate", bool(why) and "gate" in why.lower(),
+          f"got {why!r}")
+
+    accepted = plain + "\n**Blocked-accepted:** 2026-08-27 — no CM4 in this lab; shipping anyway\n"
+    b2, _ = mod.plan_blocked(accepted, None)
+    check("an ACCEPTED blocked gate is not blocked", b2 is False,
+          "the author answered back and the tool must stop arguing")
+    check("acceptance carries its reason",
+          mod.blocked_acceptance(accepted, ) is not None
+          and "CM4" in mod.blocked_acceptance(accepted),
+          "the marker's own text is the record of why")
+
+    print("  a master inherits a blocked sub-plan, and only an unaccepted one:")
+    d = Path(_t.mkdtemp(prefix="unify-master-"))
+    (d / "x-sub-01-plan.md").write_text(plain)
+    (d / "x-sub-02-plan.md").write_text(accepted)
+    master = ("# Master Plan: x\n\n## Sub-plans\n\n"
+              "### Sub-plan 1: one\n- **Status:** [x]\n"
+              "- **Plan:** ./x-sub-01-plan.md\n\n"
+              "### Sub-plan 2: two\n- **Status:** [x]\n"
+              "- **Plan:** ./x-sub-02-plan.md\n")
+    mp = d / "x-master-plan.md"
+    mp.write_text(master)
+    b3, why3 = mod.plan_blocked(master, mp)
+    check("a master with a blocked sub-plan is blocked", b3 is True, f"got {b3}")
+    check("and the reason names the sub-plan",
+          bool(why3) and "sub-01" in why3, f"got {why3!r}")
+
+    (d / "x-sub-01-plan.md").write_text(accepted)
+    b4, _ = mod.plan_blocked(master, mp)
+    check("a master whose sub-plans are all accepted is not blocked", b4 is False,
+          "acceptance propagates upward exactly as blockage does")
+
+    print("  and the master's own acceptance closes it whatever its sub-plans say:")
+    (d / "x-sub-01-plan.md").write_text(plain)
+    b5, _ = mod.plan_blocked(master + "\n**Blocked-accepted:** 2026-08-27 — known\n", mp)
+    check("an accepted master is not blocked", b5 is False)
+
+    print("  a missing or unreadable sub-plan file degrades, never raises:")
+    mp2 = d / "y-master-plan.md"
+    mp2.write_text("# Master Plan: y\n\n## Sub-plans\n\n### Sub-plan 1: one\n"
+                   "- **Status:** [x]\n- **Plan:** ./nope-plan.md\n")
+    try:
+        b6, _ = mod.plan_blocked(mp2.read_text(), mp2)
+        ok = b6 is False
+    except Exception as e:
+        ok = False
+        b6 = f"RAISED {type(e).__name__}"
+    check("an unresolvable sub-plan link is not blockage", ok, f"got {b6}")
+
+
 def run_unify(names, include_stale, evidence, extra=None):
     """unify_project end-to-end over a throwaway vault home. git_stage_evidence
     is stubbed because signal 3 only ADDS items the git-stage suppression hid —
@@ -645,6 +721,7 @@ check("stale diff is whole-stage: every item surfaces when its stage is done",
       f"difference would make the Source-key collision reachable")
 
 case_gate_item_contract()
+case_blocked_acceptance_and_propagation()
 
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")
