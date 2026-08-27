@@ -547,5 +547,5 @@ decides rather than a reading:
 
 ## Checklist — Light plans
 
-For a **Light** plan (Phase -0.5), verify only the seven Light items — the full checklist
+For a **Light** plan (Phase -0.5), verify only the eight Light items — the full checklist
 does not apply. They are in `references/authoring-checklist.md` § Checklist — Light plans.

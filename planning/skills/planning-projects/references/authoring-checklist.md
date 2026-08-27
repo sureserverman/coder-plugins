@@ -49,6 +49,7 @@ Run every item before showing the plan to the user.
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Parallel Execution)
+- [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it)
 
 **Where it lands, and what it reconciles**
 
@@ -69,7 +70,7 @@ Run every item before showing the plan to the user.
 ## Checklist — Light plans
 
 For a **Light** plan (`../SKILL.md` § Phase -0.5 — Format triage selected it), verify only
-these seven — the Standard checklist does not apply:
+these eight — the Standard checklist does not apply:
 
 - [ ] Every task has a concrete, runnable `Test:` — the same bar as any plan
 - [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
@@ -78,6 +79,7 @@ these seven — the Standard checklist does not apply:
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
+- [ ] On an expensive-suite project, every task's `Test:` is path- or suite-scoped or carries `full-suite: accepted` — the same bar as any plan, and an **authoring-time** check (`test-scope-tiers.md`). A Light plan has task `Test:` fields, so this is not one of the items the format drops
 
 **Why the Light list is shorter rather than softer.** Every item it drops is a field the Light
 format does not have (Risk, Rollback, Blocks, Parallel, a Preflight section) or a long-horizon
