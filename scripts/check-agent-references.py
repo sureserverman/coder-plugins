@@ -104,7 +104,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _contract_block import extract, flat  # noqa: E402
+from _contract_block import extract, first_difference, flat, pinned_population  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS = ROOT / "scripts" / "contracts"
@@ -211,16 +211,6 @@ def expected_pattern(plugin):
     body = body.replace("{DEPTH_NOTE}", (" " + note) if note else "")
     parts = flat(body).split("{NOUN}")
     return re.compile(noun_slot().join(re.escape(p) for p in parts)), flat(body)
-
-
-def first_difference(actual, expected):
-    """The first word where the two diverge, with a little context from each side."""
-    a, b = actual.split(" "), expected.split(" ")
-    for i in range(max(len(a), len(b))):
-        if i >= len(a) or i >= len(b) or a[i] != b[i]:
-            return (f"at word {i + 1}: block has …{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… "
-                    f"/ canonical has …{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…")
-    return "no textual difference (the noun slot did not match `DEGRADED <ALLCAPS> —`)"
 
 
 def agents():
@@ -337,15 +327,10 @@ def main():
         for code, why in found:
             problems.append(f"  {rel}: {code} — {why}")
 
-    missing = [rel for rel in EXPECTED_AGENTS if rel not in in_scope]
-    if missing:
-        # A pinned set, not a floor: any seven satisfies a floor of seven, so dropping one
-        # agent's block while adding a compliant agent kept the count whole and the sweep
-        # silent. Naming the members makes attrition and substitution both visible.
-        print(f"FAIL: {len(missing)} expected agent(s) no longer name "
-              f"CLAUDE_PLUGIN_ROOT: {', '.join(missing)} — the sweep is wrong, or the "
-              f"agent really changed and EXPECTED_AGENTS needs the deliberate edit.",
-              file=sys.stderr)
+    attrition = pinned_population(EXPECTED_AGENTS, in_scope, "agent")
+    if attrition:
+        for why in attrition:
+            print(f"FAIL: {why}", file=sys.stderr)
         return 1
 
     print(f"{len(in_scope)} agent(s) name a plugin-rooted reference; "

@@ -500,7 +500,7 @@ When a task finishes green, scan its `Blocks` field. For each blocked task, chec
 
 ### Step 3.5 — Stage gate
 
-**These four bind every gate**, restated rather than cited — BL-083 measured the pointer
+**These bind every gate**, restated rather than cited — BL-083 measured the pointer
 unread:
 
 > **A gate is green only when its real command ran in the current environment and actually
@@ -509,9 +509,13 @@ unread:
 > procedure below. **Violating the letter of a gate is violating its spirit.** **And a
 > sentence asserting behavior is itself a claim that something was verified** — cite the
 > `file:line`. **Never collapse BLOCKED into GREEN.** **A gate whose commands ran over
-> uncommitted edits proved nothing about what is recorded** — commit first, then run it.
-> A BLOCKED gate takes neither branch: stop on it, name the blocker and the exact
-> command that cannot run, try to unblock it, and escalate. Prohibitions: `honest-gates`.
+> uncommitted edits proves nothing about what the branch records** — commit first, then
+> run it. A BLOCKED gate takes neither branch: stop on it, name the blocker and the exact
+> command that cannot run, try to unblock it, and escalate — and **write the checklist item
+> as `- [~]`, never `- [x]` with a note explaining it away.** `[~]` is the gate checklist's
+> BLOCKED state and it parses everywhere the plan tooling reads; a ticked box carrying
+> *(amended — exit 2)* is a GREEN check to every reader, which is the exact shape BL-077
+> was filed from. Prohibitions: `honest-gates`.
 
 When every task in the stage is green, run the stage gate:
 
@@ -615,8 +619,8 @@ news.
 
 **Remediation budget — default 2 rounds per gate.** A plan may override it, and the gate
 report states the count. **A re-dispatched review or evaluator is a round.**
-**Before dispatching a further round, run `scripts/plan-progress.py --budget-check`** —
-untiered per DEC-010, a command not a dispatch. **It binds only on a recorded round.**
+**Before dispatching a further round, run `scripts/plan-progress.py --budget-check` from the repo root** —
+untiered per DEC-010 and DEC-017, a command not a dispatch. **It binds only on a recorded round.**
 Non-zero means exhausted: escalate with the residual list, never another round — a Stop
 condition. Full procedure:
 `references/gate-failure-procedure.md`.

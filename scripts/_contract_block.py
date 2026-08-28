@@ -53,6 +53,44 @@ def span(text, open_marker, close_marker):
     return first, last
 
 
+def first_difference(actual, expected):
+    """The first word where two flattened texts diverge, with context from each side.
+
+    Both required-literal validators emitted this same message shape from their own copy of
+    the loop. Shared because a message a reader learns to parse in one validator should not
+    read differently in its sibling — and because this file was extracted for exactly this
+    kind of second copy.
+    """
+    a, b = actual.split(" "), expected.split(" ")
+    for i in range(max(len(a), len(b))):
+        if i >= len(a) or i >= len(b) or a[i] != b[i]:
+            return (f"at word {i + 1}: block has "
+                    f"…{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… / canonical has "
+                    f"…{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…")
+    return "no textual difference (a substitution slot did not match its constraint)"
+
+
+def pinned_population(expected, present, noun):
+    """[] when every pinned member is present, else a one-line reason it is not.
+
+    A pinned SET, not a floor. Any seven satisfies a floor of seven, so removing one member
+    while adding another keeps the count whole and the sweep silent — and a duplicated entry
+    keeps the length whole while a real member leaves. Both directions are checked here, once,
+    rather than in two copies of the same seven lines.
+    """
+    dupes = len(expected) != len(set(expected))
+    missing = [rel for rel in expected if rel not in present]
+    out = []
+    if dupes:
+        out.append(f"the pinned {noun} set has a duplicate member, so its length is not its "
+                   f"population — that is the floor failure it exists to prevent")
+    if missing:
+        out.append(f"{len(missing)} expected {noun}(s) no longer qualify: "
+                   f"{', '.join(missing)} — the sweep is wrong, or it really moved and the "
+                   f"pinned set needs the deliberate edit")
+    return out
+
+
 def flat(s):
     """Prose with whitespace collapsed — an instruction is a sentence, not a line."""
     return " ".join(s.split())

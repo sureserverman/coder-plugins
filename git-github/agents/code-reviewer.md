@@ -24,8 +24,16 @@ file missing, and an unset-only test reads that as success. **Confirm each resol
 reference exists before relying on it.** If one does not — or the variable is unset — fall
 back in this order, and say which one you used:
 
-1. the **versioned plugin cache** — `Glob` `**/git-github/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
-2. a **dev checkout** — `Glob` `**/git-github/<that same path>`
+1. the **versioned plugin cache** — `Glob` with `path` set to the plugin cache root
+   (`~/.claude/plugins/cache/`, or `$CLAUDE_CONFIG_DIR/plugins/cache/` when that is set)
+   and pattern `**/git-github/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
+2. a **dev checkout** — `Glob` pattern `**/git-github/<that same path>`, searched from the
+   working directory
+
+Arm 1 needs its explicit `path` because `Glob` is rooted at the working directory, and you
+are dispatched into the repo under review — which is usually not this plugin's checkout, and
+never contains the cache. A rootless arm 1 silently matches nothing everywhere it matters,
+which is the failure the next paragraph names.
 
 Keep that suffix exactly as the reference is written in this file rather than guessing a
 shape. This plugin keeps references at more than one depth, so a guessed `**/git-github/*/references/…` shape misses everything under `skills/<name>/`.

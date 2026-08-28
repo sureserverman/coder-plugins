@@ -143,7 +143,24 @@
 #   cause, and three copies of a guard where reverting a branch left 41 suites green.
 #   Every one was caught by a reviewer and then confirmed by a mutation that should
 #   have been run before the commit.
-planning/skills/executing-plans/SKILL.md 48661
+#
+# Raised 48661 -> 48985 (+324 B) at the plan's close-out, for ONE rule and no
+#   elaboration: how a BLOCKED gate check is WRITTEN (`- [~]`, never `- [x]` with a note).
+#   Why it was worth the bytes: Stage 2 shipped `[~]` and four parsers now read it, but the
+#   instruction to write it lived only in honest-gates — the file BL-083 measured as opened
+#   once per 26 reads of this trunk. The trunk mandated the BLOCKED state and never said how
+#   to record it, so the default an executor reaches for is `[x]` plus an explanatory note,
+#   which is verbatim the anti-pattern BL-077 was filed from. A close-out reviewer found the
+#   seam: the stage that created the marker and the stage that wrote the capsule never met.
+#
+# Raised 48985 -> 49016 (+31 B) in the same close-out, for two accuracy fixes and no
+#   new rule: `--budget-check` now names the working directory it must run from (it walks UP
+#   from cwd only, so run from the vault — which Stage 1 has executors doing for plan edits —
+#   it finds no state and exits 0, indistinguishable from "no round to bound"), and the
+#   untiering citation now names DEC-017 beside DEC-010. DEC-017 exists precisely because
+#   DEC-010's cost line "was right about text and wrong about commands", so citing only
+#   DEC-010 for a command-costing mandate cited the superseded half.
+planning/skills/executing-plans/SKILL.md 49016
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -334,7 +351,10 @@ planning/skills/portfolio/SKILL.md 13254
 #   rejecting the counterexample it was shown and admitting the next, while this file already
 #   carried the sentence saying that cannot work. A rule not consulted at the moment of
 #   choosing is not in force, so it sits FIRST in its section; that position is the fix.
-planning/skills/honest-gates/SKILL.md 13608
+#
+# Raised 13608 -> 13645 (+37 B) in the same close-out: the untiering citation names
+#   DEC-017 beside DEC-010, for the reason above. Citation only; no rule changed.
+planning/skills/honest-gates/SKILL.md 13645
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

@@ -306,6 +306,18 @@ def main():
         # invisible to the four assertions above.
         "BLOCKED is the check that could not run":
             "If you cannot make the real check run here, the gate is BLOCKED, not green",
+        # Added at close-out. Four parsers read `[~]`, and the trunk mandated the BLOCKED
+        # state without ever saying how to write it — the instruction lived only in
+        # honest-gates, the file BL-083 measured as opened once per 26 reads of this trunk.
+        # An executor reaching for the default writes `[x]` plus a note, which is verbatim
+        # the anti-pattern BL-077 was filed from.
+        "how a BLOCKED check is written":
+            "the checklist item as `- [~]`, never `- [x]` with a note explaining "
+            "it away",
+        # Pinned because it was a PARAPHRASE of honest-gates rather than a restatement,
+        # in a capsule whose entire purpose is faithful restatement.
+        "a dirty tree proves nothing":
+            "uncommitted edits proves nothing about what the branch records",
     }
     hg = flat(HONEST_GATES.read_text(encoding="utf-8"))
     gate, gate_anchored = slice_between(

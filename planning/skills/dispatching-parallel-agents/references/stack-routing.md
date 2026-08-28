@@ -110,7 +110,7 @@ treat a handoff pack there as loose visual inspiration, not a fidelity target.
 `executing-plans` Step 3.3 requires every dispatched task to run its `Test:`, flip its
 `Status:` to `[x]`, and land a commit ending in an executor trailer. **Four of the agents
 this table routes to cannot do that**, because their `tools:` grant withholds what it takes.
-Swept 2026-08-09 against every agent frontmatter in the marketplace
+Swept 2026-08-28 (re-verified at the session-mined-flaws close-out; two agent grants changed that day — `code-reviewer` and `market-researcher` — and neither has a row here) against every agent frontmatter in the marketplace
 (grep -m1 '^tools:' over every `*/agents/*.md`):
 
 | Routed agent | Can run a test? | Can commit? |

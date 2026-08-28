@@ -96,7 +96,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _contract_block import extract, span, flat  # noqa: E402
+from _contract_block import (extract, first_difference, flat,  # noqa: E402
+                             pinned_population, span)
 
 class SweepUnavailable(RuntimeError):
     """The population could not be enumerated — a BLOCKED sweep, not a clean tree."""
@@ -243,16 +244,9 @@ def definition_problems(n_sites):
                   and sum(1 for x, y in zip(a, b) if x != y) == 1
                   and any(x in WORD_NUMBERS.values() for x, y in zip(a, b) if x != y))
     code = "STALE-SITE-COUNT" if only_count else "NO-DEFINITION"
-    for i in range(max(len(a), len(b))):
-        if i >= len(a) or i >= len(b) or a[i] != b[i]:
-            tail = ("" if only_count else
-                    "; every site points here and would resolve to nothing")
-            return [(code,
-                     f"the block is not `contracts/read-only.md` rendered for {n_sites} "
-                     f"executing-plans site(s) — at word {i + 1}: block has "
-                     f"…{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… / canonical has "
-                     f"…{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…{tail}")]
-    return []
+    tail = "" if only_count else "; every site points here and would resolve to nothing"
+    return [(code, f"the block is not `contracts/read-only.md` rendered for {n_sites} "
+                   f"executing-plans site(s) — {first_difference(got, want)}{tail}")]
 
 
 def paraphrases():
@@ -290,13 +284,10 @@ def main():
     problems = []
 
     present = {rel for rel, _, _, _ in found}
-    missing = [rel for rel in EXPECTED_SITES if rel not in present]
-    if missing:
-        # A pinned set, not a floor: substitution keeps a count whole while the sweep goes
-        # quiet, so the members are named and their absence is the finding.
-        print(f"FAIL: {len(missing)} expected (read-only) site file(s) no longer carry "
-              f"one: {', '.join(missing)} — the sweep is wrong, or the site really moved "
-              f"and EXPECTED_SITES needs the deliberate edit.", file=sys.stderr)
+    attrition = pinned_population(EXPECTED_SITES, present, "(read-only) site")
+    if attrition:
+        for why in attrition:
+            print(f"FAIL: {why}", file=sys.stderr)
         return 1
 
     problems += [f"  {rel}:{n}: ORPHAN-READONLY — '(read-only)' with no `{ANCHOR}` within "

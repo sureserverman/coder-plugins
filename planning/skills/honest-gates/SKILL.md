@@ -173,7 +173,7 @@ evidence.
 
 Three rules, in the order they have to happen. They cost a command each and no
 agent dispatch, so they are **untiered — they run at every review scope including
-`none`** (DEC-010's cost line: a mandate costing a line of text or a local
+`none`** (DEC-010's cost line as DEC-017 corrected it for commands: a mandate costing a line of text or a local
 re-run is not tiered; a mandate costing an agent is).
 
 1. **Write the set down before the fix.** Before patching, enumerate the

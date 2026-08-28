@@ -278,6 +278,34 @@ def main():
               "a canonical block sitting BELOW the output schemas is rejected — a "
               "first-screen promise made on the third screen is not the same promise")
 
+    with tempfile.TemporaryDirectory() as tmp:
+        # An H3, not an H2. The only BLOCK-NOT-FIRST fixture used `## Output format`, so
+        # narrowing HEADING_RE back to `^## ` survived — and `### Output schema N` above
+        # the block is the shape the rule was written for.
+        root = Path(tmp)
+        d = root / "demo" / "agents"; d.mkdir(parents=True)
+        p = d / "h3.md"
+        p.write_text(f"# a\n\n### Output schema 1\n\ntext\n\n{car.OPEN}\n"
+                     f"{canonical('demo', 'REVIEW')}\n{car.CLOSE}\n\n"
+                     f"Read `${{CLAUDE_PLUGIN_ROOT}}/references/x.md`.\n")
+        check(with_root(root, lambda: codes(p)) == ["BLOCK-NOT-FIRST"],
+              "a block below an H3 output schema is rejected — the rule is 'nothing else "
+              "is read first', not 'no H2 precedes it'")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Unheaded prose reads first too, and FIRST_SCREEN_LINES was pinned by nothing:
+        # raising it to 100000 survived the whole harness.
+        root = Path(tmp)
+        d = root / "demo" / "agents"; d.mkdir(parents=True)
+        p = d / "buried.md"
+        p.write_text(f"# a\n\n" + ("filler\n" * 60) + f"\n{car.OPEN}\n"
+                     f"{canonical('demo', 'REVIEW')}\n{car.CLOSE}\n\n"
+                     f"Read `${{CLAUDE_PLUGIN_ROOT}}/references/x.md`.\n")
+        check(with_root(root, lambda: codes(p)) == ["BLOCK-NOT-FIRST"],
+              f"a block buried under 60 lines of unheaded prose is rejected — "
+              f"FIRST_SCREEN_LINES ({car.FIRST_SCREEN_LINES}) is the bound, and a heading "
+              f"check alone cannot see prose")
+
     print("check-agent-references — the noun slot, the design's only free field:")
     with tempfile.TemporaryDirectory() as tmp:
         # `[A-Z]+` is what keeps the slot from becoming a hole. Nothing asserted it, so a

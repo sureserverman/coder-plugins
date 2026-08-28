@@ -188,8 +188,10 @@ def portfolio_plans_dir(repo_root):
         return None
     # A THIRD answer, and this file is the one place it is not an error: a
     # `vault_dir` that is set but names a missing directory. Every other
-    # portfolio consumer refuses loudly on it (portfolio/SKILL.md § Resolver) —
-    # this one must not, and does not, and the difference is deliberate.
+    # *scripted* portfolio consumer refuses loudly on it (portfolio/SKILL.md
+    # § Resolver, which says "scripted" for this reason) — this one must not,
+    # and does not, and the difference is deliberate. Three SKILLS still branch
+    # on unset alone and are not covered by that sweep: BL-101.
     #
     # This function runs on EVERY prompt render. A sys.exit here is a broken
     # shell prompt, and a warning here is a warning printed forever; neither is

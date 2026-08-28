@@ -62,6 +62,32 @@ def main():
           "a DUPLICATED block yields no span — excluding a guessed range would hide real "
           "findings, which is worse than excluding nothing")
 
+    print("_contract_block — first_difference:")
+    check("at word 3" in cb.first_difference("a b X d", "a b c d"),
+          "the first differing word is located, 1-indexed")
+    check("at word 3" in cb.first_difference("a b", "a b c"),
+          "a text that simply RUNS OUT diverges at the first missing word, not at its end "
+          "— a prefix must never read as a match")
+    check("<end>" in cb.first_difference("", "a b c"),
+          "an empty side renders as <end> rather than as blank context")
+    check(cb.first_difference("a b c", "a b c").startswith("no textual difference"),
+          "identical texts say so explicitly — a caller that reached here has a slot "
+          "mismatch, not a word mismatch, and the message must not imply otherwise")
+
+    print("_contract_block — pinned_population:")
+    check(cb.pinned_population(("a", "b"), {"a", "b"}, "agent") == [],
+          "a fully present pinned set is silent")
+    out = cb.pinned_population(("a", "b"), {"a"}, "agent")
+    check(len(out) == 1 and "b" in out[0], "a missing member is named, not counted")
+    dup = cb.pinned_population(("a", "a"), {"a"}, "agent")
+    check(any("duplicate" in w for w in dup),
+          "a DUPLICATED member is a finding even though every member is present — the "
+          "length is then not the population, which is the floor failure the pinned set "
+          "exists to prevent")
+    both = cb.pinned_population(("a", "a", "b"), {"a"}, "agent")
+    check(len(both) == 2,
+          "duplication and absence are reported independently — one must not mask the other")
+
     print("_contract_block — flat:")
     check(cb.flat("a\n  b\n\nc") == "a b c", "whitespace collapses to single spaces")
 

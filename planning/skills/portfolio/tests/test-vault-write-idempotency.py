@@ -140,6 +140,42 @@ def integration_md(project, depends=(), impacts=()):
 
 
 # --------------------------------------------------------------------------
+def generated_stamp_case():
+    """`write_if_changed` treats a bare `Generated:` line-2 stamp as a timestamp.
+
+    BL-074's own subject, and the half that had no mutant: dropping the second `re.sub`
+    from `strip_ts` left the entire harness green. `global-business.md` comes from
+    business-rollup.py, a separately versioned plugin that stamps `Generated:` instead of
+    `**Last rebuilt:**`, so it was the one roll-up still rewriting itself on every date
+    change — exactly the churn the stage set out to stop, invisible to a same-day run.
+    """
+    pr = load("portfolio-rebuild")
+    with tempfile.TemporaryDirectory() as root:
+        f = Path(root) / "global-business.md"
+        day1 = "# Global Business\nGenerated: 2026-01-01\n\nbody unchanged\n"
+        day2 = "# Global Business\nGenerated: 2026-06-30\n\nbody unchanged\n"
+        f.write_text(day1)
+        freeze(f)
+        pr.write_if_changed(f, day2)
+        check(untouched(f) and f.read_text() == day1,
+              "a `Generated:` stamp change alone rewrites nothing — the second half of "
+              "strip_ts is what makes global-business.md idempotent across days")
+
+        changed = "# Global Business\nGenerated: 2026-06-30\n\nbody CHANGED\n"
+        pr.write_if_changed(f, changed)
+        check(f.read_text() == changed,
+              "and a real content change still writes — the normalisation must not "
+              "swallow the diff it exists to detect")
+
+        # count=1 is load-bearing: a `Generated:` in a project's own content further down
+        # is content, not a header stamp, and must still register as a change.
+        f.write_text("# G\nGenerated: 2026-01-01\n\nrow\nGenerated: 2026-01-01\n")
+        pr.write_if_changed(f, "# G\nGenerated: 2026-06-30\n\nrow\nGenerated: 2026-06-30\n")
+        check("row\nGenerated: 2026-06-30" in f.read_text(),
+              "a second `Generated:` in the body is content, not a stamp — count=1 keeps "
+              "the normalisation to the header region")
+
+
 def integrate_cases():
     """Two `integrate --write` runs on an unchanged vault, on different days."""
     with tempfile.TemporaryDirectory() as root:
@@ -372,6 +408,8 @@ def sweep_case():
 
 
 if __name__ == "__main__":
+    print("write_if_changed — both stamp forms:")
+    generated_stamp_case()
     print("integrate — byte-idempotent roll-ups across a date change:")
     integrate_cases()
     print("unify — justified append exception:")
