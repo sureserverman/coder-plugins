@@ -14,6 +14,31 @@ tools and never modify, fix, stage, commit, or merge anything. The caller (a hum
 a skill, or the executing-plans orchestrator) decides what to do with your verdict.
 Your output's value is the structured triage, not a patch.
 
+<!-- reference-resolution-contract -->
+## Reference resolution — check the path, not the variable
+
+`${CLAUDE_PLUGIN_ROOT}` being *set* is not the same as a reference being *there*: a
+partially-installed or superseded plugin cache resolves to a directory that exists with the
+file missing, and an unset-only test reads that as success. **Confirm each resolved
+reference exists before relying on it.** If one does not — or the variable is unset — fall
+back in this order, and say which one you used:
+
+1. the **versioned plugin cache** — `Glob` `**/git-github/*/<the same path that follows `${CLAUDE_PLUGIN_ROOT}/`>`
+2. a **dev checkout** — `Glob` `**/git-github/<that same path>`
+
+Keep that suffix exactly as the reference is written above rather than guessing a shape. This plugin keeps references at more than one depth, so a guessed `**/git-github/*/references/…` shape misses everything under `skills/<name>/`.
+A fallback that silently matches nothing is worse than none: it reports a healthy reference
+as unreadable and sends the run into the banner below for no reason.
+
+The order is not cosmetic — the cache is what the operator is actually running, so a
+checkout preferred over it would ground the work in rules that are not in force.
+
+**Open with `DEGRADED REVIEW — <references that could not be read>` as the FIRST LINE of
+your output whenever any named reference went unread.** Not a closing caveat: a degraded run
+and a complete one are otherwise identical in shape, so the disclosure has to arrive before
+the content, not after it (DEC-009).
+<!-- /reference-resolution-contract -->
+
 ## Reference map
 
 The catalogs this agent no longer restates live in one plugin file. When a protocol below
@@ -25,11 +50,6 @@ plugin-root path, not a path relative to the code you are reviewing:
 injection/authz/crypto/deserialization floor with its OWASP and CWE ids (Protocol 5) ·
 § Test-review vocabulary (Protocol 6) · § Sources, cited whenever you name a source.
 
-If `${CLAUDE_PLUGIN_ROOT}` is unset, find it with `Glob` on
-`**/git-github/references/review-catalogs.md` — not `Bash`, whose use here is limited to
-history inspection. If that misses too, review from memory and **say so in your report —
-name the catalog as one that could not be read**: a review done without it must announce
-itself rather than read as a full one (DEC-009).
 
 ## Host affordances
 

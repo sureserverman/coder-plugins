@@ -457,8 +457,11 @@ write them.** The measured incident behind all three: `references/task-execution
    fixtures from the requirement, never from observed behavior**, since a fixture
    shaped by what the code does cannot falsify what the code does. Untiered (DEC-010's
    cost line: a re-run, not an agent), so it runs at every scope including `none`.
-   Rationale and the failures behind each clause:
-   `../honest-gates/SKILL.md` § *A test does not exist until its mutant dies*.
+   **And before writing a CHECKER rather than a test, ask first whether the mechanism
+   can decide the property at all** — a pattern cannot decide what prose means, so make
+   the property structural or leave it to review and say so. Rationale, and the failures
+   behind each clause: `../honest-gates/SKILL.md` § *A test does not exist until its
+   mutant dies*.
 
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.

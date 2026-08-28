@@ -148,6 +148,22 @@ The rules above govern claims about runs and about code. This one governs the
 **check itself**, because a green suite is the claim everything else is built on,
 and a test derived from the fix it is meant to guard cannot fail on it.
 
+**First, before any of it: can this mechanism decide this property?** Name what the
+check actually decides. If that is a fact about the *meaning* of prose — does this
+sentence instruct, assert, disclose, promise — **no pattern can decide it**; this file's
+§ *A behavioral claim is a gate too* says so already. Hardening buys one evasion class per
+round: each pass rejects the counterexample you were shown and admits the next one, while
+the suite stays green and reads like progress.
+
+Two ways out, and they are the only two. **Make the property structural** — a delimited
+block, a required literal, a machine-readable marker — so the question becomes decidable
+and text outside the structure cannot satisfy it. Or **leave it to review and say so in
+the checker**, which is what `check-behavioral-claims.py` not existing means.
+
+Written from a checker that cost two review rounds and five Criticals before its author
+noticed he had built the thing this file says cannot be built. A rule not consulted at the
+moment of choosing is not in force — hence its position here, first.
+
 **The rule this backs up already exists and already failed.** `executing-plans`
 Step 3.3 opens "the test is written first and must go RED for the right reason" —
 correct, and unenforceable after the fact: a test written first and a test
