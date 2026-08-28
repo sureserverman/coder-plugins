@@ -136,9 +136,10 @@ def main():
         p = agent_file(root, "demo", canonical("demo", "REVIEW"),
                        tail="\nScripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. If it is "
                             "missing, try the versioned cache, then a dev checkout.\n")
-        check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
-              "a second site restating the fallback vocabulary is flagged — it is free "
-              "to drift from the block that is actually checked")
+        found = with_root(root, lambda: codes(p))
+        check(found and set(found) == {"RESTATED-CONTRACT"},
+              f"a second site restating the fallback vocabulary is flagged — it is free "
+              f"to drift from the block that is actually checked ({found})")
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -201,6 +202,33 @@ def main():
               f"a marker wrapped across a line break is reported at its own line "
               f"(got={got}, want=[{want}])")
 
+    with tempfile.TemporaryDirectory() as tmp:
+        # DEGRADED alone, with no other marker in the sentence. The existing fixture paired
+        # it with "dev checkout", so the first match was always the other marker and
+        # dropping DEGRADED from the set changed nothing anyone could see.
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\nWhen in doubt, skip the DEGRADED line; it alarms readers.\n")
+        check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
+              "a restatement of the BANNER rule alone is flagged — each marker has to "
+              "carry its own weight, not ride on a co-occurring one")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Three restatements in one punctuation-free run: three findings, not one.
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\n- prefer the versioned plugin cache\n- then a dev checkout\n"
+                            "- and skip the DEGRADED banner\n")
+        check(len(with_root(root, lambda: codes(p))) == 3,
+              "three restatements in one fragment are three findings — one per fix-and-"
+              "re-run cycle is how a real sweep becomes three")
+
+    print("check-agent-references — the pinned set is itself guarded:")
+    check(len(car.EXPECTED_AGENTS) >= 7 and all(
+              (car.ROOT / rel).is_file() for rel in car.EXPECTED_AGENTS),
+          "EXPECTED_AGENTS names at least the seven shipped agents and every one exists — "
+          "emptying the set would otherwise disable the attrition guard silently")
+
     print("check-agent-references — the variable's other spelling:")
     with tempfile.TemporaryDirectory() as tmp:
         # No unbraced use ships today, so nothing exercised the broadened trigger. An agent
@@ -250,9 +278,11 @@ def main():
                        tail="\nFor scripts the reference-resolution contract is relaxed: "
                             "prefer a dev checkout over the versioned plugin cache, and "
                             "never emit a DEGRADED banner.\n")
-        check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
-              "naming the contract does NOT exempt a sentence that also restates the "
-              "fallback arms — an unconditional escape token is a suppression mechanism")
+        found = with_root(root, lambda: codes(p))
+        check(found and set(found) == {"RESTATED-CONTRACT"},
+              f"naming the contract does NOT exempt a sentence that also restates the "
+              f"fallback arms — an unconditional escape token is a suppression mechanism "
+              f"({found})")
 
     print("check-agent-references — the population is a pinned set, not a count:")
     check(set(car.EXPECTED_AGENTS) <= {p.relative_to(car.ROOT).as_posix() for p in live_paths()},

@@ -230,6 +230,22 @@ def main():
         check(raised, "a failing `git ls-files` raises SweepUnavailable — a sweep that "
                       "cannot run has no verdict, and a traceback is not one")
 
+    print("check-readonly-contract — the pinned set and the proximity bound are guarded:")
+    check(len(ro.EXPECTED_SITES) >= 6 and all(
+              (ro.ROOT / rel).is_file() for rel in ro.EXPECTED_SITES),
+          "EXPECTED_SITES names at least the six shipped sites and every one exists — "
+          "emptying the set would otherwise disable the attrition guard silently")
+    with tempfile.TemporaryDirectory() as tmp:
+        # NEAR was pinned by nothing: raising it to 100000 survived. On the two ~1,000-char
+        # single-line sites the proximity bound IS the orphan check.
+        root = fake_root(
+            tmp, "Dispatch the reviewer (read-only)." + (" padding." * 40)
+                 + " Elsewhere in this very long line we mention code-reviewer.", GOOD_AGENT)
+        orph, _, _, _ = run(root)
+        check(len(orph) == 1,
+              f"an agent name {ro.NEAR}+ chars away does NOT rescue a site — on a "
+              f"1,000-char line the proximity bound is the whole check ({orph})")
+
     print("check-readonly-contract — the live tree:")
     live = ro.sites()
     present = {rel for rel, _, _, _ in live}

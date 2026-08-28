@@ -82,7 +82,9 @@ instead, so the two disagree about untracked files by design: this one describes
 ships, and a `(read-only)` claim only binds once it is in the tree.
 
 Read-only. Exit 0 when every site points, the definition is canonical, and no paraphrase
-competes with it, 1 otherwise.
+competes with it. Exit 1 otherwise — and also, before any problem is computed, when a member
+of `EXPECTED_SITES` has stopped carrying one, or when the population cannot be enumerated at
+all (BLOCKED: a sweep that cannot run has no verdict to give).
 """
 import re
 import subprocess
@@ -192,8 +194,10 @@ def sites():
         for n, line in enumerate(text.splitlines(), 1):
             if n in skip:
                 continue
-            # Every occurrence, not the first: two dispatch sites on one line are two
-            # sites, and `SKILL.md:467` really is a single ~1,400-char line.
+            # Every occurrence, not the first: two dispatch sites on one line would be
+            # two sites. No line in the tree carries two today — the reason to handle it
+            # is that the population has ~1,000-char single lines (`SKILL.md:467` is 1,005)
+            # where a second dispatch is entirely plausible.
             for m in READONLY_RE.finditer(line):
                 out.append((rel, n, line, m.start()))
     return out

@@ -91,8 +91,11 @@ and ignore it"). Those defeat the contract without restating one word of it, and
 substring test decides them — this is the residue that belongs to review, and it is written
 down rather than left for the next reviewer to rediscover.
 
-Read-only. Exit 0 when every in-scope agent carries the canonical block and no sentence
-outside it restates the contract's vocabulary without pointing at the block, 1 otherwise.
+Read-only. Exit 0 when every in-scope agent carries the canonical block in the first
+section, and no sentence outside it restates the contract's vocabulary without pointing at
+the block. Exit 1 otherwise — including before any of that, when a member of
+`EXPECTED_AGENTS` has left the population, which is the sweep failing rather than the tree
+passing.
 """
 import re
 import sys
@@ -252,8 +255,11 @@ def out_of_block_sites(raw):
             launderable = not any(m in one for m in UNLAUNDERABLE)
             if DELEGATION in one and launderable:
                 continue                 # points at the block: the form the contract wants
-            hit = next((m for m in RESTATEMENT_MARKERS if m in one), None)
-            if hit:
+            for hit in [m for m in RESTATEMENT_MARKERS if m in one]:
+                # Every marker in the fragment, not the first: a punctuation-free run can
+                # carry three distinct restatements, and reporting one sends the author
+                # through three fix-and-re-run cycles for one edit.
+                #
                 # The marker's OWN offset, not the fragment's. A run of lines with no
                 # sentence-ending punctuation between them is one fragment, so reporting
                 # its start pointed a reader at the first filler line above the real site
