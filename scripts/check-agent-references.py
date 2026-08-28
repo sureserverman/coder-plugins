@@ -85,7 +85,15 @@ UNSET_RE = re.compile(r"\bif\b[^.]{0,60}\bunset\b", re.I)
 # exact defect class this contract exists to catch, wearing different words. Now every
 # such conditional counts unless it is plainly a parameter default, because a false
 # positive is visible and fixable while a false negative is the bug shipping.
-PARAM_DEFAULT_RE = re.compile(r"default[^.]{0,60}if[^.]{0,20}unset", re.I)
+PARAM_DEFAULT_RE = re.compile(r"default[^.]{0,60}unset|unset[^.]{0,60}default", re.I)
+# Proximity to something that could BE a resolution site. An opt-in on one keyword was
+# blind to a paraphrase; no gate at all flagged an unrelated `if LOCALE is unset`. The
+# middle is a broad noun set: narrow enough not to fire on unrelated prose, wide enough
+# that a paraphrase still lands. Disclosed rather than assumed complete — a resolution
+# site phrased without any of these words is not caught, and that is the accepted cost.
+RESOLUTION_CTX_RE = re.compile(
+    r"CLAUDE_PLUGIN_ROOT|plugin root|plugin's own|reference|script location|"
+    r"install location|catalog|rubric|located?\b|find it|glob", re.I)
 NEAR = 500
 
 
@@ -94,8 +102,24 @@ def flat(s):
     return " ".join(s.split())
 
 
+ABBREV_RE = r"(?<!\brev)(?<!\bno)(?<!\bvs)(?<!\bcf)(?<!\betc)(?<!\be\.g)(?<!\bi\.e)(?<!\bfig)(?<!\bapprox)"
+
+
 def sentences(s):
-    return re.split(r"(?<=[.!?])\s+", s)
+    r"""Sentence split that does not fire on a common abbreviation.
+
+    Two failed attempts are recorded here because each was wrong in an instructive
+    direction. A naive `(?<=[.!?])\s+` treats "rev. 2" as a boundary, cutting one
+    instruction in half and failing an agent a human reads as compliant. Widening to
+    accept ADJACENT sentence pairs fixed that and immediately reopened the hole this
+    check exists for — two unrelated sentences in one paragraph are adjacent, so the
+    pair carried the banner token and the FIRST-LINE mandate and passed.
+
+    So the boundary itself is made accurate instead: split only where a period is
+    followed by whitespace and a capital, and not after a known abbreviation. The unit
+    stays exactly one sentence, which is the property.
+    """
+    return re.split(ABBREV_RE + r"(?<=[.!?])\s+(?=[A-Z`*])", s)
 
 
 def agents():
@@ -109,6 +133,13 @@ def findings_for(path):
         return None                      # not in the population
     out = []
 
+    if raw.count(OPEN) > 1 or raw.count(CLOSE) > 1:
+        # Only the first pair was ever extracted, so a second block's missing banner or
+        # missing order went unchecked entirely. Reported distinctly rather than by
+        # silently checking one of them.
+        return [("DUPLICATE-CONTRACT-BLOCK",
+                 f"{raw.count(OPEN)} open / {raw.count(CLOSE)} close markers; exactly "
+                 f"one contract block per agent, or only the first is ever checked")]
     if OPEN not in raw or CLOSE not in raw or raw.index(CLOSE) < raw.index(OPEN):
         return [("NO-CONTRACT-BLOCK",
                  f"no `{OPEN}` … `{CLOSE}` block; the contract is checked only inside "
@@ -139,14 +170,17 @@ def findings_for(path):
         for m in UNSET_RE.finditer(seg):
             lo, hi = max(0, m.start() - NEAR), min(len(seg), m.end() + NEAR)
             window = flat(seg[lo:hi])
-            if PARAM_DEFAULT_RE.search(flat(seg[max(0, m.start() - 80):m.end() + 40])):
+            if PARAM_DEFAULT_RE.search(flat(seg[max(0, m.start() - 80):m.end() + 60])):
                 continue                 # a parameter default, not a resolution site
+            if not RESOLUTION_CTX_RE.search(window):
+                continue                 # nothing nearby suggests reference resolution
             if not EXISTENCE_RE.search(window):
-                line = raw.count("\n", 0, raw.index(seg[m.start():m.end()])) + 1 \
-                    if seg[m.start():m.end()] in raw else 0
+                line = raw.count("\n", 0, raw.index(m.group(0))) + 1 \
+                    if m.group(0) in raw else 0
                 out.append(("NO-EXISTENCE-CHECK",
-                            "a resolution site OUTSIDE the contract block branches on a "
-                            "variable being unset with no existence check near it"))
+                            f"line {line}: a resolution site OUTSIDE the contract block "
+                            f"branches on a variable being unset with no existence "
+                            f"check near it"))
     return out
 
 

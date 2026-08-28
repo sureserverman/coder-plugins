@@ -215,6 +215,7 @@ adding the three Step 3.5 rows below.
 | Step 3.3 — Red-Green loop (per task) | **One fix per cycle.** |
 | Step 3.3 — Red-Green loop (per task) | must go RED for the right |
 | Step 3.3 — Red-Green loop (per task) | revert the fix (not the test) |
+| Step 3.3 — Red-Green loop (per task) | whether the mechanism |
 | Step 3.3 — Red-Green loop (per task) | Respect the cycle budget |
 | Step 3.3 — Red-Green loop (per task) | Flip the task's Status to `[x]` |
 | Step 3.3 — Red-Green loop (per task) | Executor: dispatched — <subagent_type> |

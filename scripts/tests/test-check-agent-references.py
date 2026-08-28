@@ -136,6 +136,26 @@ def main():
               "an unrelated parameter default is NOT flagged — a checker that fires on "
               "unrelated text teaches its readers to ignore it")
 
+    print("check-agent-references — robustness the third review found missing:")
+    with tempfile.TemporaryDirectory() as t:
+        check(codes(t, HEAD + block() + "\n" + block()) == ["DUPLICATE-CONTRACT-BLOCK"],
+              "TWO blocks in one file is reported, not silently reduced to the first — "
+              "a second block's missing clauses went entirely unchecked")
+
+        check(codes(t, HEAD + block(banner=(
+                  "Open with `DEGRADED REVIEW — what was unread` as documented in "
+                  "DEC-009 rev. 2, as the FIRST LINE of your output."))) == [],
+              "an abbreviation inside the banner sentence does not split it — the "
+              "boundary is accurate rather than the window being widened")
+
+        check(codes(t, HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
+                   "If `LOCALE` is unset, fall back to en-US.\n") == [],
+              "an unrelated `if X is unset` with no resolution context is not flagged")
+
+        check(codes(t, HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
+                   "Treat the depth flag as unset and use the default `triage`.\n") == [],
+              "a parameter default in either word order is not flagged")
+
     print("check-agent-references — the live tree:")
     live = [p for p in refs.agents()
             if refs.TRIGGER in p.read_text(encoding="utf-8", errors="replace")]
