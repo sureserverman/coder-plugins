@@ -10,53 +10,74 @@ real directory in a partially-installed or superseded plugin cache, so an unset-
 reports success and the agent proceeds ungrounded, producing output shaped exactly like
 the grounded kind.
 
-What it checks, and why each one:
+WHAT THIS DECIDES, AND WHY IT IS DECIDABLE
+------------------------------------------
+**The block must be the canonical contract, byte for byte after whitespace flattening.**
+Not "a block containing the words confirm and exists" — the canonical text itself, held in
+`contracts/reference-resolution.tmpl.md`, with exactly three substitution points:
 
-  NO-EXISTENCE-CHECK  the agent's resolution prose covers only the unset case. It must
-                      instruct checking that the resolved PATH exists, because "set" and
-                      "there" are different facts and only one of them is verified by
-                      reading the variable.
-  NO-FALLBACK-ORDER   the fallback does not order versioned-cache before dev-checkout, or
-                      does not require saying which was used. Order matters: the cache is
-                      what the operator is running, so silently preferring a checkout
-                      grounds the work in rules that are not in force — and an
-                      undisclosed choice between two sources is not reproducible.
-  NO-DEGRADED-BANNER  no first-line `DEGRADED <NOUN> —` banner is mandated. A closing
-                      caveat is not enough: a degraded run and a complete one are
-                      identical in shape, so the disclosure has to arrive before the
-                      content or a skimming reader never meets it.
+  {PLUGIN}      the plugin directory the agent lives in, taken from its own path
+  {NOUN}        the agent's output noun in the banner (REVIEW, TRANSLATION, ADVICE …),
+                constrained to one all-caps word
+  {DEPTH_NOTE}  which of three fixed sentences applies, **computed from disk** — whether
+                the plugin has `references/` at its root, under `skills/<name>/`, or both
+
+Three earlier cuts of this file tried to infer the contract from prose — first from an
+agent's ordinary text, then from tokens inside a delimited block. Reviewers defeated every
+one of them, and the last round is the reason this file no longer tries: `confirm the
+VARIABLE exists` satisfied a check whose stated purpose was rejecting exactly that; `do not
+check that each resolved reference exists` satisfied it too, because presence of a token
+cannot distinguish an instruction from its own prohibition; a reversed fallback list passed
+by seeding decoy `1.`/`2.` digits in ordinary prose. `honest-gates` § *A test does not
+exist until its mutant dies* names the two ways out and only two — make the property
+structural, or leave it to review and say so. A **required literal** is the structural one,
+and it is available here precisely because these blocks are generated boilerplate rather
+than authored prose.
+
+So polarity, subject, order and wording are all decided now, because none of them can vary:
+an inverted clause is not the canonical text, and neither is a reworded one.
+
+  NON-CANONICAL-CONTRACT  the block is not the canonical text for this plugin. The report
+                          names the first differing run of words in both directions.
+  NO-CONTRACT-BLOCK       no `<!-- reference-resolution-contract -->` block at all.
+  DUPLICATE-CONTRACT-BLOCK  more than one pair; only one would ever be read.
+  RESTATED-CONTRACT       a sentence outside the block uses the contract's own vocabulary
+                          without pointing at the block, so it is a second copy of the
+                          rules, free to drift from the one that is checked.
 
 The population is every `*/agents/*.md` naming `${CLAUDE_PLUGIN_ROOT}` — enumerated here
-rather than hardcoded, so a new agent joins the check by existing. That is the point: the
-one-shot gate sweep this replaces could only ever have covered the seven agents present on
-the day it ran, and the defect class is "an agent whose reference went unread", which every
-future agent inherits.
+rather than hardcoded, so a new agent joins the check by existing. `EXPECTED_AGENTS` guards
+the other direction: a population that *shrinks* is a sweep that stopped looking, and only
+a floor catches that. Both guards are needed; neither implies the other.
 
-**Why a delimited block rather than prose matching.** The first two cuts of this file
-tried to infer the contract from an agent's ordinary prose, and a reviewer defeated every
-check twice — once with constructed text, once with a decoy sentence *already shipped* in
-code-reviewer.md's Protocol 2. That was predictable, and `honest-gates` § "A behavioral
-claim is a gate too" already says why: **no validator can decide whether an English
-sentence asserts behavior.** Hardening the regexes buys one evasion class per round.
+WHAT THIS STILL CANNOT SCREEN, disclosed per DEC-008
+----------------------------------------------------
+**Whether a dispatched agent follows the block.** Only its live output shows that, and no
+static check ever reaches it. Saying so is the rule — claiming more would be the overreach
+the banner itself exists to prevent.
 
-So the property was made decidable instead. Each in-scope agent carries the contract inside
-`<!-- reference-resolution-contract -->` … `<!-- /reference-resolution-contract -->`, and
-every check below runs **only on the text between those markers**, with the fallback order
-anchored to the enumerated `1.`/`2.` list rather than to first-occurrence-anywhere. A decoy
-elsewhere in the file cannot satisfy anything, because nothing outside the block is read.
-That is not a stronger regex; it is a smaller question.
+**The out-of-block lane decides RESTATEMENT, not compliance, and it is incomplete in one
+direction.** Both halves of that matter. It is decidable — "does this sentence contain one
+of these fixed strings without also naming the contract" is a substring test, not a reading
+of what the sentence means — so it never has to judge whether prose is compliant, which is
+the judgment this file may not make. But a second copy of the rules written in entirely
+different words carries none of the markers and is not caught. That gap is real and is the
+accepted cost of not being noisy: the previous, wider trigger flagged four unrelated
+sentences for every genuine site, and a check whose findings are mostly noise is one whose
+readers learn to skip it.
 
-**What this still cannot check.** Whether a dispatched agent *follows* the block. Only its
-live output shows that. Saying so is the rule — claiming more would be the overreach the
-banner itself exists to prevent.
-
-Read-only. Exit 0 when every such agent carries all three, 1 otherwise.
+Read-only. Exit 0 when every in-scope agent carries the canonical block and no sentence
+outside it restates the contract's vocabulary without pointing at the block, 1 otherwise.
 """
 import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _contract_block import extract, flat  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
+CONTRACTS = ROOT / "scripts" / "contracts"
 
 # An agent is in scope when it tells the model to read a plugin-rooted reference.
 TRIGGER = "${CLAUDE_PLUGIN_ROOT}"
@@ -64,62 +85,83 @@ TRIGGER = "${CLAUDE_PLUGIN_ROOT}"
 OPEN = "<!-- reference-resolution-contract -->"
 CLOSE = "<!-- /reference-resolution-contract -->"
 
-# All matched INSIDE the block only, on whitespace-flattened text (an instruction is a
-# sentence, not a line — matching raw text made these checks sensitive to where a
-# paragraph happened to wrap).
-EXISTENCE_RE = re.compile(
-    r"\b(confirm|check|verify|ensure)\b[^.]{0,90}\b(exists?|is there|is present)\b", re.I)
-CACHE_ITEM_RE = re.compile(r"1\.[^2]{0,120}?versioned\s+\**plugin cache\**", re.I)
-CHECKOUT_ITEM_RE = re.compile(r"2\.[^1]{0,120}?\**dev\s+checkout\**", re.I)
-SAID_WHICH_RE = re.compile(r"say which (one|arm) you used", re.I)
-BANNER_RE = re.compile(r"`?DEGRADED [A-Z]+ —", re.I)
-FIRST_LINE_RE = re.compile(r"FIRST[ -]LINE", re.I)
+# A floor, not an equality: a new agent joining the population is the design working, a
+# population that shrinks below what ships today is the glob or the trigger having stopped
+# matching. Raise it when an agent is added; a reviewer then sees the number move.
+EXPECTED_AGENTS = 7
 
-# A resolution site OUTSIDE the block that branches on the variable rather than the file.
-# Kept because the block cannot cover a second site elsewhere in the document, and that is
-# a real defect this contract has already hit once (rust-expert's script-location block).
-UNSET_RE = re.compile(r"\bif\b[^.]{0,60}\bunset\b", re.I)
-# Opt-OUT, not opt-in. An earlier cut only treated an out-of-block `if unset` as a
-# resolution site when a plugin-root token sat nearby, so a paraphrase ("scripts live in
-# the plugin's own directory… if that location variable is unset…") was invisible — the
-# exact defect class this contract exists to catch, wearing different words. Now every
-# such conditional counts unless it is plainly a parameter default, because a false
-# positive is visible and fixable while a false negative is the bug shipping.
-PARAM_DEFAULT_RE = re.compile(r"default[^.]{0,60}unset|unset[^.]{0,60}default", re.I)
-# Proximity to something that could BE a resolution site. An opt-in on one keyword was
-# blind to a paraphrase; no gate at all flagged an unrelated `if LOCALE is unset`. The
-# middle is a broad noun set: narrow enough not to fire on unrelated prose, wide enough
-# that a paraphrase still lands. Disclosed rather than assumed complete — a resolution
-# site phrased without any of these words is not caught, and that is the accepted cost.
-RESOLUTION_CTX_RE = re.compile(
-    r"CLAUDE_PLUGIN_ROOT|plugin root|plugin's own|reference|script location|"
-    r"install location|catalog|rubric|located?\b|find it|glob", re.I)
-NEAR = 500
+# --- the out-of-block lane -------------------------------------------------------------
+# What a second resolution site actually does wrong is RESTATE the contract instead of
+# pointing at it — that is how `rust-expert` ended up carrying its own copy of the fallback
+# rules, free to drift from the block three screens above. Restatement is decidable as a
+# substring test, so that is what this lane tests.
+#
+# The markers are the contract's distinctive vocabulary, chosen because they do not occur
+# in ordinary agent prose. Two earlier triggers were tried and both were the wrong
+# mechanism: `if … unset` missed "is not set" and "is empty" entirely, and widening to the
+# whole negation family flagged four unrelated sentences ("if any required field is
+# missing", "installs … if missing") for every real site it found. A check that noisy
+# teaches its readers to skip it, which is worse than the gap it closes. `fall back` is
+# deliberately NOT a marker: `translator.md:91` falls back to its own translation after a
+# rate-limit, which is nothing to do with reference resolution.
+RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cache",
+                       "DEGRADED")
+# The escape, and the form the contract wants: a sentence may name the vocabulary when it
+# POINTS AT the block. Single-sourcing is the fix, so it must not be what trips the check.
+DELEGATION = "reference-resolution contract"
+SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
-def flat(s):
-    """Prose with whitespace collapsed — an instruction is a sentence, not a line."""
-    return " ".join(s.split())
+def noun_slot():
+    return r"(?P<noun>[A-Z]+)"
 
 
-ABBREV_RE = r"(?<!\brev)(?<!\bno)(?<!\bvs)(?<!\bcf)(?<!\betc)(?<!\be\.g)(?<!\bi\.e)(?<!\bfig)(?<!\bapprox)"
+def depth_variants():
+    """{name: sentence} from the canonical depth file, so the three live in one place."""
+    out = {}
+    for line in (CONTRACTS / "reference-resolution.depth.md").read_text(
+            encoding="utf-8").splitlines():
+        if ":" in line:
+            name, _, text = line.partition(":")
+            out[name.strip()] = text.strip()
+    return out
 
 
-def sentences(s):
-    r"""Sentence split that does not fire on a common abbreviation.
+def depth_kind(plugin):
+    """Which depth sentence is TRUE for this plugin, computed from disk.
 
-    Two failed attempts are recorded here because each was wrong in an instructive
-    direction. A naive `(?<=[.!?])\s+` treats "rev. 2" as a boundary, cutting one
-    instruction in half and failing an agent a human reads as compliant. Widening to
-    accept ADJACENT sentence pairs fixed that and immediately reopened the hole this
-    check exists for — two unrelated sentences in one paragraph are adjacent, so the
-    pair carried the banner token and the FIRST-LINE mandate and passed.
-
-    So the boundary itself is made accurate instead: split only where a period is
-    followed by whitespace and a capital, and not after a known abbreviation. The unit
-    stays exactly one sentence, which is the property.
+    Hand-written, this sentence was pattern-copied onto a plugin whose premise was false
+    (`planning` was told it keeps references "at more than one depth"; it has no root
+    `references/` at all). Deriving it removes the whole class: the note cannot disagree
+    with the tree, because the tree is where it comes from.
     """
-    return re.split(ABBREV_RE + r"(?<=[.!?])\s+(?=[A-Z`*])", s)
+    root_refs = (ROOT / plugin / "references").is_dir()
+    skill_refs = any((ROOT / plugin / "skills").glob("*/references"))
+    if root_refs and skill_refs:
+        return "BOTH"
+    if skill_refs:
+        return "SKILLS_ONLY"
+    return "ROOT_ONLY"
+
+
+def expected_pattern(plugin):
+    """The canonical block for this plugin, as a regex with the noun as the only slot."""
+    tmpl = (CONTRACTS / "reference-resolution.tmpl.md").read_text(encoding="utf-8")
+    note = depth_variants()[depth_kind(plugin)].replace("{PLUGIN}", plugin)
+    body = tmpl.replace("{PLUGIN}", plugin)
+    body = body.replace("{DEPTH_NOTE}", (" " + note) if note else "")
+    parts = flat(body).split("{NOUN}")
+    return re.compile(noun_slot().join(re.escape(p) for p in parts)), flat(body)
+
+
+def first_difference(actual, expected):
+    """The first word where the two diverge, with a little context from each side."""
+    a, b = actual.split(" "), expected.split(" ")
+    for i in range(max(len(a), len(b))):
+        if i >= len(a) or i >= len(b) or a[i] != b[i]:
+            return (f"at word {i + 1}: block has …{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… "
+                    f"/ canonical has …{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…")
+    return "no textual difference (the noun slot did not match `DEGRADED <ALLCAPS> —`)"
 
 
 def agents():
@@ -127,60 +169,55 @@ def agents():
     return sorted(p for p in ROOT.glob("*/agents/*.md") if p.is_file())
 
 
+def out_of_block_sites(raw):
+    """(line_no, marker) for each sentence outside the block that restates the contract."""
+    out = []
+    body, err = extract(raw, OPEN, CLOSE)
+    if err is not None:
+        return out
+    segments = [(0, raw[:raw.index(OPEN)]),
+                (raw.index(CLOSE) + len(CLOSE), raw[raw.index(CLOSE) + len(CLOSE):])]
+    # Scanned SEPARATELY, and each carries its own offset into `raw`. Concatenating them
+    # would put text from before the block next to text from after it; and sharing one
+    # offset was the bug that reported every finding at the file's FIRST matching line,
+    # sending an author to compliant text and making a real defect look like a failed fix.
+    for base, seg in segments:
+        pos = 0
+        for sentence in SENTENCE_SPLIT.split(seg):
+            start = seg.index(sentence, pos)
+            pos = start + len(sentence)
+            one = flat(sentence)
+            if DELEGATION in one:
+                continue                 # points at the block: the form the contract wants
+            hit = next((m for m in RESTATEMENT_MARKERS if m in one), None)
+            if hit:
+                out.append((raw.count("\n", 0, base + start) + 1, hit))
+    return out
+
+
 def findings_for(path):
     raw = path.read_text(encoding="utf-8", errors="replace")
     if TRIGGER not in raw:
         return None                      # not in the population
     out = []
+    body, err = extract(raw, OPEN, CLOSE)
+    if err is not None:
+        return [err]
 
-    if raw.count(OPEN) > 1 or raw.count(CLOSE) > 1:
-        # Only the first pair was ever extracted, so a second block's missing banner or
-        # missing order went unchecked entirely. Reported distinctly rather than by
-        # silently checking one of them.
-        return [("DUPLICATE-CONTRACT-BLOCK",
-                 f"{raw.count(OPEN)} open / {raw.count(CLOSE)} close markers; exactly "
-                 f"one contract block per agent, or only the first is ever checked")]
-    if OPEN not in raw or CLOSE not in raw or raw.index(CLOSE) < raw.index(OPEN):
-        return [("NO-CONTRACT-BLOCK",
-                 f"no `{OPEN}` … `{CLOSE}` block; the contract is checked only inside "
-                 f"it, because prose elsewhere cannot be told from a decoy")]
-    block = flat(raw[raw.index(OPEN) + len(OPEN):raw.index(CLOSE)])
+    plugin = path.relative_to(ROOT).parts[0]
+    pattern, canonical = expected_pattern(plugin)
+    actual = flat(body)
+    if not pattern.fullmatch(actual):
+        out.append(("NON-CANONICAL-CONTRACT",
+                    f"the block is not `contracts/reference-resolution.tmpl.md` rendered "
+                    f"for `{plugin}` ({depth_kind(plugin)}) — "
+                    f"{first_difference(actual, canonical)}"))
 
-    if not EXISTENCE_RE.search(block):
-        out.append(("NO-EXISTENCE-CHECK",
-                    "the block never instructs confirming the resolved path exists"))
-    if not (CACHE_ITEM_RE.search(block) and CHECKOUT_ITEM_RE.search(block)):
-        out.append(("NO-FALLBACK-ORDER",
-                    "the block's numbered fallback is not `1.` versioned cache then "
-                    "`2.` dev checkout"))
-    elif not SAID_WHICH_RE.search(block):
-        out.append(("NO-FALLBACK-ORDER",
-                    "ordered, but the agent is not told to say which arm it used"))
-    # One SENTENCE, not one paragraph: a paragraph holds two unrelated sentences, and a
-    # FIRST-LINE mandate about something else plus a stray DEGRADED token is the defect.
-    if not any(BANNER_RE.search(s) and FIRST_LINE_RE.search(s) for s in sentences(block)):
-        out.append(("NO-DEGRADED-BANNER",
-                    "no single sentence both names `DEGRADED <NOUN> —` and mandates it "
-                    "as the FIRST LINE"))
-
-    # The two segments are scanned SEPARATELY. Concatenating them would place text from
-    # before the block adjacent to text from after it, and a proximity window would then
-    # read across a gap that does not exist in the document.
-    for seg in (raw[:raw.index(OPEN)], raw[raw.index(CLOSE) + len(CLOSE):]):
-        for m in UNSET_RE.finditer(seg):
-            lo, hi = max(0, m.start() - NEAR), min(len(seg), m.end() + NEAR)
-            window = flat(seg[lo:hi])
-            if PARAM_DEFAULT_RE.search(flat(seg[max(0, m.start() - 80):m.end() + 60])):
-                continue                 # a parameter default, not a resolution site
-            if not RESOLUTION_CTX_RE.search(window):
-                continue                 # nothing nearby suggests reference resolution
-            if not EXISTENCE_RE.search(window):
-                line = raw.count("\n", 0, raw.index(m.group(0))) + 1 \
-                    if m.group(0) in raw else 0
-                out.append(("NO-EXISTENCE-CHECK",
-                            f"line {line}: a resolution site OUTSIDE the contract block "
-                            f"branches on a variable being unset with no existence "
-                            f"check near it"))
+    for line, marker in out_of_block_sites(raw):
+        out.append(("RESTATED-CONTRACT",
+                    f"line {line}: `{marker}` outside the contract block restates it and "
+                    f"is free to drift from it; point at the block by naming the "
+                    f"`{DELEGATION}` in the same sentence instead"))
     return out
 
 
@@ -195,18 +232,20 @@ def main():
         for code, why in found:
             problems.append(f"  {rel}: {code} — {why}")
 
-    if not in_scope:
-        # An empty population is a broken sweep, not a clean bill of health: this
-        # repo ships agents that name plugin-rooted references, so zero means the
-        # glob or the trigger stopped matching.
-        print("FAIL: no agent references ${CLAUDE_PLUGIN_ROOT} — the sweep is wrong, "
-              "not the tree.", file=sys.stderr)
+    if len(in_scope) < EXPECTED_AGENTS:
+        # Zero is a broken glob; fewer than ship today is a population that quietly lost
+        # members, which a zero-check cannot see. Both are the sweep failing, not the tree
+        # passing.
+        print(f"FAIL: {len(in_scope)} agent(s) name ${{CLAUDE_PLUGIN_ROOT}}, expected at "
+              f"least {EXPECTED_AGENTS} — the sweep is wrong, not the tree. Lower "
+              f"EXPECTED_AGENTS deliberately if an agent was really removed.",
+              file=sys.stderr)
         return 1
 
     print(f"{len(in_scope)} agent(s) name a plugin-rooted reference; "
           f"{len(problems)} problem(s).")
-    print("  (checks the instruction is PRESENT and shaped right — not that a "
-          "dispatched agent followed it)")
+    print("  (decides the block IS the canonical contract text, and that nothing outside "
+          "it restates the contract — not that a dispatched agent followed it)")
     if problems:
         print("\n".join(problems), file=sys.stderr)
         return 1

@@ -8,8 +8,6 @@ effort: medium
 
 # rust-expert
 
-
-
 <!-- reference-resolution-contract -->
 ## Reference resolution — check the path, not the variable
 
@@ -19,10 +17,11 @@ file missing, and an unset-only test reads that as success. **Confirm each resol
 reference exists before relying on it.** If one does not — or the variable is unset — fall
 back in this order, and say which one you used:
 
-1. the **versioned plugin cache** — `Glob` `**/rust-dev/*/<the same path that follows `${CLAUDE_PLUGIN_ROOT}/`>`
+1. the **versioned plugin cache** — `Glob` `**/rust-dev/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
 2. a **dev checkout** — `Glob` `**/rust-dev/<that same path>`
 
-Keep that suffix exactly as the reference is written above rather than guessing a shape.
+Keep that suffix exactly as the reference is written in this file rather than guessing a
+shape.
 A fallback that silently matches nothing is worse than none: it reports a healthy reference
 as unreadable and sends the run into the banner below for no reason.
 
@@ -58,14 +57,13 @@ rules by hand. Your lane is judgment: confirming candidates, design, rewriting.
 | **Deterministic** | `scripts/validate-safety.sh` | regex *candidates* for house rules 1–5, 12: `unsafe` without `// SAFETY:`, `.unwrap()` outside main/tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub API, `Deserialize` without `deny_unknown_fields` |
 | **Judgment (yours)** | you | is the candidate real, API design, error-type shape, soundness analysis, severity, the fix itself |
 
-Script location: `${CLAUDE_PLUGIN_ROOT}/scripts/`. **Same rule as the references above —
-check the script is there, not just that the variable is set.** A superseded cache resolves
-to a `scripts/` directory that exists without the script in it. If the file is missing, or
-the variable is unset, fall back in the same order and say which arm you used:
-`**/rust-dev/*/scripts/<script>` (versioned cache), then `**/rust-dev/scripts/<script>`
-(dev checkout). If neither resolves, **the mechanical lane did not run** — say so in the
-DEGRADED banner and do not present judgment findings as though the script had backed
-them.
+Script location: `${CLAUDE_PLUGIN_ROOT}/scripts/`. **The reference-resolution contract
+above governs this path too** — apply it verbatim, with `scripts/<script>` as the suffix,
+rather than working from a second copy of the rules here. A superseded cache resolves to a
+`scripts/` directory that exists without the script in it, which is exactly the case that
+contract exists for. If neither arm resolves, **the mechanical lane did not run** — name it
+in the banner the reference-resolution contract mandates, and do not present judgment
+findings as though the script had backed them.
 
 Run `bash <script> <project-root> --json` and parse
 `findings[]` (`severity`, `rule`, `path`, `line`, `message`). Script findings are
@@ -342,5 +340,3 @@ reference you Read — the reference gives the rule, its named source gives the 
 - Authoring skill `rust-coding` (its own inline reference router). Scoped review, refactor, and
   whole-project audit are this agent's own **review** / **idiomize** / **project-audit** modes above.
 - Security review: `sec-review` skill + `sec-review:rust-runner` subagent.
-
-**If a reference or a script could not be read or run, say so in your report** — name it. A judgment pass that silently lost its deterministic pre-pass reads as a full audit, which is the one thing it must not do (DEC-009).

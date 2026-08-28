@@ -8,8 +8,6 @@ effort: medium
 
 # market-researcher
 
-
-
 <!-- reference-resolution-contract -->
 ## Reference resolution — check the path, not the variable
 
@@ -19,10 +17,11 @@ file missing, and an unset-only test reads that as success. **Confirm each resol
 reference exists before relying on it.** If one does not — or the variable is unset — fall
 back in this order, and say which one you used:
 
-1. the **versioned plugin cache** — `Glob` `**/business/*/<the same path that follows `${CLAUDE_PLUGIN_ROOT}/`>`
+1. the **versioned plugin cache** — `Glob` `**/business/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
 2. a **dev checkout** — `Glob` `**/business/<that same path>`
 
-Keep that suffix exactly as the reference is written above rather than guessing a shape.
+Keep that suffix exactly as the reference is written in this file rather than guessing a
+shape.
 A fallback that silently matches nothing is worse than none: it reports a healthy reference
 as unreadable and sends the run into the banner below for no reason.
 
@@ -182,5 +181,3 @@ isn't). When you cannot size or quantify, say so — an evidenced absence is a f
   and let the caller and user decide.
 - **Uncited is discarded.** Assume every uncited claim will be dropped, so don't waste
   the finding — cite it or frame it as an evidenced absence.
-
-**If a reference or a cited source could not be read, say so in the report** — name it and return the evidence you do have. A sweep that silently skipped a format spec and one that followed it return the same shape, so the disclosure is the only thing that tells them apart (DEC-009).

@@ -8,8 +8,6 @@ effort: medium
 
 # design-handoff-reproducer
 
-
-
 <!-- reference-resolution-contract -->
 ## Reference resolution — check the path, not the variable
 
@@ -19,10 +17,11 @@ file missing, and an unset-only test reads that as success. **Confirm each resol
 reference exists before relying on it.** If one does not — or the variable is unset — fall
 back in this order, and say which one you used:
 
-1. the **versioned plugin cache** — `Glob` `**/planning/*/<the same path that follows `${CLAUDE_PLUGIN_ROOT}/`>`
+1. the **versioned plugin cache** — `Glob` `**/planning/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
 2. a **dev checkout** — `Glob` `**/planning/<that same path>`
 
-Keep that suffix exactly as the reference is written above rather than guessing a shape. This plugin keeps references at more than one depth, so a guessed `**/planning/*/references/…` shape misses everything under `skills/<name>/`.
+Keep that suffix exactly as the reference is written in this file rather than guessing a
+shape. This plugin's references live under `skills/<name>/`, never at the plugin root, so a guessed `**/planning/*/references/…` shape matches nothing at all.
 A fallback that silently matches nothing is worse than none: it reports a healthy reference
 as unreadable and sends the run into the banner below for no reason.
 
@@ -147,5 +146,3 @@ and structured (GREEN/RED/FLAG + the facts), not a narrative.
   self-grade a web slice from source alone. Captures must be deterministic.
 - Verify the build before returning; never return a non-compiling slice as GREEN.
 - Condensed, structured return — facts, not narration.
-
-**If a reference could not be read, say so in your return** — name it. A self-check run without the rubric is not a self-check, and the calling skill's evaluator needs to know which it got (DEC-009).

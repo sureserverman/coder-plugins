@@ -8,8 +8,6 @@ effort: medium
 
 # translator
 
-
-
 <!-- reference-resolution-contract -->
 ## Reference resolution — check the path, not the variable
 
@@ -19,10 +17,11 @@ file missing, and an unset-only test reads that as success. **Confirm each resol
 reference exists before relying on it.** If one does not — or the variable is unset — fall
 back in this order, and say which one you used:
 
-1. the **versioned plugin cache** — `Glob` `**/i18n/*/<the same path that follows `${CLAUDE_PLUGIN_ROOT}/`>`
+1. the **versioned plugin cache** — `Glob` `**/i18n/*/<the reference path that follows ${CLAUDE_PLUGIN_ROOT}/>`
 2. a **dev checkout** — `Glob` `**/i18n/<that same path>`
 
-Keep that suffix exactly as the reference is written above rather than guessing a shape. This plugin's references live under `skills/<name>/`, never at the plugin root, so a guessed `**/i18n/*/references/…` shape matches nothing at all.
+Keep that suffix exactly as the reference is written in this file rather than guessing a
+shape. This plugin's references live under `skills/<name>/`, never at the plugin root, so a guessed `**/i18n/*/references/…` shape matches nothing at all.
 A fallback that silently matches nothing is worse than none: it reports a healthy reference
 as unreadable and sends the run into the banner below for no reason.
 
@@ -184,5 +183,3 @@ You have Edit and Write — author files directly. You have Bash for `python3` t
 2. **Style guides** — Microsoft Style Guide for the target locale, government style guides, vendor glossaries — when the user supplies a URL. Never invent style rules.
 
 Cache hits in your own working memory across a batch: if `Save` resolved to `Guardar` from Microsoft for `es-ES` in entry 3, do not re-fetch for entry 47. One fetch per (term, locale) per session is the budget.
-
-**If a format reference could not be read, say so in your return** — name it and flag the entries whose placeholder or plural handling you could not verify against it. Unverified and verified translations are indistinguishable in the catalog (DEC-009).

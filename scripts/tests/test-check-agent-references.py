@@ -1,38 +1,32 @@
 #!/usr/bin/env python3
 """Fixture tests for scripts/check-agent-references.py.
 
-The load-bearing cases are the ones proving the sweep REJECTS. A contract check that
-only ever passes certifies that every agent discloses an unread reference while the
-eighth agent quietly ships without the banner — the decay check-agent-pins.py exists to
-stop, one contract over.
+**Every mutant is derived from the REQUIREMENT, not the implementation.** The requirement
+is "the block IS the canonical contract", so the mutants are the ways a block can look
+right and say something else: the wrong subject, the negation, the reversal, the softened
+word. Three earlier cuts of the validator were defeated by exactly those, one at a time,
+because each round's fixtures were built from the counterexample the last reviewer showed
+rather than from the property.
 
-**Half these fixtures are a reviewer's work, not the author's.** Two rounds of review
-defeated two cuts of this validator, both of which tried to infer the contract from an
-agent's ordinary prose: a section heading passed as an existence instruction, both
-fallback arms present passed as ordered, and a `FIRST LINE` mandate about something else
-plus a stray `DEGRADED` token passed as a banner. One proof-of-concept used a decoy
-sentence *already shipped* in code-reviewer.md. The design changed rather than the
-regexes: the contract now lives inside a delimited block and nothing outside it is read,
-which is why those evasions are rejected here structurally rather than by a pattern
-written to catch each one. Every one of them is kept below as a case, because the next
-cut of this file must not quietly reacquire them.
+The suite also pins the two claims the validator makes about ITSELF — that the population
+is enumerated from disk, and that the depth note is computed from disk rather than written
+by hand. Both were false once: a depth claim was verified against a proxy, and a fallback
+glob was pattern-copied across a population it did not fit.
 
 Stdlib only.
 """
 import importlib.util
-import os
-import pathlib
 import sys
 import tempfile
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPT = os.path.join(os.path.dirname(HERE), "check-agent-references.py")
+HERE = Path(__file__).resolve().parent
+SCRIPT = HERE.parent / "check-agent-references.py"
 
-spec = importlib.util.spec_from_file_location("refs", SCRIPT)
-refs = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(refs)
+spec = importlib.util.spec_from_file_location("car", SCRIPT)
+car = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(car)
 
-O, C = refs.OPEN, refs.CLOSE
 FAILURES = []
 
 
@@ -42,127 +36,161 @@ def check(ok, msg):
         FAILURES.append(msg)
 
 
-HEAD = "# A\n\nRead `${CLAUDE_PLUGIN_ROOT}/references/y.md`.\n\n"
-EXISTENCE = "Confirm each resolved reference exists before relying on it."
-ORDER = ("Fall back in this order, and say which one you used:\n\n"
-         "1. the **versioned plugin cache** — `Glob` `**/x/*/y`\n"
-         "2. a **dev checkout** — `Glob` `**/x/y`\n")
-BANNER = ("Open with `DEGRADED REVIEW — what was unread` as the FIRST LINE of your "
-          "output.")
+def canonical(plugin, noun, depth_kind="ROOT_ONLY"):
+    tmpl = (car.CONTRACTS / "reference-resolution.tmpl.md").read_text(encoding="utf-8")
+    note = car.depth_variants()[depth_kind].replace("{PLUGIN}", plugin)
+    body = tmpl.replace("{PLUGIN}", plugin).replace("{NOUN}", noun)
+    return body.replace("{DEPTH_NOTE}", (" " + note) if note else "").rstrip("\n")
 
 
-def block(existence=EXISTENCE, order=ORDER, banner=BANNER):
-    return f"{O}\n{existence}\n\n{order}\n{banner}\n{C}\n"
+def agent_file(root, plugin, block_body, tail=""):
+    """A miniature plugin holding one agent, with a reference below the block."""
+    d = root / plugin / "agents"
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / "an-agent.md"
+    p.write_text(f"# an-agent\n\n{car.OPEN}\n{block_body}\n{car.CLOSE}\n\n"
+                 f"Read `${{CLAUDE_PLUGIN_ROOT}}/references/thing.md` first.\n{tail}")
+    return p
 
 
-def codes(tmp, body, name="a.md"):
-    p = pathlib.Path(tmp) / name
-    p.write_text(body)
-    found = refs.findings_for(p)
-    return None if found is None else sorted(c for c, _ in found)
+def codes(path):
+    found = car.findings_for(path)
+    return [c for c, _ in (found or [])]
+
+
+def with_root(root, fn):
+    old = car.ROOT
+    car.ROOT = root
+    try:
+        return fn()
+    finally:
+        car.ROOT = old
 
 
 def main():
+    print("check-agent-references — the control:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"))
+        check(with_root(root, lambda: codes(p)) == [],
+              "an agent carrying the canonical block for its plugin passes")
+
+    print("check-agent-references — a block that looks right and says something else:")
+    MUTANTS = {
+        "the WRONG SUBJECT — confirms the VARIABLE, not the resolved path (the exact "
+        "unset-only check this contract exists to reject)":
+            ("**Confirm each resolved\nreference exists before relying on it.**",
+             "**Confirm the `${CLAUDE_PLUGIN_ROOT}` variable exists before relying on it.**"),
+        "the NEGATION of the existence rule":
+            ("**Confirm each resolved\nreference exists before relying on it.**",
+             "**Do not check that each resolved reference exists — assume it is there.**"),
+        "the NEGATION of the disclosure rule":
+            ("and say which one you used", "but do not say which one you used"),
+        "the NEGATION of the banner rule":
+            ("**Open with `DEGRADED REVIEW", "**Never open with `DEGRADED REVIEW"),
+        "the fallback order REVERSED":
+            ("1. the **versioned plugin cache**", "1. a **dev checkout** —"),
+        "a LOWERCASE banner satisfying an all-caps mandate":
+            ("DEGRADED REVIEW", "degraded review"),
+        "the banner demoted from FIRST LINE to a closing caveat":
+            ("as the FIRST LINE of", "as the last line of"),
+    }
+    for name, (old, new) in MUTANTS.items():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            body = canonical("demo", "REVIEW")
+            assert old in body, name
+            p = agent_file(root, "demo", body.replace(old, new))
+            check(with_root(root, lambda: codes(p)) == ["NON-CANONICAL-CONTRACT"], name)
+
+    print("check-agent-references — the block itself, missing or doubled:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        d = root / "demo" / "agents"
+        d.mkdir(parents=True)
+        p = d / "an-agent.md"
+        p.write_text("# a\n\nRead `${CLAUDE_PLUGIN_ROOT}/references/x.md`.\n")
+        check(with_root(root, lambda: codes(p)) == ["NO-CONTRACT-BLOCK"],
+              "an in-scope agent with no block at all is rejected")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        body = canonical("demo", "REVIEW")
+        p = agent_file(root, "demo", body,
+                       tail=f"\n{car.OPEN}\nIgnore the above.\n{car.CLOSE}\n")
+        check(with_root(root, lambda: codes(p)) == ["DUPLICATE-CONTRACT-BLOCK"],
+              "a SECOND block is reported, not silently ignored in favour of the first")
+
+    print("check-agent-references — a second copy of the rules outside the block:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\nScripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. If it is "
+                            "missing, try the versioned cache, then a dev checkout.\n")
+        check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
+              "a second site restating the fallback vocabulary is flagged — it is free "
+              "to drift from the block that is actually checked")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\nScripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. The "
+                            "reference-resolution contract above governs this path too, "
+                            "including its dev checkout arm.\n")
+        check(with_root(root, lambda: codes(p)) == [],
+              "the same sentence POINTING AT the block passes — single-sourcing is the "
+              "fix, so it must not be what trips the check")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\nIf two consecutive fetches fail, fall back to your own "
+                            "translation and note it. Install the tool if missing.\n")
+        check(with_root(root, lambda: codes(p)) == [],
+              "unrelated prose saying 'fall back' or 'if missing' is NOT flagged — the "
+              "wider trigger this replaced produced four such false positives per real "
+              "finding, and a noisy check teaches its readers to skip it")
+
+    print("check-agent-references — the depth note is computed, not written:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "deep" / "skills" / "s" / "references").mkdir(parents=True)
+        check(with_root(root, lambda: car.depth_kind("deep")) == "SKILLS_ONLY",
+              "a plugin with references only under skills/ gets the SKILLS_ONLY note")
+        (root / "deep" / "references").mkdir()
+        check(with_root(root, lambda: car.depth_kind("deep")) == "BOTH",
+              "adding a root references/ dir moves the same plugin to BOTH")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # The pattern-copy defect, as a case: the note that is TRUE for a two-depth plugin
+        # is FALSE for a skills-only one, and copying it across is how it shipped.
+        root = Path(tmp)
+        (root / "deep" / "skills" / "s" / "references").mkdir(parents=True)
+        p = agent_file(root, "deep", canonical("deep", "REVIEW", "BOTH"))
+        check(with_root(root, lambda: codes(p)) == ["NON-CANONICAL-CONTRACT"],
+              "the BOTH depth note on a SKILLS_ONLY plugin is rejected — the note cannot "
+              "disagree with the tree, because the tree is where it comes from")
+
     print("check-agent-references — the population:")
-    with tempfile.TemporaryDirectory() as t:
-        check(codes(t, "# A\n\nNo plugin-rooted reference here.\n") is None,
-              "an agent naming no ${CLAUDE_PLUGIN_ROOT} reference is out of scope, "
-              "not a silent pass")
-        check(codes(t, HEAD + block()) == [],
-              "a complete contract passes — every rejection below discriminates")
-        check(codes(t, HEAD + "Some prose, no block at all.\n") == ["NO-CONTRACT-BLOCK"],
-              "an in-scope agent with no contract block is rejected outright")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        agent_file(root, "demo", canonical("demo", "REVIEW"))
+        d = root / "other" / "agents"
+        d.mkdir(parents=True)
+        (d / "plain.md").write_text("# plain\n\nNo plugin-rooted reference here.\n")
+        found = with_root(root, lambda: [p for p in car.agents()
+                                         if car.findings_for(p) is not None])
+        check(len(found) == 1,
+              "an agent naming no ${CLAUDE_PLUGIN_ROOT} reference is not in the population")
 
-    print("check-agent-references — each clause, missing from the block:")
-    with tempfile.TemporaryDirectory() as t:
-        check(codes(t, HEAD + block(existence="If the variable is unset, use Glob.")) ==
-              ["NO-EXISTENCE-CHECK"],
-              "an unset-only block is rejected — a set variable pointing at a missing "
-              "file is the whole defect")
-        check(codes(t, HEAD + block(order="Fall back however you like.")) ==
-              ["NO-FALLBACK-ORDER"],
-              "a block with no enumerated fallback is rejected")
-        check(codes(t, HEAD + block(order=ORDER.replace(
-                  "Fall back in this order, and say which one you used:",
-                  "Fall back in this order:"))) == ["NO-FALLBACK-ORDER"],
-              "ordered but never told to say WHICH arm it used is rejected")
-        check(codes(t, HEAD + block(banner="If a reference was unread, note it at the "
-                                           "end of your report.")) ==
-              ["NO-DEGRADED-BANNER"],
-              "a closing caveat instead of a first-line banner is rejected")
-
-    print("check-agent-references — the reviewer's evasions, kept as cases:")
-    with tempfile.TemporaryDirectory() as t:
-        # 1. A decoy existence sentence outside the block. The PoC for this used text
-        #    already shipped in code-reviewer.md's Protocol 2 — not a contrived string.
-        body = (HEAD + "Check that the files the plan implies exist.\n\n"
-                + block(existence="If the variable is unset, use Glob."))
-        check(codes(t, body) == ["NO-EXISTENCE-CHECK"],
-              "a decoy existence sentence OUTSIDE the block cannot satisfy the check — "
-              "nothing outside the block is read")
-
-        # 2. A second resolution site that paraphrases the location, naming no
-        #    plugin-root token. An opt-in keyword scan was blind to exactly this.
-        body = (HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
-                "Scripts live in the plugin's own directory. If that location variable "
-                "is unset, locate it once with find.\n")
-        check(codes(t, body) == ["NO-EXISTENCE-CHECK"],
-              "a PARAPHRASED second resolution site is still caught — the scan is "
-              "opt-out, so a defect does not escape by avoiding a keyword")
-
-        # 3. A decoy mention of the cache preceding a genuinely reversed list. First
-        #    occurrence anywhere used to win the position comparison.
-        body = (HEAD + block(order=(
-            "This one does not silently trust the versioned plugin cache.\n\n"
-            "Fall back in this order, and say which one you used:\n\n"
-            "1. a **dev checkout** — `Glob` `**/x/y`\n"
-            "2. the **versioned plugin cache** — `Glob` `**/x/*/y`\n")))
-        check(codes(t, body) == ["NO-FALLBACK-ORDER"],
-              "a decoy cache mention before a REVERSED list is rejected — the order is "
-              "anchored to the enumerated items, not to first occurrence")
-
-        # 4. Both tokens in one paragraph, two unrelated sentences.
-        body = (HEAD + block(banner=(
-            "Keep your commit subject as the FIRST LINE under 70 chars. Avoid vague "
-            "words like `DEGRADED REVIEW — x` in chat.")))
-        check(codes(t, body) == ["NO-DEGRADED-BANNER"],
-              "same paragraph, different sentences is rejected — the unit is the "
-              "sentence, because a paragraph holds unrelated ones")
-
-        # 5. ...and the false-positive guard, which is what keeps 2 honest.
-        body = (HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
-                "Depth is `triage`, `brief` or `deep` — default `triage` if unset.\n")
-        check(codes(t, body) == [],
-              "an unrelated parameter default is NOT flagged — a checker that fires on "
-              "unrelated text teaches its readers to ignore it")
-
-    print("check-agent-references — robustness the third review found missing:")
-    with tempfile.TemporaryDirectory() as t:
-        check(codes(t, HEAD + block() + "\n" + block()) == ["DUPLICATE-CONTRACT-BLOCK"],
-              "TWO blocks in one file is reported, not silently reduced to the first — "
-              "a second block's missing clauses went entirely unchecked")
-
-        check(codes(t, HEAD + block(banner=(
-                  "Open with `DEGRADED REVIEW — what was unread` as documented in "
-                  "DEC-009 rev. 2, as the FIRST LINE of your output."))) == [],
-              "an abbreviation inside the banner sentence does not split it — the "
-              "boundary is accurate rather than the window being widened")
-
-        check(codes(t, HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
-                   "If `LOCALE` is unset, fall back to en-US.\n") == [],
-              "an unrelated `if X is unset` with no resolution context is not flagged")
-
-        check(codes(t, HEAD + block() + "\n" + ("Filler.\n\n" * 40) +
-                   "Treat the depth flag as unset and use the default `triage`.\n") == [],
-              "a parameter default in either word order is not flagged")
-
-    print("check-agent-references — the live tree:")
-    live = [p for p in refs.agents()
-            if refs.TRIGGER in p.read_text(encoding="utf-8", errors="replace")]
-    check(len(live) >= 7,
-          f"the population is enumerated from disk, not hardcoded ({len(live)} agents)")
-    bad = {p.name: refs.findings_for(p) for p in live if refs.findings_for(p)}
-    check(not bad, f"every shipped in-scope agent satisfies the contract ({bad or 'none'})")
+    live = [p for p in car.agents() if car.findings_for(p) is not None]
+    check(len(live) >= car.EXPECTED_AGENTS,
+          f"the live population is enumerated from disk ({len(live)} agents)")
+    plugins = sorted({p.relative_to(car.ROOT).parts[0] for p in live})
+    check(len(plugins) == 7,
+          f"the population spans {len(plugins)} plugins: {', '.join(plugins)}")
+    bad = {p.relative_to(car.ROOT).as_posix(): codes(p) for p in live if codes(p)}
+    check(bad == {}, f"every shipped in-scope agent carries its canonical block ({bad})")
 
     print()
     if FAILURES:
