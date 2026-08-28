@@ -136,6 +136,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         # One word changed, in the direction that matters: "Create nothing" → "Create
         # little". A required literal has to notice this or it is a length check.
+        assert "**Create nothing** in the target tree" in GOOD_AGENT
         softened = GOOD_AGENT.replace("**Create nothing** in the target tree",
                                       "**Create little** in the target tree")
         _, probs, _, _ = run(fake_root(tmp, GOOD_SITE, softened))
@@ -172,6 +173,62 @@ def main():
         check(len(para) == 1,
               "a narrower restatement outside the block is flagged — 'never edits, "
               "commits, or merges' permits CREATING a report, which the block forbids")
+
+    print("check-readonly-contract — the count is about executing-plans, not the repo:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # COUNTED_DIR had no fixture: every live site is already in that directory, so
+        # emptying it was the identity function and the suite never noticed. A site
+        # elsewhere must NOT inflate a sentence that says "in executing-plans".
+        root = fake_root(tmp, GOOD_SITE, GOOD_AGENT)
+        (root / "git-github" / "skills").mkdir(parents=True)
+        (root / "git-github" / "skills" / "code-review.md").write_text(
+            "Dispatch `git-github:code-reviewer` (read-only) over the whole diff.\n")
+        orph, probs, n, _ = run(root)
+        check(n == 2 and probs == [] and orph == [],
+              f"a 7th site outside executing-plans is swept but does NOT change the "
+              f"sentence's count (sites={n}, problems={probs})")
+
+    print("check-readonly-contract — two sites on one line are two sites:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # `search` returns one hit per line; `SKILL.md:467` is a single ~1,000-char line,
+        # so one line can genuinely carry more than one dispatch.
+        root = fake_root(
+            tmp, "Dispatch `git-github:code-reviewer` (read-only), then a second "
+                 "`git-github:code-reviewer` (read-only) over the whole diff.", GOOD_AGENT)
+        _, _, n, _ = run(root)
+        check(n == 2, f"two (read-only) occurrences on ONE line count as two (got {n})")
+
+    print("check-readonly-contract — the paraphrase lane reaches the dispatchers:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # PARAPHRASE_SCOPE was widened to executing-plans in round 2 with no fixture, and
+        # all six real dispatch sites live there — the likeliest home for a competing
+        # definition.
+        root = fake_root(tmp, GOOD_SITE, GOOD_AGENT)
+        (root / "planning" / "skills" / "executing-plans" / "SKILL.md").write_text(
+            "The reviewer never edits, commits, or merges.\n")
+        _, _, _, para = run(root)
+        check(len(para) == 1 and para[0][0].startswith("planning/"),
+              f"a competing paraphrase in executing-plans is flagged, not just one in "
+              f"git-github/ ({para})")
+
+    print("check-readonly-contract — an unavailable sweep is BLOCKED, not a traceback:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = fake_root(tmp, GOOD_SITE, GOOD_AGENT)
+        (root / ".git").mkdir()          # takes the git branch, with no real repo under it
+        old_root, old_agent = ro.ROOT, ro.AGENT
+        ro.ROOT, ro.AGENT = root, root / "git-github" / "agents" / "code-reviewer.md"
+        try:
+            raised = False
+            try:
+                ro.sites()
+            except ro.SweepUnavailable:
+                raised = True
+            except Exception:
+                raised = False
+        finally:
+            ro.ROOT, ro.AGENT = old_root, old_agent
+        check(raised, "a failing `git ls-files` raises SweepUnavailable — a sweep that "
+                      "cannot run has no verdict, and a traceback is not one")
 
     print("check-readonly-contract — the live tree:")
     live = ro.sites()

@@ -13,9 +13,12 @@ file:
   Cleaning up after a write is not a substitute for not writing: an interrupted run leaves
   the tree dirty, and a gate verified against a dirty tree proves nothing about what is
   recorded.
-- **Reproductions and scratch work go to the session scratchpad**, never beside the code.
-  A reproduction is exactly the case where writing feels justified — which is why it is
-  named here rather than left to judgment.
+- **Scratch work goes to the session scratchpad**, never beside the code. This is the
+  obligation for anything a run produces that is not its returned report — and note it is
+  belt-and-braces here, because the bullet below withdraws the one case that ever wanted
+  it. An earlier draft phrased this bullet as *"reproductions and scratch work go to the
+  scratchpad"*, which granted, nine lines above the bullet forbidding it, the very act
+  that bullet forbids.
 - **Reading is unrestricted**, and so is `Bash` for history inspection (`git status`,
   `diff`, `log`, `show`, `blame`) — the five this agent's frontmatter declares. **Treat
   that declaration as a rule you keep, not as a fence that holds you.** Measured

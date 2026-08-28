@@ -136,7 +136,7 @@ fixes), **stop and report** — don't shotgun changes. Return:
 Your final message **is** the return value the orchestrator consumes — keep it condensed
 and structured (GREEN/RED/FLAG + the facts), not a narrative.
 
-**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+**Before anything described here, the degradation banner comes first** when the reference-resolution contract calls for one: if a named reference went unread, that banner is your literal first line and this section's output starts underneath it.
 
 ## Rules
 

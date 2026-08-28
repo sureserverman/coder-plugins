@@ -175,7 +175,8 @@ def main():
                     "checkout if it is absent.")
         p = agent_file(root, "demo", canonical("demo", "REVIEW"),
                        tail=f"\n{sentence}\n" + ("\nfiller\n" * 12) + f"\n{sentence}\n")
-        reported = sorted(int(w.split()[1].rstrip(":")) for w in with_root(root, lambda: whys(p)))
+        reported = sorted(int(w.split()[1].rstrip(":")) for w in with_root(root, lambda: whys(p))
+                          if w.startswith("line "))
         text = p.read_text().splitlines()
         close = next(i for i, ln in enumerate(text, 1) if car.CLOSE in ln)
         actual = sorted(i for i, ln in enumerate(text, 1)
@@ -184,14 +185,59 @@ def main():
               f"both restating sentences are reported at their OWN lines "
               f"(reported={reported}, actual={actual})")
 
+    print("check-agent-references — a marker split across a line break:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # The whitespace-flexible marker regex had no mutant. Replacing it with a plain
+        # `re.escape(hit)` makes the marker unfindable inside the fragment, and the finding
+        # falls back to the fragment's start — reintroducing the exact 14-line "wrong line"
+        # defect round 2 claims to have fixed.
+        root = Path(tmp)
+        tail = "\nfiller\n" * 10 + "\nand here we prefer a dev\ncheckout over the cache\n"
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"), tail=tail)
+        text = p.read_text().splitlines()
+        want = next(i for i, ln in enumerate(text, 1) if ln.endswith("a dev"))
+        got = [int(w.split()[1].rstrip(":")) for w in with_root(root, lambda: whys(p))]
+        check(got == [want],
+              f"a marker wrapped across a line break is reported at its own line "
+              f"(got={got}, want=[{want}])")
+
+    print("check-agent-references — the variable's other spelling:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # No unbraced use ships today, so nothing exercised the broadened trigger. An agent
+        # written `$CLAUDE_PLUGIN_ROOT` is in the population per the code; this pins it.
+        root = Path(tmp)
+        d = root / "demo" / "agents"
+        d.mkdir(parents=True)
+        p = d / "unbraced.md"
+        p.write_text("# unbraced\n\nRead `$CLAUDE_PLUGIN_ROOT/references/x.md` first.\n")
+        check(with_root(root, lambda: codes(p)) == ["NO-CONTRACT-BLOCK"],
+              "an agent using the UNBRACED $CLAUDE_PLUGIN_ROOT is in the population — the "
+              "spelling is not the property, the variable is")
+
+    print("check-agent-references — the block's position, not just its words:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # Content is pinned by the literal; position is the half the literal cannot see,
+        # and it is the half the gate criterion is actually about.
+        root = Path(tmp)
+        d = root / "demo" / "agents"
+        d.mkdir(parents=True)
+        p = d / "late.md"
+        p.write_text(f"# late\n\n## Output format\n\nReturn one block.\n\n"
+                     f"{car.OPEN}\n{canonical('demo', 'REVIEW')}\n{car.CLOSE}\n\n"
+                     f"Read `${{CLAUDE_PLUGIN_ROOT}}/references/x.md`.\n")
+        check(with_root(root, lambda: codes(p)) == ["BLOCK-NOT-FIRST"],
+              "a canonical block sitting BELOW the output schemas is rejected — a "
+              "first-screen promise made on the third screen is not the same promise")
+
     print("check-agent-references — the noun slot, the design's only free field:")
     with tempfile.TemporaryDirectory() as tmp:
         # `[A-Z]+` is what keeps the slot from becoming a hole. Nothing asserted it, so a
         # loosening to `.*` would have gone unnoticed and let arbitrary text sit inside the
         # banner while the block stayed "canonical".
         root = Path(tmp)
-        body = canonical("demo", "REVIEW").replace(
-            "DEGRADED REVIEW", "DEGRADED REVIEW, but only when convenient")
+        base = canonical("demo", "REVIEW")
+        assert "DEGRADED REVIEW" in base
+        body = base.replace("DEGRADED REVIEW", "DEGRADED REVIEW, but only when convenient")
         p = agent_file(root, "demo", body)
         check(with_root(root, lambda: codes(p)) == ["NON-CANONICAL-CONTRACT"],
               "text smuggled into the banner's noun slot is rejected — the slot is one "

@@ -146,9 +146,9 @@ cumulative — each is a superset of the one above.
 
 ## Output
 
-Return structured findings the `assess` skill folds into its evidence section. For each:
+**Before anything described here, the degradation banner comes first** when the reference-resolution contract calls for one: if a named reference went unread, that banner is your literal first line and this section's output starts underneath it.
 
-**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+Return structured findings the `assess` skill folds into its evidence section. For each:
 
 - **Claim** — one sentence.
 - **Source** — a URL, a named listing, or a repo file:line. No source → don't emit it;

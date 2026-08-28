@@ -64,6 +64,13 @@ rule a dispatch is, which costs a few words and misleads nobody.
 literal set — decidable, and incomplete by construction. It catches the three that shipped
 and the shapes they belong to, not every sentence someone could write.
 
+**An inversion of `contracts/read-only.md` itself.** The block is pinned to that file, so
+this decides they MATCH — not that the canonical text is right. Editing the source and the
+copy together is green, and the suite is too, since its fixtures render from the same source.
+Inherent to a required literal: it moves the question from "what does this prose mean" to "is
+this the agreed text", and whether the agreed text is correct stays a review question. The
+compensating control is that it is visible in any diff touching `contracts/`.
+
 **A paraphrase outside `PARAPHRASE_SCOPE`.** That lane reads `git-github/` and
 `planning/skills/executing-plans/` — the agent and the dispatchers. A competing definition
 written in a third plugin is not seen. Named because the first cut read one directory and

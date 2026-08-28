@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every agent that names a `${CLAUDE_PLUGIN_ROOT}` reference can survive it being absent.
+"""Every agent that names a `CLAUDE_PLUGIN_ROOT` reference can survive it being absent.
 
 DEC-009 has two halves: an agent's reference paths are plugin-rooted, and **a reference
 it cannot read is disclosed**. The first half was shipped and the second was left to each
@@ -41,14 +41,21 @@ an inverted clause is not the canonical text, and neither is a reworded one.
                           names the first differing run of words in both directions.
   NO-CONTRACT-BLOCK       no `<!-- reference-resolution-contract -->` block at all.
   DUPLICATE-CONTRACT-BLOCK  more than one pair; only one would ever be read.
+  BLOCK-NOT-FIRST         the contract's heading is not the first `##` in the file. The
+                          banner is a PRESENTATION rule, so the block's position is part of
+                          the property, not a formatting preference: a contract that sits
+                          below the output schemas is read after them.
   RESTATED-CONTRACT       a sentence outside the block uses the contract's own vocabulary
                           without pointing at the block, so it is a second copy of the
                           rules, free to drift from the one that is checked.
 
-The population is every `*/agents/*.md` naming `${CLAUDE_PLUGIN_ROOT}` — enumerated here
-rather than hardcoded, so a new agent joins the check by existing. `EXPECTED_AGENTS` guards
-the other direction: a population that *shrinks* is a sweep that stopped looking, and only
-a floor catches that. Both guards are needed; neither implies the other.
+The population is every `*/agents/*.md` naming `CLAUDE_PLUGIN_ROOT` in ANY spelling —
+`${...}` or bare — enumerated here rather than hardcoded, so a new agent joins the check by
+existing. Keying it to the braced form alone meant an agent could join the repo and miss the
+sweep while this paragraph claimed otherwise. `EXPECTED_AGENTS` guards the other direction,
+and it is a **named set rather than a floor**: any seven satisfies a floor of seven, so
+removing one agent's block while adding a compliant agent kept the count whole and the sweep
+silent. Naming the members makes attrition and substitution both visible.
 
 WHAT THIS STILL CANNOT SCREEN, disclosed per DEC-008
 ----------------------------------------------------
@@ -65,6 +72,16 @@ different words carries none of the markers and is not caught. That gap is real 
 accepted cost of not being noisy: the previous, wider trigger flagged four unrelated
 sentences for every genuine site, and a check whose findings are mostly noise is one whose
 readers learn to skip it.
+
+**AN INVERSION OF THE CANONICAL SOURCE ITSELF.** This is a required-literal check, so what
+it decides is that the seven blocks MATCH `contracts/reference-resolution.tmpl.md` — not that
+the template says the right thing. An author who inverts the template and re-renders the
+seven copies is green, and so is the suite, because every fixture is built from the template
+too. That is inherent to the mechanism and not a bug in it: pinning a literal moves the
+question from "what does this prose mean" to "is this the agreed text", and *what the agreed
+text should say* is a review question by construction. It is visible in any diff that touches
+`contracts/`, which is the compensating control, and it is written here so nobody concludes
+from a green run that the contract was read.
 
 **REVOCATION and REFRAMING are not caught at all, and they are a different thing from
 paraphrase.** The lane asks whether a sentence restates the contract. It does not ask
@@ -198,6 +215,22 @@ def agents():
     return sorted(p for p in ROOT.glob("*/agents/*.md") if p.is_file())
 
 
+H2_RE = re.compile(r"^## ", re.M)
+
+
+def block_is_first_section(raw):
+    """The contract's heading is the first `##` in the file.
+
+    Content is pinned by the required literal; this pins position, which the literal cannot
+    see. The banner exists so a degraded run cannot be mistaken for a full one by someone
+    reading the first screen — so where the block sits IS part of what is being promised,
+    and a check that verified the words while ignoring the placement would be measuring the
+    easier half of its own subject.
+    """
+    m = H2_RE.search(raw)
+    return m is not None and raw.index(OPEN) < m.start()
+
+
 def out_of_block_sites(raw):
     """(line_no, marker) for each sentence outside the block that restates the contract."""
     out = []
@@ -251,6 +284,12 @@ def findings_for(path):
                     f"the block is not `contracts/reference-resolution.tmpl.md` rendered "
                     f"for `{plugin}` ({depth_kind(plugin)}) — "
                     f"{first_difference(actual, canonical)}"))
+
+    if not block_is_first_section(raw):
+        out.append(("BLOCK-NOT-FIRST",
+                    "the contract block does not precede the file's first `##` section; "
+                    "the banner is a first-screen promise, so the block's position is part "
+                    "of the property"))
 
     for line, marker in out_of_block_sites(raw):
         out.append(("RESTATED-CONTRACT",
