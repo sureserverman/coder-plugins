@@ -35,12 +35,21 @@ def _require_vault(path, source):
     conditions with four messages now, and a fourth copy of that is a fourth place
     for it to drift from the one the class test pins.
     """
+    return _rebuild().require_vault(path, source)
+
+
+def _rebuild():
+    """portfolio-rebuild.py, loaded by path and lazily — see `_require_vault`'s reasons.
+
+    Factored out when the write-boundary liveness check needed the same module: a second
+    inline copy of this loader is the drift `_require_vault` already warns about.
+    """
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "portfolio_rebuild", Path(__file__).resolve().parent / "portfolio-rebuild.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.require_vault(path, source)
+    return mod
 
 
 def vault_dir():
@@ -152,6 +161,13 @@ def migrate_project(proj, vd: Path, write: bool):
     # is reached only when docs/ has been repopulated. Both are exercised in
     # tests/test-vault-write-idempotency.py, the preflight by a case that repopulates
     # docs/ on purpose, because nothing else can reach it.
+    # BL-099: re-check the sentinel at the WRITE, not only at resolve time. Without this,
+    # a mount that dropped after main()'s check let the mkdir below rebuild the whole chain
+    # from nothing and return "ok" — a phantom vault reported as a successful migration.
+    if not _rebuild().vault_live(vd):
+        return ("fail", label,
+                "vault went away after the initial check — refusing to recreate it "
+                "(mount dropped mid-run?). Nothing was written for this project.")
     (home / "plans").mkdir(parents=True, exist_ok=True)
     copied = []
     try:

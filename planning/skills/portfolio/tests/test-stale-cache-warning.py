@@ -345,6 +345,10 @@ WIRED = [
     ("portfolio", "plan-status-audit.py"),
     ("portfolio", "security-scan.py"),
     ("portfolio", "security-rollup.py"),
+    # The LLM lane's resolver (BL-101). Wired for the same reason as its siblings: it reads
+    # vault state and its answer is cache-sensitive, so a stale cached copy would resolve
+    # against yesterday's rules and say nothing about it.
+    ("portfolio", "resolve-plan-home.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

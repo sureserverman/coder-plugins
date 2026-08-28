@@ -424,8 +424,12 @@ bumps to the master close-out.
 
 Plans live in the vault, not the repo. Before writing, resolve the project's portfolio home:
 
-1. Read `vault_dir` from `~/.claude/portfolio-config.yaml`. **If unset**, fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo (no vault configured) — then skip the rest of these steps.
-2. Compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`, deriving `<area>`/`<name>` from the project's `~/dev/<area>/<name>` path.
+1. **Run the resolver — do not resolve this in prose:** `python3 ${CLAUDE_PLUGIN_ROOT}/skills/portfolio/scripts/resolve-plan-home.py --project <repo>`. Its exit code is the instruction:
+   - **0** — stdout is the plans directory. Use it.
+   - **2** — the vault is configured but UNREACHABLE. **Stop and show the message.** Do not fall back to the repo and do not create anything: a missing vault is not an empty vault, and `mkdir -p` here builds a phantom tree (BL-101).
+   - **3** — no `vault_dir` configured at all. Fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo — then skip the rest of these steps.
+   The conditions are deliberately not restated here — two definitions of "reachable" is what DEC-011 forbids, and prose was the copy that drifted (BL-101).
+2. `portfolio_home` is the parent of what the resolver printed — `<vault_dir>/Portfolio/<area>/<name>/`.
 3. **Auto-register if new:** if the project isn't in `~/.claude/projects-registry.yaml`, append an entry (`path`, `name`, `area`, `enabled: true`, `added: <today>`). This is how a brand-new project joins the portfolio — no separate step.
 4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`) — run `/planning:portfolio rebuild` for the canonical writer rather than hand-editing the block, and `mkdir -p` the vault `plans/` dir. Only a brand-new project with no block needs this: an existing block's **Plans:** line already points at `<portfolio_home>/plans/`.
 

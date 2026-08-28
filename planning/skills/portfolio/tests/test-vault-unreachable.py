@@ -825,6 +825,10 @@ def sweep_case():
         "business/scripts/business-scan.py": ("cli_cases", "literal"),
         "git-github/skills/repo-health/scripts/repo-health-scan.py": ("repo_health_case", "structured"),
         "planning/skills/executing-plans/scripts/plan-progress.py": ("plan_progress_case", "silent"),
+        # The LLM lane's resolver (BL-101). It does not restate the conditions — it calls
+        # vault_problem() and prints what that returns — so its refusal wording is
+        # "delegates", not a literal of its own.
+        "planning/skills/portfolio/scripts/resolve-plan-home.py": ("llm_lane_case", "delegates"),
     }
     # Reached through an imported resolver or a CLI flag rather than by reading
     # the config, so the sweep predicate cannot see them. Listed here so the
@@ -856,6 +860,31 @@ def sweep_case():
                if kind == "literal"
                and CANON not in _squash((ROOT / rel).read_text(
                    encoding="utf-8", errors="replace"))]
+    # BL-101: the three SKILLS that write plans resolved the vault in PROSE and branched on
+    # `unset` alone, so against a configured-but-unmounted vault they built the phantom tree
+    # the scripted lane refuses. The fix had to be a script — a second definition in prose is
+    # exactly what DEC-011 forbids — so what is pinned here is that each skill NAMES the
+    # resolver. That is decidable; "does this paragraph resolve correctly" is not.
+    RESOLVER = "resolve-plan-home.py"
+    llm_lane = [
+        "planning/skills/planning-projects/SKILL.md",
+        "planning/skills/architecting-projects/SKILL.md",
+        "planning/skills/brainstorming/SKILL.md",
+    ]
+    silent = [rel for rel in llm_lane
+              if RESOLVER not in (ROOT / rel).read_text(encoding="utf-8", errors="replace")]
+    check(not silent,
+          f"every plan-writing SKILL routes vault resolution through {RESOLVER} rather "
+          f"than resolving it in prose (not routed: {silent or 'none'})")
+    # And each must carry the STOP instruction for the configured-but-unreachable case —
+    # the branch prose collapsed into "unset" and the one that caused the defect.
+    no_stop = [rel for rel in llm_lane
+               if "unreachable" not in (ROOT / rel).read_text(
+                   encoding="utf-8", errors="replace").lower()]
+    check(not no_stop,
+          f"and each names the configured-but-UNREACHABLE case, which prose collapsed into "
+          f"'unset' (silent on it: {no_stop or 'none'})")
+
     check(not missing,
           f"every reader that refuses in its own words carries the WHOLE shared "
           f"sentence, not just '{TOKEN}' "

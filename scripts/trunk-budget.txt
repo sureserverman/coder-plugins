@@ -231,7 +231,14 @@ planning/skills/executing-plans/SKILL.md 49016
 #   task field ran ~3.5 h against a 3132-test collection inside one Red-Green loop, while
 #   the same plan's stage-scope command took ~7 min. Task 3.1 retracted the claim at all
 #   three sites it was made; this pays for the check that replaces it.
-planning/skills/planning-projects/SKILL.md 36902
+#
+# Raised 36902 -> 37456 (+554 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. This file carries the exit-code contract once; the other two point at it.
+planning/skills/planning-projects/SKILL.md 37456
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -335,7 +342,14 @@ planning/skills/planning-projects/SKILL.md 36902
 #   sentence certified coverage the tree does not have, which is the exact claim
 #   shape this stage exists to stop. Paid down first — the bullet's explanatory
 #   tail was cut and the BL-101 detail pushed to the reference.
-planning/skills/portfolio/SKILL.md 13254
+#
+# Raised 13254 -> 13543 (+289 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. Here it is the Resolver claim, corrected from "every scripted one" to what is now true.
+planning/skills/portfolio/SKILL.md 13543
 
 # Seeded 2026-08-27 at 12519 B, its first entry: honest-gates crossed 10000 B when it
 #   gained § "A test does not exist until its mutant dies". The section is here rather than
@@ -397,7 +411,14 @@ android-dev/skills/android-ui-design-figma/SKILL.md 13534
 git-github/skills/license-audit/SKILL.md 13335
 # Raised 13122 -> 13124 (+2) by the Task 3.3 deixis burn-down:
 #   the question heuristics are cited by phase instead of by direction
-planning/skills/brainstorming/SKILL.md 13124
+#
+# Raised 13124 -> 13182 (+58 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. Here it is a pointer at that contract, not a copy of it.
+planning/skills/brainstorming/SKILL.md 13182
 # Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
 #   the Output location citation now carries the path it refers to
 planning/skills/decisions/SKILL.md 13053

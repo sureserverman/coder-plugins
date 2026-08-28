@@ -130,7 +130,7 @@ Do not present sections 2-7 until section 1 is approved. Do not skip sections be
 
 ## Phase 6 — Write the design document
 
-**Output location (vault-canonical).** Design docs live in the vault, not the repo. Resolve the project's portfolio home per `planning-projects` → "## Output location" (read `vault_dir` from `~/.claude/portfolio-config.yaml`; auto-register the project from its `~/dev/<area>/<name>` path if not already in the registry; create/refresh the repo sidecar's `portfolio_home`). Save to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-design.md`. If `vault_dir` is unset, fall back to `<repo>/docs/plans/` and warn. Structure:
+**Output location (vault-canonical).** Design docs live in the vault, not the repo. Resolve the project's portfolio home per `planning-projects` → "## Output location": **run `resolve-plan-home.py` and obey its exit codes**, which that section defines (0 use, **2 STOP on an unreachable vault**, 3 fall back). Not restated here: one definition. Then auto-register the project from its `~/dev/<area>/<name>` path if not already in the registry, and create/refresh the repo sidecar's `portfolio_home`. Save to `<portfolio_home>/plans/YYYY-MM-DD-<topic>-design.md`. Structure:
 
 ```markdown
 # Design: <Topic>

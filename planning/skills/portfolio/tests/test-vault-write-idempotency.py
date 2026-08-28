@@ -176,6 +176,131 @@ def generated_stamp_case():
               "the normalisation to the header region")
 
 
+def io_vs_decode_case():
+    """An I/O failure and a decode failure are different facts with different answers.
+
+    BL-100. `read_utf8` reported ANY `OSError` — EACCES, EIO, NFS ESTALE — as "not readable
+    as UTF-8", naming the one cause it probably was not, and `write_if_changed` then
+    truncated the file. On an NFS-backed vault the transient I/O fault is the likely cause,
+    and a file we could not read tells us nothing about what is in it.
+    """
+    pr = load("portfolio-rebuild")
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+
+        bad = rootp / "bad.md"
+        bad.write_bytes(b"# roll-up\n\xff\xfe not utf-8\n")
+        text, why = pr.read_utf8(bad)
+        check(text is None and why == "decode",
+              f"invalid UTF-8 is reported as a DECODE failure (got {why!r})")
+
+        unreadable = rootp / "adir"
+        unreadable.mkdir()
+        text, why = pr.read_utf8(unreadable)
+        check(text is None and why == "io",
+              f"an unreadable path is reported as an I/O failure, not a decode one "
+              f"(got {why!r})")
+
+        # The branch where the distinction changes BEHAVIOUR, not just the message.
+        wrote = pr.write_if_changed(unreadable, "replacement content")
+        check(wrote is False and unreadable.is_dir(),
+              "write_if_changed REFUSES on an I/O failure — overwriting a file we could "
+              "not read is a guess dressed as a repair")
+
+        # And the decode branch still regenerates: these roll-ups carry no curated content,
+        # and that was a deliberate exception, not an oversight.
+        wrote = pr.write_if_changed(bad, "# roll-up\n\nregenerated\n")
+        check(wrote is True and bad.read_text() == "# roll-up\n\nregenerated\n",
+              "a DECODE failure still regenerates — narrowing the I/O case must not "
+              "narrow this one too")
+
+
+def atomic_write_case():
+    """A crash mid-write leaves the old file, not half a new one.
+
+    BL-100's second half. `path.write_text()` is truncate-then-write, so an interrupted run
+    left a truncated roll-up in a tree with no version control.
+    """
+    pr = load("portfolio-rebuild")
+    with tempfile.TemporaryDirectory() as root:
+        target = Path(root) / "global-backlog.md"
+        target.write_text("original content\n")
+
+        class Boom(Exception):
+            pass
+
+        real_replace = os.replace
+
+        def exploding_replace(*a, **k):
+            raise Boom("interrupted between write and rename")
+
+        os.replace = exploding_replace
+        try:
+            try:
+                # Through write_if_changed, NOT atomic_write directly: the first version of
+                # this case called the helper straight and so never pinned that the caller
+                # uses it — reverting the call site to path.write_text stayed green.
+                pr.write_if_changed(target, "new content that never lands\n")
+            except Boom:
+                pass
+        finally:
+            os.replace = real_replace
+
+        check(target.read_text() == "original content\n",
+              "an interruption before the rename leaves the ORIGINAL intact — the old "
+              "truncate-then-write left a half-file that still looked like a file")
+        leftovers = [f.name for f in Path(root).iterdir() if f.name != "global-backlog.md"]
+        check(leftovers == [],
+              f"and no temp file is left beside it ({leftovers})")
+
+        pr.atomic_write(target, "new content\n")
+        check(target.read_text() == "new content\n", "the normal path still writes")
+
+
+def vault_vanishes_mid_run_case():
+    """The vault disappearing AFTER the check must not be rebuilt from nothing.
+
+    BL-099, reproduced verbatim at the Stage 4 gate: with the root removed after a passing
+    `require_vault()`, `migrate_project` returned `ok` and recreated
+    `<vault>/Portfolio/<area>/<name>/` with the repo's docs inside it. `require_vault` runs
+    once in `main()`; the writes follow it, and every `mkdir(parents=True)` downstream is
+    happy to build the chain.
+    """
+    pr = load("portfolio-rebuild")
+    with tempfile.TemporaryDirectory() as root:
+        rootp = Path(root)
+        vault = rootp / "vault"
+        (vault / "Portfolio").mkdir(parents=True)
+        check(pr.vault_live(vault), "a mounted vault is live")
+
+        shutil.rmtree(vault)
+        check(not pr.vault_live(vault),
+              "a vault whose root is gone is NOT live — this is the state the run was in "
+              "when it recreated the tree")
+
+        (vault).mkdir()
+        check(not pr.vault_live(vault),
+              "an existing root with no Portfolio/ is not live either — that is what an "
+              "UNMOUNTED mountpoint looks like, and it is the case a plain exists() misses")
+
+        repo = rootp / "repo"
+        (repo / "docs" / "plans").mkdir(parents=True)
+        (repo / "docs" / "plans" / "p.md").write_text("# plan\n")
+        shutil.rmtree(vault)
+
+        pm = load("portfolio-migrate")
+        status, label, msg = pm.migrate_project(
+            {"path": str(repo), "area": "ai-tools", "name": "demo"}, vault, True)
+        check(status == "fail",
+              f"migrate_project REFUSES when the vault went away after the check "
+              f"(got {status!r}: {msg})")
+        check(not vault.exists(),
+              "and the vault tree is NOT recreated — the reproduced defect was that it was, "
+              "and that the run reported ok")
+        check((repo / "docs" / "plans" / "p.md").exists(),
+              "the repo's only copy of its docs is still in the repo")
+
+
 def integrate_cases():
     """Two `integrate --write` runs on an unchanged vault, on different days."""
     with tempfile.TemporaryDirectory() as root:
@@ -408,6 +533,12 @@ def sweep_case():
 
 
 if __name__ == "__main__":
+    print("vault liveness — a mount that drops mid-run:")
+    vault_vanishes_mid_run_case()
+    print("read_utf8 — I/O failure is not a decode failure:")
+    io_vs_decode_case()
+    print("atomic_write — an interrupted write leaves the original:")
+    atomic_write_case()
     print("write_if_changed — both stamp forms:")
     generated_stamp_case()
     print("integrate — byte-idempotent roll-ups across a date change:")

@@ -12,7 +12,7 @@
 Idempotent: re-running with no upstream change produces byte-identical output
 (timestamp suppressed when content is unchanged).
 """
-import os, re, subprocess, sys, yaml, datetime
+import os, re, subprocess, sys, tempfile, yaml, datetime
 from pathlib import Path
 
 REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
@@ -143,8 +143,29 @@ def require_vault(path, source):
     return path
 
 
+def vault_live(vault):
+    """The `Portfolio/` sentinel is still there — ONE stat, at a write boundary.
+
+    `require_vault()` runs once, in `main()`, and the writes follow. If the vault goes away
+    in between — an NFS mount dropping mid-run, which `--all` makes a realistic window —
+    every `mkdir(parents=True)` downstream happily rebuilds the chain from nothing.
+    Reproduced: with the root removed after a passing check, `migrate_project` returned `ok`
+    and recreated `<vault>/Portfolio/<area>/<name>/` with the repo's docs inside it.
+
+    Granularity is deliberate: the same sentinel `vault_problem()` uses, checked **per
+    project** rather than per file. Per file would be a stat storm on an NFS vault for a
+    window that does not meaningfully narrow; per run is what already failed. This does not
+    close the race — nothing short of holding an open handle does — it bounds it to one
+    project's writes, and says so rather than implying the guard is total.
+    """
+    try:
+        return (Path(vault) / "Portfolio").is_dir()
+    except OSError:
+        return False
+
+
 def read_utf8(path):
-    """Vault text decoded STRICTLY, or None when the file is not valid UTF-8.
+    """`(text, None)`, or `(None, "decode"|"io")` naming which failure occurred.
 
     Three reads in this file used a bare `read_text()` and one used
     `errors="ignore"`, and a review showed both halves of that were wrong:
@@ -163,14 +184,30 @@ def read_utf8(path):
 
     So: decode strictly, and hand the caller None to decide with. Every caller
     refuses rather than guesses, except the two fully-regenerable roll-ups where
-    there is no curated content to lose.
+    there is no curated content to lose — and even there, only on a DECODE
+    failure. The second element says which failure it was, because "the bytes are
+    not UTF-8" and "I could not read the bytes" are different facts that deserve
+    different answers, and reporting the second as the first sent readers hunting
+    for an encoding problem on an NFS mount that had simply dropped.
     """
     try:
-        return path.read_bytes().decode("utf-8")
-    except (OSError, UnicodeDecodeError) as e:
-        print(f"warning: {path} is not readable as UTF-8 ({type(e).__name__}) — "
+        return path.read_bytes().decode("utf-8"), None
+    except UnicodeDecodeError as e:
+        print(f"warning: {path} is not valid UTF-8 ({type(e).__name__}) — "
               "not acting on its contents", file=sys.stderr)
-        return None
+        return None, "decode"
+    except OSError as e:
+        # A DIFFERENT fact, and the one this function used to misreport. EACCES,
+        # EIO and NFS ESTALE all arrived here and were announced as "not readable
+        # as UTF-8", which names the one cause it probably was not — and on an
+        # NFS-backed vault a transient I/O fault is the LIKELY cause. The two
+        # failures also want opposite responses: a file whose bytes are wrong may
+        # be safe to regenerate, while a file we could not read at all tells us
+        # nothing about what is in it, so the safe direction is to refuse.
+        print(f"warning: {path} could not be READ ({type(e).__name__}: {e}) — "
+              "this is an I/O failure, not a decoding one; not acting on its "
+              "contents", file=sys.stderr)
+        return None, "io"
 
 
 def count_backlog(home):
@@ -498,7 +535,7 @@ def write_sidecar(repo, home, vd, write):
         # Read ONCE. The old code read the file twice — once to splice, once to
         # compare — which is two chances to crash and one chance to disagree with
         # itself if the file changes between them.
-        cur = read_utf8(sc)
+        cur, _ = read_utf8(sc)
         if cur is None:
             # Skip THIS repo, do not abort the run, and never overwrite a file
             # whose contents could not be read: everything outside the sentinels
@@ -566,7 +603,7 @@ def preserved_region(path):
     # undecodable bytes there returns a curated body with characters silently
     # deleted and then writes it back, which is the region-level rule this
     # function exists to enforce, violated at the character level.
-    text = read_utf8(path)
+    text, _ = read_utf8(path)
     if text is None:
         print(f"warning: {path.name} could not be decoded as UTF-8 — REFUSING to "
               "rewrite it. Nothing was written.", file=sys.stderr)
@@ -736,6 +773,29 @@ def render_global_decisions(vd, projects):
     return "\n".join(L)
 
 
+def atomic_write(path, content):
+    """Write via a temp file in the same directory, then `os.replace`.
+
+    `path.write_text()` is truncate-then-write: an interrupted run leaves a
+    truncated roll-up in a tree with no version control, so the failure mode of a
+    crash mid-write was a half-file that still looks like a file. `os.replace` is
+    atomic within a filesystem, and the temp file is created beside the target so
+    it is always the same filesystem. The temp file is cleaned up on failure —
+    leaving `global-backlog.md.tmp123` beside the real one is its own small mess.
+    """
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def write_if_changed(path, content):
     # TWO stamp forms, because the roll-ups do not agree on one. Four of them use
     # `**Last rebuilt:**` (rendered here); `global-business.md` comes from
@@ -750,18 +810,28 @@ def write_if_changed(path, content):
         s = re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
         return re.sub(r"(?m)^Generated:[^\n]*$", "TS", s, count=1)
     if path.exists():
-        cur = read_utf8(path)
+        cur, why = read_utf8(path)
+        if why == "io":
+            # REFUSE. An unreadable file tells us nothing about what is in it, so
+            # overwriting it is a guess dressed as a repair — and the likely cause
+            # on an NFS-backed vault is a transient fault that will clear. This is
+            # the one branch where the decode/I-O distinction changes behaviour
+            # rather than only the message.
+            print(f"warning: {path.name} could not be read — REFUSING to rewrite "
+                  "it. Nothing was written.", file=sys.stderr)
+            return False
         if cur is None:
-            # Regenerating is safe HERE and only here: the roll-ups that reach
-            # this function with an undecodable existing file carry no curated
-            # content. global-backlog.md cannot: `preserved_region` decodes it
-            # strictly first and returns None, and main() skips the write, so an
-            # undecodable roll-up with a curated block never gets this far.
-            print(f"warning: {path.name} could not be decoded — regenerating it "
+            # Regenerating is safe HERE and only here, and only for a DECODE
+            # failure: the roll-ups that reach this function with an undecodable
+            # existing file carry no curated content. global-backlog.md cannot:
+            # `preserved_region` decodes it strictly first and returns None, and
+            # main() skips the write, so an undecodable roll-up with a curated
+            # block never gets this far.
+            print(f"warning: {path.name} is not valid UTF-8 — regenerating it "
                   "from scratch", file=sys.stderr)
         elif strip_ts(cur) == strip_ts(content):
             return False
-    path.write_text(content)
+    atomic_write(path, content)
     return True
 
 
@@ -850,10 +920,22 @@ def main():
     projects = [p for p in reg["projects"] if p.get("enabled", True)]
 
     enriched = 0
+    skipped_gone = 0
     for p in projects:
+        # BL-099: the sentinel is re-checked at the WRITE boundary, once per project.
+        # require_vault() ran in main() and the writes follow it; a mount that drops in
+        # between let every downstream mkdir rebuild the chain from nothing. Per project
+        # rather than per file, so an NFS vault pays one stat per project, not one per write.
+        if not vault_live(vd):
+            skipped_gone += 1
+            continue
         home = vd / "Portfolio" / p["area"] / p["name"]
         if write_sidecar(p["path"], home, vd, args.write):
             enriched += 1
+    if skipped_gone:
+        print(f"warning: vault went away mid-run — skipped {skipped_gone} project(s) "
+              f"rather than recreating it. Check the mount; nothing was written for them.",
+              file=sys.stderr)
 
     gb_path = vd / "Portfolio" / "global-backlog.md"
     # None means the existing file is ambiguous (duplicate or out-of-order

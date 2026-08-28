@@ -112,11 +112,10 @@ Then the **approval gate** (the HARD-GATE above):
 
 ## Phase 5 — Write the architecture document
 
-Resolve the output location exactly as `planning-projects` does (its "Output
-location" section is canonical): read `vault_dir` from
-`~/.claude/portfolio-config.yaml` (unset → fall back to `<repo>/docs/plans/` and
-warn, skipping the rest); compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`
-from the project's `~/dev/<area>/<name>` path; auto-register the project in
+Resolve the output location exactly as `planning-projects` does — **run
+`resolve-plan-home.py` and obey its exit codes**, which that section defines (0 use, **2 STOP
+on an unreachable vault**, 3 fall back). Not restated here: one definition. Then
+auto-register the project in
 `~/.claude/projects-registry.yaml` if it's new; ensure the repo sidecar
 `.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (run
 `/planning:portfolio rebuild` for a brand-new project). This matters here more than

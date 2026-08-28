@@ -18,7 +18,7 @@ Single user-facing skill that ties together every project in `~/dev/`:
 
 ## Resolver (read this before any read/write)
 
-Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md` — every *scripted* one; prose-resolved lanes are BL-101:
+Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md` — the LLM lane included, since the three plan-writing skills now call `scripts/resolve-plan-home.py` rather than resolving in prose (BL-101). One definition, not one in code and one in prose free to drift (DEC-011). Bound: a skill's call is still an instruction, so this removes the second *definition*, not the model's ability to skip the step.
 
 ```
 repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
