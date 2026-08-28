@@ -143,10 +143,9 @@ Edit the target catalog file directly. Per-format rules:
 
 ### 6. Report
 
-Return:
-
 **Before anything described here, the degradation banner comes first** when the reference-resolution contract calls for one: if a named reference went unread, that banner is your literal first line and this section's output starts underneath it.
 
+Return:
 
 ```
 translator — <source_locale> → <target_locale> (<framework>)

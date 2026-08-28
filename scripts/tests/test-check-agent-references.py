@@ -211,7 +211,8 @@ def main():
                        tail="\nWhen in doubt, skip the DEGRADED line; it alarms readers.\n")
         check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
               "a restatement of the BANNER rule alone is flagged — each marker has to "
-              "carry its own weight, not ride on a co-occurring one")
+              "carry its own weight, not ride on a co-occurring one (within a fragment "
+              "carrying no delegating phrase; see the note on DELEGATION)")
 
     with tempfile.TemporaryDirectory() as tmp:
         # Three restatements in one punctuation-free run: three findings, not one.
@@ -226,8 +227,28 @@ def main():
     print("check-agent-references — the pinned set is itself guarded:")
     check(len(car.EXPECTED_AGENTS) >= 7 and all(
               (car.ROOT / rel).is_file() for rel in car.EXPECTED_AGENTS),
-          "EXPECTED_AGENTS names at least the seven shipped agents and every one exists — "
-          "emptying the set would otherwise disable the attrition guard silently")
+          "EXPECTED_AGENTS names at least the seven shipped agents and every one exists")
+    check(len(set(car.EXPECTED_AGENTS)) == len(car.EXPECTED_AGENTS),
+          "EXPECTED_AGENTS has no DUPLICATE member — a length check alone is a floor, and "
+          "a duplicated entry keeps the length whole while a real agent leaves the "
+          "population")
+
+    print("check-agent-references — the attrition path returns 1, not just prints:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # run-tests.sh gates on exit status only, so a validator that prints FAIL: and
+        # returns 0 reports as passing. The documented exit-1 paths are pinned by code, not
+        # by the message they print.
+        root = Path(tmp)
+        agent_file(root, "demo", canonical("demo", "REVIEW"))
+        old = car.ROOT
+        car.ROOT = root
+        try:
+            rc = car.main()
+        finally:
+            car.ROOT = old
+        check(rc == 1,
+              f"a population missing every pinned agent EXITS 1 (got {rc}) — printing "
+              f"FAIL: while returning 0 is invisible to the harness")
 
     print("check-agent-references — the variable's other spelling:")
     with tempfile.TemporaryDirectory() as tmp:

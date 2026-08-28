@@ -124,6 +124,8 @@ made to build within reason, return RED with the exact error.
 
 ## Failure contract — report, don't loop
 
+**Before anything described here, the degradation banner comes first** when the reference-resolution contract calls for one: if a named reference went unread, that banner is your literal first line and this section's output starts underneath it.
+
 If you can't reproduce the slice faithfully after a focused attempt (max 3 targeted
 fixes), **stop and report** — don't shotgun changes. Return:
 
@@ -136,8 +138,6 @@ fixes), **stop and report** — don't shotgun changes. Return:
 Your final message **is** the return value the orchestrator consumes — keep it condensed
 and structured (GREEN/RED/FLAG + the facts), not a narrative.
 
-**Before anything described here, the degradation banner comes first** when the reference-resolution contract calls for one: if a named reference went unread, that banner is your literal first line and this section's output starts underneath it.
-
 ## Rules
 
 - Reproduce, don't redesign. The spec is the source of truth.
@@ -147,4 +147,4 @@ and structured (GREEN/RED/FLAG + the facts), not a narrative.
 - On browser stacks, render with Playwright and follow the mock as you build — never
   self-grade a web slice from source alone. Captures must be deterministic.
 - Verify the build before returning; never return a non-compiling slice as GREEN.
-- Condensed, structured return — facts, not narration.
+- Condensed, structured return — facts, not narration. The degradation banner is the one exception: it precedes the return, because a caveat folded into condensed facts is the disclosure arriving after the content.

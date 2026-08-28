@@ -41,7 +41,9 @@ an inverted clause is not the canonical text, and neither is a reworded one.
                           names the first differing run of words in both directions.
   NO-CONTRACT-BLOCK       no `<!-- reference-resolution-contract -->` block at all.
   DUPLICATE-CONTRACT-BLOCK  more than one pair; only one would ever be read.
-  BLOCK-NOT-FIRST         the contract's heading is not the first `##` in the file. The
+  BLOCK-NOT-FIRST         the contract is not the first thing in the file: some other
+                          heading of any level precedes it, or more than
+                          `FIRST_SCREEN_LINES` lines of anything do. The
                           banner is a PRESENTATION rule, so the block's position is part of
                           the property, not a formatting preference: a contract that sits
                           below the output schemas is read after them.
@@ -120,6 +122,8 @@ CLOSE = "<!-- /reference-resolution-contract -->"
 # block and adding one compliant agent kept the number whole and the sweep silent. Naming
 # the members makes attrition and substitution both visible, and adding an agent is a
 # deliberate one-line edit a reviewer sees.
+# Members are checked for UNIQUENESS by the suite: a duplicated entry keeps the length
+# whole while a real agent drops out, which is the floor failure one level in.
 EXPECTED_AGENTS = (
     "business/agents/market-researcher.md",
     "game-dev/agents/game-design-expert.md",
@@ -146,6 +150,12 @@ EXPECTED_AGENTS = (
 # rate-limit, which is nothing to do with reference resolution.
 RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cache",
                        "DEGRADED")
+# Known and accepted: the escape is evaluated per FRAGMENT, and a punctuation-free run
+# (a bullet list, say) is one fragment — so a delegating bullet launders a DEGRADED
+# restatement three bullets down. Narrowing it would break post-drafter, whose output-shape
+# section legitimately needs both in one breath. Recorded rather than left for a reader to
+# discover from the fixture's more confident wording.
+#
 # The escape, and the form the contract wants: a sentence may name the banner when it
 # POINTS AT the block. Single-sourcing is the fix, so it must not be what trips the check.
 #
@@ -218,7 +228,14 @@ def agents():
     return sorted(p for p in ROOT.glob("*/agents/*.md") if p.is_file())
 
 
-H2_RE = re.compile(r"^## ", re.M)
+# Any heading level, not just `##`: the property is "nothing else is read first",
+# and five `### Output schema N` sections above the block satisfied a `^## ` test
+# while plainly violating what the codes table promises.
+HEADING_RE = re.compile(r"^#{2,6} ", re.M)
+# And a heading is not the only thing that can precede it: 120 lines of unheaded
+# prose read first too. The block sits within the opening screens or it is not a
+# first-screen promise.
+FIRST_SCREEN_LINES = 40
 
 
 def block_is_first_section(raw):
@@ -230,8 +247,11 @@ def block_is_first_section(raw):
     and a check that verified the words while ignoring the placement would be measuring the
     easier half of its own subject.
     """
-    m = H2_RE.search(raw)
-    return m is not None and raw.index(OPEN) < m.start()
+    before = raw[:raw.index(OPEN)]
+    if before.count("\n") + 1 > FIRST_SCREEN_LINES:
+        return False
+    m = HEADING_RE.search(raw)
+    return m is None or raw.index(OPEN) < m.start()
 
 
 def out_of_block_sites(raw):
@@ -267,9 +287,10 @@ def out_of_block_sites(raw):
                 # level in. Matched whitespace-flexibly because the fragment is raw text
                 # while the marker was found in the flattened copy.
                 rx = re.compile(r"\s+".join(re.escape(w) for w in hit.split()))
-                m = rx.search(sentence)
-                at = start + (m.start() if m else 0)
-                out.append((raw.count("\n", 0, base + at) + 1, hit))
+                found = list(rx.finditer(sentence))
+                for m in (found or [None]):
+                    at = start + (m.start() if m else 0)
+                    out.append((raw.count("\n", 0, base + at) + 1, hit))
     return out
 
 

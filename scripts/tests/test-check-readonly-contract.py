@@ -183,10 +183,24 @@ def main():
         (root / "git-github" / "skills").mkdir(parents=True)
         (root / "git-github" / "skills" / "code-review.md").write_text(
             "Dispatch `git-github:code-reviewer` (read-only) over the whole diff.\n")
-        orph, probs, n, _ = run(root)
-        check(n == 2 and probs == [] and orph == [],
+        # The count must come through the real pipeline. The first version of this
+        # fixture called run(), which passes its DEFAULT n_sites=1 — so counted_sites(),
+        # the sole consumer of COUNTED_DIR, was never invoked and emptying COUNTED_DIR
+        # survived the entire harness while this check claimed to pin it. A helper with a
+        # default argument let the fixture bypass the unit it names.
+        old_root, old_agent = ro.ROOT, ro.AGENT
+        ro.ROOT = root
+        ro.AGENT = root / "git-github" / "agents" / "code-reviewer.md"
+        try:
+            found = ro.sites()
+            counted = len(ro.counted_sites(found))
+            probs = ro.definition_problems(counted)
+            orph = ro.orphans()
+        finally:
+            ro.ROOT, ro.AGENT = old_root, old_agent
+        check(len(found) == 2 and counted == 1 and probs == [] and orph == [],
               f"a 7th site outside executing-plans is swept but does NOT change the "
-              f"sentence's count (sites={n}, problems={probs})")
+              f"sentence's count (sites={len(found)}, counted={counted}, problems={probs})")
 
     print("check-readonly-contract — two sites on one line are two sites:")
     with tempfile.TemporaryDirectory() as tmp:
@@ -233,8 +247,32 @@ def main():
     print("check-readonly-contract — the pinned set and the proximity bound are guarded:")
     check(len(ro.EXPECTED_SITES) >= 6 and all(
               (ro.ROOT / rel).is_file() for rel in ro.EXPECTED_SITES),
-          "EXPECTED_SITES names at least the six shipped sites and every one exists — "
-          "emptying the set would otherwise disable the attrition guard silently")
+          "EXPECTED_SITES names at least the six shipped sites and every one exists")
+    check(len(set(ro.EXPECTED_SITES)) == len(ro.EXPECTED_SITES),
+          "EXPECTED_SITES has no DUPLICATE member — a length check alone is a floor")
+    check(ro.NEAR <= 200,
+          f"NEAR ({ro.NEAR}) is within one clause — the fixture below pins it only under "
+          f"~404, and on a 1,005-char single-line site the bound IS the orphan check")
+
+    print("check-readonly-contract — the failing paths return 1, not just print:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "planning" / "skills" / "executing-plans").mkdir(parents=True)
+        (root / "git-github" / "agents").mkdir(parents=True)
+        (root / "git-github" / "agents" / "code-reviewer.md").write_text(GOOD_AGENT)
+        old_root, old_agent = ro.ROOT, ro.AGENT
+        ro.ROOT, ro.AGENT = root, root / "git-github" / "agents" / "code-reviewer.md"
+        try:
+            rc_missing = ro.main()
+            (root / ".git").mkdir()      # git branch, no real repo: the BLOCKED path
+            rc_blocked = ro.main()
+        finally:
+            ro.ROOT, ro.AGENT = old_root, old_agent
+        check(rc_missing == 1,
+              f"a population missing every pinned site EXITS 1 (got {rc_missing})")
+        check(rc_blocked == 1,
+              f"an unenumerable population EXITS 1 as BLOCKED (got {rc_blocked}) — a "
+              f"sweep that cannot run must not report as one that ran clean")
     with tempfile.TemporaryDirectory() as tmp:
         # NEAR was pinned by nothing: raising it to 100000 survived. On the two ~1,000-char
         # single-line sites the proximity bound IS the orphan check.

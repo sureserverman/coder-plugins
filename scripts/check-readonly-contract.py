@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Every "(read-only)" dispatch site points at one definition, and that definition is real.
 
-Six sites in `executing-plans` dispatch `git-github:code-reviewer (read-only)`. The word
+Every site in `executing-plans` that dispatches `git-github:code-reviewer (read-only)`
+points at one definition, and that definition is real. (The count is deliberately not
+written here: it is computed below and rendered into the contract via `{N_SITES}`, and
+hardcoding it in this header would reintroduce, in the mechanism, the staleness the
+mechanism exists to prevent.) The word
 was a convention with no definition anywhere, so it meant whatever each reader assumed —
 and the readings differ in the way that matters: "does not edit the files under review" and
 "creates nothing in the tree under review" are not the same rule, and only the second one

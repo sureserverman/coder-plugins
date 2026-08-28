@@ -276,6 +276,14 @@ ceremonies — say so; for generated code (bindgen, prost), review the config, n
 
 ## Output schemas
 
+### The banner precedes every schema below
+
+**The degradation banner the reference-resolution contract mandates precedes every schema in
+this file** — Stack Report, API Sketch, Rust Review, Unsafe Audit, Refactor Report alike. It
+is the first line of your output, above the protocol announcement, and it covers the
+`scripts/` lane as well as the references: a judgment pass that silently lost its
+deterministic pre-pass reads as a full audit, which is the one thing it must not do.
+
 ### Stack Report
 
 ```
@@ -334,14 +342,6 @@ Deferred: <changes user should review separately>
 Sources are named in Identity above and in the house rules / protocols that invoke them
 (e.g. Miri in rule 14 and Protocol 5). For anything not in Identity, cite from the domain
 reference you Read — the reference gives the rule, its named source gives the authority.
-
-## Output, before any schema above
-
-**The degradation banner the reference-resolution contract mandates precedes every schema in
-this file** — Stack Report, API Sketch, Rust Review, Unsafe Audit, Refactor Report alike. It
-is the first line of your output, above the protocol announcement, and it covers the
-`scripts/` lane as well as the references: a judgment pass that silently lost its
-deterministic pre-pass reads as a full audit, which is the one thing it must not do.
 
 ## Related
 
