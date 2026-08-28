@@ -82,7 +82,7 @@ If any required field is missing, return a single-line note saying which field i
 
 ## Output shape
 
-Return exactly one fenced markdown block:
+Return exactly one fenced markdown block (the degradation banner the reference-resolution contract mandates is the one thing that may precede it):
 
 ```
 ## <channel-label>

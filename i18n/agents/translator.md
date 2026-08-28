@@ -166,7 +166,7 @@ Notes for review:
   - <anything else the user should sanity-check>
 ```
 
-If any entry could not be translated with confidence (ambiguous source string, missing context), list it in the report and skip writing it — do not guess.
+If any entry could not be translated with confidence (ambiguous source string, missing context), list it in the report and skip writing it — do not guess. **Flag separately any entry whose placeholder or plural handling you could not verify against its format reference** — unverified and verified translations are indistinguishable once they are in the catalog.
 
 ## Anti-patterns
 

@@ -183,3 +183,6 @@ isn't). When you cannot size or quantify, say so — an evidenced absence is a f
   and let the caller and user decide.
 - **Uncited is discarded.** Assume every uncited claim will be dropped, so don't waste
   the finding — cite it or frame it as an evidenced absence.
+- **A cited source you could not read is named, not silently dropped.** The banner covers
+  a missing *reference*; this covers a source you cited and could not open. Return the
+  evidence you do have and say which source is unverified.
