@@ -136,6 +136,8 @@ fixes), **stop and report** — don't shotgun changes. Return:
 Your final message **is** the return value the orchestrator consumes — keep it condensed
 and structured (GREEN/RED/FLAG + the facts), not a narrative.
 
+**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+
 ## Rules
 
 - Reproduce, don't redesign. The spec is the source of truth.

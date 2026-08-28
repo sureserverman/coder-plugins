@@ -251,7 +251,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings, never modifies files.",
+      "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings; its read-only-contract block defines the boundary.",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "sonnet",
@@ -541,7 +541,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Use to read, append, or remove entries in docs/backlog.md \u2014 the project's deferred-work register. Triggers on \"add to backlog\", \"defer this\", \"what's in the backlog\", \"BL-007 is done \u2014 remove it\". Append on defer, remove on implement, list on research.",
+      "description": "Use to read, append, or remove entries in docs/backlog.md \u2014 the register for deferred improvements and decisions, not defects. Triggers on \"add to backlog\", \"defer this\", \"what's in the backlog\", \"BL-007 is done \u2014 remove it\". Append on defer, remove on implement, list on research.",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,

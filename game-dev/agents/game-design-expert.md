@@ -179,6 +179,8 @@ Procedure (consult `${CLAUDE_PLUGIN_ROOT}/references/game-architecture-patterns.
 
 ## Output format
 
+**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+
 For reviews:
 
 ```markdown

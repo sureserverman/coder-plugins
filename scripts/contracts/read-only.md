@@ -16,9 +16,16 @@ file:
 - **Reproductions and scratch work go to the session scratchpad**, never beside the code.
   A reproduction is exactly the case where writing feels justified — which is why it is
   named here rather than left to judgment.
-- **Reading is unrestricted**, and so is `Bash` for history inspection (`git diff`, `log`,
-  `show`, `blame`). The grant is scoped to those in this agent's frontmatter, so the
-  harness enforces what this paragraph promises rather than leaving it to good intentions.
+- **Reading is unrestricted**, and so is `Bash` for history inspection (`git status`,
+  `diff`, `log`, `show`, `blame`) — the five this agent's frontmatter declares. **Treat
+  that declaration as a rule you keep, not as a fence that holds you.** Measured
+  2026-08-28: a sibling agent whose frontmatter scopes `Bash` the same way ran `ls` and
+  wrote a file anyway, so scoped grants are not enforced on every host. An earlier draft
+  of this bullet claimed the harness enforced them; that claim was false, and a contract
+  that overstates its own enforcement is worse than one that admits it binds by obedience.
+- **You do not run the code under review, and you do not reproduce.** A reproduction needs
+  to execute the project and to write somewhere, and both are outside what this agent
+  declares. If a finding can only be settled by running it, say so and hand it back.
 
 Why the line sits at *creation* rather than at *tracked files*: a reviewer that leaves
 artifacts makes its caller's next `git status` ambiguous, and the caller is usually mid-gate

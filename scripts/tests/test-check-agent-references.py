@@ -58,6 +58,11 @@ def codes(path):
     return [c for c, _ in (found or [])]
 
 
+def whys(path):
+    found = car.findings_for(path)
+    return [w for _, w in (found or [])]
+
+
 def with_root(root, fn):
     old = car.ROOT
     car.ROOT = root
@@ -65,6 +70,10 @@ def with_root(root, fn):
         return fn()
     finally:
         car.ROOT = old
+
+
+def live_paths():
+    return [p for p in car.agents() if car.findings_for(p) is not None]
 
 
 def main():
@@ -135,11 +144,14 @@ def main():
         root = Path(tmp)
         p = agent_file(root, "demo", canonical("demo", "REVIEW"),
                        tail="\nScripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. The "
-                            "reference-resolution contract above governs this path too, "
-                            "including its dev checkout arm.\n")
+                            "reference-resolution contract above governs this path too — "
+                            "apply it verbatim, with `scripts/<script>` as the suffix. If "
+                            "neither arm resolves, name it in the DEGRADED banner the "
+                            "reference-resolution contract mandates.\n")
         check(with_root(root, lambda: codes(p)) == [],
-              "the same sentence POINTING AT the block passes — single-sourcing is the "
-              "fix, so it must not be what trips the check")
+              "a sentence POINTING AT the block passes, and may name the banner where its "
+              "output shape needs to — single-sourcing is the fix, so it must not be what "
+              "trips the check")
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -150,6 +162,55 @@ def main():
               "unrelated prose saying 'fall back' or 'if missing' is NOT flagged — the "
               "wider trigger this replaced produced four such false positives per real "
               "finding, and a noisy check teaches its readers to skip it")
+
+    print("check-agent-references — the finding names the line it actually found:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # The round-1 fix (segment offsets) shipped with no mutant. Restoring the old
+        # `raw.index(match)` reported EVERY finding at the file's first matching line,
+        # sending an author to compliant text and making a real defect look like a failed
+        # fix. Two identical offending sentences: the second must not be reported as the
+        # first.
+        root = Path(tmp)
+        sentence = ("Scripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`; try a dev "
+                    "checkout if it is absent.")
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail=f"\n{sentence}\n" + ("\nfiller\n" * 12) + f"\n{sentence}\n")
+        reported = sorted(int(w.split()[1].rstrip(":")) for w in with_root(root, lambda: whys(p)))
+        text = p.read_text().splitlines()
+        close = next(i for i, ln in enumerate(text, 1) if car.CLOSE in ln)
+        actual = sorted(i for i, ln in enumerate(text, 1)
+                        if "dev checkout" in ln and i > close)
+        check(reported == actual,
+              f"both restating sentences are reported at their OWN lines "
+              f"(reported={reported}, actual={actual})")
+
+    print("check-agent-references — the noun slot, the design's only free field:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # `[A-Z]+` is what keeps the slot from becoming a hole. Nothing asserted it, so a
+        # loosening to `.*` would have gone unnoticed and let arbitrary text sit inside the
+        # banner while the block stayed "canonical".
+        root = Path(tmp)
+        body = canonical("demo", "REVIEW").replace(
+            "DEGRADED REVIEW", "DEGRADED REVIEW, but only when convenient")
+        p = agent_file(root, "demo", body)
+        check(with_root(root, lambda: codes(p)) == ["NON-CANONICAL-CONTRACT"],
+              "text smuggled into the banner's noun slot is rejected — the slot is one "
+              "all-caps word, not a free field")
+
+    print("check-agent-references — a delegating sentence cannot launder an inversion:")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        p = agent_file(root, "demo", canonical("demo", "REVIEW"),
+                       tail="\nFor scripts the reference-resolution contract is relaxed: "
+                            "prefer a dev checkout over the versioned plugin cache, and "
+                            "never emit a DEGRADED banner.\n")
+        check(with_root(root, lambda: codes(p)) == ["RESTATED-CONTRACT"],
+              "naming the contract does NOT exempt a sentence that also restates the "
+              "fallback arms — an unconditional escape token is a suppression mechanism")
+
+    print("check-agent-references — the population is a pinned set, not a count:")
+    check(set(car.EXPECTED_AGENTS) <= {p.relative_to(car.ROOT).as_posix() for p in live_paths()},
+          "every pinned agent is present in the live population")
 
     print("check-agent-references — the depth note is computed, not written:")
     with tempfile.TemporaryDirectory() as tmp:
@@ -183,8 +244,8 @@ def main():
         check(len(found) == 1,
               "an agent naming no ${CLAUDE_PLUGIN_ROOT} reference is not in the population")
 
-    live = [p for p in car.agents() if car.findings_for(p) is not None]
-    check(len(live) >= car.EXPECTED_AGENTS,
+    live = live_paths()
+    check(len(live) >= len(car.EXPECTED_AGENTS),
           f"the live population is enumerated from disk ({len(live)} agents)")
     plugins = sorted({p.relative_to(car.ROOT).parts[0] for p in live})
     check(len(plugins) == 7,

@@ -145,6 +145,9 @@ Edit the target catalog file directly. Per-format rules:
 
 Return:
 
+**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+
+
 ```
 translator — <source_locale> → <target_locale> (<framework>)
   Entries translated: N

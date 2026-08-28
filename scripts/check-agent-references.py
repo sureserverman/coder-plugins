@@ -66,6 +66,14 @@ accepted cost of not being noisy: the previous, wider trigger flagged four unrel
 sentences for every genuine site, and a check whose findings are mostly noise is one whose
 readers learn to skip it.
 
+**REVOCATION and REFRAMING are not caught at all, and they are a different thing from
+paraphrase.** The lane asks whether a sentence restates the contract. It does not ask
+whether some other sentence tells the agent to disregard the block ("the boxed rules below
+are obsolete"), or wraps it in a frame that neutralises it ("kept only so you can recognise
+and ignore it"). Those defeat the contract without restating one word of it, and no
+substring test decides them — this is the residue that belongs to review, and it is written
+down rather than left for the next reviewer to rediscover.
+
 Read-only. Exit 0 when every in-scope agent carries the canonical block and no sentence
 outside it restates the contract's vocabulary without pointing at the block, 1 otherwise.
 """
@@ -79,16 +87,28 @@ from _contract_block import extract, flat  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS = ROOT / "scripts" / "contracts"
 
-# An agent is in scope when it tells the model to read a plugin-rooted reference.
-TRIGGER = "${CLAUDE_PLUGIN_ROOT}"
+# An agent is in scope when it tells the model to read a plugin-rooted reference. Matched
+# on the NAME, not on one spelling of it: `$CLAUDE_PLUGIN_ROOT` without braces reads the
+# same variable, and keying the population to `${...}` meant an agent could join the repo
+# and miss the sweep entirely while the docstring claimed it joins "by existing".
+TRIGGER = "CLAUDE_PLUGIN_ROOT"
 
 OPEN = "<!-- reference-resolution-contract -->"
 CLOSE = "<!-- /reference-resolution-contract -->"
 
-# A floor, not an equality: a new agent joining the population is the design working, a
-# population that shrinks below what ships today is the glob or the trigger having stopped
-# matching. Raise it when an agent is added; a reviewer then sees the number move.
-EXPECTED_AGENTS = 7
+# A pinned SET, not a count. A floor of 7 is satisfied by any 7, so removing one agent's
+# block and adding one compliant agent kept the number whole and the sweep silent. Naming
+# the members makes attrition and substitution both visible, and adding an agent is a
+# deliberate one-line edit a reviewer sees.
+EXPECTED_AGENTS = (
+    "business/agents/market-researcher.md",
+    "game-dev/agents/game-design-expert.md",
+    "git-github/agents/code-reviewer.md",
+    "i18n/agents/translator.md",
+    "planning/agents/design-handoff-reproducer.md",
+    "release-promo/agents/post-drafter.md",
+    "rust-dev/agents/rust-expert.md",
+)
 
 # --- the out-of-block lane -------------------------------------------------------------
 # What a second resolution site actually does wrong is RESTATE the contract instead of
@@ -102,13 +122,22 @@ EXPECTED_AGENTS = 7
 # whole negation family flagged four unrelated sentences ("if any required field is
 # missing", "installs … if missing") for every real site it found. A check that noisy
 # teaches its readers to skip it, which is worse than the gap it closes. `fall back` is
-# deliberately NOT a marker: `translator.md:91` falls back to its own translation after a
+# deliberately NOT a marker: `translator.md` falls back to its own translation after a
 # rate-limit, which is nothing to do with reference resolution.
 RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cache",
                        "DEGRADED")
-# The escape, and the form the contract wants: a sentence may name the vocabulary when it
+# The escape, and the form the contract wants: a sentence may name the banner when it
 # POINTS AT the block. Single-sourcing is the fix, so it must not be what trips the check.
+#
+# But the escape is NOT unconditional, which is how the first cut of it failed: a sentence
+# reading "for scripts the reference-resolution contract is relaxed — prefer a dev checkout
+# over the versioned plugin cache, and never emit a DEGRADED banner" carried the pointer and
+# three inversions and passed. A delegating sentence has no reason to restate the fallback
+# ARMS — that is the part it is delegating — so naming them revokes the exemption. `DEGRADED`
+# is exempt-able because an output-shape section legitimately needs to say where the banner
+# goes (post-drafter does exactly that).
 DELEGATION = "reference-resolution contract"
+UNLAUNDERABLE = ("dev checkout", "versioned plugin cache", "versioned cache")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
@@ -187,11 +216,21 @@ def out_of_block_sites(raw):
             start = seg.index(sentence, pos)
             pos = start + len(sentence)
             one = flat(sentence)
-            if DELEGATION in one:
+            launderable = not any(m in one for m in UNLAUNDERABLE)
+            if DELEGATION in one and launderable:
                 continue                 # points at the block: the form the contract wants
             hit = next((m for m in RESTATEMENT_MARKERS if m in one), None)
             if hit:
-                out.append((raw.count("\n", 0, base + start) + 1, hit))
+                # The marker's OWN offset, not the fragment's. A run of lines with no
+                # sentence-ending punctuation between them is one fragment, so reporting
+                # its start pointed a reader at the first filler line above the real site
+                # — the same "wrong line" defect as the round-1 `raw.index()` bug, one
+                # level in. Matched whitespace-flexibly because the fragment is raw text
+                # while the marker was found in the flattened copy.
+                rx = re.compile(r"\s+".join(re.escape(w) for w in hit.split()))
+                m = rx.search(sentence)
+                at = start + (m.start() if m else 0)
+                out.append((raw.count("\n", 0, base + at) + 1, hit))
     return out
 
 
@@ -232,20 +271,21 @@ def main():
         for code, why in found:
             problems.append(f"  {rel}: {code} — {why}")
 
-    if len(in_scope) < EXPECTED_AGENTS:
-        # Zero is a broken glob; fewer than ship today is a population that quietly lost
-        # members, which a zero-check cannot see. Both are the sweep failing, not the tree
-        # passing.
-        print(f"FAIL: {len(in_scope)} agent(s) name ${{CLAUDE_PLUGIN_ROOT}}, expected at "
-              f"least {EXPECTED_AGENTS} — the sweep is wrong, not the tree. Lower "
-              f"EXPECTED_AGENTS deliberately if an agent was really removed.",
+    missing = [rel for rel in EXPECTED_AGENTS if rel not in in_scope]
+    if missing:
+        # A pinned set, not a floor: any seven satisfies a floor of seven, so dropping one
+        # agent's block while adding a compliant agent kept the count whole and the sweep
+        # silent. Naming the members makes attrition and substitution both visible.
+        print(f"FAIL: {len(missing)} expected agent(s) no longer name "
+              f"CLAUDE_PLUGIN_ROOT: {', '.join(missing)} — the sweep is wrong, or the "
+              f"agent really changed and EXPECTED_AGENTS needs the deliberate edit.",
               file=sys.stderr)
         return 1
 
     print(f"{len(in_scope)} agent(s) name a plugin-rooted reference; "
           f"{len(problems)} problem(s).")
-    print("  (decides the block IS the canonical contract text, and that nothing outside "
-          "it restates the contract — not that a dispatched agent followed it)")
+    print("  (decides the block IS the canonical contract text, and that no sentence "
+          "outside it carries the contract's vocabulary without naming it)")
     if problems:
         print("\n".join(problems), file=sys.stderr)
         return 1

@@ -1,7 +1,7 @@
 ---
 name: market-researcher
 description: Gather cited market evidence for ONE project's viability assessment — competitors and pricing, market signals, distribution-channel norms. Trigger phrases include "research the market for this", "who are the competitors and what do they charge", "is there a payable audience for this".
-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+tools: Read, Grep, Glob, WebFetch, WebSearch
 model: sonnet
 effort: medium
 ---
@@ -148,6 +148,8 @@ cumulative — each is a superset of the one above.
 
 Return structured findings the `assess` skill folds into its evidence section. For each:
 
+**The one exception to the opening line above is the degradation banner** the reference-resolution contract mandates: when a named reference went unread it is your literal first line, before anything else here.
+
 - **Claim** — one sentence.
 - **Source** — a URL, a named listing, or a repo file:line. No source → don't emit it;
   emit an "evidenced absence" instead if the gap itself is informative.
@@ -173,7 +175,7 @@ isn't). When you cannot size or quantify, say so — an evidenced absence is a f
 
 ## Hard rules
 
-- **Never write files.** You have no Write/Edit tool by design — you gather and return
+- **Never write files.** Your grant carries no write tool and no `Bash` — you gather and return
   evidence; `assess` writes `BUSINESS.md`. If you feel the urge to "just record" a
   finding, put it in your returned text instead.
 - **Never render a verdict.** Do not say "this should be monetized." Say "three

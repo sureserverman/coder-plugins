@@ -45,9 +45,11 @@ direction: a population that shrinks is a sweep that stopped looking.
 `android-dev/infrastructure/README.md` say "(read-only)" about a **Docker bind mount** —
 same two words, unrelated property, and sweeping them in would produce findings nobody can
 act on, which is how a check teaches its readers to skip it. `scripts/` is excluded because
-this file and its tests quote the term they are about. Both exclusions are named here
-rather than left as a silent glob boundary, and both are asserted by the test suite against
-a fixture root that actually contains them.
+this file and its tests quote the term they are about. Both exclusions are named here rather
+than left as a silent glob boundary, and the suite asserts each against a fixture root that
+actually contains the collision — an earlier version of this paragraph claimed that for both
+while only `android-dev/` had a fixture, which is the same overclaim this file exists to
+catch, made about itself.
 
 WHAT THIS CANNOT SCREEN, disclosed per DEC-008
 -----------------------------------------------
@@ -62,6 +64,16 @@ rule a dispatch is, which costs a few words and misleads nobody.
 literal set — decidable, and incomplete by construction. It catches the three that shipped
 and the shapes they belong to, not every sentence someone could write.
 
+**A paraphrase outside `PARAPHRASE_SCOPE`.** That lane reads `git-github/` and
+`planning/skills/executing-plans/` — the agent and the dispatchers. A competing definition
+written in a third plugin is not seen. Named because the first cut read one directory and
+said nothing about it, which reads as "no paraphrase ships" rather than "none ships here".
+
+**An untracked dispatch site.** The population is `git ls-files`, so a new site in a file
+nobody has staged yet is invisible until it is added. The sibling validator walks the tree
+instead, so the two disagree about untracked files by design: this one describes what
+ships, and a `(read-only)` claim only binds once it is in the tree.
+
 Read-only. Exit 0 when every site points, the definition is canonical, and no paraphrase
 competes with it, 1 otherwise.
 """
@@ -72,6 +84,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _contract_block import extract, span, flat  # noqa: E402
+
+class SweepUnavailable(RuntimeError):
+    """The population could not be enumerated — a BLOCKED sweep, not a clean tree."""
+
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS = ROOT / "scripts" / "contracts"
@@ -88,7 +104,22 @@ EXCLUDED_PREFIXES = ("android-dev/", "scripts/")
 ANCHOR = "code-reviewer"
 NEAR = 120
 
-EXPECTED_SITES = 6
+# {N_SITES} renders a sentence that says "dispatch sites in `executing-plans`", so it is
+# counted over THAT directory alone. The orphan sweep stays repo-wide: those are different
+# questions, and conflating them meant a site added in git-github/ either inflated a
+# sentence about executing-plans or forced an author to write a false number to go green.
+COUNTED_DIR = "planning/skills/executing-plans/"
+
+# A pinned SET, not a floor: any six satisfies a floor of six, so a site deleted here and
+# one added there keeps the number whole and the sweep silent.
+EXPECTED_SITES = (
+    "planning/skills/executing-plans/SKILL.md",
+    "planning/skills/executing-plans/references/close-out.md",
+    "planning/skills/executing-plans/references/integration.md",
+    "planning/skills/executing-plans/references/light-plans.md",
+    "planning/skills/executing-plans/references/stage-gate.md",
+    "planning/skills/executing-plans/references/task-execution.md",
+)
 
 # Narrower restatements of the contract. Each is a literal that shipped, or the shape one
 # shipped in. Matched outside the canonical block only — the block is allowed to define the
@@ -98,10 +129,11 @@ RESTATED_PARAPHRASES = (
     "no write tools",
     "no Edit/Write tools",
 )
-PARAPHRASE_SCOPE = ("git-github/",)
+PARAPHRASE_SCOPE = ("git-github/", "planning/skills/executing-plans/")
 
 WORD_NUMBERS = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six",
-                7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten"}
+                7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven",
+                12: "Twelve"}
 
 
 def markdown_files():
@@ -115,8 +147,13 @@ def markdown_files():
     directory, which is how the fixture roots in the test suite are read.
     """
     if (ROOT / ".git").exists():
-        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "*.md"],
-                             capture_output=True, text=True, check=True)
+        try:
+            out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "*.md"],
+                                 capture_output=True, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            # A traceback is not a verdict. The sweep cannot run, so say that and let the
+            # caller fail loudly rather than crashing mid-enumeration.
+            raise SweepUnavailable(f"`git ls-files` failed: {exc}") from exc
         rels = sorted(r for r in out.stdout.split("\0") if r)
         paths = ((ROOT / r, r) for r in rels)
     else:
@@ -146,29 +183,40 @@ def sites():
             if got:
                 skip = set(range(got[0], got[1] + 1))
         for n, line in enumerate(text.splitlines(), 1):
-            if n not in skip and READONLY_RE.search(line):
-                out.append((rel, n, line))
+            if n in skip:
+                continue
+            # Every occurrence, not the first: two dispatch sites on one line are two
+            # sites, and `SKILL.md:467` really is a single ~1,400-char line.
+            for m in READONLY_RE.finditer(line):
+                out.append((rel, n, line, m.start()))
     return out
 
 
 def orphans():
     bad = []
-    for rel, n, line in sites():
-        m = READONLY_RE.search(line)
-        lo, hi = max(0, m.start() - NEAR), min(len(line), m.end() + NEAR)
+    for rel, n, line, at in sites():
+        lo, hi = max(0, at - NEAR), min(len(line), at + len("(read-only)") + NEAR)
         if not re.search(r"\b" + re.escape(ANCHOR) + r"\b", line[lo:hi]):
             bad.append((rel, n))
     return bad
 
 
 def definition_problems(n_sites):
-    """[] if the agent carries the canonical definition, else the reasons it does not."""
+    """[] if the agent carries the canonical definition, else (code, why) for each reason.
+
+    NO-DEFINITION and STALE-SITE-COUNT are separated because they call for opposite
+    actions: one says the pointer resolves to nothing, the other says it resolves to a
+    correct definition whose opening sentence names the wrong number. Reporting the second
+    as the first sent a reader looking for a missing block that was there all along.
+    """
     if not AGENT.exists():
-        return ["the agent file does not exist"]
+        return [("NO-DEFINITION", "the agent file does not exist; every site points here "
+                                  "and would resolve to nothing")]
     text = AGENT.read_text(encoding="utf-8", errors="replace")
     body, err = extract(text, OPEN, CLOSE)
     if err is not None:
-        return [err[1]]
+        return [("NO-DEFINITION", f"{err[1]}; every site points here and would resolve to "
+                                  f"nothing")]
     expected = CONTRACTS / "read-only.md"
     want = flat(expected.read_text(encoding="utf-8").replace(
         "{N_SITES}", WORD_NUMBERS.get(n_sites, str(n_sites))))
@@ -176,12 +224,19 @@ def definition_problems(n_sites):
     if got == want:
         return []
     a, b = got.split(" "), want.split(" ")
+    only_count = (len(a) == len(b)
+                  and sum(1 for x, y in zip(a, b) if x != y) == 1
+                  and any(x in WORD_NUMBERS.values() for x, y in zip(a, b) if x != y))
+    code = "STALE-SITE-COUNT" if only_count else "NO-DEFINITION"
     for i in range(max(len(a), len(b))):
         if i >= len(a) or i >= len(b) or a[i] != b[i]:
-            return [f"the block is not `contracts/read-only.md` rendered for {n_sites} "
-                    f"sites — at word {i + 1}: block has "
-                    f"…{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… / canonical has "
-                    f"…{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…"]
+            tail = ("" if only_count else
+                    "; every site points here and would resolve to nothing")
+            return [(code,
+                     f"the block is not `contracts/read-only.md` rendered for {n_sites} "
+                     f"executing-plans site(s) — at word {i + 1}: block has "
+                     f"…{' '.join(a[max(0, i - 4):i + 6]) or '<end>'}… / canonical has "
+                     f"…{' '.join(b[max(0, i - 4):i + 6]) or '<end>'}…{tail}")]
     return []
 
 
@@ -205,29 +260,41 @@ def paraphrases():
     return out
 
 
+def counted_sites(found):
+    """The sites the canonical sentence is ABOUT — executing-plans only (see COUNTED_DIR)."""
+    return [s for s in found if s[0].startswith(COUNTED_DIR)]
+
+
 def main():
-    found = sites()
+    try:
+        found = sites()
+    except SweepUnavailable as exc:
+        print(f"BLOCKED: {exc} — the population could not be enumerated, so this "
+              f"validator has no verdict to give.", file=sys.stderr)
+        return 1
     problems = []
 
-    if len(found) < EXPECTED_SITES:
-        # Zero is a broken glob; fewer than ship today is a population that quietly lost
-        # members, which a zero-check cannot see.
-        print(f"FAIL: {len(found)} (read-only) site(s), expected at least "
-              f"{EXPECTED_SITES} — the sweep is wrong, not the tree. Lower "
-              f"EXPECTED_SITES deliberately if a site was really removed.",
-              file=sys.stderr)
+    present = {rel for rel, _, _, _ in found}
+    missing = [rel for rel in EXPECTED_SITES if rel not in present]
+    if missing:
+        # A pinned set, not a floor: substitution keeps a count whole while the sweep goes
+        # quiet, so the members are named and their absence is the finding.
+        print(f"FAIL: {len(missing)} expected (read-only) site file(s) no longer carry "
+              f"one: {', '.join(missing)} — the sweep is wrong, or the site really moved "
+              f"and EXPECTED_SITES needs the deliberate edit.", file=sys.stderr)
         return 1
 
     problems += [f"  {rel}:{n}: ORPHAN-READONLY — '(read-only)' with no `{ANCHOR}` within "
                  f"{NEAR} chars on the same line; the agent name is the pointer to the "
                  f"definition" for rel, n in orphans()]
-    problems += [f"  {AGENT_REL}: NO-DEFINITION — {why}; every site points here and would "
-                 f"resolve to nothing" for why in definition_problems(len(found))]
+    problems += [f"  {AGENT_REL}: {code} — {why}"
+                 for code, why in definition_problems(len(counted_sites(found)))]
     problems += [f"  {rel}:{n}: RESTATED-CONTRACT — \"{phrase}\" is a narrower second "
                  f"definition, free to drift from the canonical block; point at the block "
                  f"instead" for rel, n, phrase in paraphrases()]
 
-    print(f"{len(found)} (read-only) dispatch site(s); {len(problems)} problem(s).")
+    print(f"{len(found)} (read-only) site(s), {len(counted_sites(found))} of them in "
+          f"executing-plans; {len(problems)} problem(s).")
     print("  (decides the block IS `contracts/read-only.md` — not that a dispatched agent "
           "obeyed it; android-dev's Docker-mount '(read-only)' and scripts/ are excluded)")
     if problems:
