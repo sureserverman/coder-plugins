@@ -4,6 +4,27 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-28
+
+### Changed
+- `market-researcher` carries the canonical **reference-resolution contract** — it must
+  confirm each resolved reference *exists* rather than only that
+  `${CLAUDE_PLUGIN_ROOT}` is set (a superseded cache resolves to a directory that exists
+  with the file missing), fall back versioned-cache-then-dev-checkout saying which arm it
+  used, and open with `DEGRADED RESEARCH — <references>` as its **first line** whenever a
+  named reference went unread. A closing caveat is not enough: a degraded run and a
+  complete one are otherwise identical in shape. Honors DEC-009; enforced by
+  `scripts/check-agent-references.py`.
+- `business-scan.py` has defined behavior when `vault_dir` is set but missing, rather
+  than treating it as unset (Stage 4).
+
+### Removed
+- `market-researcher`'s `Bash` grant. The agent's own prose said "you have no Write/Edit
+  tool by design" while an unrestricted `Bash` could write files, and the agent documented
+  no `Bash` use anywhere. The grant is gone rather than the claim softened. Note that
+  scoped `Bash(cmd:*)` grants were measured **not enforced** on at least one host, so a
+  removed grant is a stronger guarantee than a narrowed one.
+
 ## [0.6.3] - 2026-08-12
 
 ### Changed
