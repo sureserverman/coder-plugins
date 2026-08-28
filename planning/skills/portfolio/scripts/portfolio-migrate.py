@@ -25,12 +25,46 @@ def sha256(p: Path) -> str:
     return h.hexdigest()
 
 
+def _require_vault(path, source):
+    """Delegate to portfolio-rebuild.py's canonical guard.
+
+    Loaded by path and LAZILY: this module is importlib-loaded by siblings (for
+    its regexes, not its resolver), so a bare `import` would resolve against the
+    CALLER's sys.path, and a module-scope load would make every such importer pay
+    for a resolver it never calls. The guard is not restated here — it is four
+    conditions with four messages now, and a fourth copy of that is a fourth place
+    for it to drift from the one the class test pins.
+    """
+    return _rebuild().require_vault(path, source)
+
+
+def _rebuild():
+    """portfolio-rebuild.py, loaded by path and lazily — see `_require_vault`'s reasons.
+
+    Factored out when the write-boundary liveness check needed the same module: a second
+    inline copy of this loader is the drift `_require_vault` already warns about.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_rebuild", Path(__file__).resolve().parent / "portfolio-rebuild.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def vault_dir():
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (SKILL.md § Resolver). Full rationale, including the
+    # migrate-into-an-unmounted-mountpoint case this prevents, in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, which is the same defect by another
+    # route. The message is deliberately distinct from the unset one above: the
+    # operator needs to know the key is set and the path is wrong.
+    return _require_vault(vd, CONFIG)
 
 
 def is_git(repo: Path) -> bool:
@@ -118,7 +152,22 @@ def migrate_project(proj, vd: Path, write: bool):
         dests = ", ".join(rel for _, rel in items)
         return ("dry", label, f"{len(items)} files → {home}{flag}  ({dests})")
 
-    # COPY
+    # COPY. A ONE-TIME move, not a regenerate-in-place, so a changed-check has
+    # nothing to compare against: once the repo docs/ has been emptied migrate_set()
+    # returns nothing and the project is skipped before reaching here, and the
+    # preflight above independently refuses an already-populated vault home. Those
+    # two guards are what make a re-run a no-op. Note the ORDER — the emptied-docs
+    # guard runs first and, on any real re-run, is the one that fires; the preflight
+    # is reached only when docs/ has been repopulated. Both are exercised in
+    # tests/test-vault-write-idempotency.py, the preflight by a case that repopulates
+    # docs/ on purpose, because nothing else can reach it.
+    # BL-099: re-check the sentinel at the WRITE, not only at resolve time. Without this,
+    # a mount that dropped after main()'s check let the mkdir below rebuild the whole chain
+    # from nothing and return "ok" — a phantom vault reported as a successful migration.
+    if not _rebuild().vault_live(vd):
+        return ("fail", label,
+                "vault went away after the initial check — refusing to recreate it "
+                "(mount dropped mid-run?). Nothing was written for this project.")
     (home / "plans").mkdir(parents=True, exist_ok=True)
     copied = []
     try:
@@ -186,9 +235,15 @@ def write_sidecar_home(repo: Path, home: Path):
                           block, cur, count=1, flags=_re.DOTALL)
         else:
             new = cur.rstrip("\n") + "\n\n" + block + "\n"
+        # The equality check IS the write discipline here: portfolio-rebuild.py's
+        # shared helper adds nothing but a `**Last rebuilt:**` strip, and this
+        # block carries no timestamp to normalise (nor may it grow one). A second
+        # call with the same home writes nothing — pinned in
+        # tests/test-vault-write-idempotency.py.
         if new != cur:
             sc.write_text(new)
     else:
+        # Creation, not regeneration: reached only when no sidecar exists.
         sc.write_text(f"# Vault context for {repo.name}\n\n{block}\n")
 
 
@@ -209,11 +264,26 @@ def rewrite_maturity_evidence(mat: Path):
             changed = True
         else:
             out.append(line)
+    # Same discipline as write_sidecar_home: a line-level equality check, no
+    # timestamp to strip, and a second pass over already-prefixed evidence
+    # writes nothing. Pinned in tests/test-vault-write-idempotency.py.
     if changed:
         mat.write_text("\n".join(out) + "\n")
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--project")

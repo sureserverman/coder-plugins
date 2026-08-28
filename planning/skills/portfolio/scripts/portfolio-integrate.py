@@ -11,8 +11,24 @@ NEVER auto-fixed. Dangling targets (not a registered project) are flagged.
 
 See references/integration-format.md for the per-project file schema.
 """
-import re, sys, yaml, datetime
+import importlib.util, re, sys, yaml, datetime
 from pathlib import Path
+
+# `write_if_changed` is portfolio-rebuild.py's, and it is imported rather than
+# copied because it carries a CONTRACT, not just three lines: regenerate the
+# document, strip the `**Last rebuilt:**` line, and write only if the rest
+# differs. Both roll-ups here embed that timestamp, so without it every run
+# rewrote both files — on an NFS-backed Obsidian vault that is not git-tracked,
+# where a needless write means sync churn and conflict copies, and where an
+# unchanged mtime is the operator's only "nothing moved" signal. A second copy
+# of the function would be a second place for that contract to drift. Hyphenated
+# filename → importlib, the same mechanism and the same reasoning as
+# compass-scan.py's reuse of the plan parser and the decisions register.
+_REBUILD = Path(__file__).resolve().parent / "portfolio-rebuild.py"
+_spec = importlib.util.spec_from_file_location("portfolio_rebuild", _REBUILD)
+_pr = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_pr)
+write_if_changed = _pr.write_if_changed
 
 REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
 CONFIG = Path.home() / ".claude" / "portfolio-config.yaml"
@@ -25,7 +41,11 @@ def vault_dir():
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    # Set-but-missing `vault_dir` is REFUSED, never created (SKILL.md § Resolver);
+    # rationale in portfolio-rebuild.py's vault_dir(). This file already imports
+    # that module for write_if_changed, so it borrows the check rather than
+    # keeping a fourth copy of the wording the class test pins.
+    return _pr.require_vault(vd, CONFIG)
 
 
 def parse_frontmatter(text):
@@ -130,6 +150,18 @@ def rollup_integration_backlog(vd):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
@@ -147,9 +179,16 @@ def main():
     for x in asym:
         print(f"  ⚠ {x}")
     if args.write:
-        (vd / "Portfolio" / "integration-graph.md").write_text(graph_md)
-        (vd / "Portfolio" / "integration-backlog.md").write_text(ibl_md)
-        print("wrote integration-graph.md + integration-backlog.md")
+        # Reported per file, and "unchanged" is reported as loudly as "wrote":
+        # the old line claimed both files were written unconditionally, which
+        # was true only because they unconditionally were. A run that says it
+        # wrote nothing is the evidence that the no-change path is live.
+        wrote, same = [], []
+        for fn, body in (("integration-graph.md", graph_md),
+                         ("integration-backlog.md", ibl_md)):
+            (wrote if write_if_changed(vd / "Portfolio" / fn, body) else same).append(fn)
+        print(f"wrote: {', '.join(wrote) or 'nothing'} | "
+              f"unchanged: {', '.join(same) or 'nothing'}")
     else:
         print("(dry-run — pass --write to persist)")
 

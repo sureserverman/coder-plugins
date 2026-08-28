@@ -110,4 +110,45 @@ procedure. Work the steps in order.
 10. Offer merge / finalize options (worktree cleanup, PR creation, branch merge). Do not merge
     without explicit confirmation.
 
+## ACTION NEEDED — the one place the close-out report asks for something
+
+Same form as the gate report's (`stage-gate.md` § ACTION NEEDED), and it binds here for the
+same reason: a close-out ends with a merge offer, which is itself a decision, so a close-out
+that also carries an unresolved question is the report most likely to bury one.
+
+```
+ACTION NEEDED: <one line naming the decision>
+  1. <option>
+  2. <option>
+```
+
+One block, last, options numbered. **A close-out report carrying an `ACTION NEEDED:` block
+does not also announce that it is proceeding** — to a merge, a tag, or anything else.
+
+**Step 10's merge offer is always the block, and it is why close-out has no "or none" case.**
+A close-out always ends in a decision the user owns, so the block is always present: with no
+other decision it carries the merge options alone, and with one it carries both, numbered
+together. What may never happen is a separate `ACTION NEEDED:` block for some other decision
+*plus* a freestanding merge offer elsewhere in the report — that reconstructs the pairing this
+form exists to forbid, out of two individually well-formed halves. Anything the user does not
+have to decide is not an `ACTION NEEDED:` item at all.
+
+**Tier: untiered.** This mandate costs a line of text, not an agent dispatch, so per
+DEC-010 it runs at every review scope including `none` — named here because DEC-017
+requires a new mandate to state the rule that gates it rather than leave it inferred.
+
+## Closing a plan whose gate could not be run
+
+A `[~]` gate check outranks the close-out line: the plan classifies `blocked`, stays on
+compass's in-flight board and keeps its `⊘ GATE BLOCKED` bar, because a check that could not
+run means completion was never proven. That is correct and it is not the end of the story —
+a plan can be genuinely finished with a check that will never run here.
+
+**Write `**Blocked-accepted:** <date> — <why>` beside the `**Completed:**` line.** It records
+that someone looked, understood, and closed the plan anyway; it does not claim the gate ran.
+It is the only thing that retires such a plan.
+
+**Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
+and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.
+
 Delete `.claude/plan-progress.json` as the last step, once the report is out.

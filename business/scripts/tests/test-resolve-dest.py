@@ -36,7 +36,7 @@ def test_good():
         home = tmp / "home"
         vault = tmp / "vault"
         (home / ".claude").mkdir(parents=True)
-        vault.mkdir()
+        (vault / "Portfolio").mkdir(parents=True)   # a REACHABLE vault (require_vault)
         (home / ".claude" / "portfolio-config.yaml").write_text(
             f"version: 1\nvault_dir: {vault}\n")
         (home / ".claude" / "projects-registry.yaml").write_text(

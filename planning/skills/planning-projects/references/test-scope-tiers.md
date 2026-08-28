@@ -10,9 +10,16 @@ e2e, hardware-in-the-loop), a plan that runs "the full suite" at every stage gat
 after every review fix spends hours re-proving code that didn't change. Real
 executions have logged 80+ minutes of repeated full device passes in a single
 session, plus a `clean` at every gate that throws away all incremental build state
-for zero extra verification. Per-task tests were never the problem — targeted,
-class-filtered runs cost 1–3 minutes. The waste lives exclusively in **full-suite
-re-runs at intermediate checkpoints**.
+for zero extra verification. Most of the waste lives in **full-suite re-runs at
+intermediate checkpoints**, and a *scoped* per-task test is cheap — targeted,
+class-filtered runs cost 1–3 minutes.
+
+Not all of it, though, and this file said otherwise from the day it was written
+until § A task-level `Test:` is task-scope only when the author scoped it retracted
+it. A task's
+`Test:` is scoped only because its author scoped it; when nobody did, the single
+most expensive run in a measured session was a task field
+(§ Plan-authoring declaration).
 
 The fix is not fewer tests — it is the same total coverage, scheduled so the
 expensive full pass happens **exactly once per plan**, where it actually protects
@@ -22,7 +29,7 @@ the merge.
 
 | Tier | When it runs | What runs |
 |------|--------------|-----------|
-| **task-scope** | Every Red-Green cycle | The task's own `Test:` — already targeted (a class filter, a module's unit tests, a single command) — **and nothing else**. The stage-scope command does not run inside a task. |
+| **task-scope** | Every Red-Green cycle | The task's own `Test:` — **and nothing else**. The stage-scope command does not run inside a task. On an expensive-suite project the field is targeted *because the author scoped it* (§ Plan-authoring declaration), never as a property of being a task field. |
 | **fix-scope** | After a Tier-1/Tier-2 Critical fix, a gate-triage fix, or **any re-verification inside a gate's remediation loop** | Only the test classes/modules the fix touched, plus the originating task's own `Test:` and the gate check that failed. Never the full suite, and never a repeat of the gate's stage-scope command — a review or remediation fix is a targeted change and gets a targeted re-proof. |
 | **stage-scope** | Intermediate stage gates | All **cheap host-side checks in full** (unit tests, lint, static/architecture checks, build). **Expensive suites restricted to the modules touched by the stage's commits.** Never `clean`. |
 | **plan-scope** | Final stage gate + close-out — once | The full suite from a clean state, including every expensive suite and every quarantined slow test. The one place `clean` belongs. |
@@ -152,8 +159,49 @@ If the project is under the threshold, the block is simply omitted (the plan
 template includes it only for expensive suites); optionally note "full suite
 ~90s — tiering not applicable" so the executor knows the omission is deliberate.
 `fix-scope` needs no declaration: it is derived per-fix (the touched classes plus
-the task's own `Test:`). Task-level `Test:` fields are already task-scope by
-construction.
+the task's own `Test:`).
+
+### A task-level `Test:` is task-scope only when the author scoped it
+
+This file asserted the opposite — that those fields are task-scope *by
+construction* — and a measured run falsified it. A task whose `Test:` read
+`uv run --locked pytest -m 'not requires_session'` carried no path filter at all and
+ran **~3.5 h against a 3132-test collection**, inside one Red-Green loop; the same
+plan's declared stage-scope command finished in ~7 minutes. Nothing detected it, and
+nothing in this policy could have: the tiers above govern **gates**, `fix-scope` is
+derived per fix, and a task field is the one place here where an unbounded command
+has no upstream check at all.
+
+So on a project over the cost threshold, every task's `Test:` is either
+
+- **path- or suite-scoped** — it names a path, a module, a class filter or a marker
+  selector that bounds what it *collects*; or
+- **explicitly flagged** with a `full-suite: accepted` **field on the task**, recording
+  that the author priced the full run and chose it:
+
+  ```markdown
+  - **Test:** `uv run --locked pytest`
+  - **full-suite: accepted** — the change is cross-cutting and no narrower selector covers it
+  ```
+
+  **A field of its own, and nowhere else.** Not on the `Test:` line, not loose in the task's
+  prose. The reason is worth stating, because the narrower rule looks arbitrary until you see
+  it: a sentence saying the task was *not* marked `full-suite: accepted` contains those exact
+  words, so any check reading free text for them lets that sentence grant the exemption it
+  denies. Allowing two placements meant four cases to get right — two placements times
+  granting and denying — and the fourth was a hole a review found by construction. One
+  placement has no cross-product to miss, and a denial cannot be written *as* a
+  `full-suite:` field without being one.
+
+A bare deselector like `-m 'not requires_session'` is **not** a scope: it collects the
+whole tree minus a slice. The question is what the command collects, not what it skips.
+
+**Tier: authoring-time.** This is checked at whichever pre-presentation checklist
+the plan's format uses: `authoring-checklist.md` § Checklist — Standard plans, or
+`authoring-checklist.md` § Checklist — Light plans. The rule is in both, and in neither
+does it run per execution turn — one scan per authored plan on an expensive-suite
+project, and none at all on a project under the threshold, where guard rail 1 already
+says there is nothing to bound.
 
 ## Worked example (Android, instrumented suite)
 

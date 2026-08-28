@@ -1796,6 +1796,279 @@ def date_stamped(p):
     return re.match(r"^\d{4}-\d{2}-\d{2}", p.name) is not None
 
 
+BLOCKED_GATE_PLAN = """# Plan: a gate that could not be run
+
+## Stage 1 — the work
+
+### Task 1.1: done
+- **Status:** [x]
+
+### Stage 1 Gate
+
+- [x] the host suite is green
+- [~] the device suite ran on hardware
+"""
+
+
+def case_blocked_gate_renders():
+    """Task 2.1 / BL-077 — a `[~]` gate check is BLOCKED, and the bar says so.
+
+    The measured failure: a fully-blocked master rendered as Completed while
+    every gate box carried an amendment. Whatever else the bar shows, a plan
+    whose gate could not be run must not read as one whose gate passed.
+    """
+    print("Task 2.1 — a `[~]` gate check renders BLOCKED:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-blocked-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "blocked-plan.md"
+    plan.write_text(BLOCKED_GATE_PLAN)
+    write_state(repo, plan=str(plan), phase="gate", stage=1)
+
+    out = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+    check("GATE BLOCKED" in out,
+          f"the rendered line names the gate BLOCKED (got {out!r})")
+    check("1/1" in out,
+          f"the task count is untouched — BLOCKED is about the GATE, not the "
+          f"tasks (got {out!r})")
+
+    print("  and a DISCOVERED (non-executing) plan carries it too:")
+    # render_other() has its own append, and only render_pinned()'s was reachable
+    # from the fixture above — the discovered path goes through the portfolio
+    # vault resolver, not the repo's plans/ dir. Exercised directly rather than
+    # plumbed a vault for, because the gap being closed is one line in one
+    # function: reverting it broke no test.
+    other = repo / "plans" / "second-plan.md"
+    other.write_text(BLOCKED_GATE_PLAN)
+    line = ANSI_RE.sub("", mod.render_other(other))
+    check("GATE BLOCKED" in line,
+          f"a discovered, non-executing plan is marked too (got {line!r})")
+    other.write_text(BLOCKED_GATE_PLAN.replace(
+        "- [~] the device suite ran on hardware", "- [x] the device suite ran on hardware"))
+    line2 = ANSI_RE.sub("", mod.render_other(other))
+    check("GATE BLOCKED" not in line2,
+          f"and a discovered plan with a passed gate is not (got {line2!r})")
+    other.unlink()
+
+    print("  an accepted block is closed: no marker, and no bar at all:")
+    # The author's answer-back. Before it, a closed-out plan with a `[~]` gate
+    # was un-retirable — no marker could close it and editing the `[~]` would
+    # falsify the record.
+    acc = repo / "plans" / "accepted-plan.md"
+    acc.write_text(BLOCKED_GATE_PLAN
+                   + "\n**Completed:** 2026-08-27 — commits: abc1234\n"
+                   + "**Blocked-accepted:** 2026-08-27 — no hardware here; closed knowingly\n")
+    check("GATE BLOCKED" not in ANSI_RE.sub("", mod.render_other(acc)),
+          "an accepted plan carries no blocked marker")
+    check(mod.plan_is_eligible(acc.read_text(), acc) is False,
+          "and it is retired from the bar entirely, like any closed-out plan")
+    acc.unlink()
+
+    print("  and an all-`[x]` gate does NOT render BLOCKED:")
+    plan.write_text(BLOCKED_GATE_PLAN.replace(
+        "- [~] the device suite ran on hardware", "- [x] the device suite ran on hardware"))
+    out2 = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+    check("GATE BLOCKED" not in out2,
+          f"a passed gate carries no BLOCKED marker (got {out2!r})")
+
+
+LAGGING_PLAN = """# Plan: markers that stopped moving
+
+## Stage 1: The work
+
+### Task 1.1: first
+- **Status:** [x]
+
+### Task 1.2: second
+- **Status:** [ ]
+
+### Task 1.3: third
+- **Status:** [ ]
+
+### Task 1.4: fourth
+- **Status:** [ ]
+"""
+
+
+def case_status_lag_warns():
+    """Task 2.2 / BL-096 — the file lagging the live state is visible WHILE it
+    happens, not on a sweep weeks later.
+
+    `Status` flips stopped mid-plan in all three audited sessions: tasks kept
+    completing and the markers stopped moving. The rule already existed (Step 3.3
+    rule 5, flip it in the same change as the work); what was missing was any
+    signal at the time. Both artifacts are already maintained — the only new
+    thing is noticing they disagree.
+    """
+    # The fixture is NOT named *lag*: an earlier draft was, and every assertion
+    # below matched the plan's own name in the bar. The positive check passed
+    # for the wrong reason and only the negative cases exposed it.
+    print("Task 2.2 — the plan file lagging the live state warns on the bar:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-lag-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "slow-plan.md"
+    plan.write_text(LAGGING_PLAN)
+
+    def bar_at(task):
+        write_state(repo, plan=str(plan), phase="task", stage=1, task=task)
+        return ANSI_RE.sub("", "".join(mod.render(str(repo))))
+
+    print("  markers at 1.1, executor at 1.3 — two tasks of lag:")
+    out = bar_at("1.3")
+    check("lag" in out.lower(),
+          f"the bar warns that the file trails the run (got {out!r})")
+
+    print("  markers at 1.1, executor at 1.2 — one task, the ordinary case:")
+    out1 = bar_at("1.2")
+    check("lag" not in out1.lower(),
+          f"one task of lag is a task in flight, not a stall (got {out1!r})")
+
+    print("  and it clears the moment the markers catch up:")
+    plan.write_text(LAGGING_PLAN.replace(
+        "### Task 1.2: second\n- **Status:** [ ]",
+        "### Task 1.2: second\n- **Status:** [x]"))
+    out2 = bar_at("1.3")
+    check("lag" not in out2.lower(),
+          f"flipping the missing marker silences it (got {out2!r})")
+
+    print("  a `[~]` marker is the marker MOVING, not a stall:")
+    # BL-096 is about markers that stop moving. `[~]` is a marker that moved.
+    # Measuring lag from the last `[x]` alone warns on a task that is correctly
+    # marked in-flight, which is a false positive against the very state the
+    # contract added for this purpose.
+    inflight = repo / "plans" / "inflight-plan.md"
+    inflight.write_text(LAGGING_PLAN.replace(
+        "### Task 1.2: second\n- **Status:** [ ]",
+        "### Task 1.2: second\n- **Status:** [~]"))
+    write_state(repo, plan=str(inflight), phase="task", stage=1, task="1.3")
+    iout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in iout,
+          f"a `[~]` between last-done and current is not lag (got {iout!r})")
+    inflight.unlink()
+
+    print("  concurrency the plan format SANCTIONS is not a stall:")
+    # A stage may mark tasks `Parallel: YES`; those are dispatched together and
+    # do not finish in document order. The state file names one of them while
+    # its siblings are legitimately still `[ ]`, so raw ordinal distance fires
+    # on the format's own first-class feature. A warning that cries wolf on
+    # sanctioned behaviour is worse than the silence it replaces — it teaches
+    # the reader to ignore it, which is the trust BL-096 is trying to buy.
+    par = repo / "plans" / "fanout-plan.md"
+    par.write_text("""# Plan
+
+## Stage 1: fan out
+
+### Task 1.1: first
+- **Status:** [x]
+- **Parallel:** NO
+
+### Task 1.2: concurrent sibling
+- **Status:** [ ]
+- **Parallel:** YES
+
+### Task 1.3: concurrent sibling
+- **Status:** [ ]
+- **Parallel:** YES
+""")
+    write_state(repo, plan=str(par), phase="task", stage=1, task="1.3")
+    pout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in pout,
+          f"an unmarked `Parallel: YES` sibling is concurrency, not lag (got {pout!r})")
+
+    print("  but a SEQUENTIAL gap between them still warns:")
+    par.write_text(par.read_text().replace(
+        "### Task 1.2: concurrent sibling\n- **Status:** [ ]\n- **Parallel:** YES",
+        "### Task 1.2: sequential\n- **Status:** [ ]\n- **Parallel:** NO"))
+    pout2 = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" in pout2,
+          f"a `Parallel: NO` task left unmarked is still a stall (got {pout2!r})")
+    par.unlink()
+
+    print("  a state file naming a task the plan no longer has says so:")
+    # Silently returning "" folded this into the ordinary cases. It is a WORSE
+    # divergence than a two-task lag — the plan was edited under a run whose
+    # markers had already stopped — and it was indistinguishable from nothing
+    # to report.
+    write_state(repo, plan=str(plan), phase="task", stage=9, task="9.9")
+    gout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("not in plan" in gout,
+          f"the bar names the divergence rather than going quiet (got {gout!r})")
+
+    print("  a plan nobody is executing is never warned about:")
+    # render_other has no state to compare against; the warning is a statement
+    # about THIS session's run, not about a file sitting in the vault.
+    line = ANSI_RE.sub("", mod.render_other(plan))
+    check("lag" not in line.lower(),
+          f"a discovered plan carries no lag marker (got {line!r})")
+
+
+def case_budget_check():
+    """Task 2.3 — the remediation budget stops being prose the executor tracks.
+
+    A 4th review round was dispatched after a declared budget of 3, ~160K
+    subagent tokens in that round alone and ~604K across four rounds for one
+    Critical, ending in "stop it and fix plans". `plan-progress.json` already
+    carried `remediation_round`; nothing read it as a stop.
+    """
+    print("Task 2.3 — --budget-check exits non-zero at the declared ceiling:")
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-budget-"))
+    repo = tmp / "repo"
+    (repo / ".claude").mkdir(parents=True)
+    (repo / "plans").mkdir()
+    plan = repo / "plans" / "b-plan.md"
+    plan.write_text(PLAN)
+
+    def budget_check(**kw):
+        st = {"plan": str(plan), "phase": "gate", "stage": 1,
+              "updated": datetime.now(timezone.utc).isoformat()}
+        st.update(kw)
+        (repo / ".claude" / "plan-progress.json").write_text(json.dumps(st))
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--budget-check"], cwd=repo,
+            capture_output=True, text=True)
+
+    r = budget_check(remediation_round=1)
+    check(r.returncode == 0, f"round 1 of the default 2 exits 0 (got {r.returncode})")
+    r = budget_check(remediation_round=2)
+    check(r.returncode != 0,
+          f"round 2 of 2 — the budget is SPENT — exits non-zero (got {r.returncode})")
+    check("escalat" in (r.stderr + r.stdout).lower(),
+          f"and it names escalation, not another round ({(r.stderr + r.stdout)!r})")
+    r = budget_check(remediation_round=3)
+    check(r.returncode != 0, "past the ceiling still exits non-zero")
+
+    print("  a plan-declared budget overrides the default:")
+    r = budget_check(remediation_round=2, remediation_budget=3)
+    check(r.returncode == 0,
+          f"round 2 of a declared 3 exits 0 (got {r.returncode})")
+    r = budget_check(remediation_round=3, remediation_budget=3)
+    check(r.returncode != 0, "round 3 of a declared 3 exits non-zero")
+
+    print("  the phase lagging the round does not reopen the budget:")
+    # Step 4 of the gate-failure procedure re-enters the task's Red-Green loop,
+    # and the state file legitimately flips back to phase "task" while the gate
+    # is still mid-remediation. Requiring phase == "gate" meant a spent budget
+    # at exactly that moment exited 0 and permitted another round — the failure
+    # this task exists to close, hiding one layer down. A recorded round is
+    # meaningful whatever the phase says.
+    r = budget_check(phase="task", task="1.2", remediation_round=2)
+    check(r.returncode != 0,
+          f"a spent budget still stops while the phase reads 'task' (got {r.returncode})")
+
+    print("  and it is silent-zero where there is no gate to bound:")
+    r = budget_check(phase="task", task="1.2")
+    check(r.returncode == 0,
+          "a task phase with NO recorded round carries no budget and exits 0")
+    (repo / ".claude" / "plan-progress.json").unlink()
+    r = subprocess.run([sys.executable, str(SCRIPT), "--budget-check"], cwd=repo,
+                       capture_output=True, text=True)
+    check(r.returncode == 0, "no state file at all exits 0, never a traceback")
+    check("Traceback" not in r.stderr, f"no traceback ({r.stderr!r})")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -1914,6 +2187,9 @@ def main():
     case_master_grouping()
     case_phase_indicator()
     case_alignment_and_composition()
+    case_blocked_gate_renders()
+    case_status_lag_warns()
+    case_budget_check()
 
     print()
     if FAILURES:

@@ -132,12 +132,37 @@ GATE_BOLD = re.compile(
     re.I)
 
 
+def _require_vault(path, source):
+    """Delegate to portfolio-rebuild.py's canonical guard.
+
+    Loaded by path and LAZILY: this module is importlib-loaded by siblings (for
+    its regexes, not its resolver), so a bare `import` would resolve against the
+    CALLER's sys.path, and a module-scope load would make every such importer pay
+    for a resolver it never calls. The guard is not restated here — it is four
+    conditions with four messages now, and a fourth copy of that is a fourth place
+    for it to drift from the one the class test pins.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_rebuild", Path(__file__).resolve().parent / "portfolio-rebuild.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.require_vault(path, source)
+
+
 def vault_dir():
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (SKILL.md § Resolver). Full rationale, including the
+    # migrate-into-an-unmounted-mountpoint case this prevents, in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, which is the same defect by another
+    # route. The message is deliberately distinct from the unset one above: the
+    # operator needs to know the key is set and the path is wrong.
+    return _require_vault(vd, CONFIG)
 
 
 PREFLIGHT_RE = re.compile(r"^##+\s+Preflight", re.I)
@@ -349,6 +374,140 @@ def status_state(ch):
     if ch in ("x", "X"):
         return "done"
     return "open"
+
+
+# --- GATE-CHECKBOX CONTRACT (BL-077) ---------------------------------------
+# A gate check is a different marker from a task `Status:` and needs its own
+# state set, but it belongs HERE for exactly the reason STATUS_RE does: one
+# definition, so a change cannot alter what "the gate passed" means in one
+# consumer and not another. It was NOT here — plan-status-audit.py carried its
+# own copy of this regex, which is a lockstep break with nothing to catch it.
+#
+# `[~]` means BLOCKED: the check could not be run in this environment. It is
+# NOT "partially done" and NOT a softer `[x]`. honest-gates makes the three-way
+# split load-bearing — GREEN (ran, passed), RED (ran, failed), BLOCKED (could
+# not run) — and only BLOCKED needs a marker, because a RED gate is not written
+# down as passed, it is repaired.
+#
+# The measured cost of not having it: a register `[x]` standing against a `[~]`
+# gate took a ten-tool-call manual audit to disprove.
+#
+# SCOPE, stated because an earlier version of this comment overclaimed: this
+# predicate reads ONE plan's own gate blocks. A master plan carries no
+# `### Stage N Gate` section — 0 of 38 in the live vault do; a master's gate
+# boxes live in its sub-plan files — so a master whose sub-plan is blocked
+# still classifies on its own text. The master half of BL-077 is NOT closed by
+# this, and propagation is a separate capability.
+GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
+
+
+def gate_item_state(ch):
+    """Classify a GATE_ITEM_RE capture. The ONLY sanctioned way to read one.
+
+    Deliberately different words from status_state(): a task is `partial`
+    because work is under way, a gate check is `blocked` because a command
+    could not run. Sharing the vocabulary would invite sharing the treatment,
+    and a blocked gate is not a gate in progress.
+    """
+    if ch == "~":
+        return "blocked"
+    if ch in ("x", "X"):
+        return "done"
+    return "open"
+
+
+def plan_has_blocked_gate(text):
+    """True when any stage-gate checkbox in the plan is `[~]`.
+
+    Scoped between a `### Stage N Gate` heading and the next `###`, so a
+    Preflight or Research checklist elsewhere in the document is never mistaken
+    for gate state — the same scoping plan-status-audit's gate_state() uses,
+    now sharing one implementation with it rather than two copies of the idea.
+    """
+    in_gate = False
+    for line in text.splitlines():
+        if line.startswith("###"):
+            in_gate = bool(GATEHDR_RE.match(line))
+            continue
+        if in_gate:
+            m = GATE_ITEM_RE.match(line)
+            if m and gate_item_state(m.group(1)) == "blocked":
+                return True
+    return False
+
+
+# --- BLOCKED ACCEPTANCE, and propagation to a master --------------------------
+# `[~]` overrules a human-authored `**Completed:**` because proof outranks claim.
+# Shipped without an answer-back, that rule was correct and unliveable: 22 real
+# vault plans went onto the in-flight board permanently, with no marker an author
+# could write to close one knowingly. `**Completed:**` no longer retired them,
+# `**Abandoned:**` would have been a lie, and editing the `[~]` to `[x]` would
+# have falsified the record the convention exists to keep. It penalised hardest
+# the plans that had used `[~]` most honestly — which is how a convention dies.
+#
+# `**Blocked-accepted:** <date> — <why>` is the author's answer. It does not
+# claim the gate ran; it records that someone looked, understood, and closed the
+# plan anyway. Terminal, like the other two markers, and carrying its reason for
+# the same purpose theirs do.
+BLOCKED_ACCEPTED_RE = re.compile(r"^\*\*Blocked-accepted:\*\*\s*(.+)$", re.M)
+
+_MAX_SUBPLAN_DEPTH = 2       # a master links sub-plans; a sub-plan is not a master
+
+
+def blocked_acceptance(text):
+    """The `**Blocked-accepted:**` reason, or None. Contract API."""
+    m = BLOCKED_ACCEPTED_RE.search(text)
+    return m.group(1).strip() if m else None
+
+
+def plan_blocked(text, path=None, _depth=0):
+    """(is_blocked, why) — the ONE question every consumer asks about blockage.
+
+    Consumers must call this rather than `plan_has_blocked_gate()` directly:
+    that predicate answers "does this file contain a `[~]` gate box", which is
+    not the same question and was letting three consumers disagree about the
+    same plan.
+
+    Two things it adds over the raw predicate:
+
+    ACCEPTANCE. `**Blocked-accepted:**` closes a plan whose gate could not run.
+    Checked first, so an accepted plan is never blocked whatever else is true.
+
+    PROPAGATION. A master plan carries no `### Stage N Gate` section of its own
+    — 0 of 38 in the live vault do; a master's gate boxes live in its sub-plan
+    files — so reading only its own text made the master half of BL-077 dead
+    code. A master is blocked when any sub-plan it links is, and acceptance
+    propagates upward the same way blockage does: a master whose sub-plans are
+    all accepted is not blocked.
+
+    Degrades rather than raising: an unresolvable or unreadable sub-plan link is
+    not evidence of blockage, and a plan-status tool that throws on a broken
+    link is worse than one that under-reports a rare case.
+    """
+    if blocked_acceptance(text):
+        return False, None
+    if plan_has_blocked_gate(text):
+        return True, "a stage-gate check is `[~]` BLOCKED"
+    if path is None or _depth >= _MAX_SUBPLAN_DEPTH:
+        return False, None
+    try:
+        if not is_master_plan(text, Path(path)):
+            return False, None
+    except Exception:
+        return False, None
+    base = Path(path).parent
+    hit = []
+    for link in SUBPLAN_LINK_RE.findall(text):
+        target = (base / link.strip()).resolve()
+        try:
+            sub = target.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue                      # a link that resolves nowhere is not blockage
+        if plan_blocked(sub, target, _depth + 1)[0]:
+            hit.append(target.name)
+    if hit:
+        return True, "blocked sub-plan(s): " + ", ".join(sorted(hit))
+    return False, None
 
 
 def plan_terminal_state(text):
@@ -566,6 +725,18 @@ def unify_project(home, write, repo_path, include_stale=False):
     have = existing_sources(btext)
     new = [c for c in cands if c["source"] not in have]
     dups = len(cands) - len(new)
+    # Deliberately NOT routed through portfolio-rebuild.py's shared changed-check
+    # helper. This is an APPEND to a hand-curated register, not a
+    # regenerate-in-place: `btext` is the file's existing bytes carried through
+    # untouched and `add` holds only candidates whose Source is absent from them.
+    # A changed-check around `btext + add` would compare a strictly longer string
+    # and therefore fire every time — a guard that guards nothing. The real guard
+    # is `new` above: when every candidate is already registered it is empty and
+    # the file is never opened. That holds across a date change even though
+    # render_entry() stamps TODAY, because dedup keys on **Source:**, not on the
+    # rendered entry. Both halves are pinned by
+    # tests/test-vault-write-idempotency.py, which is what makes this an
+    # exception rather than an assertion.
     if write and new:
         nid = max_bl(btext)
         # ensure file ends clean
@@ -580,6 +751,18 @@ def unify_project(home, write, repo_path, include_stale=False):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--project")

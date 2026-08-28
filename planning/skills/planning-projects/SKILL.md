@@ -424,8 +424,12 @@ bumps to the master close-out.
 
 Plans live in the vault, not the repo. Before writing, resolve the project's portfolio home:
 
-1. Read `vault_dir` from `~/.claude/portfolio-config.yaml`. **If unset**, fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo (no vault configured) — then skip the rest of these steps.
-2. Compute `portfolio_home = <vault_dir>/Portfolio/<area>/<name>/`, deriving `<area>`/`<name>` from the project's `~/dev/<area>/<name>` path.
+1. **Run the resolver — do not resolve this in prose:** `python3 ${CLAUDE_PLUGIN_ROOT}/skills/portfolio/scripts/resolve-plan-home.py --project <repo>`. Its exit code is the instruction:
+   - **0** — stdout is the plans directory. Use it.
+   - **2** — the vault is configured but UNREACHABLE. **Stop and show the message.** Do not fall back to the repo and do not create anything: a missing vault is not an empty vault, and `mkdir -p` here builds a phantom tree (BL-101).
+   - **3** — no `vault_dir` configured at all. Apply the fallback defined in `../portfolio/references/registry-format.md` § Auto-registration (warn, write to `<repo>/docs/plans/`), then skip the rest of these steps.
+   The conditions are deliberately not restated here — two definitions of "reachable" is what DEC-011 forbids, and prose was the copy that drifted (BL-101).
+2. `portfolio_home` is the parent of what the resolver printed — `<vault_dir>/Portfolio/<area>/<name>/`.
 3. **Auto-register if new:** if the project isn't in `~/.claude/projects-registry.yaml`, append an entry (`path`, `name`, `area`, `enabled: true`, `added: <today>`). This is how a brand-new project joins the portfolio — no separate step.
 4. **Create/refresh the sidecar:** ensure `<repo>/.claude/vault-context.md` carries the `PORTFOLIO-STATUS` block (per `../portfolio/references/sidecar-format.md`) — run `/planning:portfolio rebuild` for the canonical writer rather than hand-editing the block, and `mkdir -p` the vault `plans/` dir. Only a brand-new project with no block needs this: an existing block's **Plans:** line already points at `<portfolio_home>/plans/`.
 
@@ -528,11 +532,12 @@ applies to Standard plans (and, with the decomposition addendum, Master plans).
 Before showing the plan to the user, verify **every** item in
 `references/authoring-checklist.md` — that file is the full list, and most items name the
 section that owns the rule they enforce. **It is a mandatory read on the Standard path, not
-a conditional one.** Three items are restated here, because they are the ones a command
+a conditional one.** Four items are restated here, because they are the ones a command
 decides rather than a reading:
 
 - [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
 - [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
+- [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted`. A task field is the one place the tier policy never reached, and an unbounded one has cost 3.5 h in a single Red-Green loop (`references/test-scope-tiers.md`)
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 
 **Additionally, for a decomposed project (master plan + sub-plans):**
@@ -547,5 +552,5 @@ decides rather than a reading:
 
 ## Checklist — Light plans
 
-For a **Light** plan (Phase -0.5), verify only the seven Light items — the full checklist
+For a **Light** plan (Phase -0.5), verify only the eight Light items — the full checklist
 does not apply. They are in `references/authoring-checklist.md` § Checklist — Light plans.

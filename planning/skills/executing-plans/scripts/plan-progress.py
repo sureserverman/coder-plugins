@@ -186,6 +186,23 @@ def portfolio_plans_dir(repo_root):
             return None
     if not isinstance(vault, str) or not vault:
         return None
+    # A THIRD answer, and this file is the one place it is not an error: a
+    # `vault_dir` that is set but names a missing directory. Every other
+    # *scripted* portfolio consumer refuses loudly on it (portfolio/SKILL.md
+    # § Resolver, which says "scripted" for this reason) — this one must not,
+    # and does not, and the difference is deliberate. Three SKILLS still branch
+    # on unset alone and are not covered by that sweep: BL-101.
+    #
+    # This function runs on EVERY prompt render. A sys.exit here is a broken
+    # shell prompt, and a warning here is a warning printed forever; neither is
+    # a thing the operator can act on from inside a statusline. The safety the
+    # loud refusal buys elsewhere is already bought here structurally, because
+    # this path never writes and never falls back: the `plans.is_dir()` test at
+    # the end of this function is False for a missing vault, so the caller gets
+    # None — no bars — rather than the `<repo>/docs/plans` fallback above, which
+    # is reachable ONLY from `vault is None`. Absent bars are honest; bars built
+    # from in-tree plans while the vault is unreachable would not be. Pinned by
+    # test-vault-unreachable.py so the two cases cannot quietly merge.
 
     reg = _load_yaml(REGISTRY_PATH)
     if not reg:
@@ -318,7 +335,17 @@ def plan_is_eligible(text, path=None):
                 started = True
     if not started and not is_master:
         return False
-    return not (pu.COMPLETED_RE.search(text) or pu.ABANDONED_RE.search(text))
+    if pu.ABANDONED_RE.search(text):
+        return False
+    # A close-out line retires a plan — UNLESS a gate check could not be run.
+    # Without this the three consumers of one contract disagreed about the same
+    # plan: compass called it in flight, the audit called it blocked, and this
+    # renderer showed no bar at all. "One definition, so a change cannot alter
+    # what the gate passed means in one consumer and not another" was the stated
+    # premise of the change that introduced the disagreement.
+    if pu.COMPLETED_RE.search(text):
+        return pu.plan_blocked(text, path)[0]
+    return True
 
 
 MAX_BARS = 3
@@ -994,7 +1021,7 @@ def phase_part(state):
             # The fallback duplicates the default stated in ../SKILL.md ("Remediation
             # budget — default 2 rounds per gate"); test-gate-remediation-contract.py
             # asserts the two stay equal, so change both or neither.
-            total = budget if type(budget) is int and budget > 0 else 2
+            total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
             colour = RED if rnd >= total else YELLOW
             part += f" {colour}↻{rnd}/{total}{RESET}"
         return part
@@ -1022,7 +1049,12 @@ def phase_part(state):
         label = ""
     if not label and not desc:
         return ""       # nothing to say -- the bare glyph was noise, not data
-    return f"{GREEN}▶ {label}{RESET}{desc}"
+    # The separator between label and desc belongs BETWEEN them, not welded to
+    # the label: with no desc the old form left a trailing space inside the
+    # phase part, invisible until Task 2.2 appended a marker after it and the
+    # bar rendered "T1.3  ⚠". Cosmetic, pre-existing, and in a file already open.
+    sep = " " if (label and desc) else ""
+    return f"{GREEN}▶ {label.rstrip()}{sep}{RESET}{desc}"
 
 
 def staleness(state):
@@ -1038,6 +1070,106 @@ def staleness(state):
     if hours >= STALE_AFTER_H:
         return f" {DIM}(stale {int(hours)}h){RESET}"
     return ""
+
+
+LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
+# ../SKILL.md § Step 3.5 states this number in prose; the contract suite asserts
+# the two are equal. ONE copy in this file — the renderer's fallback and
+# --budget-check's ceiling are the same rule, and two literals would let the bar
+# and the stop disagree about when a budget is spent.
+DEFAULT_REMEDIATION_BUDGET = 2
+PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
+
+
+def status_lag(state, text, plan_path):
+    """` ⚠ status lag N` when the plan file trails the live run, else "".
+
+    BL-096. `Status` flips stopped mid-plan in all three audited sessions —
+    tasks kept completing and the markers stopped moving. The RULE was never
+    missing (Step 3.3 rule 5 says flip it in the same change as the work); the
+    SIGNAL was. Everything that could notice fired after the fact: `portfolio
+    plan-status` classifies finished-but-unmarked plans on a later sweep, and a
+    flip audit catches the bulk catch-up flip a stall eventually produces. Both
+    report damage already in the file.
+
+    Both artifacts are already maintained at every transition. The only new
+    thing here is noticing that they disagree, and saying so while the run is
+    still going.
+
+    LAG counts the SEQUENTIAL tasks between the last marker that moved (`[x]` or
+    `[~]`) and the task the state file names, plus the current one. `Parallel:
+    YES` siblings are excluded: they are dispatched together and do not finish
+    in document order, so an unmarked one is concurrency the plan asked for.
+
+    NOT extended to master plans, deliberately. The state-file contract
+    (`../references/progress-state-file.md`) says a master's state file always
+    points at the SUB-PLAN currently executing, so a master's own register is
+    never the file this function reads. An earlier version branched on
+    is_master_plan() and shipped a test for a state shape the contract says
+    cannot occur — green, and measuring nothing. A master register that stops
+    being flipped is still undetected here; that is a real residual, recorded
+    rather than papered over, and it needs a different mechanism because the
+    register flip happens at a sub-plan close-out, outside any task transition. Silent when the state names no task, when the task is not found in the
+    plan, or when nothing is flipped yet and the run is still in the first
+    couple of tasks.
+    """
+    cur = state.get("task")
+    if not isinstance(cur, str) or not cur.strip():
+        return ""
+    cur = cur.strip()
+    # A `task` that is not schema-shaped is phase_part()'s problem, not a lag
+    # signal: it already drops the label for exactly these values. Reporting
+    # them here pasted a prose `task` back into the bar — the defect two
+    # existing cases were written to prevent, reintroduced from a new direction.
+    if not TASK_ID_RE.match(cur):
+        return ""
+    order, last_marked = [], -1
+    for line in text.splitlines():
+        tm = pu.TASK_RE.match(line)
+        if tm:
+            order.append({"num": tm.group(1), "state": None, "parallel": False})
+            continue
+        if not order:
+            continue
+        sm = pu.STATUS_RE.match(line)
+        if sm and order[-1]["state"] is None:
+            order[-1]["state"] = pu.status_state(sm.group(1))
+        elif PARALLEL_YES_RE.match(line):
+            order[-1]["parallel"] = True
+    # Measured from the last marker that MOVED, not the last `[x]`. BL-096 is
+    # about markers that stop moving, and `[~]` is a marker that moved — warning
+    # on a correctly in-flight task would be a false positive against the very
+    # state the contract added to express it.
+    for i, t in enumerate(order):
+        if t["state"] in ("done", "partial"):
+            last_marked = i
+    if not order:
+        # No heading this parser recognises — `#### Task N.M`, an em-dash form,
+        # a suffixed id. 181 such headings exist in the live vault and six plans
+        # have nothing but. The state file is not diverging from those plans;
+        # THIS parser cannot read them, and saying "not in plan" about a task
+        # sitting in the file the user is looking at is a warning that teaches
+        # the reader to distrust the next one.
+        return ""
+    try:
+        cur_i = [t["num"] for t in order].index(cur)
+    except ValueError:
+        # NOT folded into the silent cases. The state naming a task the plan no
+        # longer has is a WORSE divergence than an ordinary lag — the plan was
+        # edited under a run whose markers had already stopped — and silence
+        # made it indistinguishable from nothing to report.
+        return f" {RED}⚠ not in plan{RESET}"
+    # `Parallel: YES` siblings are dispatched together and do not finish in
+    # document order, so an unmarked one between the last marker and the current
+    # task is the format's own first-class concurrency, not a stall. Counting it
+    # made the warning fire on sanctioned behaviour — and a signal that cries
+    # wolf on the thing the plan told it to expect is worse than the silence it
+    # replaces, because it teaches the reader to ignore it.
+    gap = [t for t in order[last_marked + 1:cur_i] if not t["parallel"]]
+    lag = len(gap) + 1
+    if lag <= LAG_TOLERANCE:
+        return ""
+    return f" {YELLOW}⚠ status lag {lag}{RESET}"
 
 
 def pinned_plan_path(state, state_file):
@@ -1093,6 +1225,29 @@ def _bar_line(name, done, total, colour, width):
     return out
 
 
+def blocked_gate_marker(text, plan_path=None):
+    """` ⊘ GATE BLOCKED` when any stage-gate check in the plan is `[~]`, else "".
+
+    A property of the PLAN, not of the phase, so it renders whether or not this
+    session is the one executing — a plan whose gate could not be run is blocked
+    for whoever looks at it next, and the bar is often the only place anyone
+    looks. Appended rather than woven into the counts: the task counts are about
+    tasks and stay honest; BL-077's failure was a plan reading as finished
+    because nothing on the line spoke for the gate.
+
+    Reads the contract through portfolio-unify, like every other marker here.
+
+    NAMED `GATE BLOCKED`, not `BLOCKED`, because phase_part() already renders
+    `✘ blocked <note>` in the same colour on the same line for a different
+    subject — an execution this session has STOPPED, versus a gate check that
+    could not be proven, possibly in an earlier session. Both can appear at
+    once. gate_item_state() argues for not sharing vocabulary with
+    status_state()'s `partial`; the same care was owed to this file's own
+    vocabulary one screen away, and a review had to supply it.
+    """
+    return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_blocked(text, plan_path)[0] else ""
+
+
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
     """The one line for the plan the state file names.
 
@@ -1113,7 +1268,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
     out = _bar_line(label if label is not None else plan_name(plan),
-                    done, total, CYAN, width)
+                    done, total, CYAN, width) + blocked_gate_marker(text, plan)
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -1130,6 +1285,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
         if total:
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
+    out += status_lag(state, text, plan)
     out += staleness(state)
     return out
 
@@ -1145,7 +1301,7 @@ def render_other(plan_path, width=0, label=None, text=None):
         text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
     return _bar_line(label if label is not None else plan_name(plan_path),
-                     done, total, DIM, width)
+                     done, total, DIM, width) + blocked_gate_marker(text, plan_path)
 
 
 def render(cwd):
@@ -1238,7 +1394,67 @@ def render(cwd):
     return lines
 
 
+def budget_check(cwd):
+    """Exit status for `--budget-check`: 0 to continue, 2 when the budget is spent.
+
+    The remediation budget was prose the executor tracked about itself, and the
+    measured failure is what that produces: a 4th review round dispatched after
+    a declared budget of 3, ~160K subagent tokens in that round alone and ~604K
+    across the four for one Critical, ending in "stop it and fix plans". The
+    state file already carried `remediation_round` at every gate transition;
+    nothing ever read it as a stop.
+
+    Deliberately NOT a renderer. The bar shows `↻2/2` and a bar is a thing you
+    glance at; this is a thing that fails. That difference is the whole point —
+    an executor mid-gate is exactly the reader least likely to notice a glyph
+    and most likely to obey a non-zero exit.
+
+    Silent 0 wherever there is no round to bound: no state file, unreadable
+    state, no recorded round.
+
+    THE RESIDUAL, stated because a check that overstates its reach is the thing
+    this plan exists to stop: `remediation_round` is optional by schema, so an
+    executor that never writes it is indistinguishable from one on round 1 and
+    gets a silent 0 forever. This closes the documented incident — the counter
+    existed and nothing read it as a stop — and it is exactly as strong as the
+    discipline that writes the counter, which is still prose. A check that fired on absence would be noise at every
+    ordinary transition, and this one has to be trustworthy on the one occasion
+    it says stop.
+    """
+    sf = find_state(cwd)
+    if sf is None:
+        return 0
+    try:
+        state = json.loads(sf.read_text())
+    except (OSError, ValueError):
+        return 0
+    if not isinstance(state, dict):
+        return 0
+    # Deliberately NOT conditioned on phase == "gate". Step 4 of the gate-failure
+    # procedure re-enters the task's Red-Green loop, so the phase legitimately
+    # reads "task" while the gate is still mid-remediation — and requiring the
+    # gate phase meant a spent budget exited 0 at exactly that moment, permitting
+    # the round it exists to stop. A RECORDED ROUND is the signal; the phase is
+    # not. Safe because the schema mandates writing the whole file at each
+    # transition, so an ordinary task write carries no stale round.
+    rnd = state.get("remediation_round")
+    if type(rnd) is not int or rnd <= 0:
+        return 0
+    budget = state.get("remediation_budget")
+    total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
+    if rnd < total:
+        return 0
+    stage = _stage_int(state.get("stage"))
+    where = f"Stage {stage} gate" if stage is not None else "this gate"
+    print(f"BUDGET SPENT — {where} has used {rnd} of {total} remediation round(s). "
+          f"Do not dispatch another round: escalate to the user with the residual "
+          f"list of findings that remain.", file=sys.stderr)
+    return 2
+
+
 def main():
+    if "--budget-check" in sys.argv[1:]:
+        sys.exit(budget_check(os.getcwd()))
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."
@@ -1251,4 +1467,6 @@ if __name__ == "__main__":
         main()
     except Exception:
         # A statusline must never print a traceback — blank line beats noise.
+        # SystemExit is not an Exception, so --budget-check's status survives
+        # this handler; that is load-bearing, not incidental.
         sys.exit(0)

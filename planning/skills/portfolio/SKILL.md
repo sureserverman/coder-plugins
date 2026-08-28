@@ -18,7 +18,7 @@ Single user-facing skill that ties together every project in `~/dev/`:
 
 ## Resolver (read this before any read/write)
 
-Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md`:
+Every read/write to a project's operational docs goes through the resolver defined in `references/registry-format.md` — the LLM lane included, since the three plan-writing skills now call `scripts/resolve-plan-home.py` rather than resolving in prose (BL-101). One definition, not one in code and one in prose free to drift (DEC-011). Bound: a skill's call is still an instruction, so this removes the second *definition*, not the model's ability to skip the step.
 
 ```
 repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
@@ -26,7 +26,8 @@ repo ~/dev/<area>/<project>  →  <vault_dir>/Portfolio/<area>/<name>/
 
 - `vault_dir` is read from `~/.claude/portfolio-config.yaml`.
 - The repo's `.claude/vault-context.md` caches the resolved `portfolio_home`; the registry+convention is authoritative if they disagree.
-- **No silent fallback.** If `vault_dir` is unset, every subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. NEVER write to `<repo>/docs/` — that would re-fragment the centralized docs.
+- **No silent fallback.** If `vault_dir` is unset, every `portfolio` subcommand that would resolve a vault home **fails loudly** — print `portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml` and refuse. The *planning* skills differ deliberately: with no vault configured at all they warn and write plans to `<repo>/docs/plans/` (DEC-020). That rule is stated once, in `references/registry-format.md` § Auto-registration, and is not restated here.
+- **A missing vault is not an empty vault — and an unmounted one is not missing.** A `vault_dir` that is *set* but unreachable is refused identically (`vault unreachable: …`), creating no part of the tree. Unreachable = absent, relative, not a path, unreadable (EACCES/ESTALE refuses, never tracebacks), **or existing with no `Portfolio/`** — what an unmounted mountpoint looks like, a mountpoint being a directory whether or not anything is mounted on it. The `Portfolio/` check is load-bearing: without it `migrate` builds a phantom vault at the mount point and moves a repo's only docs into it. Initialise a new vault by creating `<vault_dir>/Portfolio/` once, by hand. Read-only tools whose corpus IS the vault refuse too — an empty result reads as "nothing is in flight". Divergences: `references/registry-format.md`.
 
 **Announce at start:** "Using the portfolio skill — `<scan|unify|maturity|migrate|integrate|rebuild|plan-status|default>`."
 
@@ -120,7 +121,9 @@ vault_dir: /mnt/vault         # required; roll-ups land in <vault_dir>/Portfolio
 include_maturity: false       # default flow opts out of maturity until staging window ends
 ```
 
-Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to. What a `vault_dir` that is *set* but names a missing directory should do is **not settled**: this section said "warn and continue with `~/.claude/` writes" from before the retirement, and that destination no longer exists. Do not rely on either reading until it is decided.
+Every key is optional except `vault_dir`. A missing file means the maturity opt-out plus an **unset** `vault_dir` — a hard refusal under the Resolver rules at the top of this file, never a fallback. The `~/.claude/` mirror this section used to describe was retired when storage went vault-canonical, so there is no longer a degraded mode to fall back to.
+
+A `vault_dir` that is *set* but unreachable is settled: **the same refusal** (Resolver, above). It is not the lesser failure — unset has no destination to get wrong, while a stale or unmounted path is one `mkdir -p` from a plausible second vault.
 
 ## File conflicts and write discipline
 

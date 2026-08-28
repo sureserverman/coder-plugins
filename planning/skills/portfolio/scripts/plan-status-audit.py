@@ -66,7 +66,7 @@ GIT_TIMEOUT = 20        # seconds per repo; a hung git must not hang the audit
 
 # The classes, in the order classify() decides them. Order is load-bearing and
 # argued at classify() — do not reorder to make a count look better.
-CLASSES = ("abandoned", "completed", "unclassifiable", "no-status",
+CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "no-status",
            "never-started", "started-unfinished")
 
 
@@ -186,7 +186,11 @@ def task_counts(text, path):
     return done, total
 
 
-GATE_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX~])\]")
+# GATE_ITEM_RE moved to portfolio-unify.py, the contract owner, when BL-077 gave
+# `[~]` a meaning that classify() acts on. A private copy here was a lockstep
+# break with nothing to catch it: the two could disagree about what a gate
+# checkbox says, silently, in opposite directions.
+GATE_ITEM_RE = pu.GATE_ITEM_RE
 
 
 def gate_state(text):
@@ -198,6 +202,8 @@ def gate_state(text):
     carry every task done and still have an unticked final gate; measured on the
     live corpus, 3 of 14 completion candidates did, one of them with 4 of 4
     Stage 1 gate items unticked while presenting as "4/4 tasks done".
+
+    Reads this plan's own gate blocks only; a master carries none.
 
     Counts checkboxes only between a `### Stage N Gate` heading and the next
     `###` heading, so a Preflight or Research checklist elsewhere in the
@@ -214,7 +220,7 @@ def gate_state(text):
             m = GATE_ITEM_RE.match(line)
             if m:
                 total += 1
-                ticked += pu.status_state(m.group(1)) == "done"
+                ticked += pu.gate_item_state(m.group(1)) == "done"
     return ticked, total
 
 
@@ -223,14 +229,25 @@ def classify(text, path):
 
     ORDER, AND WHY IT IS THIS ORDER:
 
-    1. `abandoned` and 2. `completed` come first because they are HUMAN-AUTHORED
-       terminal markers. A plan whose author wrote a close-out line has already
-       answered the question this tool asks, and nothing below should overrule
-       it. A plan carrying BOTH resolves to `abandoned` — deterministically, so
-       the classification is stable — and the fact that it carries both is
-       reported as detail rather than hidden.
+    1. `abandoned` comes first because it is a HUMAN-AUTHORED terminal marker.
+       A plan whose author wrote one has already answered the question this tool
+       asks. A plan carrying BOTH markers resolves to `abandoned` —
+       deterministically, so the classification is stable — and the fact that it
+       carries both is reported as detail rather than hidden.
 
-    3. `unclassifiable` is checked next, and only for plans with no terminal
+    2. `blocked` (BL-077) is the ONE place a human-authored terminal marker is
+       overruled, and it sits here rather than lower for that reason. A
+       `**Completed:**` line is the author's claim about the WORK; a `[~]` gate
+       check is the record of what could not be PROVEN, and proof outranks
+       claim. Deciding it after `completed` would make it unreachable on exactly
+       the plans that need it — the measured failure was a fully-blocked master
+       rendering as Completed. It stays BELOW `abandoned`: an abandoned plan is
+       not blocked, it is over.
+
+    3. `completed` is the remaining human-authored terminal marker, and nothing
+       after this point overrules it.
+
+    4. `unclassifiable` is checked next, and only for plans with no terminal
        marker, because that is exactly the population whose completion this tool
        would otherwise INFER. A Status marker outside the contract's `[ xX~]`
        class is invisible to STATUS_RE: its task counts toward neither `done`
@@ -246,6 +263,21 @@ def classify(text, path):
     if abandoned:
         detail = "carries **Completed:** too" if completed else None
         return "abandoned", detail
+    blocked, why = pu.plan_blocked(text, path)
+    if blocked:
+        # BL-077. A `[~]` gate check says a check could not be run here, so the
+        # plan's completion was never proven — whatever its close-out line says.
+        # Routed through pu.plan_blocked(), not the raw gate predicate: that one
+        # answers "does this file contain a `[~]` box", which misses a master
+        # (no gate section of its own) and ignores `**Blocked-accepted:**`, the
+        # marker an author writes to close a knowingly-blocked plan.
+        # This sits ABOVE `completed` deliberately, and it is the one place a
+        # human-authored terminal marker is overruled: the marker is a claim
+        # about the work, the gate box is the record of the proof. Overruling
+        # it in the other direction is what produced a fully-blocked master
+        # rendering as Completed.
+        detail = why + (" — and the plan carries **Completed:**" if completed else "")
+        return "blocked", detail
     if completed:
         return "completed", None
 
@@ -762,6 +794,18 @@ def print_report(report, verbose=False):
         print(f"  {u['path']}\n    {u['detail']}")
     print("\nThese are never offered as completion candidates, under any flag.")
 
+    # `blocked` is the one class that OVERRULES a human-authored close-out line,
+    # so it owes the reader the most explanation and was giving the least: one
+    # integer in the class table, with the reason computed, stored and reachable
+    # only through --json. A class that second-guesses an author has to say why,
+    # by name, where the author will see it.
+    blocked = report["classes"].get("blocked", [])
+    if blocked:
+        print(f"\nBlocked — a stage-gate check is `[~]`, so completion was never "
+              f"proven: {len(blocked)}")
+        for b in blocked:
+            print(f"  {b['path']}\n    {b.get('detail') or 'a gate check is [~]'}")
+
     if verbose:
         for c in CLASSES:
             print(f"\n[{c}]")
@@ -930,6 +974,18 @@ def cmd_restore(run_id, vault, projects):
 # --------------------------------------------------------------------------
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--fix", action="store_true",
                     help="offer to record a close-out line per candidate (asks per plan)")
@@ -942,10 +998,33 @@ def main():
     ap.add_argument("--registry", default=str(REGISTRY))
     args = ap.parse_args()
 
-    vault = Path(args.vault) if args.vault else pu.vault_dir()
-    if vault is None:
-        print("no vault_dir configured (~/.claude/portfolio-config.yaml)", file=sys.stderr)
-        return 2
+    # `--vault` bypasses the config resolver, so it would have bypassed the
+    # resolver's existence guard too — and this tool WRITES into whatever tree it
+    # is handed: --fix mkdirs `.audit-backups/<run-id>/` next to each plan. A
+    # nonexistent --vault would have found no plans, reported "0 candidates" as a
+    # clean bill of health, and --restore would have looked for backups that were
+    # never taken. Same rule and same message whichever knob supplied the path.
+    #
+    # (The `vault is None` branch that used to stand here was dead: pu.vault_dir()
+    # exits rather than returning None, and Path(args.vault) is never None. It is
+    # replaced rather than kept, because a dead guard reads as a live one.)
+    if args.vault:
+        # Shared predicate, not a hand-copied condition. This check used to test
+        # `is_dir()` alone, so when the resolver grew three more conditions this
+        # tool silently kept the v1 guard — on the one path here that WRITES into
+        # the tree it is handed. vault_problem() exists precisely so this caller
+        # can apply identical conditions and still return its own rc 2.
+        import importlib.util as _ilu
+        _sp = Path(__file__).resolve().parent / "portfolio-rebuild.py"
+        _spec = _ilu.spec_from_file_location("portfolio_rebuild", _sp)
+        _pr = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_pr)
+        vault, problem = _pr.vault_problem(args.vault, "--vault")
+        if problem:
+            print(problem, file=sys.stderr)
+            return 2
+    else:
+        vault = pu.vault_dir()
     projects = load_registry(args.registry)
     if not projects:
         print("no enabled projects in the registry", file=sys.stderr)

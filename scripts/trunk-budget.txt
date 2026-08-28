@@ -57,7 +57,110 @@
 #   eleven bullets grammatically hung off the consequence-of-failure clause
 #   rather than off "run every check". The rule is now its own line after the
 #   bullets, which reads correctly and costs 31 B.
-planning/skills/executing-plans/SKILL.md 46311
+# Raised 46311 -> 47334 (+1023) across the two remediation rounds of the Stage 1 gate of the
+#   2026-08-27 session-mined-flaws plan. This entry REPLACES a round-1 entry whose numbers
+#   were wrong; the correction is recorded rather than quietly overwritten, because a raise's
+#   reason block is the only audit this ratchet has and one that cannot be reconciled with
+#   the diff is worse than a bigger number honestly stated.
+#
+#   WHAT THE ROUND-1 ENTRY GOT WRONG. It said "the trunk sat at exactly 46311 when the gate
+#   opened". It sat at 46254 — 57 B UNDER the ceiling. And it itemized the raise as
+#   +176/+112/+14, three figures summing to the CEILING delta (302) rather than to anything
+#   measured. The real per-rule costs were +210/+88/+61 = 359 B, of which 57 B came from
+#   existing headroom and 302 B from the raise. Caught independently by the gate evaluator
+#   and both Tier-2 reviewers. The class was swept — 20 accounting claims in this file, 0
+#   other arithmetic mismatches:
+#     python3 - <<'EOF'  # regex over "Raised|Lowered A -> B (+/-N)"; assert B-A == N
+#   The stage's five TASK additions are not part of this raise: each was paid for by
+#   extraction inside the original ratchet, which is why the trunk was under it at gate-open.
+#
+#   ROUND 1 (+359 B of content, 302 B of ceiling), three rules three Tier-1 reviews found
+#   missing, each a contradiction inside the trunk rather than an improvement to it:
+#     +210  the boxed exit criterion claimed to govern "every gate pass" while enumerating
+#           only Critical/Important findings, leaving the platform-verify hook, the decisions
+#           sweep and an unrecorded review substitution unreachable from it
+#      +88  Step 3.3 rule 5 stated the Status flip happens "in the same change as the work"
+#           unconditionally, two items before rule 7 carved out the case where it cannot
+#      +61  the turn rule's lead said "an announcement" and its elaboration "stage or task"
+#
+#   ROUND 2 (+721 B net: 1525 added, 804 removed), clearing two Criticals and ten Importants
+#   raised by the gate evaluator, a Tier-2 review and a second independent pass:
+#     - rule 7's LEAD still read "including ... the flipped `Status: [x]`" unqualified — the
+#       exact sentence the plan's research names as the defect. Round 1 had qualified rule 5
+#       and left the site the plan identified. (Critical)
+#     - the exit criterion had FIVE mirrors and round 1 patched one. The operative branch
+#       ("If the gate passes") restated a findings-only version and was the line an executor
+#       actually acts on; three reference mirrors did the same. All five now agree. (Critical)
+#     - the honest-gates capsule routed RED and orphaned BLOCKED, which took neither branch;
+#       and it omitted the prohibition most likely to bite at a stage gate, since the
+#       "Stage N green" commit lands AFTER the gate runs: a gate whose commands ran over
+#       uncommitted edits proved nothing about what is recorded.
+#     - the capsule's header read as provenance ("restated because the pointer went unread"),
+#       inviting a reader who believes they know honest-gates to skip the block. It now
+#       states the obligation.
+#     - "the mandate IS the authorization" sat in a paragraph about running a review inline,
+#       where the fast read is that the substitution authorizes itself. Names the dispatch now.
+#     - the turn rule's "or instead of it" licensed dropping an announcement this skill
+#       MANDATES — the round-1 broadening manufactured a collision on the same axis it fixed.
+#     - the ACTION NEEDED rule had zero trunk presence while the trunk pushes toward
+#       "proceeding" three sections earlier, so the trunk supplied half the failing shape and
+#       stationed the counter-rule in another file.
+#
+#   ON "NO ELABORATION LEFT TO CUT", which the round-1 entry asserted flatly. The sweep was
+#     python3 - <<'EOF'  # every paragraph >=300 B in the trunk carrying no retention marker
+#   and it returns procedure, obligations and the format contract — with one exception a
+#   reviewer found and this entry did not: the Step 3.3 test-first rationale ("A test written
+#   after the implementation cannot distinguish...") restates an imperative one sentence
+#   earlier, ~100 B of genuine elaboration predating this stage. It is left in place; the
+#   claim is corrected rather than the file trimmed to make the claim true.
+#
+#   The standard this file set for itself twice already — at the Stage 2 and Stage 3 gates of
+#   the token-efficiency plan — is that the ceiling follows the obligation, not the obligation
+#   the ceiling. Paying for a rule by deleting a rule is the trade it exists to stop.
+#
+#   Recorded caveat, unchanged and verified by the gate evaluator: the 2026-08-27 plan's
+#   Research Summary asserts "any trunk addition must be paid for by extraction in the same
+#   change (DEC-018)". DEC-018 says no such thing — it governs how a claimed token SAVING is
+#   measured. No decision in force forbids a recorded raise; this file's protocol governs.
+#
+# Raised 47334 -> 48423 (+1089) 2026-08-27 for Step 3.3 rule 4a — a test the task wrote
+#   is not green until its mutant dies. Paid for in argument, not bytes: the rationale
+#   and the observed failures live in honest-gates § "A test does not exist until its
+#   mutant dies"; the trunk carries only the obligation and the two corollaries, and
+#   points there. It is here rather than in a reference because it fires INSIDE the
+#   Red-Green loop, between the test going green and the Status flip — a rule the
+#   executor must meet at that moment, and a pointer followed afterwards is the same as
+#   no rule. Untiered by DEC-010's cost line (a local re-run, not an agent), so it
+#   needs no tier declaration under DEC-017; the tier is named in the rule itself.
+#
+#   Raised again 2026-08-28 to 48661 for one clause: before writing a CHECKER, ask whether
+#   the mechanism can decide the property. Rule 4a governs tests; the clause governs the
+#   choice that precedes them, which is where a prose-matching validator cost two rounds.
+#
+#   Why it was worth the bytes: across one 4-round stage gate, six defects shipped
+#   through green suites — a teeth-call argparse short-circuited before its guard, a
+#   fixture built to match current behaviour, an assertion satisfied by the wrong
+#   cause, and three copies of a guard where reverting a branch left 41 suites green.
+#   Every one was caught by a reviewer and then confirmed by a mutation that should
+#   have been run before the commit.
+#
+# Raised 48661 -> 48985 (+324 B) at the plan's close-out, for ONE rule and no
+#   elaboration: how a BLOCKED gate check is WRITTEN (`- [~]`, never `- [x]` with a note).
+#   Why it was worth the bytes: Stage 2 shipped `[~]` and four parsers now read it, but the
+#   instruction to write it lived only in honest-gates — the file BL-083 measured as opened
+#   once per 26 reads of this trunk. The trunk mandated the BLOCKED state and never said how
+#   to record it, so the default an executor reaches for is `[x]` plus an explanatory note,
+#   which is verbatim the anti-pattern BL-077 was filed from. A close-out reviewer found the
+#   seam: the stage that created the marker and the stage that wrote the capsule never met.
+#
+# Raised 48985 -> 49016 (+31 B) in the same close-out, for two accuracy fixes and no
+#   new rule: `--budget-check` now names the working directory it must run from (it walks UP
+#   from cwd only, so run from the vault — which Stage 1 has executors doing for plan edits —
+#   it finds no state and exits 0, indistinguishable from "no round to bound"), and the
+#   untiering citation now names DEC-017 beside DEC-010. DEC-017 exists precisely because
+#   DEC-010's cost line "was right about text and wrong about commands", so citing only
+#   DEC-010 for a command-costing mandate cited the superseded half.
+planning/skills/executing-plans/SKILL.md 49016
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -108,7 +211,38 @@ planning/skills/executing-plans/SKILL.md 46311
 #   from references/task-fields.md, which ends at Rollback notes. The rule is trunk-resident
 #   in § Stage sizing, so the PROMISE was the defect. Corrected, and it now says where the
 #   rule actually is (net +59 B; a false pointer costs more than the words that fix it).
-planning/skills/planning-projects/SKILL.md 36489
+# Raised 36489 -> 36902 (+413) by Stage 3 Task 3.2 of the 2026-08-27 session-mined-flaws
+#   plan, for ONE checklist item about ONE new validator axis. The arithmetic, stated so it
+#   reconciles with the diff (the Stage 1 gate's correction to this file made that the
+#   standard): +418 B for the new bullet, -1 B for the count word above it (`Three` ->
+#   `Four`) = +417 B of content, of which 4 B came from existing headroom and 413 B from
+#   this raise.
+#
+#   What it funds: `validate-gate-checks.py` gained a THIRD axis, TASK-TEST-UNSCOPED — a
+#   task whose own `Test:` collects the whole suite on a plan that declares expensive-suite
+#   tiering. The trunk's § Checklist block restates exactly the items A COMMAND DECIDES
+#   rather than a reading, and says so in its own lead sentence; this is now the fourth such
+#   item, so leaving it in references/authoring-checklist.md alone would have made that
+#   sentence false about its own criterion. That is the shape the Stage 2 gate rejected
+#   twice — an obligation surviving in the trunk only as a noun inside a pointer.
+#
+#   Why the rule exists at all: `references/test-scope-tiers.md` asserted that task-level
+#   `Test:` fields are scoped by construction. A measured run falsified it — an unscoped
+#   task field ran ~3.5 h against a 3132-test collection inside one Red-Green loop, while
+#   the same plan's stage-scope command took ~7 min. Task 3.1 retracted the claim at all
+#   three sites it was made; this pays for the check that replaces it.
+#
+# Raised 36902 -> 37456 (+554 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. This file carries the exit-code contract once; the other two point at it.
+#
+# Raised 37456 -> 37502 (+46 B) settling BL-106, the no-vault_dir fallback: three
+#   sites stated one rule and two of them contradicted each other. Decided by the user
+#   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
+planning/skills/planning-projects/SKILL.md 37502
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -180,7 +314,69 @@ planning/skills/planning-projects/SKILL.md 36489
 #   which gates the maturity step behind `--include-maturity` (default off) — so the
 #   default flow runs THREE during the staging window. Now "composes four, one of
 #   them gated".
-planning/skills/portfolio/SKILL.md 12389
+# Raised 12389 -> 12969 (+580) by Task 4.3 (BL-071), which SETTLES the undecided
+#   half described above: a vault_dir that is set but names a missing directory is
+#   refused exactly as an unset one is, in every resolver, and no part of the
+#   missing tree is created on the way to a write. Two sections change because the
+#   trunk gives two answers about it — § Resolver states the rule (with the message
+#   an operator will actually see, and the read-only posture that stops an empty
+#   envelope reading as "nothing is in flight"), and § Configuration replaces the
+#   "not settled" paragraph with the decision. The elaboration — which consumers
+#   diverge, why, and the mkdir -p that made this dangerous — went to
+#   references/registry-format.md, which is not budgeted; what is left here is the
+#   rule itself, which cannot live one level down without the trunk asserting a
+#   behavior it does not state.
+#
+# Raised 12969 -> 13184 (+215) at the Stage 4 gate of the same plan. Task 4.3 settled
+#   set-but-missing `vault_dir` as a refusal; the gate's adversarial pass then showed the
+#   check could not see the case its own docstring named — a mountpoint is a directory
+#   whether or not anything is mounted on it, so an unmounted NFS vault passed `is_dir()`
+#   and `migrate` moved a repo's only docs into a phantom tree. The rule now has three
+#   more conditions (absolute, a real path, contains `Portfolio/`) and the trunk has to
+#   state what "unreachable" means, or the code refuses for reasons the doc never gave.
+#   Paid down first: the § Configuration paragraph was cut to a pointer, since § Resolver
+#   now carries the detail it used to duplicate.
+#
+# Raised 13184 -> 13254 (+70) at the Stage 4 gate, round 3. Two honesty edits, both
+#   corrections rather than elaboration: "unreachable" gained its fifth reason
+#   (unreadable — an EACCES/ESTALE stat refuses instead of raising, which the trunk
+#   had not said), and the Resolver's "every read/write goes through the resolver"
+#   was narrowed to every SCRIPTED one, because three skills resolve the vault in
+#   prose and branch only on unset (BL-101). The second is the important one: the
+#   sentence certified coverage the tree does not have, which is the exact claim
+#   shape this stage exists to stop. Paid down first — the bullet's explanatory
+#   tail was cut and the BL-101 detail pushed to the reference.
+#
+# Raised 13254 -> 13543 (+289 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. Here it is the Resolver claim, corrected from "every scripted one" to what is now true.
+#
+# Raised 13543 -> 13721 (+178 B) settling BL-106, the no-vault_dir fallback: three
+#   sites stated one rule and two of them contradicted each other. Decided by the user
+#   (option A — keep the fallback); the 'NEVER write to <repo>/docs/' claim was FALSE — the code has always written there on an unconfigured machine — and correcting a false rule to a true one plus a pointer costs more bytes than the falsehood did.
+planning/skills/portfolio/SKILL.md 13721
+
+# Seeded 2026-08-27 at 12519 B, its first entry: honest-gates crossed 10000 B when it
+#   gained § "A test does not exist until its mutant dies". The section is here rather than
+#   in a reference because it is a WRITE-TIME discipline — it has to be in front of whoever
+#   is writing the test, and a pointer they follow after the fact is the same as no rule.
+#   Untiered by DEC-010's cost line: it costs a re-run, not an agent.
+#
+# Raised 12519 -> 13608 (+1089) 2026-08-28 for the rule that fires EARLIER than the
+#   other three: before writing a checker, ask whether the mechanism can decide the property
+#   at all. The other rules govern a test's quality; this one governs whether the check is
+#   the right KIND, and it is the gap they left. Its cost was measured rather than supposed —
+#   a prose-matching validator took two review rounds and five Criticals, every round
+#   rejecting the counterexample it was shown and admitting the next, while this file already
+#   carried the sentence saying that cannot work. A rule not consulted at the moment of
+#   choosing is not in force, so it sits FIRST in its section; that position is the fix.
+#
+# Raised 13608 -> 13645 (+37 B) in the same close-out: the untiering citation names
+#   DEC-017 beside DEC-010, for the reason above. Citation only; no rule changed.
+planning/skills/honest-gates/SKILL.md 13645
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
@@ -223,7 +419,14 @@ android-dev/skills/android-ui-design-figma/SKILL.md 13534
 git-github/skills/license-audit/SKILL.md 13335
 # Raised 13122 -> 13124 (+2) by the Task 3.3 deixis burn-down:
 #   the question heuristics are cited by phase instead of by direction
-planning/skills/brainstorming/SKILL.md 13124
+#
+# Raised 13124 -> 13182 (+58 B) at close-out, closing BL-101 — the LLM lane resolved the
+#   vault in PROSE and branched on `unset` alone, so against a configured-but-unmounted
+#   vault these skills built the phantom tree the scripted lane refuses. The fix could not
+#   be "teach three skills the five conditions": that is a second definition of reachable,
+#   which is DEC-011. So the conditions stay in one place and the skills now call
+#   `resolve-plan-home.py` and obey its exit codes. Here it is a pointer at that contract, not a copy of it.
+planning/skills/brainstorming/SKILL.md 13182
 # Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
 #   the Output location citation now carries the path it refers to
 planning/skills/decisions/SKILL.md 13053
@@ -232,7 +435,44 @@ planning/skills/architecting-projects/SKILL.md 11935
 # Raised 11658 -> 11674 (+16) by the Task 3.3 deixis burn-down:
 #   the business-aware rules and the agenda sources are named rather than
 #   pointed at
-planning/skills/compass/SKILL.md 11674
+# Raised 11674 -> 11805 (+131) at the Stage 2 gate of the 2026-08-27 session-mined-flaws
+#   plan, for ONE rule about ONE new field. compass-scan.py gained `blocked_gate` (BL-077):
+#   a plan whose stage-gate check is `[~]` stays ACTIVE even with every task `[x]` and a
+#   close-out line, because a check that could not run means the work is not proven. Without
+#   the rule a reader of this trunk cannot tell why a plan that looks finished is still on the
+#   board, and the judgment layer this trunk instructs is the thing that decides what to work
+#   on next. The sibling rule for `abandoned` is one line above it, and this field had none.
+#   compass ships no references/ directory, so the trunk is the only home available.
+#
+# Raised 11805 -> 11899 (+94) in the same gate's round 2, for the other half of the
+#   same rule: `**Blocked-accepted:**` retires the plan again. A rule that keeps a
+#   plan on the board without naming the marker that takes it off is the half that
+#   makes the tool unanswerable, which is what the user's decision was about.
+#
+# Raised 11899 -> 12549 (+650) by Task 4.1 of the same plan, for the `unmeasurable`
+#   field: a plan with zero parseable `Status:` fields is now its own bucket rather
+#   than an active plan at an unknown stage, so it is emitted and reviewed but never
+#   counted as in-flight. Four sites change because the field changes four answers
+#   this trunk gives — what "degrade loudly" costs (hard rule), what is on the `now`
+#   board, what `next` may rank, and where the bucket surfaces (`review`). Leaving any
+#   of them stale would leave a reader counting the plan the scanner stopped counting.
+#   compass ships no references/ directory, so the trunk is the only home available.
+#
+# Raised 12549 -> 12800 (+251) by Task 4.3 (BL-071): compass-scan.py now exits
+#   rather than emitting an envelope with an empty `projects` list when the vault
+#   is unreachable, and this trunk's determinism boundary had to say so. Without
+#   it the skill's own rule — judgment only, never present a fact the JSON doesn't
+#   back — would have had the skill faithfully reporting that nothing is in flight
+#   anywhere, which is the one wrong answer the scanner change exists to prevent.
+#   As noted for the raise above, compass ships no references/ directory.
+#
+# Raised 12800 -> 13046 (+246) at the Stage 4 gate. The gate's independent evaluator and
+#   Task 4.1's own review both found the same hole from opposite directions: `now` promised
+#   abandoned plans a full listing and gave `unmeasurable` ones no equivalent, and `review`
+#   claimed to be "the only place they surface" while `next`'s closing-line rule names them
+#   too. Two sentences that cannot both be true is the failure this trunk's own degrade-loudly
+#   rule exists to prevent, so both were corrected rather than one silenced.
+planning/skills/compass/SKILL.md 13046
 business/skills/business-plan/SKILL.md 11539
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750

@@ -12,7 +12,7 @@
 Idempotent: re-running with no upstream change produces byte-identical output
 (timestamp suppressed when content is unchanged).
 """
-import os, re, subprocess, sys, yaml, datetime
+import os, re, subprocess, sys, tempfile, yaml, datetime
 from pathlib import Path
 
 REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
@@ -25,15 +25,147 @@ STRUCTURAL = {"backlog", "open", "closed", "done", "archive", "cross-project ite
 
 
 def vault_dir():
+    """The configured vault root, or a loud refusal. Never a fallback destination.
+
+    Two ways this can be wrong, and they are ONE posture, not two (SKILL.md
+    § Resolver, § Configuration):
+
+      * **Unset** — no config, or no `vault_dir` key. Refused since storage went
+        vault-canonical; the `~/.claude/` mirror that used to absorb this was
+        retired, so there is nothing left to fall back TO.
+      * **Set but missing** — the key names a directory that is not there: an
+        unmounted NFS vault, a typo, a machine that never had one. Left
+        unchecked this was strictly WORSE than the unset case, because nothing
+        downstream refuses on its behalf. `portfolio-migrate.py` mkdir(parents=
+        True)s the project home, so a run against an unmounted /mnt/vault would
+        materialise a second, empty vault tree at the mount point and migrate a
+        repo's only copy of its docs into it — a silent fallback write with the
+        real vault still holding the divergent original. A missing vault is not
+        an empty vault, and the only safe answer is to stop.
+
+    expanduser() runs BEFORE the check on purpose. `vault_dir: ~/vault` is not
+    an absolute path to Python; unexpanded it is RELATIVE, and every write would
+    land in `<cwd>/~/vault` — the same defect reached by a different route. It
+    also keeps this resolver's definition of the corpus identical to
+    plan-progress.py's, which has always expanded (DEC-011: every function
+    taking the corpus as an argument must use the same definition of it).
+    """
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = cfg.get("vault_dir")
     if not vd:
         sys.exit("portfolio not configured: set vault_dir in ~/.claude/portfolio-config.yaml")
-    return Path(vd)
+    return require_vault(vd, CONFIG)
+
+
+def vault_problem(path, source):
+    """The vault at `path` if it is REACHABLE, else exit with a specific message.
+
+    `path` is the raw configured value (str) or an already-built Path; a str is
+    `~`-expanded here so every caller expands identically (DEC-011: one definition
+    of the corpus).
+
+    Separate from vault_dir() because the same rule binds paths that never came
+    from the config at all — `plan-status-audit.py --vault` (which writes
+    `.audit-backups/` into the tree it is handed) and `decisions-relevant.py
+    --vault-dir` (which writes nothing, but would otherwise render an unreachable
+    register as "bound by no global decisions", an empty result read as truth).
+    `source` names where the bad value came from, so the operator is told which
+    knob to turn rather than just that one is wrong.
+
+    Three conditions, and the second is the one that matters most in practice:
+
+      * **Not absolute.** `vault_dir: vault` is resolved against the process cwd,
+        so one config silently means a different vault per directory you run from.
+        Refused rather than resolved, because resolving it would pick one of them.
+      * **Not a mounted vault.** `is_dir()` alone CANNOT see the headline case this
+        guard exists for. A mountpoint is a directory whether or not anything is
+        mounted on it, so an unmounted NFS vault — the exact scenario named here —
+        passes `is_dir()` as a local, empty directory. `portfolio-migrate` then
+        mkdir(parents=True)s into it and moves a repo's only copy of its docs to a
+        phantom tree, with the real vault still holding the divergent original and
+        nothing git-tracked to recover from. So a vault is defined by CONTENT:
+        it contains `Portfolio/`. An unmounted mountpoint does not.
+        (`android-mcp-orchestrator/scripts/up.sh:133` records the same lesson for
+        bind mounts: the layer below will happily create an empty directory for a
+        source that is not there.)
+      * **Missing entirely.** The original case, unchanged.
+
+    First-run is deliberate, not accidental: a brand-new vault is initialised by
+    creating `<vault>/Portfolio/` once, by hand. That is the whole cost of making
+    an unmounted mount indistinguishable from a fresh one impossible.
+    """
+    if isinstance(path, str):
+        path = Path(path).expanduser()
+    elif not isinstance(path, Path):
+        return None, (f"vault unreachable: vault_dir (from {source}) must be a path, "
+                      f"got {type(path).__name__} — correct vault_dir.")
+    if not path.is_absolute():
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) is a "
+                      f"relative path, so it names a different directory depending "
+                      f"on where you run from — refusing. Use an absolute path.")
+    try:
+        existing = path.is_dir()
+        sentinel = existing and (path / "Portfolio").is_dir()
+    except OSError as e:
+        # A vault that cannot be STATTED is unreachable, not a traceback. Python
+        # 3.12's Path.is_dir() propagates OSError rather than returning False, and
+        # a dropped or re-exported NFS mount usually surfaces as EACCES or ESTALE
+        # rather than ENOENT — so the likeliest real-world failure was the one that
+        # escaped this function, which exists to turn unreachability into a message.
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) could "
+                      f"not be read ({e.__class__.__name__}: {e.strerror or e}) — "
+                      f"refusing. Check the mount and its permissions.")
+    if not existing:
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) is not an "
+                      f"existing directory — refusing, because a missing vault is not "
+                      f"an empty vault. Mount the vault or correct vault_dir.")
+    if not sentinel:
+        return None, (f"vault unreachable: vault_dir {path} (from {source}) exists but "
+                      f"has no Portfolio/ — refusing, because that is what an UNMOUNTED "
+                      f"mountpoint looks like, and writing here would build a phantom "
+                      f"vault. Mount the vault; or, for a genuinely new one, create "
+                      f"{path / 'Portfolio'} first.")
+    return path, None
+
+
+def require_vault(path, source):
+    """vault_problem(), for the callers that exit rather than return a code.
+
+    Split so `plan-status-audit.py` can apply the SAME conditions and still return
+    its own rc 2 instead of sys.exit's 1. Before the split it carried a hand-copied
+    single-condition check and therefore silently kept the v1 guard while every
+    other reader grew three more — on the one tool here that writes backups into
+    whatever tree it is handed.
+    """
+    path, problem = vault_problem(path, source)
+    if problem:
+        sys.exit(problem)
+    return path
+
+
+def vault_live(vault):
+    """The `Portfolio/` sentinel is still there — ONE stat, at a write boundary.
+
+    `require_vault()` runs once, in `main()`, and the writes follow. If the vault goes away
+    in between — an NFS mount dropping mid-run, which `--all` makes a realistic window —
+    every `mkdir(parents=True)` downstream happily rebuilds the chain from nothing.
+    Reproduced: with the root removed after a passing check, `migrate_project` returned `ok`
+    and recreated `<vault>/Portfolio/<area>/<name>/` with the repo's docs inside it.
+
+    Granularity is deliberate: the same sentinel `vault_problem()` uses, checked **per
+    project** rather than per file. Per file would be a stat storm on an NFS vault for a
+    window that does not meaningfully narrow; per run is what already failed. This does not
+    close the race — nothing short of holding an open handle does — it bounds it to one
+    project's writes, and says so rather than implying the guard is total.
+    """
+    try:
+        return (Path(vault) / "Portfolio").is_dir()
+    except OSError:
+        return False
 
 
 def read_utf8(path):
-    """Vault text decoded STRICTLY, or None when the file is not valid UTF-8.
+    """`(text, None)`, or `(None, "decode"|"io")` naming which failure occurred.
 
     Three reads in this file used a bare `read_text()` and one used
     `errors="ignore"`, and a review showed both halves of that were wrong:
@@ -52,14 +184,30 @@ def read_utf8(path):
 
     So: decode strictly, and hand the caller None to decide with. Every caller
     refuses rather than guesses, except the two fully-regenerable roll-ups where
-    there is no curated content to lose.
+    there is no curated content to lose — and even there, only on a DECODE
+    failure. The second element says which failure it was, because "the bytes are
+    not UTF-8" and "I could not read the bytes" are different facts that deserve
+    different answers, and reporting the second as the first sent readers hunting
+    for an encoding problem on an NFS mount that had simply dropped.
     """
     try:
-        return path.read_bytes().decode("utf-8")
-    except (OSError, UnicodeDecodeError) as e:
-        print(f"warning: {path} is not readable as UTF-8 ({type(e).__name__}) — "
+        return path.read_bytes().decode("utf-8"), None
+    except UnicodeDecodeError as e:
+        print(f"warning: {path} is not valid UTF-8 ({type(e).__name__}) — "
               "not acting on its contents", file=sys.stderr)
-        return None
+        return None, "decode"
+    except OSError as e:
+        # A DIFFERENT fact, and the one this function used to misreport. EACCES,
+        # EIO and NFS ESTALE all arrived here and were announced as "not readable
+        # as UTF-8", which names the one cause it probably was not — and on an
+        # NFS-backed vault a transient I/O fault is the LIKELY cause. The two
+        # failures also want opposite responses: a file whose bytes are wrong may
+        # be safe to regenerate, while a file we could not read at all tells us
+        # nothing about what is in it, so the safe direction is to refuse.
+        print(f"warning: {path} could not be READ ({type(e).__name__}: {e}) — "
+              "this is an I/O failure, not a decoding one; not acting on its "
+              "contents", file=sys.stderr)
+        return None, "io"
 
 
 def count_backlog(home):
@@ -387,7 +535,7 @@ def write_sidecar(repo, home, vd, write):
         # Read ONCE. The old code read the file twice — once to splice, once to
         # compare — which is two chances to crash and one chance to disagree with
         # itself if the file changes between them.
-        cur = read_utf8(sc)
+        cur, _ = read_utf8(sc)
         if cur is None:
             # Skip THIS repo, do not abort the run, and never overwrite a file
             # whose contents could not be read: everything outside the sentinels
@@ -455,7 +603,7 @@ def preserved_region(path):
     # undecodable bytes there returns a curated body with characters silently
     # deleted and then writes it back, which is the region-level rule this
     # function exists to enforce, violated at the character level.
-    text = read_utf8(path)
+    text, _ = read_utf8(path)
     if text is None:
         print(f"warning: {path.name} could not be decoded as UTF-8 — REFUSING to "
               "rewrite it. Nothing was written.", file=sys.stderr)
@@ -625,21 +773,65 @@ def render_global_decisions(vd, projects):
     return "\n".join(L)
 
 
+def atomic_write(path, content):
+    """Write via a temp file in the same directory, then `os.replace`.
+
+    `path.write_text()` is truncate-then-write: an interrupted run leaves a
+    truncated roll-up in a tree with no version control, so the failure mode of a
+    crash mid-write was a half-file that still looks like a file. `os.replace` is
+    atomic within a filesystem, and the temp file is created beside the target so
+    it is always the same filesystem. The temp file is cleaned up on failure —
+    leaving `global-backlog.md.tmp123` beside the real one is its own small mess.
+    """
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def write_if_changed(path, content):
-    def strip_ts(s): return re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
+    # TWO stamp forms, because the roll-ups do not agree on one. Four of them use
+    # `**Last rebuilt:**` (rendered here); `global-business.md` comes from
+    # business-rollup.py, a separately versioned plugin, and stamps a bare
+    # `Generated:` on line 2 instead. Normalising only the first form meant
+    # global-business.md was the one roll-up that still rewrote itself on every
+    # date change — invisible in a same-day double-run, and it survived the
+    # stage that set out to stop exactly this churn. Anchored to line start and
+    # limited to the header region (count=1), so a `Generated:` occurring in a
+    # project's own content further down is left alone.
+    def strip_ts(s):
+        s = re.sub(r"\n\*\*Last rebuilt:\*\*[^\n]*\n", "\nTS\n", s)
+        return re.sub(r"(?m)^Generated:[^\n]*$", "TS", s, count=1)
     if path.exists():
-        cur = read_utf8(path)
+        cur, why = read_utf8(path)
+        if why == "io":
+            # REFUSE. An unreadable file tells us nothing about what is in it, so
+            # overwriting it is a guess dressed as a repair — and the likely cause
+            # on an NFS-backed vault is a transient fault that will clear. This is
+            # the one branch where the decode/I-O distinction changes behaviour
+            # rather than only the message.
+            print(f"warning: {path.name} could not be read — REFUSING to rewrite "
+                  "it. Nothing was written.", file=sys.stderr)
+            return False
         if cur is None:
-            # Regenerating is safe HERE and only here: the roll-ups that reach
-            # this function with an undecodable existing file carry no curated
-            # content. global-backlog.md cannot: `preserved_region` decodes it
-            # strictly first and returns None, and main() skips the write, so an
-            # undecodable roll-up with a curated block never gets this far.
-            print(f"warning: {path.name} could not be decoded — regenerating it "
+            # Regenerating is safe HERE and only here, and only for a DECODE
+            # failure: the roll-ups that reach this function with an undecodable
+            # existing file carry no curated content. global-backlog.md cannot:
+            # `preserved_region` decodes it strictly first and returns None, and
+            # main() skips the write, so an undecodable roll-up with a curated
+            # block never gets this far.
+            print(f"warning: {path.name} is not valid UTF-8 — regenerating it "
                   "from scratch", file=sys.stderr)
         elif strip_ts(cur) == strip_ts(content):
             return False
-    path.write_text(content)
+    atomic_write(path, content)
     return True
 
 
@@ -707,6 +899,18 @@ def rebuild_global_security(vd, write):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
@@ -716,10 +920,22 @@ def main():
     projects = [p for p in reg["projects"] if p.get("enabled", True)]
 
     enriched = 0
+    skipped_gone = 0
     for p in projects:
+        # BL-099: the sentinel is re-checked at the WRITE boundary, once per project.
+        # require_vault() ran in main() and the writes follow it; a mount that drops in
+        # between let every downstream mkdir rebuild the chain from nothing. Per project
+        # rather than per file, so an NFS vault pays one stat per project, not one per write.
+        if not vault_live(vd):
+            skipped_gone += 1
+            continue
         home = vd / "Portfolio" / p["area"] / p["name"]
         if write_sidecar(p["path"], home, vd, args.write):
             enriched += 1
+    if skipped_gone:
+        print(f"warning: vault went away mid-run — skipped {skipped_gone} project(s) "
+              f"rather than recreating it. Check the mount; nothing was written for them.",
+              file=sys.stderr)
 
     gb_path = vd / "Portfolio" / "global-backlog.md"
     # None means the existing file is ambiguous (duplicate or out-of-order

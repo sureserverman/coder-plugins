@@ -37,7 +37,7 @@ All seven are invocable as `/business:<skill>` and also fire on natural language
 
 Gathers **cited** market evidence for one project: competitors and their pricing, market signals, distribution-channel norms. Dispatched by `market-research` (and by `assess --research`) — one agent per research axis, in parallel — rather than invoked directly.
 
-**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `Bash`, `WebFetch`, `WebSearch`.
+**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`.
 
 **Prerequisite that actually bites:** it needs **WebSearch**. Without it there is no evidence to gather, and the skills that depend on it **write nothing rather than emitting an uncited guess** — a market-research file that reads like research but was produced from training data is worse than no file, because the next reader trusts it.
 

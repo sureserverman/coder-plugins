@@ -86,11 +86,21 @@ else:
     print("DISCOVERED=%d" % len(found))
 PYEOF
 
+# Carries a `[~]` BLOCKED gate check (Stage 2 Task 2.1) so every case in the
+# sweep exercises the new gate-state surface — blocked_gate_marker() and
+# status_lag() both read the plan text on the render path. Without it the sweep
+# would prove silence across the broken-environment matrix for the OLD surface
+# only, which is the vacuity lane B was added to catch, in a new costume.
 PLAN_BODY='### Task 1.1: a
 - **Status:** [x]
 
 ### Task 1.2: b
 - **Status:** [ ]
+
+### Stage 1 Gate
+
+- [x] the host suite is green
+- [~] the device suite ran on hardware
 '
 
 # build_env <name> -> echoes the repo root; sets up a HOME + repo pair

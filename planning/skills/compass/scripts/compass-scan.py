@@ -61,7 +61,32 @@ def load_env():
     reg = yaml.safe_load(registry.read_text()) or {}
     if not isinstance(reg, dict) or "projects" not in reg:
         sys.exit(f"portfolio not configured: {registry} has no 'projects' key")
-    return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (portfolio/SKILL.md § Resolver). Full rationale in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, the same defect by another route.
+    # READ-ONLY, and refused anyway — the shape matters more here than the write
+    # paths. This script emits ONE JSON document, and against an unreachable
+    # vault every project would simply fail to resolve a portfolio home: the
+    # envelope would still be well-formed, `projects` would be empty, and the
+    # skill reading it — whose own rule is "never present a fact the JSON
+    # doesn't back" — would truthfully report that nothing is in flight across
+    # the whole portfolio. That is the empty-results-as-truth failure, and no
+    # per-project `couldnt_assess` reason fixes it, because the answer the
+    # operator acts on is the summary. A non-zero exit with nothing on stdout
+    # cannot be mistaken for an answer; callers already handle it, because the
+    # unset case three lines up has always exited the same way.
+    vault = pr.require_vault(vd, config)
+    # Delegated, not restated: `pr` is already loaded above for the decisions
+    # register, so the shared refusal costs nothing extra here — and this file is
+    # read-only, which makes it the copy most likely to drift unnoticed.
+    # Called UNCONDITIONALLY, and its return value is the vault. It was previously
+    # guarded by `if not vault.is_dir():`, which meant every condition the guard
+    # grew after that day — a relative path, a non-path type, an unmounted
+    # mountpoint that is_dir() accepts — could never fire here. A delegation behind
+    # a copy of one of the delegate's own branches is not a delegation; it is a
+    # fifth copy that silently stopped at v1.
+    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 COMPLETED_RE = re.compile(r"^\*\*Completed:\*\*\s*(\S+)", re.M)
@@ -75,7 +100,7 @@ def _add_note(state, msg):
     state["note"] = f"{state['note']}; {msg}" if state.get("note") else msg
 
 
-def plan_state(text, fname):
+def plan_state(text, fname, path=None):
     """State of one executing-plans plan file, via the authoritative Status
     path (portfolio-unify regexes). Returns None for master plans (register
     format — no Task context, tracked through their sub-plans instead)."""
@@ -112,7 +137,21 @@ def plan_state(text, fname):
              # SKILL.md lists a suppressed plan WITH its reason — the scanner
              # must therefore carry it, not just the boolean.
              "abandoned_reason": abandon_reason,
-             "completed": cm.group(1) if cm else None, "note": None}
+             "completed": cm.group(1) if cm else None, "note": None,
+             # Zero parseable Status fields — no stage, no next task, no
+             # done/total. Carried as its own flag rather than left for a
+             # consumer to infer from `total == 0`: a plan can reach zero tasks
+             # by being unparseable, and that is the one case where every other
+             # field in this dict is empty for a reason the reader must know.
+             # Set in the `if not tasks:` branch below, where the bucket is argued.
+             "unmeasurable": False,
+             # BL-077. A `[~]` gate check says a check could not be RUN — the one
+             # thing no task marker can express. Carried here because compass
+             # retires a plan whose tasks are all done, and a blocked plan that
+             # retires is a plan nobody looks at again.
+             # Through plan_blocked(), so `**Blocked-accepted:**` retires it
+             # again and a master inherits its sub-plans' state.
+             "blocked_gate": pu.plan_blocked(text, path)[0]}
     if abandoned:
         # Terminal state: parsed and listed like any other plan, but never
         # ranked as available work (see rank-eligible filtering in SKILL.md).
@@ -120,9 +159,28 @@ def plan_state(text, fname):
     if abandon_advisory:
         _add_note(state, abandon_advisory)
     if not tasks:
-        # legacy/malformed plan: degrade, never drop
-        state["active"] = state["active"] and not cm
-        _add_note(state, "stage unknown (no parseable Status fields)")
+        # legacy/malformed plan: degrade, never drop — and never count it as
+        # in-flight. `active` used to mean "no close-out line was found here",
+        # which for an unmeasurable plan is a fact about the FILE, not about the
+        # work: nothing in it says what stage it is at, what comes next, or how
+        # much is left. Counting it among in-flight work padded that population
+        # with an item no reader can act on and no gate can check — so it gets
+        # its own bucket instead. plan-status-audit.py reaches the same split by
+        # its own route: a plan with no Status fields is `no-status` there, never
+        # `started-unfinished`.
+        # Suppressed from the in-flight count, NOT hidden: the entry is still
+        # emitted with its note, and compass SKILL.md lists the bucket in
+        # `review` so a legacy plan never becomes invisible by being quiet.
+        state["unmeasurable"] = True
+        state["active"] = False
+        # "no Status fields the PARSER found", not "no Status fields": a plan can
+        # carry perfectly good `- **Status:** [ ]` lines and still land here when
+        # its task headings are `#### Task` rather than `### Task`, because TASK_RE
+        # never matches and no Status line is ever attributed. Sending the author
+        # to the Status fields would point at the one part of the file that is fine.
+        _add_note(state, "stage unknown (no task/Status pair the parser could read "
+                         "— check the `### Task N.M` heading level too) — "
+                         "legacy/unmeasurable, not counted as in-flight")
         return state
     # Partial tasks are still open: an in-flight task is the natural `next_task`
     # and must not let a plan read as finished.
@@ -137,9 +195,16 @@ def plan_state(text, fname):
             _add_note(state,
                       f"completed marker present but {len(open_tasks)} task(s) still open")
     else:
-        state["active"] = False
-        if not cm and not abandoned:
-            _add_note(state, "all tasks done but no close-out line")
+        # All tasks done — but "done" is about tasks, and a gate check that could
+        # not run is about proof. Retiring on the weaker fact is exactly the
+        # inference BL-077 was filed against, so a blocked gate keeps the plan on
+        # the board with its reason attached.
+        if state["blocked_gate"]:
+            _add_note(state, "all tasks done but a stage-gate check is `[~]` BLOCKED")
+        else:
+            state["active"] = False
+            if not cm and not abandoned:
+                _add_note(state, "all tasks done but no close-out line")
     return state
 
 
@@ -149,7 +214,7 @@ def collect_plans(home):
         return []
     out = []
     for pf in sorted(plans_dir.glob("*-plan.md")):
-        st = plan_state(pf.read_text(errors="ignore"), pf.name)
+        st = plan_state(pf.read_text(errors="ignore"), pf.name, pf)
         if st is not None:
             out.append(st)
     return out
@@ -369,6 +434,21 @@ def business_map():
 
 
 def main():
+    # Staleness probe (see portfolio/scripts/_staleness.py). Loaded by path, not
+    # by name: this file lives in a sibling skill, so the helper is not on
+    # sys.path — the same importlib reach this module already makes twice above.
+    # Diagnostic only, and it writes to stderr because THIS script's stdout is a
+    # single JSON document somebody else parses.
+    try:
+        _stale_path = (Path(__file__).resolve().parents[2] / "portfolio"
+                       / "scripts" / "_staleness.py")
+        _sspec = importlib.util.spec_from_file_location("_staleness", _stale_path)
+        _ss = importlib.util.module_from_spec(_sspec)
+        _sspec.loader.exec_module(_ss)
+        _ss.warn_if_stale(__file__)
+    except Exception:
+        pass
+
     vault, projects = load_env()
     out = {
         "generated": datetime.date.today().isoformat(),

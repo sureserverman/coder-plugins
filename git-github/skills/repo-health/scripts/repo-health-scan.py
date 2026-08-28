@@ -60,20 +60,102 @@ def config_paths():
 
 
 def load_env():
-    """Registry is required; vault_dir is optional (backlog cross-check only)."""
+    """(vault | None, unreachable | None, projects). Registry required, vault optional.
+
+    The deliberate divergence from every other portfolio consumer, which refuses
+    outright on a `vault_dir` that is set but names a missing directory
+    (planning/skills/portfolio/SKILL.md § Resolver). This tool's corpus is
+    GitHub, not the vault — the vault is a secondary cross-check, and an
+    unmounted one is no reason to abandon a CI-health sweep. But it may not be
+    swallowed either, because "no vault configured" and "the configured vault is
+    not there" are different answers and collapsing them is the actual defect:
+    with `vault` silently None the envelope would say `backlog_cross_check:
+    false`, which reads as "you never asked for one" — and leaving `vault` set
+    would be worse still, claiming a cross-check ran and found nothing.
+
+    So the run continues with the cross-check OFF and the reason carried out in
+    the JSON as `vault_unreachable`, plus a line on stderr. Read-only either way
+    (module docstring): nothing here creates the missing directory.
+    """
     config, registry = config_paths()
     if not registry.exists():
         sys.exit(f"portfolio not configured: {registry} missing")
     reg = yaml.safe_load(registry.read_text()) or {}
     if not isinstance(reg, dict) or "projects" not in reg:
         sys.exit(f"portfolio not configured: {registry} has no 'projects' key")
-    vault = None
+    vault = unreachable = None
     if config.exists():
         cfg = yaml.safe_load(config.read_text()) or {}
         vd = cfg.get("vault_dir")
         if vd:
-            vault = Path(vd)
-    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
+            candidate, why = _vault_problem(vd, config)
+            if why:
+                unreachable = str(candidate) if candidate else str(vd)
+                print(f"{why} — the backlog cross-check is OFF for this run; its "
+                      f"absence is not a clean result.", file=sys.stderr)
+            else:
+                vault = candidate
+    return vault, unreachable, [p for p in reg["projects"] if p.get("enabled", True)]
+
+
+def _vault_problem(value, source):
+    """(Path|None, reason|None) — is `value` a reachable vault?
+
+    A hand-kept copy of portfolio-rebuild.py's `vault_problem()`. `git-github`
+    ships as a separately versioned plugin: from a cache install it and `planning`
+    live in sibling version trees, so it cannot import the canonical one.
+
+    Pinned by `branch_parity_case()` in
+    planning/skills/portfolio/tests/test-vault-unreachable.py, which drives every
+    vault shape through every copy and asserts identical classification. NOT pinned
+    by that file's `CANON` wording sweep: this file is classified `structured`
+    there, which exempts it — and even for a `literal` copy the sweep matches one
+    sentence, so a copy missing an entire BRANCH passes it. Both gaps were measured
+    rather than assumed: deleting this function's `isinstance` and `is_absolute`
+    branches left all 41 suites green before that parity case existed.
+
+    **Why this exists at all, recorded because the gap it closes was expensive.**
+    This file kept a bare `is_dir()` after the canonical guard grew three more
+    conditions, so for one round it was the only consumer still on the v1
+    definition of "reachable" — and an unmounted vault (an existing, empty
+    mountpoint) resolved as present here. The envelope then reported
+    `backlog_cross_check: true` with `backlog_zombies: []` and no
+    `vault_unreachable` key, which is unmeasured rendering as clean: exactly the
+    outcome load_env()'s own docstring says it must never produce. DEC-011 is the
+    rule that was broken — every function taking the corpus as an argument must
+    use the same definition of it — and a divergence in POSTURE (this tool keeps
+    scanning) was quietly allowed to become a divergence in DEFINITION, which was
+    argued nowhere.
+
+    The posture divergence stays: this returns a reason instead of exiting,
+    because the caller carries it into the JSON rather than abandoning a GitHub
+    sweep over an unrelated unmount.
+    """
+    if isinstance(value, str):
+        path = Path(value).expanduser()
+    elif isinstance(value, Path):
+        path = value          # canonical accepts a pre-built Path; so does this
+    else:
+        return None, (f"vault unreachable: vault_dir (from {source}) must be a path, "
+                      f"got {type(value).__name__}")
+    if not path.is_absolute():
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) is a "
+                      f"relative path, so it names a different directory depending "
+                      f"on where you run from")
+    try:
+        existing = path.is_dir()
+        sentinel = existing and (path / "Portfolio").is_dir()
+    except OSError as e:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) could "
+                      f"not be read ({e.__class__.__name__}: {e.strerror or e})")
+    if not existing:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) is not "
+                      f"an existing directory")
+    if not sentinel:
+        return path, (f"vault unreachable: vault_dir {path} (from {source}) exists "
+                      f"but has no Portfolio/, which is what an UNMOUNTED mountpoint "
+                      f"looks like")
+    return path, None
 
 
 def run(cmd, timeout=60):
@@ -358,7 +440,7 @@ def main():
     if rc != 0:
         sys.exit(f"gh not authenticated: {err or 'run `gh auth login`'}")
 
-    vault, projects = load_env()
+    vault, vault_unreachable, projects = load_env()
     if args.project:
         wanted = set(args.project)
         missing = wanted - {p["name"] for p in projects}
@@ -373,6 +455,13 @@ def main():
         "backlog_cross_check": vault is not None,
         "projects": [], "no_remote": [], "couldnt_assess": [],
     }
+    # Present ONLY when a configured vault could not be reached. Its absence
+    # means the cross-check state in the line above is the whole story; its
+    # presence means every empty `backlog_zombies` in this document is unmeasured,
+    # not clean — the same distinction the security roll-up draws between `?`
+    # and `0`.
+    if vault_unreachable:
+        result["vault_unreachable"] = vault_unreachable
     with ThreadPoolExecutor(max_workers=8) as pool:
         for bucket, entry in pool.map(
                 lambda p: scan_project(p, vault, now, args.stale_days), projects):

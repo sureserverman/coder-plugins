@@ -51,6 +51,36 @@ reads identically either way. An inlined `Parallel: YES` task is a **deviation b
 disclosed**, not one being ratified — a gate report that keeps producing them is evidence the
 plan's `Parallel` fields belong back in `planning-projects`.
 
+## ACTION NEEDED — the one place a report asks the user for something
+
+A gate report either needs something from the user or it does not. When it does, the ask goes
+in **one** block, **last**, under this exact heading, with the options numbered so the reply
+can be a number rather than a reconstruction of the choice:
+
+```
+ACTION NEEDED: <one line naming the decision>
+  1. <option>
+  2. <option>
+```
+
+**A report carrying an `ACTION NEEDED:` block does not also say it is proceeding.** "Two
+things for you" in one paragraph and "proceeding to Stage 3" in the next is the shape that
+produced three separate *"what do you want from me?"* replies across three sessions: the
+reader cannot tell whether the run stopped, and the cost of guessing wrong is asymmetric —
+answering a question the run already moved past is wasted, and not answering one it is
+blocked on stalls the plan silently. Either the decision blocks the next stage, in which case
+say so and stop, or it does not, in which case it is not `ACTION NEEDED:` at all and routes
+where its kind already routes — a decision the user must make to the `backlog`, a Suggestion
+to the `residuals:` line. This adds no third destination; `residuals:` keeps the definition
+§ The handoff note's contents gives it.
+
+**One block per report, or none.** Scattering asks through the narrative is the same defect
+with better manners: three asks in three paragraphs is three chances to miss one.
+
+**Tier: untiered.** This mandate costs a line of text, not an agent dispatch, so per
+DEC-010 it runs at every review scope including `none` — named here because DEC-017
+requires a new mandate to state the rule that gates it rather than leave it inferred.
+
 ## Platform stage-verify hook
 
 After the stage's own gate checks pass, if the project's platform ships a stage-verify skill,
@@ -280,7 +310,8 @@ counters and only one limit: repairs are bounded at 2, while fix → re-review �
 fix can run indefinitely because each pass is "just confirming the fix". The failure mode is
 not hypothetical — a fresh judgment agent reading a real artifact essentially always returns
 *something*, so a loop that re-dispatches until the reviewer goes quiet has no reachable exit.
-The exit is the exit criterion (no Critical remains, every Important fixed), evaluated after
+The exit is the exit criterion (no Critical remains, every Important fixed, and no
+finding-independent condition outstanding), evaluated after
 each round; the budget is what stops the loop when that criterion is not converging.
 
 The full procedure — how to derive the set, when the task's `Scope:` field is the authority
@@ -310,3 +341,53 @@ agent saw which diff exists only in the gate report, so a reset without it turns
 was reviewed" into a claim with no artifact behind it. Copy the lines the gate already
 produced; do not re-derive them. Committed with the `"Stage N green"` commit, and kept to a
 few lines — a briefing, not a log.
+
+**On large plans, prefer the reset.** A stage that closed with heavy diagnostic noise — long
+Red-Green loops, big tool outputs — is one to suggest restarting in a fresh session pointed at
+the plan path. The handoff note is what makes that safe; if you could not continue from it
+without the old transcript, the note was too thin, and that is the bug to fix.
+
+## The dispatched-vs-inline review ledger
+
+A review the executor ran itself is byte-identical, in every artifact, to one a fresh agent
+ran — which is why all five audited dogfooding sessions ran every mandated review inline,
+dispatched nothing, and produced no artifact that said so. The `Executor:` trailer could not
+have said it either — it is a per-task record, and a review is not a task. The ledger exists
+because nothing else can tell the two apart.
+
+**A mandated review the executor ran itself is a substitution, not a review.** It is recorded
+on the gate report's review line, naming the dispatch failure that forced it:
+
+```
+review: Tier-2 SUBSTITUTED — ran inline, user authorised at Preflight:
+        "don't bother dispatching the reviewer on this one" — over <base>..HEAD
+```
+
+**With no recorded reason the gate fails.** Not "is discouraged" — fails. A substitution is a
+disclosed deviation; an undisclosed one is a review that did not happen wearing the report of
+one, and the exit criterion has no way to see it.
+
+**The bound, which carries equal weight (DEC-014), has two halves.** The ceiling: this
+governs only the reviews the declared tier mandates, adds no dispatch beyond the tier, and is
+not a licence to run reviews the tier did not fund. The floor, which is the half the incident
+actually turned on: **within the tier, the mandate IS the authorization** — approving a plan
+whose execution model mandates a review is the request the standing "don't dispatch unless
+asked" caution is waiting for, so at this point that caution does not apply and there is no
+confirmation turn to spend — a rule stated without its bound gets over-corrected into its
+own inverse, and the recorded response to the original incident was exactly that: *"standing
+rule, no exceptions: I won't dispatch unless you explicitly ask"*, which strips the same
+reviews for the opposite reason.
+
+**A substitution is not an excuse the executor may grant itself, and a dispatch failure is
+not one either.** `integration.md` § Review opt-out closes the excuses for a mandated review
+at two — an evidenced user opt-out, and a trivial/non-code diff — and says in as many words
+that a reviewer which cannot be dispatched **is not a third**: that is the Stop condition for
+a mandated review that cannot be run, "the resolution is the user's to choose, not the
+executor's to assume."
+
+So the order is: dispatch fails → **stop** → the user chooses (enable dispatch, re-mark the
+tasks through `planning-projects`, or authorise the inline run in their own words) → and only
+then is there a substitution to record, quoting them. An executor that goes straight from a
+failed probe to an inline review and a ledger line has recorded the deviation and skipped the
+decision, which is the half that was never the executor's. *"I judged it unnecessary"* and
+*"the diff looked small"* are the same move with less paperwork.

@@ -392,6 +392,196 @@ check(len(vgc.unmatched_selectors(plan_with_task(
         "a restart"))) == 1,
       "the remote-agents bot-live-view sub-01 gate would have been caught at authoring")
 
+print("group 10 — TASK-TEST-UNSCOPED: a task Test: that collects the whole suite")
+# The measured incident: a task whose `Test:` read `uv run --locked pytest -m 'not
+# requires_session'` ran ~3.5 h against a 3132-test collection inside one Red-Green loop,
+# while the same plan's stage-scope command took ~7 min.
+#
+# THE QUESTION IS CLOSED, AND THAT IS THE DESIGN. Not "is this command cheap" — unanswerable
+# from text — but "does anything in it narrow what it collects?" A command with any positive
+# selector is not judged. A command that starts from everything and only subtracts is still
+# everything.
+#
+# WHY THIS GROUP IS A TABLE, AND WHY IT KEEPS GROWING. The first cut transcribed the
+# individual counterexamples a review had reported, one assertion per finding. Every one
+# passed, and the next review found four more — each the sibling of a fixed case, in a cell
+# nobody had written down. A test derived from a fix can only confirm that fix. So the sets
+# are enumerated first and the code answers to them. Sets D-G were added at the stage gate,
+# where four reviewers between them found one root cause and eleven symptoms; the sets are
+# lettered in the order they appear here, so a reader scanning for a member finds one.
+
+
+def tiered_plan(test_field, task_extra="", tiers=True):
+    """A plan declaring expensive-suite tiering, with one task carrying `test_field`."""
+    block = ("**Test-scope commands** (per references/test-scope-tiers.md):\n"
+             "- stage-scope: `pytest tests/unit`\n"
+             "- plan-scope:  `pytest`\n\n") if tiers else ""
+    return (f"# Project Plan: x\n\n## Preflight\n\n{block}"
+            f"## Stage 1: x\n\n"
+            f"### Task 1.1: t\n\n- **Status:** [ ]\n- **Test:** {test_field}\n"
+            f"{task_extra}\n\n"
+            f"### Stage 1 Gate\n- [ ] `pytest tests/` passes\n")
+
+
+def n_unscoped(text, path=None):
+    return len(vgc.unscoped_task_tests(text, path))
+
+
+# --- SET A: nothing narrows what it collects -> MUST FLAG ----------------------------
+for cmd, why in [
+    ("`pytest`", "bare"),
+    ("`pytest -q`", "bare plus output noise"),
+    ("`uv run --locked pytest -m 'not requires_session'`", "THE INCIDENT — subtractive only"),
+    ("`pytest --ignore=tests/slow`", "subtractive only"),
+    ("`cargo test`", "bare"),
+    ("`go test ./...`", "the whole module is not a bound"),
+    ("`npm test`", "bare"),
+    ("`npm run test`", "bare, the `run` spelling"),
+    ("`./gradlew test`", "aggregate lifecycle task"),
+    ("`./gradlew check assembleDebug`", "aggregate — the one real Gradle finding in the corpus"),
+    ("`./gradlew connectedAndroidTest`", "aggregate, UNFLAVOURED — the commonest member"),
+    ("`./gradlew testProductionReleaseUnitTest`", "aggregate, flavoured"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 1, f"flags: {cmd} — {why}")
+
+# --- SET B: something narrows it, or it is not a suite run -> MUST NOT FLAG -----------
+# These matter more than SET A. The check is wired into a MANDATORY pre-presentation
+# checklist, so a false positive does not merely miss a defect — it blocks a correct plan
+# from being presented.
+for cmd, why in [
+    ("`pytest tests/unit/test_x.py`", "positive path"),
+    ("`pytest -k parses`", "positive filter"),
+    ("`pytest -m unit`", "positive marker — unlike `-m 'not x'`"),
+    ("`pytest tests/x.py::test_one`", "node id"),
+    ("`cargo test -p mycrate`", "positive package"),
+    ("`cargo test --workspace --no-run`", "compiles the tests and runs none"),
+    ("`npm run test-utils`", "a DIFFERENT script — `test` is a prefix, not the name"),
+    ("`yarn test-storybook`", "likewise"),
+    ("`./gradlew --version`", "runs no tests at all"),
+    ("`./gradlew verifyArchitecture`", "a specifically named task IS its own scope"),
+    ("`./gradlew securityTest`", "a name merely CONTAINING 'Test' is not an aggregate"),
+    ("`./gradlew :app:test`", "module-qualified task path"),
+    ("`./gradlew test --tests '*Foo'`", "an aggregate task with a filter is bounded"),
+    ("`grep -q x README.md`", "not a suite runner"),
+    ("`bash scripts/run-tests.sh`", "not a recognised runner — the list is fixed, and short"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 0, f"does not flag: {cmd} — {why}")
+
+# --- SET C: vacuous narrowing — the flag is present, its VALUE bounds nothing ---------
+# Found by running the stage gate's own `(judgment)` check adversarially rather than
+# reasoning about it. The prose rule was already right — it says a selector must bound what
+# the command COLLECTS — and the implementation was accepting presence instead of effect.
+for cmd, why in [
+    ("`pytest -k ''`", "an empty selector collects everything"),
+    ('`pytest -k ""`', "the double-quoted spelling of the same"),
+    ("`pytest -k 'not slow'`", "subtractive: everything minus a slice is still everything"),
+    ("`pytest .`", "the repo root is not a bound"),
+    ("`pytest ./`", "nor is it when spelled with a slash — these two disagreed before"),
+    ("`./gradlew test --tests '*'`", "a universal wildcard bounds nothing"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 1, f"flags vacuous filter: {cmd} — {why}")
+for cmd, why in [
+    ("`pytest -k parses`", "a real selector"),
+    ("`pytest -k 'parse and not slow'`", "a positive term makes it narrowing, `not` and all"),
+    ("`./gradlew test --tests '*ParserTest'`", "a wildcard with a stem narrows"),
+    ("`pytest tests/`", "a subdirectory is a bound"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 0, f"still does not flag: {cmd} — {why}")
+
+# --- SET D: the SAME FLAG means different things to different runners ----------------
+# `-p` was applied runner-blind. It is cargo's `--package`; in pytest it loads a plugin and
+# in go it is the parallelism count. Two independent gate reviewers found that one flag
+# disarming the check on the incident's own command.
+for cmd, why in [
+    ("`pytest -p no:randomly`", "pytest -p LOADS A PLUGIN — bounds nothing"),
+    ("`uv run --locked pytest -p no:randomly -m 'not requires_session'`",
+     "the literal incident command plus one routine flag"),
+    ("`go test -p 4 ./...`", "go -p is the PARALLELISM count"),
+    ("`cargo test --workspace`", "--workspace widens; it does not narrow"),
+    ("`xcodebuild test -scheme MyApp`", "a scheme is not a test selector"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 1, f"flags: {cmd} — {why}")
+for cmd, why in [
+    ("`cargo test port_rows`", "cargo's canonical positional filter"),
+    ("`cargo test --lib`", "cargo TARGET selector — 11 live corpus occurrences, and a "
+     "rewrite briefly turned every one into a false positive"),
+    ("`cargo test --doc`", "likewise, doc-tests only"),
+    ("`cargo test --bin mytool`", "likewise, one binary target"),
+    ("`pytest tests`", "a bare directory name, no slash"),
+    ("`go test ./... -run TestFoo`", "-run is go's selector"),
+    ("`xcodebuild test -only-testing:MyAppTests/FooTests -scheme MyApp`",
+     "-only-testing: is the ONLY common way to scope xcodebuild, and it is colon-joined"),
+    ("`vitest run --project unit`", "positive project selector"),
+    ("`jest --testPathPattern=parser`", "positive path filter, `=` form"),
+]:
+    check(n_unscoped(tiered_plan(cmd)) == 0, f"does not flag: {cmd} — {why}")
+
+# --- SET E: subtractive flags in SPACE form ------------------------------------------
+# `--ignore=tests/slow` was enumerated in SET A and caught; `--ignore tests/slow` and
+# `--deselect` are its immediate siblings and passed, because the flag's ARGUMENT read as a
+# positive path. That `=`/space asymmetry is why SET A's fixture proved less than it looked.
+for cmd in ["`pytest --ignore tests/slow`", "`pytest --deselect tests/x.py`",
+            "`pytest -m 'not requires_session' --deselect tests/e2e/test_x.py`"]:
+    check(n_unscoped(tiered_plan(cmd)) == 1, f"flags space-form subtractive flag: {cmd}")
+
+# --- SET F: the exemption, enumerated as placement x polarity x reason ----------------
+# ONE placement, so there is no fourth cell to forget, and a REASON is required because both
+# checklists say "with a reason" and an earlier cut accepted a bare marker.
+check(n_unscoped(tiered_plan("`pytest`", "\n- **full-suite: accepted** — cross-cutting")) == 0,
+      "a `full-suite: accepted` FIELD with a reason exempts")
+check(n_unscoped(tiered_plan("`pytest`", "\n- **full-suite: accepted**")) == 1,
+      "a BARE marker does not — the reason IS the exemption, and the checklists say so")
+check(n_unscoped(tiered_plan("`pytest`", "\n- **Note:** we did not mark `full-suite: accepted`")) == 1,
+      "prose DENYING the exemption does not grant it")
+check(n_unscoped(tiered_plan("`pytest`  (we are not using full-suite: accepted here)")) == 1,
+      "nor does a denial on the Test: line itself")
+check(n_unscoped(tiered_plan("`pytest`  (full-suite: accepted — cross-cutting)")) == 1,
+      "and the inline form no longer exempts at all — one placement, deliberately")
+
+# --- SET G: arming, across every plan format -----------------------------------------
+check(n_unscoped(tiered_plan("`pytest`", tiers=False)) == 0,
+      "a plan declaring NO tiering is not checked (guard rail 1: below the ~5 min threshold "
+      "there is nothing to bound)")
+check(n_unscoped("# Project Plan: x\n\n**Test-scope commands:** not tiered — the full "
+                 "suite is 3.9s, well under the ~5 min threshold.\n\n## Stage 1: x\n\n"
+                 "### Task 1.1: t\n\n- **Test:** `pytest`\n\n"
+                 "### Stage 1 Gate\n- [ ] `pytest tests/` passes\n") == 0,
+      "a 'not tiered' declaration does not arm — the stage-scope/plan-scope pair is the "
+      "trigger, not the heading")
+# Gate PROSE is not a declaration. An earlier cut armed the whole check on a gate bullet
+# reading `- Stage-scope pass green`, which has no colon and declares nothing.
+check(n_unscoped("# Project Plan: x\n\n## Stage 1: x\n\n### Task 1.1: t\n\n"
+                 "- **Test:** `pytest`\n\n### Stage 1 Gate\n"
+                 "- Stage-scope pass green\n- Plan-scope pass deferred\n") == 0,
+      "gate prose mentioning the tiers does not arm the check — a declaration carries a colon")
+check(n_unscoped("# Master Plan: x\n\n**Test-scope commands**\n- stage-scope: `pytest a/`\n"
+                 "- plan-scope: `pytest`\n\n## Sub-plans\n\n### 1. sub-01\n\n"
+                 "**Gate:** \n- [ ] `pytest` — integrated\n") == 0,
+      "a master plan is skipped — its tasks live in its sub-plans")
+
+# A LIGHT plan. This is the stage gate's Critical: a Light plan has no Preflight section, so
+# until light-plan-format.md sanctioned the declaration block, the check could not fire on the
+# format AT ALL — the literal incident command reported zero findings. Both directions pinned.
+_light = ("# Light Plan: x\nFormat: Light — small\n\n{block}## Stage 1: x\n\n"
+          "### Task 1.1: t\n\n- **Status:** [ ]\n- **Test:** `cargo test`\n\n"
+          "### Stage 1 Gate\n- [ ] the full existing test suite passes\n")
+check(n_unscoped(_light.format(block="")) == 0,
+      "a Light plan declaring no tiering is not checked, same as any undeclared plan")
+check(n_unscoped(_light.format(
+        block="**Test-scope commands**\n- stage-scope: `cargo test -p a`\n"
+              "- plan-scope: `cargo test`\n\n")) == 1,
+      "a Light plan that DOES declare tiering arms the check — the format now carries the "
+      "block, and without it this whole format was unreachable")
+
+# --- reporting ----------------------------------------------------------------------
+rc, out = run(tiered_plan("`pytest` passes"))
+check(rc == 1, "a plan with an unscoped task Test: exits 1")
+check("task-test-unscoped" in out.lower(), "reported under its own name, on its own axis")
+check(run(tiered_plan("`pytest tests/unit/test_x.py`"))[0] == 0, "a scoped task Test: exits 0")
+_flag = vgc.unscoped_task_tests(tiered_plan("`make lint && pytest -q && make docs`"))
+check(len(_flag) == 1 and _flag[0][1] == "pytest -q",
+      "the message names the offending invocation, not the line it sits in")
+
 print("group 9 — the docstring's calibration numbers match the frozen corpus")
 # Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
 # including CI, where the old vault-conditioned version skipped silently and pinned

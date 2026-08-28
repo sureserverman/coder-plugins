@@ -156,8 +156,10 @@ def test_plan_state(tmp):
     check("2026-06-20-fleet-master-plan.md" not in plans_b,
           "master plan emits nothing")
     mystery = plans_b["2026-06-15-mystery-plan.md"]
-    check(mystery["active"] is True and mystery["stage"] is None,
-          "malformed plan degrades to active/stage-unknown")
+    # Its stage is unknown and it is NOT in-flight — see
+    # test_legacy_unmeasurable for the bucket that decision belongs to.
+    check(mystery["active"] is False and mystery["stage"] is None,
+          "malformed plan degrades to inactive/stage-unknown")
     check("stage unknown" in (mystery["note"] or ""),
           "malformed plan carries the degradation note, not dropped")
 
@@ -182,6 +184,31 @@ def test_partial_and_abandoned(tmp):
     check(partial["next_task"] == "Task 1.2: Wire the middle",
           "an in-flight task is the next task, not skipped over")
     check(partial["active"] is True, "a plan with partial work is still active")
+
+    # --- BL-077: a `[~]` gate check outranks a close-out line ---------------
+    # Every task is `[x]` and the plan carries **Completed:**, so the old path
+    # set active=False and compass reported it finished. It is not: a gate check
+    # could not be run, which is the one thing a task marker cannot say.
+    blocked = plans_a.get("2026-07-25-blocked-plan.md")
+    check(blocked is not None, "the blocked-gate plan is listed at all")
+    if blocked:
+        check(blocked.get("blocked_gate") is True,
+              f"a `[~]` gate check is reported ({blocked.get('blocked_gate')!r})")
+        check(blocked["active"] is True,
+              "a plan whose gate could not be run is STILL ACTIVE — all tasks "
+              "done plus a close-out line must not retire it")
+        check(blocked.get("note") and "gate" in blocked["note"].lower(),
+              f"and the note says why ({blocked.get('note')!r})")
+
+    # --- the author's answer-back retires the plan again --------------------
+    acc = plans_a.get("2026-07-26-accepted-plan.md")
+    check(acc is not None, "the accepted plan is listed")
+    if acc:
+        check(acc["active"] is False,
+              "a `**Blocked-accepted:**` plan is retired — the author looked, "
+              "understood, and closed it, and the tool stops arguing")
+        check(acc.get("blocked_gate") is False,
+              f"and it no longer reports as blocked ({acc.get('blocked_gate')!r})")
 
     # --- abandoned: suppressed from recommendation, NOT hidden --------------
     ghost = plans_a["2026-07-24-ghost-plan.md"]
@@ -302,6 +329,62 @@ def test_decisions(tmp):
           "decisions collector writes nothing under the vault (read-only)")
 
 
+def test_legacy_unmeasurable(tmp):
+    """A plan nobody can measure is not in-flight work.
+
+    The `if not tasks:` degrade branch used to leave `active` True whenever the
+    plan carried no close-out line, so a legacy plan with zero parseable
+    `Status:` fields was reported as in-flight work at an unknown stage — a
+    count nobody could act on and nobody could check. It is its own bucket now:
+    still emitted, still carrying its note, never counted as active.
+    """
+    print("[legacy/unmeasurable]")
+    home, vault = make_env(tmp)
+    out = run_scan(home)
+    projects = {p["name"]: p for p in out["projects"]}
+    plans_b = {p["file"]: p for p in projects["beta"]["plans"]}
+
+    mystery = plans_b["2026-06-15-mystery-plan.md"]
+    check(mystery.get("unmeasurable") is True,
+          f"a zero-Status plan with no close-out line is bucketed "
+          f"legacy/unmeasurable ({mystery.get('unmeasurable')!r})")
+    check(mystery["active"] is False,
+          "and is NOT part of the active in-flight population")
+    check(mystery["completed"] is None and mystery["abandoned"] is False,
+          "unmeasurability alone puts it there — no close-out line and no "
+          "abandonment marker are doing the work in this fixture")
+
+    # degrade loudly: the plan is quieter, never absent.
+    check("2026-06-15-mystery-plan.md" in plans_b,
+          "the unmeasurable plan is still emitted, not filtered out of the scan")
+    check("stage unknown" in (mystery["note"] or "")
+          and "legacy" in (mystery["note"] or "").lower(),
+          f"its note still says why it cannot be measured, and names the bucket "
+          f"({mystery.get('note')!r})")
+    check(sum(1 for p in projects["beta"]["plans"] if p["active"]) == 0,
+          "beta's only non-master plan is unmeasurable, so beta contributes "
+          "zero to the in-flight count rather than one unknown-stage plan")
+
+    # --- the other half: a measurable plan is untouched ---------------------
+    plans_a = {p["file"]: p for p in projects["alpha"]["plans"]}
+    widget = plans_a["2026-06-01-widget-plan.md"]
+    check(widget["active"] is True and widget.get("unmeasurable") is False,
+          "a plan with parseable open tasks still classifies active, and is "
+          "not in the bucket")
+    check(widget["stage"] == 2
+          and widget["next_task"] == "Task 2.2: Install windows",
+          "and its stage / next task are unchanged by the new bucket")
+    check(all(p.get("unmeasurable") is False for p in plans_a.values()),
+          "no alpha plan — every one of them carries parseable Status fields — "
+          "is bucketed, so the filter keys on measurability and nothing else")
+
+    # A retired plan is inactive for its OWN reason; the bucket must not be
+    # read backwards as "every inactive plan is unmeasurable".
+    shed = plans_a["2026-05-01-shed-plan.md"]
+    check(shed["active"] is False and shed.get("unmeasurable") is False,
+          "a closed-out plan is inactive without being unmeasurable")
+
+
 def main():
     with tempfile.TemporaryDirectory() as td:
         test_envelope_and_unconfigured(Path(td))
@@ -313,6 +396,8 @@ def main():
         test_signals(Path(td))
     with tempfile.TemporaryDirectory() as td:
         test_decisions(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_legacy_unmeasurable(Path(td))
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

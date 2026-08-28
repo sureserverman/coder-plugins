@@ -40,6 +40,24 @@ CONFIG = Path.home() / ".claude" / "portfolio-config.yaml"
 REGISTRY = Path.home() / ".claude" / "projects-registry.yaml"
 
 
+def _require_vault(path, source):
+    """Delegate to portfolio-rebuild.py's canonical guard.
+
+    Loaded by path and LAZILY: this module is importlib-loaded by siblings (for
+    its regexes, not its resolver), so a bare `import` would resolve against the
+    CALLER's sys.path, and a module-scope load would make every such importer pay
+    for a resolver it never calls. The guard is not restated here — it is four
+    conditions with four messages now, and a fourth copy of that is a fourth place
+    for it to drift from the one the class test pins.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_rebuild", Path(__file__).resolve().parent / "portfolio-rebuild.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.require_vault(path, source)
+
+
 def load_env():
     cfg_p = Path(os.environ.get("PORTFOLIO_CONFIG") or CONFIG)
     reg_p = Path(os.environ.get("SECURITY_REGISTRY") or REGISTRY)
@@ -54,7 +72,17 @@ def load_env():
     reg = yaml.safe_load(reg_p.read_text()) or {}
     if "projects" not in reg:
         sys.exit(f"portfolio not configured: {reg_p} has no `projects` key")
-    return Path(vd), [p for p in reg["projects"] if p.get("enabled", True)]
+    # Set-but-missing `vault_dir` is REFUSED, never created — a missing vault is
+    # not an empty vault (portfolio/SKILL.md § Resolver). Full rationale in
+    # portfolio-rebuild.py's vault_dir(). expanduser() comes first because an
+    # unexpanded `~/vault` is cwd-RELATIVE, the same defect by another route.
+    # This scan only READS <vault>/…/security/history.jsonl, but its JSON is what
+    # portfolio-rebuild writes the security dashboard from, and an unreachable
+    # vault would hand that writer a full set of "no history recorded" projects.
+    # `?` for unmeasured and `0` for clean are different answers (SKILL.md
+    # § rebuild); refusing here is what keeps them different.
+    vault = _require_vault(vd, cfg_p)
+    return vault, [p for p in reg["projects"] if p.get("enabled", True)]
 
 
 def _read_runs(path):
@@ -186,6 +214,18 @@ def scan_project(proj, vault, now):
 
 
 def main():
+    # Staleness probe, first thing and diagnostic only: one stderr line if this
+    # copy is an older cached plugin than the checkout. Guarded because a probe
+    # that cannot import must not be able to stop the command it is advising on.
+    # Inside main() rather than at module scope on purpose — these modules
+    # importlib-load each other, and a sibling import would then resolve against
+    # the CALLER's sys.path[0] and fail for a reason having nothing to do with
+    # staleness.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     vault, projects = load_env()
     now = datetime.now(timezone.utc)
     out = {"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),

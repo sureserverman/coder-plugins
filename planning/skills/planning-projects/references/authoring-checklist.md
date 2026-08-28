@@ -1,10 +1,10 @@
 # Pre-presentation checklist — the full item list
 
 `../SKILL.md` § Checklist — Before Presenting the Plan carries the imperative (run every item)
-and restates three of them — **the three a command decides rather than a reading**. This file
+and restates four of them — **the four a command decides rather than a reading**. This file
 is the list itself.
 
-*(An earlier version of this paragraph said those three were "the items no other section of
+*(An earlier version of this paragraph said those restated items were "the items no other section of
 that trunk states". That was false and a Tier-2 review caught it: the INSTANCE-SHAPED bar is
 stated at `../SKILL.md` § Write a set-valued check, and the save-location item at § Output
 location — which this file's own line 46 cites. Being command-decidable is the real reason
@@ -49,6 +49,7 @@ Run every item before showing the plan to the user.
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
 - [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
 - [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Parallel Execution)
+- [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it; `../scripts/validate-gate-checks.py` reports zero TASK-TEST-UNSCOPED)
 
 **Where it lands, and what it reconciles**
 
@@ -69,7 +70,7 @@ Run every item before showing the plan to the user.
 ## Checklist — Light plans
 
 For a **Light** plan (`../SKILL.md` § Phase -0.5 — Format triage selected it), verify only
-these seven — the Standard checklist does not apply:
+these eight — the Standard checklist does not apply:
 
 - [ ] Every task has a concrete, runnable `Test:` — the same bar as any plan
 - [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
@@ -78,6 +79,7 @@ these seven — the Standard checklist does not apply:
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption
+- [ ] On an expensive-suite project, every task's `Test:` is path- or suite-scoped, or the **task** carries a `full-suite: accepted` field with a reason — the same bar as any plan, and an **authoring-time** check (`test-scope-tiers.md`). A Light plan has task `Test:` fields, so this is not one of the items the format drops; it also carries the `**Test-scope commands**` block that arms the check (`light-plan-format.md` § Preflight collapses into the gate), without which this item is unenforceable
 
 **Why the Light list is shorter rather than softer.** Every item it drops is a field the Light
 format does not have (Risk, Rollback, Blocks, Parallel, a Preflight section) or a long-horizon

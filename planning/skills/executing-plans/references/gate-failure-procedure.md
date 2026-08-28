@@ -71,7 +71,7 @@ uncounted loop is how a gate reaches its fourth round with nobody noticing the
 third.
 
 **Stop repairing when the exit criterion is met** — no Critical remaining,
-every Important fixed — the `backlog` is not a disposition for a defect (trunk, § Exit
+every Important fixed, and no finding-independent condition outstanding — the `backlog` is not a disposition for a defect (trunk, § Exit
 criterion). A defect this session genuinely cannot fix — the fix needs a device, a credential,
 an upstream release, or an environment this session lacks — escalates with its blocker named; that is the only exit that is not
 a repair, and it is the user's call from there. Do not spend a round chasing Suggestions, and do not spend one trying to make a
@@ -82,3 +82,19 @@ that remain, their severities, and how the rounds were spent. This is a document
 **Stop condition** (below) — not a failure to hide, and not a licence to keep
 looping. The user decides between another round, returning to
 `planning-projects`, and shipping with the residual recorded.
+
+## What `--budget-check` rests on, and what it does not cover
+
+The check reads `remediation_round` out of `.claude/plan-progress.json`. It is deliberately
+**not** conditioned on the phase: step 4 above re-enters the task's Red-Green loop, so the
+phase legitimately reads `task` while the gate is still mid-remediation, and requiring
+`phase: "gate"` meant a spent budget exited 0 at exactly that moment — permitting the round
+the check exists to stop.
+
+**Write `remediation_round` on every gate entry, and increment it before the check runs.**
+The schema makes the field optional, which is the residual and is stated rather than implied:
+an executor that never writes it is indistinguishable from one on round 1, and gets a silent
+zero forever. The check closes the documented incident — the counter existed at every
+transition and nothing read it as a stop — and it is exactly as strong as the discipline that
+writes the counter, which is still prose. A stronger version would have the gate itself write
+the field rather than trusting the executor to; that is not what this is.

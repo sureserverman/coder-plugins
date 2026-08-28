@@ -80,6 +80,33 @@ PLANS = {
     "2026-01-12-alpha-master-plan.md": ("# Master Plan: alpha\n\n## Sub-plans\n\n"
                                         + subplan(1, "x") + subplan(2, "x")),
     "2026-01-13-alpha-sub-01-plan.md": task("1.1", "x") + task("1.2", " "),
+    # BL-077. Every task done, a human-authored **Completed:** line, and a final
+    # gate check that COULD NOT BE RUN. The close-out marker is the strongest
+    # signal the classifier has and it is wrong here: the plan is blocked, not
+    # finished. Measured cost of not seeing this: a register `[x]` standing
+    # against a `[~]` gate took a ten-tool-call manual audit to disprove. This
+    # fixture is a SINGLE plan, which is the scope that works — a master carries
+    # no gate section and does not inherit its sub-plans' blocked state.
+    # The author's answer-back: a gate that could not run, acknowledged and
+    # closed on purpose. Without this the tool overrules the author forever.
+    "2026-01-15-accepted-plan.md": (
+        task("1.1", "x")
+        + "### Stage 1 Gate\n\n- [x] host suite\n- [~] the device suite ran\n\n"
+        + "**Completed:** 2026-01-16 — commits: 5555555\n"
+        + "**Blocked-accepted:** 2026-01-16 — no CM4 in this lab; shipped knowingly\n"),
+    # A master carries no gate section of its own — 0 of 38 in the live vault do
+    # — so its blocked state can only come from the sub-plans it links.
+    "2026-01-16-beta-master-plan.md": (
+        "# Master Plan: beta\n\n## Sub-plans\n\n"
+        "### Sub-plan 1: one\n- **Status:** [x]\n"
+        "- **Plan:** ./2026-01-17-beta-sub-01-plan.md\n"),
+    "2026-01-17-beta-sub-01-plan.md": (
+        task("1.1", "x")
+        + "### Stage 1 Gate\n\n- [~] the device suite ran\n"),
+    "2026-01-14-blocked-gate-plan.md": (
+        task("1.1", "x")
+        + "### Stage 1 Gate\n\n- [x] the suite is green\n- [~] the device suite ran\n\n"
+        + "**Completed:** 2026-01-15 — commits: 9999999\n"),
 }
 
 
@@ -154,10 +181,37 @@ def case_classification():
         "2026-01-11-partial-only-plan.md": "started-unfinished",
         "2026-01-12-alpha-master-plan.md": "started-unfinished",
         "2026-01-13-alpha-sub-01-plan.md": "started-unfinished",
+        # A `[~]` gate check outranks the close-out marker: the author's claim is
+        # about the work, the gate box is about whether it was PROVEN.
+        "2026-01-14-blocked-gate-plan.md": "blocked",
+        # acceptance hands the plan back to its author
+        "2026-01-15-accepted-plan.md": "completed",
+        # and a master inherits what its own text cannot say
+        "2026-01-16-beta-master-plan.md": "blocked",
+        "2026-01-17-beta-sub-01-plan.md": "blocked",
     }
     for fname, want in expected.items():
         got = cls_of(fname)
         check(got == want, f"{fname} -> {want} (got {got})")
+
+    print("  BL-077 — a `[~]` gate check cannot be classified as completed:")
+    blocked = report["classes"].get("blocked", [])
+    hit = [e for e in blocked if Path(e["path"]).name == "2026-01-14-blocked-gate-plan.md"]
+    check(bool(hit),
+          "a plan with a [~] gate check classifies `blocked`, not `completed`")
+    check(hit and hit[0].get("detail") and "gate" in hit[0]["detail"].lower(),
+          f"and the detail names the gate as the reason "
+          f"(got {hit[0].get('detail') if hit else 'n/a'})")
+    completed_names = [Path(e["path"]).name for e in report["classes"].get("completed", [])]
+    check("2026-01-14-blocked-gate-plan.md" not in completed_names,
+          "it is absent from `completed` — the roll-up cannot offer it as finished")
+
+    print("  a master's blocked detail names the sub-plan, not a bare gate:")
+    mb = [e for e in report["classes"].get("blocked", [])
+          if Path(e["path"]).name == "2026-01-16-beta-master-plan.md"]
+    check(mb and "sub-01" in (mb[0].get("detail") or ""),
+          f"the master says WHICH sub-plan blocks it "
+          f"(got {mb[0].get('detail') if mb else 'n/a'})")
 
     print("  a plan carrying BOTH markers resolves deterministically:")
     both = [e for e in report["classes"]["abandoned"]

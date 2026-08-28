@@ -72,6 +72,15 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - **Red-Green max cycles:** 3
 
 ### Stage 1 Gate
+
+<!-- Gate checkbox states: `[ ]` not yet run · `[x]` ran and passed · `[~]` BLOCKED,
+     the check could not be run here. `[~]` is not a softer `[x]`: a plan carrying one
+     cannot classify as completed, however its close-out line reads. A gate that ran
+     and FAILED is not written down at all — it is repaired (honest-gates).
+     To close a plan whose gate genuinely cannot be run here, add a terminal
+     `**Blocked-accepted:** <date> — <why>` line beside the close-out line. That is
+     the author's answer, and it is the ONLY thing that retires such a plan; do not
+     edit the `[~]` to `[x]`, which falsifies the record the marker exists to keep. -->
 - [ ] [Integration check]
 - [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
 - [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]

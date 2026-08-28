@@ -104,6 +104,15 @@ def render(doc):
 
 
 def main():
+    # Staleness probe (see _staleness.py). Usually a no-op here: this script is
+    # normally spawned by portfolio-rebuild, which has already warned and set the
+    # opt-out in the environment we inherit. It carries the probe anyway because
+    # it is directly runnable, and an entry point that skips it is invisible.
+    try:
+        import _staleness
+        _staleness.warn_if_stale(__file__)
+    except Exception:
+        pass
     try:
         doc = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError) as e:

@@ -78,6 +78,14 @@ human testers, missing secret, network-restricted). Then:
    preferred over escalating.
 4. **If it can't be unblocked here, escalate to the user** with the blocker and
    what you'd need. Mark the gate BLOCKED in your status, never green.
+5. **Write the checklist item as `- [~]`, never `- [x]` with a note explaining
+   it away.** `[~]` is the gate checklist's BLOCKED state and it parses
+   everywhere the plan tooling reads — a ticked box carrying
+   *(amended — exit 2; no hardware)* is a GREEN check to every reader, and the
+   prose that says otherwise is invisible to all of them. This is the exact
+   shape BL-077 was filed from: a plan rendered **Completed:** with every
+   hardware-in-the-loop box ticked and annotated. The annotation is still worth
+   writing; it goes beside the `[~]`, not instead of it.
 
 Preflight blockers (repo/SDK/device marked FAILED) are BLOCKED gates by
 definition. Building "around" them and declaring later gates green is the exact
@@ -133,6 +141,74 @@ sentence asserts behavior, so there is no `check-behavioral-claims.py` and this
 section is deliberately a write-time discipline plus a thing reviewers look for
 (`executing-plans`, both review tiers). Saying so is itself the rule: claiming a
 guard exists here would be the very falsehood the section forbids.
+
+## A test does not exist until its mutant dies
+
+The rules above govern claims about runs and about code. This one governs the
+**check itself**, because a green suite is the claim everything else is built on,
+and a test derived from the fix it is meant to guard cannot fail on it.
+
+**First, before any of it: can this mechanism decide this property?** Name what the
+check actually decides. If that is a fact about the *meaning* of prose — does this
+sentence instruct, assert, disclose, promise — **no pattern can decide it**; this file's
+§ *A behavioral claim is a gate too* says so already. Hardening buys one evasion class per
+round: each pass rejects the counterexample you were shown and admits the next one, while
+the suite stays green and reads like progress.
+
+Two ways out, and they are the only two. **Make the property structural** — a delimited
+block, a required literal, a machine-readable marker — so the question becomes decidable
+and text outside the structure cannot satisfy it. Or **leave it to review and say so in
+the checker**, which is what `check-behavioral-claims.py` not existing means.
+
+Written from a checker that cost two review rounds and five Criticals before its author
+noticed he had built the thing this file says cannot be built. A rule not consulted at the
+moment of choosing is not in force — hence its position here, first.
+
+**The rule this backs up already exists and already failed.** `executing-plans`
+Step 3.3 opens "the test is written first and must go RED for the right reason" —
+correct, and unenforceable after the fact: a test written first and a test
+transcribed from the fix are byte-identical in a passing suite. Every failure
+below happened with that rule in force. What follows is the part that leaves
+evidence.
+
+Three rules, in the order they have to happen. They cost a command each and no
+agent dispatch, so they are **untiered — they run at every review scope including
+`none`** (DEC-010's cost line as DEC-017 corrected it for commands: a mandate costing a line of text or a local
+re-run is not tiered; a mandate costing an agent is).
+
+1. **Write the set down before the fix.** Before patching, enumerate the
+   population the defect belongs to — as a *command*, in the commit: `grep -rl`,
+   a list of siblings, every caller of the changed symbol. Fix every member, then
+   derive one test from the set. A fix scoped from the counterexample that
+   revealed it will regenerate the finding on the next sibling, and each round
+   reads as progress.
+
+2. **Revert the fix; the suite must go red.** If it stays green you do not have a
+   weak test, you have **no test** — and you cannot know which, because both look
+   identical from a passing run. Name the mutation and the count in the commit
+   ("reverting the `active` expression turns 3 checks red"). This is the whole
+   rule: a check that cannot fail is not evidence, and it is indistinguishable
+   from one that can until you try.
+
+3. **Build fixtures from the requirement, never from observed behavior.** The
+   moment a fixture is shaped by what the code currently does, it can no longer
+   falsify what the code currently does. This is not theoretical: a vault fixture
+   built without `Portfolio/` — because that was what the code then accepted —
+   asserted the accepting behavior as correct, so a suite of 41 stayed green over
+   the defect it was written to catch.
+
+**Assert the discriminating cause, not the outcome.** `refused` is satisfied by
+an argparse error, an ImportError, and the guard under test; `refused with the
+guard's own wording` is satisfied by one of them. Whenever an assertion can be
+made true by something other than the mechanism you are testing, it will
+eventually be made true that way, and the suite will report it as a pass. Every
+instance of this found so far was an outcome assertion standing in for a cause.
+
+**Why this is not covered by § *Prohibited* or § *A behavioral claim is a gate too*.** Those catch a false sentence
+about behavior. This catches a *true* sentence — "the suite passes" — that means
+less than the reader takes it to mean. Nothing in a passing run distinguishes a
+test that would catch the regression from one that would not, which is why the
+distinguishing step has to be performed rather than assumed.
 
 ## Reporting
 

@@ -62,6 +62,14 @@ tunes the PR staleness window (default 14).
   disabled, token scope missing), `no_remote`, and `couldnt_assess` all
   appear in a **"Couldn't assess"** footer on every report. Silence is
   never coverage.
+- **`vault_unreachable` is a footer line, not a shrug.** When the envelope
+  carries that key, a `vault_dir` was configured and the vault is unreachable —
+  absent, relative, unreadable, or lacking `Portfolio/` (an unmounted mountpoint
+  is a directory too) — so `backlog_zombies` and every `triaged_as` are
+  **unmeasured**, not
+  clean. Say the cross-check did not run and name the path. The key is absent
+  on a healthy run and on a portfolio with no vault configured at all; those
+  two are `backlog_cross_check: true/false` and mean what they say.
 
 ## The report — health board
 

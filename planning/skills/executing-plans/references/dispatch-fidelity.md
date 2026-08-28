@@ -52,7 +52,7 @@ than the detection side.
 | --- | --- |
 | user asks a question, no plan in play | No — inline |
 | plan approved, execution model names dispatch points | YES — the approval is the request |
-| plan approved, dispatch mechanically unavailable | No — but say so at the gate and list what actually ran |
+| plan approved, dispatch mechanically unavailable | **Stop** — a Preflight failure where the roster is non-empty, a gate Stop condition where it surfaces later; either way the user chooses, and the gate report lists what actually ran |
 | no plan; a task merely *would benefit* from fan-out | No — ask first |
 
 ### Dispatch roster and capability probe
@@ -137,3 +137,17 @@ resolution; it takes a decision that belongs to the user and makes it silently, 
 the exact failure this check exists to surface.
 
 **If Preflight fails, stop.** Report which check failed and how it failed. Do not proceed to Stage 1. A broken baseline makes every downstream Red-Green loop noise.
+
+## Why an unperformable dispatch is a Stop condition
+
+The dispatch entry in `../SKILL.md` § *Stop conditions* restores a symmetry the list already
+had and had lost. "A test cannot be run" blocks, because an unrunnable check is not a passed
+check — and a mandated dispatch or review that cannot be run is the same fact about a
+different mechanism. What made the asymmetry survive is that the substitute looks like the
+work: an inlined task produces the same diff, and an unreviewed gate reads exactly like a
+reviewed one. That is the reason it needs a rule rather than judgment — the failure is
+invisible in the artifact, so nothing downstream will raise it. **The choice belongs to the
+user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through
+`planning-projects`, or accept inline execution knowingly. What the executor may not do is
+make that call silently on their behalf, which is exactly what happened in the incident this
+rule comes from.

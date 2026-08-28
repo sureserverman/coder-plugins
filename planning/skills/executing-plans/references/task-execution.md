@@ -16,9 +16,10 @@ conflicting task is dispatched on its own once the first returns, and its commit
 
 ## An inlined `Parallel: YES` task is a deviation
 
-It needs the same justification a Stop condition does: dispatch was mechanically
-unavailable, or the user authorised the substitution. *"It seemed easier inline"* and *"I
-judged it unnecessary"* are not on that list — `../SKILL.md` § The plan is the authorization
+It is a deviation the user authorised. An unavailable dispatch *raises* the Stop condition
+rather than resolving it: the run halts, the user chooses, and only then is there an inline
+run to record. *"It seemed easier inline"* and *"I judged it unnecessary"* are not on that
+list — `../SKILL.md` § The plan is the authorization
 — dispatch without a confirmation turn is explicit that the substitution is not the
 executor's call to make. When it does happen, run it, say so in the gate report's dispatch
 line with the reason, and let the trailer record `Executor: inline (dispatch failed)` or
@@ -169,3 +170,31 @@ than none** — it converts a visible gap into a false record. Why a trailer at 
 other artifact is byte-identical whether a task ran inline or dispatched, so
 `git log --format='%(trailers:key=Executor,valueonly)' <base>..HEAD` is the only check
 that can read "5 marked YES, 0 dispatched" straight off the log.
+
+## Committing a task whose plan lives outside the repo
+
+Rule 7 mandates committing the work, the Tier-1 fixes and the flipped `Status: [x]` together,
+which reads as one action and is two whenever the plan sits **outside the repo it plans**.
+The portfolio convention puts plans in the vault (`<vault>/Portfolio/<area>/<name>/plans/`),
+which is an NFS Obsidian store and not a git repository at all.
+
+The two halves, and where each runs:
+
+| The edit | The commit |
+|---|---|
+| The plan file, at its **absolute path**, from wherever you are | The **repo root**, with `git add`/`git commit` |
+
+**Never change directory into the plan's directory to make the edit.** The observed failure —
+roughly 20-25 refused commits across four sessions — was a single chained command that moved
+into the plan's directory, edited the file there, and then ran `git add -A && git commit`. The
+edit lands, the git command dies on `fatal: not a git repository`, and the task's work is left
+uncommitted while the plan already reads `[x]`. That ordering is what makes it worth a rule:
+the failure is not "the commit did not happen", it is "the marker and the commit disagree",
+which is the one state the `Status:` flip exists to make impossible.
+
+**What becomes of the flip.** For an in-repo plan the `Status: [x]` flip is part of the task's
+commit, exactly as rule 7 says. For a **vault-resident** plan it rides no commit at all: the
+flip is written to the vault file and is authoritative there, and the task's commit carries
+only the work. Nothing is lost — `plan-progress.py` and `portfolio unify` both read the plan
+file, not the log — but a gate report that claims the flip was committed is claiming something
+that did not happen, so say which case the run is in.

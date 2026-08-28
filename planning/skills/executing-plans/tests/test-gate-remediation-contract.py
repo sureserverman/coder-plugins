@@ -46,9 +46,10 @@ What it pins:
      evaluator — grade findings by severity (Blocking / Material / Minor) rather than
      bare pass/fail, the close-out stop condition is scoped to Blocking, and the
      reason a silent detector is not the bar is stated at both sites.
-  9. (Task 2.2) The renderer's fallback remediation budget equals the default the
-     skill prose documents — they are two copies of one number with nothing else
-     coupling them.
+  9. (Task 2.2, extended by 2.3) DEFAULT_REMEDIATION_BUDGET equals the default the
+     skill prose documents. One copy in the renderer now serves two consumers —
+     the bar's `↻N/M` and `--budget-check`'s ceiling — and nothing but this
+     assertion couples it to the prose that states the same number.
  10. (Task 2.3 / P7) The behavioral-claim rule exists in honest-gates with both
      sub-rules, and is referenced at each of the three executing-plans sites that
      must consult it (Tier-1 brief, Tier-2 brief, docs-only skip), with the
@@ -420,6 +421,40 @@ def main():
           "no '**Exit criterion — what …' definition heading before '**If the gate "
           "fails' — a criterion defined only inside the failure branch never fires on "
           "an Important-only gate")
+
+    # (Task 2.3) The budget stops being prose the executor tracks about itself.
+    # A 4th round was dispatched after a declared budget of 3 — ~604K subagent
+    # tokens across four rounds for one Critical — while `plan-progress.json`
+    # already carried `remediation_round` and nothing read it as a stop. A rule
+    # whose only enforcement is the executor's own memory of how many rounds it
+    # has spent is the shape that failed; a command is what replaces it.
+    check("the budget is enforced by a command, not by self-tracking",
+          re.search(r"--budget-check", gate_fail) is not None,
+          "the gate-failure procedure names no mechanical check, so counting the "
+          "rounds is still the executor's own bookkeeping about itself")
+    check("the check runs BEFORE a further remediation dispatch",
+          re.search(r"--budget-check[\s\S]{0,200}?\bbefore\b"
+                    r"|\bbefore\b[\s\S]{0,200}?--budget-check",
+                    gate_fail, re.I) is not None,
+          "nothing says WHEN to run it; a check run after the round it should have "
+          "stopped is a receipt, not a gate")
+    check("the mandate states what the check rests on",
+          re.search(r"binds only on a recorded round", gate_fail, re.I) is not None,
+          "nothing says the check is only as good as the counter it reads; an "
+          "executor that never writes `remediation_round` gets a silent zero "
+          "forever, which is the same self-tracking failure one layer down")
+    check("exhaustion routes to escalation, not to another round",
+          re.search(r"escalat", gate_fail, re.I) is not None,
+          "the on-exhaustion path is not named, so the natural next move is the "
+          "round the budget exists to prevent")
+    # DEC-017: a new mandate names the tier or scope rule that gates it. This one
+    # costs a command, not a dispatch, so per DEC-010 it is untiered.
+    check("the new mandate states what gates it (DEC-010/DEC-017)",
+          re.search(r"--budget-check[\s\S]{0,300}?(untiered|every tier|DEC-010)"
+                    r"|(untiered|every tier|DEC-010)[\s\S]{0,300}?--budget-check",
+                    gate_fail, re.I) is not None,
+          "the mandate does not name its tier or scope rule, which DEC-017 requires "
+          "of a new mandate and which this plan requires of Task 2.3 by name")
 
     # 1 — numeric round budget, overridable by the plan
     budget_nums = re.findall(r"\*\*(\d+)\s+rounds?\*\*|\b(\d+)\s+rounds?\b", gate_fail)
@@ -835,7 +870,13 @@ def main():
         # Anchored on the assignment line, not a character window: the first attempt used
         # `remediation_budget[\s\S]{0,300}?else (\d+)` and the explanatory comment added
         # between the two pushed the distance to 327, silently reporting "<not found>".
-        m_fallback = re.search(r"^\s*total\s*=\s*budget\b.*?else\s+(\d+)",
+        # Follows the CONSTANT now, not a literal after `else`. Task 2.3 gave the
+        # renderer's fallback a second consumer (--budget-check's ceiling), and
+        # two literals would let the bar and the stop disagree about when a
+        # budget is spent — so the file keeps one definition and this assertion
+        # reads it. The older `else (\d+)` form is deliberately gone: it would
+        # now match nothing and report "<not found>" instead of a mismatch.
+        m_fallback = re.search(r"^DEFAULT_REMEDIATION_BUDGET\s*=\s*(\d+)",
                                code, re.M)
         check("renderer default budget matches the documented default",
               m_fallback is not None and m_fallback.group(1) == doc_default.group(1),

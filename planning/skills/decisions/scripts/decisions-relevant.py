@@ -223,6 +223,21 @@ def _render_row(r):
 
 
 def main(argv=None):
+    # Staleness probe (planning/skills/portfolio/scripts/_staleness.py). Loaded by
+    # path because this is a third skill directory; diagnostic only, and guarded so
+    # it can never stop the command. Wired for the same reason as the portfolio
+    # scripts: this reads the vault's decision registers, and a stale copy answers
+    # "what binds this project" from superseded parsing rules.
+    try:
+        import importlib.util as _ilu
+        _sp = (Path(__file__).resolve().parents[2] / "portfolio" / "scripts"
+               / "_staleness.py")
+        _s = _ilu.module_from_spec(_ilu.spec_from_file_location("_staleness", _sp))
+        _ilu.spec_from_file_location("_staleness", _sp).loader.exec_module(_s)
+        _s.warn_if_stale(__file__)
+    except Exception:
+        pass
+
     ap = argparse.ArgumentParser(
         prog="decisions-relevant",
         description="Digest the decisions that bind a project on given stacks.")
@@ -241,7 +256,16 @@ def main(argv=None):
     # The one place the user's config is read. Missing vault_dir exits loudly
     # here rather than falling back to a path inside the repo — the
     # vault-canonical storage law (see SKILL.md § Where the files live).
-    vault = args.vault_dir if args.vault_dir is not None else pr.vault_dir()
+    #
+    # Both halves, not just the config half. pr.vault_dir() now refuses a
+    # vault_dir that is set but names a missing directory; --vault-dir is a raw
+    # path from the caller and gets the same check, because the failure it
+    # prevents is this script's worst one: list_domains() over a vault that is
+    # not there returns [], and "no domain registers found" is indistinguishable
+    # from "this project is bound by no global decisions". An unreachable corpus
+    # must never render as an empty one.
+    vault = (pr.require_vault(args.vault_dir.expanduser(), "--vault-dir")
+             if args.vault_dir is not None else pr.vault_dir())
 
     if args.list_domains:
         rows = list_domains(vault)

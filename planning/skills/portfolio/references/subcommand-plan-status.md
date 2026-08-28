@@ -18,9 +18,13 @@ when this shipped: **15 plans at 100% of tasks done carrying no `**Completed:**`
    the registry** — 39 files across 7 projects have no registry entry, and skipping them while
    reporting a portfolio-wide audit would claim coverage the run does not have. The registry
    resolves each project's **repo path** for evidence, nothing more.
-2. Classify each plan: `abandoned` → `completed` → `unclassifiable` → `no-status` →
-   `never-started` → `started-unfinished`, in that order. Human-authored terminal markers win
-   first; no later class overrules an author who already answered the question.
+2. Classify each plan: `abandoned` → `blocked` → `completed` → `unclassifiable` →
+   `no-status` → `never-started` → `started-unfinished`, in that order. Human-authored
+   terminal markers win first, with **one** exception, and it is the only one: a `[~]`
+   stage-gate check classifies the plan `blocked` even when it carries `**Completed:**`
+   (BL-077). The close-out line is the author's claim about the work; the gate box is the
+   record of what could not be proven, and proof outranks claim. Nothing after `completed`
+   overrules an author.
 3. **`unclassifiable`** is the load-bearing class: a plan carrying any bracketed `Status:`
    marker outside the contract's `[ xX~]` (`[!]`, `[~ BLOCKED]`, `[~ N/A]` — see
    `pu.ANY_STATUS_RE`) has a task invisible to the parser, so it reads **more finished than it

@@ -132,13 +132,50 @@ substitute. Doing so would re-fragment the docs that were just centralized into
 the vault — exactly the outcome this migration exists to prevent. The tool
 **fails loudly** and stops. There is **no silent fallback**.
 
+The same rule binds a `vault_dir` that is **set but names a missing directory**
+(unmounted vault, stale path, typo). It is refused on the same terms, with a
+message naming the path and its source:
+
+```
+vault unreachable: vault_dir /mnt/vault (from /home/<you>/.claude/portfolio-config.yaml) is not an existing directory — refusing, because a missing vault is not an empty vault. Mount the vault or correct vault_dir.
+```
+
+A path handed in on the command line (`plan-status-audit.py --vault`,
+`decisions-relevant.py --vault-dir`) gets the identical check — those flags
+bypass the config, and must not thereby bypass the rule. `vault_dir` is
+`~`-expanded before it is checked; unexpanded, `~/vault` is cwd-relative.
+
 ### Auto-create on first write
 
-A registered project whose vault home directory does not yet exist gets
-`Portfolio/<area>/<name>/` created automatically on the first write
+A registered project whose vault home directory does not yet exist gets its
+`<area>/<name>/` created automatically under `Portfolio/` on the first write
 (`mkdir -p`), analogous to the backlog skill's auto-create-on-first-write
-behavior. This means onboarding a new project requires no manual vault setup —
-the directory materializes the moment any portfolio tool first writes to it.
+behavior. Onboarding a new PROJECT therefore requires no manual vault setup —
+its directory materializes the moment any portfolio tool first writes to it.
+
+Onboarding a new **vault** is the one thing that does: `Portfolio/` itself is
+never auto-created, because a vault without it is indistinguishable from an
+unmounted mountpoint, which `require_vault()` refuses. Create it once, by hand.
+
+**Bounded, and here is what actually enforces it:** the auto-create applies only
+*beneath a reachable vault*, where reachable is `require_vault()`'s definition —
+absolute, existing, and **containing `Portfolio/`**. `mkdir -p` will happily build
+the whole chain from nothing, so without that bound this convenience is exactly
+the mechanism that turns an unmounted `/mnt/vault` into a real, empty tree holding
+the only copy of a migrated project's docs.
+
+The `Portfolio/` clause is the part that does the work, and it was added after an
+earlier cut of this section claimed the bound while only an existence check backed
+it. An existence check cannot see the case: a mountpoint is a directory whether or
+not anything is mounted on it, so an unmounted vault is an existing empty directory
+and passes. Reproduced against `portfolio-migrate --all --write`, which built the
+phantom tree and moved the repo's `docs/` into it.
+
+**What is still not bounded, stated rather than implied:** the check runs once, in
+`main()`, and the writes follow. A vault that disappears *between* the check and a
+write — an NFS mount dropping mid-run, which `--all` makes a realistic window —
+will be recreated by the `mkdir(parents=True)` calls downstream. Closing that
+needs a re-check at each write site, not one at resolve time. Recorded, not fixed.
 
 ## Auto-registration on first plan
 
@@ -154,6 +191,26 @@ the registry, the planner:
 3. Writes the design + plan into `<portfolio_home>/plans/`.
 
 This is the on-ramp: a project joins the portfolio the first time it is planned,
-so its plans/backlog/maturity are vault-canonical from day one (never a stray
-`<repo>/docs/plans/`). The only exception is the no-`vault_dir` fallback, where
-the planner warns and writes to `<repo>/docs/plans/` instead.
+so its plans/backlog/maturity are vault-canonical from day one.
+
+**The no-`vault_dir` fallback — this paragraph is the rule; the skills point here
+rather than restating it.** When no `vault_dir` is configured *at all*, the planner
+**warns and writes to `<repo>/docs/plans/`**. A machine that has never had a vault
+set up still produces plans; they are moved in later by `portfolio migrate`.
+
+Two things this does **not** license, because conflating them is what made the rule
+contradictory across three sites before it was settled:
+
+- It is not a fallback for a vault that is **configured but unreachable**. That is
+  refused outright, creating no part of the tree — a missing vault is not an empty
+  one, and writing into the repo there would hide a dropped mount behind a warning
+  nobody reads. `resolve-plan-home.py` returns **2** for that case and **3** for
+  this one, and the two are deliberately different exit codes.
+- It is not a general licence to write into `<repo>/docs/`. It covers plans and
+  design docs on an unconfigured machine, nothing else.
+
+Decided 2026-08-28 by the user, at this plan's close-out, choosing the forgiving
+behaviour on a fresh machine over strictness the code did not implement anyway
+(DEC-020). The previous wording said both "NEVER write to `<repo>/docs/`" and
+"the planner warns and writes to `<repo>/docs/plans/`", in two sections of one
+skill, while the code did the second.

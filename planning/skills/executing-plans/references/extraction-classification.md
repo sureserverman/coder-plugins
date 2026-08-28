@@ -167,6 +167,13 @@ Tier-2 review that reached them separately:
   still green — the defect class this repo's own gate rules exist to reject, reproduced
   inside the guard meant to enforce them.
 
+**A marker may not span a line wrap.** `check-trunk-retention.py` matches plain
+case-sensitive substrings against **the body of the section that claims the marker** — not the
+raw file, and not including that section's own heading line. So a marker crossing a newline
+plus the next line's indent (or a `> ` blockquote prefix) can never match, and the guard reports MISSING-RULE
+for a rule that is present. Pick a marker that sits on one physical line. Found the hard way
+adding the three Step 3.5 rows below.
+
 | section | must appear in the trunk |
 |---|---|
 | What this skill expects | It deliberately has no |
@@ -207,12 +214,22 @@ Tier-2 review that reached them separately:
 | Step 3.2 — Split by parallelism | is a deviation |
 | Step 3.3 — Red-Green loop (per task) | **One fix per cycle.** |
 | Step 3.3 — Red-Green loop (per task) | must go RED for the right |
+| Step 3.3 — Red-Green loop (per task) | revert the fix (not the test) |
+| Step 3.3 — Red-Green loop (per task) | whether the mechanism |
 | Step 3.3 — Red-Green loop (per task) | Respect the cycle budget |
 | Step 3.3 — Red-Green loop (per task) | Flip the task's Status to `[x]` |
 | Step 3.3 — Red-Green loop (per task) | Executor: dispatched — <subagent_type> |
 | Step 3.3 — Red-Green loop (per task) | one physical line |
 | Step 3.4 — Propagate unblock | scan its `Blocks` field |
 | Step 3.5 — Stage gate | A gate passes when **no Critical finding remains** |
+| Step 3.5 — Stage gate | A gate is green only when its real command ran |
+| Step 3.5 — Stage gate | is a substitution, not a review |
+| Step 3.5 — Stage gate | with no recorded reason the gate |
+| Step 3.3 — Red-Green loop (per task) | keeps it in the vault |
+| Step 3.3 — Red-Green loop (per task) | from the repo root |
+| Run to completion — don't stop until you have to | Never end a turn on an announcement |
+| Step 3.5 — Stage gate | gate is BLOCKED, not green |
+| Step 3.5 — Stage gate | Never collapse BLOCKED into GREEN |
 | Step 3.5 — Stage gate | Regressions check runs at stage-scope |
 | Step 3.5 — Stage gate | dispatched-vs-inline counts |
 | Step 3.5 — Stage gate | the agent that ran it |
