@@ -66,7 +66,7 @@ Most skills write nothing — findings come back in the conversation. The except
 
 | Agent | Model | Tools | Purpose |
 |---|---|---|---|
-| `code-reviewer` | sonnet | Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate | **Read-only** white-box reviewer. Runs six protocols (context detection, plan-alignment, structural, Fowler code-smell, OWASP security, testability) and returns a **Critical / Important / Suggestion** triage with `file:line` citations and a Final Verdict. Reports findings — never edits, commits, or merges; the caller acts. |
+| `code-reviewer` | sonnet | Read, Grep, Glob, Bash, WebFetch, TaskCreate, TaskUpdate | **Read-only** white-box reviewer — the term is defined once, in the agent's own `read-only-contract` block; this line names the property rather than restating it. Runs six protocols (context detection, plan-alignment, structural, Fowler code-smell, OWASP security, testability) and returns a **Critical / Important / Suggestion** triage with `file:line` citations and a Final Verdict. Reports findings — never edits, commits, or merges; the caller acts. |
 
 The `code-review` skill dispatches this agent for an authoritative local review, and
 the `planning` plugin's `executing-plans` consumes it for its two-tier review

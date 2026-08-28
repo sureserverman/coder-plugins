@@ -35,6 +35,14 @@ they name. `android-dev/README.md` and `android-dev/infrastructure/README.md` al
 sweeping them in would produce findings nobody can act on — which is how a check teaches
 its readers to skip it. Recorded here rather than left as a silent glob boundary.
 
+Also outside it, and named for the same reason: three plugin READMEs describe this agent
+as read-only in prose without the literal parenthetical — `git-github/README.md`,
+`planning/README.md`, `testing/README.md`. They DESCRIBE the property to a human reader;
+they do not dispatch, so they cannot orphan a pointer. `git-github/README.md` used to
+restate the contract in its own narrower words ("never edits, commits, or merges"), which
+is a second definition free to drift; it now points at the canonical block instead. The
+other two only name the property in passing and are left alone.
+
 Read-only. Exit 0 when every site points and the definition exists, 1 otherwise.
 """
 import re
@@ -51,8 +59,23 @@ OPEN, CLOSE = "<!-- read-only-contract -->", "<!-- /read-only-contract -->"
 # The pointer is the agent's name sitting next to the adjective. 120 chars is one clause
 # either side — wide enough for "dispatch `git-github:code-reviewer` (read-only) as a
 # fresh dispatch", narrow enough that a mention elsewhere in the paragraph does not count.
+ANCHOR_RE = re.compile(r"\bcode-reviewer\b")
 ANCHOR = "code-reviewer"
 NEAR = 120
+
+# The obligations the block must actually state. Presence-checked inside the delimited
+# block only — the same shape as check-agent-references.py, and for the same reason: the
+# question "does this paragraph define read-only" is about meaning and undecidable, while
+# "does the block name each obligation" is structural. An earlier cut checked only that
+# the two markers existed and were ordered, so an EMPTY block passed — the exact "pointer
+# resolving to nothing" this file's docstring says it exists to catch, in the one place
+# nobody thought to look.
+OBLIGATIONS = {
+    "create": re.compile(r"\bcreate\b", re.I),
+    "modify/delete": re.compile(r"\bmodif|\bdelet", re.I),
+    "scratchpad": re.compile(r"scratchpad", re.I),
+}
+MIN_BODY = 200
 
 
 def sites():
@@ -84,16 +107,36 @@ def orphans():
     for p, n, line in sites():
         m = READONLY_RE.search(line)
         lo, hi = max(0, m.start() - NEAR), min(len(line), m.end() + NEAR)
-        if ANCHOR not in line[lo:hi]:
+        if not ANCHOR_RE.search(line[lo:hi]):
             bad.append((p.relative_to(ROOT).as_posix(), n))
     return bad
 
 
-def definition_present():
+def definition_problems():
+    """[] if the agent carries a real definition, else the reasons it does not.
+
+    Markers present and ordered is NOT a definition. An empty block satisfied the first
+    cut of this check, which made it a pointer-check whose own pointer could resolve to
+    nothing — the failure it was written to prevent, one level up.
+    """
     if not AGENT.exists():
-        return False
+        return ["the agent file does not exist"]
     t = AGENT.read_text(encoding="utf-8", errors="replace")
-    return OPEN in t and CLOSE in t and t.index(OPEN) < t.index(CLOSE)
+    if not (OPEN in t and CLOSE in t and t.index(OPEN) < t.index(CLOSE)):
+        return [f"no `{OPEN}` … `{CLOSE}` block"]
+    body = t[t.index(OPEN) + len(OPEN):t.index(CLOSE)].strip()
+    out = []
+    if len(body) < MIN_BODY:
+        out.append(f"the block holds {len(body)} chars; a definition is not two markers "
+                   f"with nothing between them")
+    missing = [name for name, rx in OBLIGATIONS.items() if not rx.search(body)]
+    if missing:
+        out.append(f"the block never states: {', '.join(missing)}")
+    return out
+
+
+def definition_present():
+    return not definition_problems()
 
 
 def main():
@@ -108,10 +151,10 @@ def main():
     problems = [f"  {rel}:{n}: ORPHAN-READONLY — '(read-only)' with no `{ANCHOR}` within "
                 f"{NEAR} chars; the agent name is the pointer to the definition"
                 for rel, n in orphans()]
-    if not definition_present():
+    for why in definition_problems():
         problems.append(
-            f"  {AGENT.relative_to(ROOT).as_posix()}: NO-DEFINITION — no "
-            f"`{OPEN}` block; every site points here and would resolve to nothing")
+            f"  {AGENT.relative_to(ROOT).as_posix()}: NO-DEFINITION — {why}; every site "
+            f"points here and would resolve to nothing")
 
     print(f"{len(found)} (read-only) dispatch site(s); {len(problems)} problem(s).")
     print("  (android-dev's Docker-mount '(read-only)' is a different property and is "

@@ -63,8 +63,16 @@ def run(root):
 
 
 GOOD_SITE = "Dispatch `git-github:code-reviewer` (read-only) over the full stage diff."
+# A minimal but REAL definition — it states each obligation the checker requires. The
+# earlier version was a stub ("Create nothing in the target tree.") that satisfied the
+# weak check this round replaced; keeping it would have meant the control fixture was
+# built from what the old code accepted rather than from what the contract demands.
 GOOD_AGENT = (f"# code-reviewer\n\n{ro.OPEN}\n## Read-only means no writes\n\n"
-              f"Create nothing in the target tree.\n{ro.CLOSE}\n")
+              "Create nothing in the target tree — not a report, not a scratch file, "
+              "tracked or untracked. Modify and delete nothing, including files you "
+              "created yourself in the same run. Reproductions and scratch work go to "
+              "the session scratchpad, never beside the code. Reading and history "
+              f"inspection are unrestricted.\n{ro.CLOSE}\n")
 
 
 def main():
@@ -102,12 +110,33 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         # The block quotes the term it defines. Its interior must be excluded, or the
         # only finding this validator ever produces is itself.
-        quoting = (f"# c\n\n{ro.OPEN}\n## Read-only\n\nSix sites call this agent "
-                   f'"(read-only)" with no definition anywhere.\n{ro.CLOSE}\n')
+        # Built from the real control block so the case fails on the axis it tests —
+        # the orphan exclusion — rather than on the definition being too thin.
+        quoting = GOOD_AGENT.replace(
+            "## Read-only means no writes\n",
+            '## Read-only means no writes\n\nSix sites call this agent "(read-only)".\n')
         orph, defined, n = run(fake_root(tmp, GOOD_SITE, quoting))
         check(orph == [] and defined and n == 1,
               "the block quoting '(read-only)' while defining it is not counted as an "
               "orphan dispatch site")
+
+    print("check-readonly-contract — a definition must say something:")
+    with tempfile.TemporaryDirectory() as tmp:
+        # Markers present, ordered, and empty. This passed the first cut — a
+        # pointer-check whose own pointer resolved to nothing, which is the failure the
+        # docstring says it exists to catch. The mutants missed it because they were
+        # derived from the implementation (delete the block) rather than the requirement
+        # (a definition exists AND states the obligations).
+        _, defined, _ = run(fake_root(tmp, GOOD_SITE, f"# c\n\n{ro.OPEN}\n{ro.CLOSE}\n"))
+        check(not defined, "an EMPTY contract block is not a definition")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        long_but_silent = (f"# c\n\n{ro.OPEN}\n## Read-only\n\n" + ("Prose. " * 60)
+                           + f"\n{ro.CLOSE}\n")
+        _, defined, _ = run(fake_root(tmp, GOOD_SITE, long_but_silent))
+        check(not defined,
+              "a block long enough but naming none of the obligations is not a "
+              "definition either — length alone would be a proxy for content")
 
     print("check-readonly-contract — the live tree:")
     live = ro.sites()
@@ -115,11 +144,20 @@ def main():
           f"the population is enumerated from disk ({len(live)} dispatch sites)")
     check(ro.orphans() == [], f"no orphan site in the tree ({ro.orphans()})")
     check(ro.definition_present(), "the agent every site names carries the definition")
-    # Scope guard: the Docker-mount sense must stay out, or the check produces findings
-    # nobody can act on and readers learn to skip it.
-    android = [p for p, _, _ in live if "android" in p.as_posix()]
-    check(not android, f"android-dev's Docker-mount '(read-only)' stays out of scope "
-                       f"({android})")
+    # Scope guard, rewritten: the previous version filtered sites() for "android", but
+    # sites() only ever walks SITE_DIRS, which cannot contain android-dev — so it passed
+    # by construction whatever the exclusion did. A guarantee that cannot fail is not a
+    # guard. This builds a root that DOES hold an android-dev-shaped hit and asserts the
+    # sweep still ignores it.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = fake_root(tmp, GOOD_SITE, GOOD_AGENT)
+        (root / "android-dev").mkdir()
+        (root / "android-dev" / "README.md").write_text(
+            "| `APK_DIR` | `./build` | `/apks` (read-only) |\n")
+        orph, defined, n = run(root)
+        check(n == 1 and orph == [],
+              "a Docker-mount '(read-only)' in android-dev is not swept in even when "
+              "present — the exclusion is real, not an artifact of the glob")
 
     print()
     if FAILURES:
