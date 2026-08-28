@@ -191,6 +191,26 @@ the registry, the planner:
 3. Writes the design + plan into `<portfolio_home>/plans/`.
 
 This is the on-ramp: a project joins the portfolio the first time it is planned,
-so its plans/backlog/maturity are vault-canonical from day one (never a stray
-`<repo>/docs/plans/`). The only exception is the no-`vault_dir` fallback, where
-the planner warns and writes to `<repo>/docs/plans/` instead.
+so its plans/backlog/maturity are vault-canonical from day one.
+
+**The no-`vault_dir` fallback — this paragraph is the rule; the skills point here
+rather than restating it.** When no `vault_dir` is configured *at all*, the planner
+**warns and writes to `<repo>/docs/plans/`**. A machine that has never had a vault
+set up still produces plans; they are moved in later by `portfolio migrate`.
+
+Two things this does **not** license, because conflating them is what made the rule
+contradictory across three sites before it was settled:
+
+- It is not a fallback for a vault that is **configured but unreachable**. That is
+  refused outright, creating no part of the tree — a missing vault is not an empty
+  one, and writing into the repo there would hide a dropped mount behind a warning
+  nobody reads. `resolve-plan-home.py` returns **2** for that case and **3** for
+  this one, and the two are deliberately different exit codes.
+- It is not a general licence to write into `<repo>/docs/`. It covers plans and
+  design docs on an unconfigured machine, nothing else.
+
+Decided 2026-08-28 by the user, at this plan's close-out, choosing the forgiving
+behaviour on a fresh machine over strictness the code did not implement anyway
+(DEC-020). The previous wording said both "NEVER write to `<repo>/docs/`" and
+"the planner warns and writes to `<repo>/docs/plans/`", in two sections of one
+skill, while the code did the second.

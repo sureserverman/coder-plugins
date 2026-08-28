@@ -238,7 +238,11 @@ planning/skills/executing-plans/SKILL.md 49016
 #   be "teach three skills the five conditions": that is a second definition of reachable,
 #   which is DEC-011. So the conditions stay in one place and the skills now call
 #   `resolve-plan-home.py` and obey its exit codes. This file carries the exit-code contract once; the other two point at it.
-planning/skills/planning-projects/SKILL.md 37456
+#
+# Raised 37456 -> 37502 (+46 B) settling BL-106, the no-vault_dir fallback: three
+#   sites stated one rule and two of them contradicted each other. Decided by the user
+#   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
+planning/skills/planning-projects/SKILL.md 37502
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -349,7 +353,11 @@ planning/skills/planning-projects/SKILL.md 37456
 #   be "teach three skills the five conditions": that is a second definition of reachable,
 #   which is DEC-011. So the conditions stay in one place and the skills now call
 #   `resolve-plan-home.py` and obey its exit codes. Here it is the Resolver claim, corrected from "every scripted one" to what is now true.
-planning/skills/portfolio/SKILL.md 13543
+#
+# Raised 13543 -> 13721 (+178 B) settling BL-106, the no-vault_dir fallback: three
+#   sites stated one rule and two of them contradicted each other. Decided by the user
+#   (option A — keep the fallback); the 'NEVER write to <repo>/docs/' claim was FALSE — the code has always written there on an unconfigured machine — and correcting a false rule to a true one plus a pointer costs more bytes than the falsehood did.
+planning/skills/portfolio/SKILL.md 13721
 
 # Seeded 2026-08-27 at 12519 B, its first entry: honest-gates crossed 10000 B when it
 #   gained § "A test does not exist until its mutant dies". The section is here rather than

@@ -251,7 +251,7 @@ outlives its destination.
 | Reference map | These load when their condition is met |
 | Resolver (read this before any read/write) | No silent fallback |
 | Resolver (read this before any read/write) | fails loudly |
-| Resolver (read this before any read/write) | NEVER write to |
+| Resolver (read this before any read/write) | fails loudly |
 | Subcommands | An explicit invocation runs exactly one |
 | Subcommands | composes four, one of them gated |
 | Subcommands | Each procedure lives in its own reference |

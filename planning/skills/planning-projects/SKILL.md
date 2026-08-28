@@ -427,7 +427,7 @@ Plans live in the vault, not the repo. Before writing, resolve the project's por
 1. **Run the resolver — do not resolve this in prose:** `python3 ${CLAUDE_PLUGIN_ROOT}/skills/portfolio/scripts/resolve-plan-home.py --project <repo>`. Its exit code is the instruction:
    - **0** — stdout is the plans directory. Use it.
    - **2** — the vault is configured but UNREACHABLE. **Stop and show the message.** Do not fall back to the repo and do not create anything: a missing vault is not an empty vault, and `mkdir -p` here builds a phantom tree (BL-101).
-   - **3** — no `vault_dir` configured at all. Fall back to `<repo>/docs/plans/` and warn the user that the plan is landing in-repo — then skip the rest of these steps.
+   - **3** — no `vault_dir` configured at all. Apply the fallback defined in `../portfolio/references/registry-format.md` § Auto-registration (warn, write to `<repo>/docs/plans/`), then skip the rest of these steps.
    The conditions are deliberately not restated here — two definitions of "reachable" is what DEC-011 forbids, and prose was the copy that drifted (BL-101).
 2. `portfolio_home` is the parent of what the resolver printed — `<vault_dir>/Portfolio/<area>/<name>/`.
 3. **Auto-register if new:** if the project isn't in `~/.claude/projects-registry.yaml`, append an entry (`path`, `name`, `area`, `enabled: true`, `added: <today>`). This is how a brand-new project joins the portfolio — no separate step.

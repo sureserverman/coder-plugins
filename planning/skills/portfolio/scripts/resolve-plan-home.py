@@ -20,10 +20,11 @@ EXIT CODES, which are the interface:
   2  the vault is CONFIGURED BUT UNREACHABLE. stderr carries the canonical message.
      **Stop.** Do not fall back to the repo, and do not create anything: a missing vault is
      not an empty vault, and this is the exact case that produced phantom trees.
-  3  no `vault_dir` is configured at all. stderr says so. Today's documented policy is to
-     fall back to `<repo>/docs/plans/` and warn — but that policy is disputed across three
-     sites (BL-106), so it is the CALLER's to apply and is deliberately not decided here.
-     This script's job is the reachability question, not the fallback question.
+  3  no `vault_dir` is configured at all. stderr says so. The policy is to warn and write to
+     `<repo>/docs/plans/` — defined once in `../references/registry-format.md`
+     § Auto-registration and settled by DEC-020. It is the CALLER's to apply: this script
+     answers the reachability question, not the fallback question, and keeping the two apart
+     is what stops a dropped mount being handled like an unconfigured machine.
 
 The split between 2 and 3 is the whole point. "Unset" and "set but not there" were one branch
 in the prose, and collapsing them is what let a dropped mount look like an unconfigured
@@ -67,8 +68,9 @@ def main():
     cfg = yaml.safe_load(CONFIG.read_text()) if CONFIG.exists() else {}
     vd = (cfg or {}).get("vault_dir")
     if not vd:
-        print(f"no vault_dir configured in {CONFIG} — the fallback policy is the caller's "
-              f"(see BL-106); this script decides reachability only.", file=sys.stderr)
+        print(f"no vault_dir configured in {CONFIG} — apply the documented fallback "
+              f"(registry-format.md § Auto-registration, DEC-020); this script decides "
+              f"reachability only.", file=sys.stderr)
         return 3
 
     pr = rebuild()
