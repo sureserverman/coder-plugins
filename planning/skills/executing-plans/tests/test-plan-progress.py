@@ -2157,6 +2157,25 @@ def main():
     _, out = run(repo)
     check("(stale 30h)" in out, "old state marked stale")
 
+    # An out-of-contract `updated` must cost AT MOST the staleness marker --
+    # never the bar. A date-only value ("2026-08-29") parses fine but lands
+    # OFFSET-NAIVE, and subtracting it from an aware now() raised TypeError,
+    # which the parse guard (ValueError only) did not catch. That exception
+    # reached render()'s per-line `except Exception: continue`, silently
+    # deleting the PINNED bar while every other plan's bar -- which never calls
+    # staleness() -- kept rendering. Observed in the wild in engineering-skills:
+    # the master bar showed and the sub-plan actually being executed did not,
+    # with nothing anywhere to say why.
+    for junk, why in [("2026-08-29", "date-only, offset-naive"),
+                      (datetime.now(timezone.utc).date().isoformat(), "date-only, today"),
+                      (12345, "non-string"),
+                      ("not a date", "unparseable")]:
+        st["updated"] = junk
+        state_file.write_text(json.dumps(st))
+        r, out = run(repo)
+        check(r.returncode == 0 and r.stderr == "" and "3/5" in out,
+              f"out-of-contract updated keeps the pinned bar: {why}")
+
     print("relative plan path resolves against repo root:")
     write_state(repo, plan="plans/demo-plan.md", phase="task", stage=1, task="1.1")
     _, out = run(repo)

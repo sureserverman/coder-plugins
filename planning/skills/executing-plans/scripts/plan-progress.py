@@ -1063,8 +1063,22 @@ def staleness(state):
         return ""
     try:
         ts = datetime.datetime.fromisoformat(upd.replace("Z", "+00:00"))
-    except ValueError:
+    except (AttributeError, TypeError, ValueError):
         return ""
+    # AttributeError covers a non-string `updated` (a number, a list) reaching
+    # .replace(); the parse guard is total, so no junk in this optional field
+    # can cost the bar.
+    #
+    # A date-only `updated` ("2026-08-29") parses fine but lands OFFSET-NAIVE,
+    # and subtracting it from an aware now() raises TypeError -- which the
+    # ValueError guard above did not catch. That exception reached render()'s
+    # per-line `except Exception: continue`, so one out-of-contract field
+    # silently deleted the PINNED bar while every other plan's bar (which never
+    # calls this function) kept rendering: a master bar visible with the
+    # sub-plan actually being executed missing. Observed in the wild.
+    # Assume UTC, which is what the field is documented to carry.
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=datetime.timezone.utc)
     age = datetime.datetime.now(datetime.timezone.utc) - ts
     hours = age.total_seconds() / 3600
     if hours >= STALE_AFTER_H:
