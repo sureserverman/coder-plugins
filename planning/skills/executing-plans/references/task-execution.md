@@ -87,6 +87,29 @@ file instead of one filter, or the class a fix touched — is task-scope and nee
 permission; a genuine class sweep (`../SKILL.md` § A bug found during execution is a class —
 sweep it, fix every instance) is likewise untouched.
 
+## After a task commits, the next one starts in the same turn
+
+A committed task is not a place to hand the turn back. **The commit and the next task's
+first tool call belong to one turn**, exactly as at a stage boundary (`stage-gate.md` § If
+the gate passes, which carries the measurements). The shapes to recognise in your own draft,
+all of them recorded from real runs:
+
+| What was written | What had actually happened |
+|---|---|
+| *"Next is Task 2.2 — the TUI's Limits pane."* | Nothing. The turn ended; the user waited 8 hours. |
+| *"Stage 2 … starting now with Task 2.1."* | Nothing. "Starting now" started nothing. |
+| *"Say the word and I'll start Task 2.4."* | An approval gate the plan already passed. |
+
+The write-up is not the deliverable — the task is. Report the finished task in the same turn
+that opens the next one, or defer the prose entirely; a handoff note is owed at a **stage**
+boundary, not after every task.
+
+**Waiting is different and is fine.** If the next task cannot start because a dispatched
+reviewer, an evaluator or a background suite has not reported, say what you are waiting on
+and end the turn — the host re-invokes you when it lands. Naming the thing you are waiting
+for is what separates a legitimate pause from an abandoned promise, both for the reader and
+for the optional `plan-continue` Stop hook (`plan-continue-hook.md`).
+
 ## Tier 1 — the quick per-task review
 
 Whether it runs comes from `../references/review-scope.md`; do not re-derive it. **At `none`,

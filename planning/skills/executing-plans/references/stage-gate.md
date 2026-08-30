@@ -284,6 +284,41 @@ found in a file you are already editing is in scope by default.** A plan that ge
 One question settles most cases: *would fixing this change what the gate measures?* If not,
 fixing it is not scope creep, and the guardrail is not about it.
 
+## If the gate passes
+
+**Commit it and open the next stage in the same turn.** This section exists because its
+neighbour did not have one: the file documented failure at length and said nothing about
+the far more common outcome, so the run-to-completion rule — which lives in `../SKILL.md`
+and is read once, at session start — had nothing restating it at the moment it applies.
+
+Measured across two real sessions executing one master plan (2026-08-29/30, 39 turn ends):
+seven turns ended on a promise about the next unit of work — *"starting now with Task 2.1"*,
+*"Next is Task 2.2"*, *"Say the word and I'll start Task 2.1"* — with no dispatched agent
+outstanding and nothing blocking. Each one needed the user to ask for work they had already
+authorized. Idle cost: 8.1 min, 16.6 min, and one overnight stop of **8 h 11 min**. Every one
+of them was a gate or task boundary, and the executor in each case knew the rule and could
+quote it back afterwards.
+
+So the boundary is not a decision point:
+
+- **A green gate is a commit, not a question.** Commit the gate, write the handoff note, and
+  issue the next stage's first tool call. No "should I continue?", no "ready to start Stage
+  3", no summary offered in place of the work.
+- **The announcement and the call ship together.** If you name the next task, the tool call
+  starting it is in the same turn. An announcement alone has started nothing.
+- **Waiting is not stopping.** A turn that ends because a dispatched reviewer or a background
+  suite has not reported is correct on a host that re-invokes you when it lands — say what
+  you are waiting on, and end the turn. Thirty of the thirty-nine measured turn ends were
+  exactly this, and they cost nothing.
+- **To stop on purpose, use one of the two documented forms** — an `ACTION NEEDED:` block
+  naming the decision that blocks the next stage (§ ACTION NEEDED — the one place a report asks the user for something), or a documented
+  Stop condition with `phase: "blocked"` written to the progress state file. Trailing off
+  into a summary is neither.
+
+`../../../hooks/plan-continue.sh` is the optional backstop for when this rule is read and
+still not followed — see `plan-continue-hook.md`. It is off unless the user enables it, and
+it is a net, not a substitute: the rule holds whether or not the hook is running.
+
 ## If the gate fails
 
 A gate is one caller of `../SKILL.md` § A bug found during execution is a class — sweep it,

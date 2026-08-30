@@ -43,6 +43,13 @@ exactly as before.
 | `⚠ not in plan` | this file names a task the plan does not contain. A worse divergence than a lag: the plan was edited under a run whose markers had already stopped. |
 | `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
 
+**The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
+— the optional `Stop`-hook backstop, off unless the user sets `PLAN_CONTINUE=1` — reads
+`phase` to decide whether a plan is in flight, which is why this file's `phase` values are a
+contract and not a label: `blocked` and `closeout` are what let a run stop on purpose, and a
+placeholder or hand-written `updated` reads as stale by design. See
+`plan-continue-hook.md`.
+
 Done/total counts are **not** in the file — the renderer derives them from the
 plan's authoritative `Status:` fields, so a forgotten update can never show
 wrong progress, only a wrong current-task label. The file is ephemeral session
