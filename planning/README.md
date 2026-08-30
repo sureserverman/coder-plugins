@@ -1,6 +1,6 @@
 # planning
 
-A fifteen-skill pipeline (v0.44.1) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.45.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## Installation
 
@@ -304,6 +304,33 @@ Researches **one** candidate architecture (a pattern plus a concrete module layo
 Reproduces **one** slice of a Claude Design handoff pack (a component or screen, plus its tokens and assets) precisely in the target stack, self-checking against the fidelity rubric. Dispatched per slice by `applying-design-handoff`. It reproduces; it does not design — and it **FLAGs** a behavior change back to the caller rather than applying one.
 
 **Model:** `sonnet`. **Tools:** `Read`, `Write`, `Edit`, `Glob`, `Grep`, `Bash`.
+
+## Hooks
+
+### `plan-continue` (since v0.45.0) — **off by default**
+
+A `Stop` hook (`hooks/hooks.json` → `hooks/plan-continue.sh`) that refuses a turn ending on a
+promise or an approval question while a plan is in flight, so an authorized run doesn't sit
+waiting for you to say "carry on". It returns `{"decision":"block"}` only when the plan's
+`.claude/plan-progress.json` reads `preflight`/`task`/`gate` **and** the last assistant message
+matches a promise (*"Next: Task 2.4"*, *"I'll start…"*) or an approval question (*"say the
+word"*, *"ready to start Stage 2"*) while matching neither a wait marker (*"waiting on"*,
+*"once it reports"*) nor an `ACTION NEEDED` block.
+
+That distinction is the point: a turn that ends **waiting** on a dispatched reviewer is
+correct on this host — Claude Code re-invokes when the agent reports — so blocking it would
+spin. Measured across two real sessions of one master plan (39 turn ends): 7/7 promise-shaped
+stops caught, 0 of the 30 legitimate waits blocked.
+
+Enable per project in `.claude/settings.json`:
+
+```json
+{ "env": { "PLAN_CONTINUE": "1" } }
+```
+
+`PLAN_CONTINUE_MAX` (default 3) bounds continuations while the plan does not move. It fails
+open on every unexpected condition and always exits 0. Full contract:
+`skills/executing-plans/references/plan-continue-hook.md`.
 
 ## Where artifacts live
 
