@@ -66,8 +66,50 @@ GIT_TIMEOUT = 20        # seconds per repo; a hung git must not hang the audit
 
 # The classes, in the order classify() decides them. Order is load-bearing and
 # argued at classify() — do not reorder to make a count look better.
-CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "no-status",
-           "never-started", "started-unfinished")
+CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "not-a-plan",
+           "no-status", "never-started", "started-unfinished")
+
+# Filename suffixes for documents that live in `plans/` but are NOT plans:
+# design documents, architecture documents, and backlog done-records. See
+# is_not_a_plan() for how the rule was measured and why it is anchored.
+NOT_A_PLAN_SUFFIXES = ("-design.md", "-architecture.md", "-done.md")
+
+
+def is_not_a_plan(path):
+    """Whether this document's FILENAME says it is not a plan.
+
+    `plans/` directories hold three kinds of document that are not plans and
+    never were: `*-design.md` (a `# Design:` document from brainstorming),
+    `*-architecture.md` (a `# Architecture:` decision document), and
+    `*-done.md` (a `# Done:` backlog completion record). None carries tasks,
+    so all of them landed in `no-status` — 88 of the 210 files in that class
+    when measured, which is not a small distortion of a number people read as
+    "plans nobody has started".
+
+    Measured before it was chosen, not guessed, over every enumerated file:
+
+        plan-status-audit.py --json | python3 -c "<count trailing -token>"
+
+    which reported, vault-wide: 449 `-plan.md`, 41 `-done.md`, 37 `-design.md`,
+    10 `-architecture.md`, and then a long tail of one- and two-offs. The three
+    above are the only non-plan conventions with enough weight to be a
+    convention at all. The tail was deliberately NOT swept in: `-migration.md`,
+    `-hardening.md`, `-acceptance.md` and `-implementation.md` (3-4 files each)
+    read as though they could name real plans, and a filename heuristic that
+    guesses wrong here hides a plan from the one tool that would have offered
+    it. Narrow and provable beats broad and plausible.
+
+    ANCHORED ON THE HYPHEN, which is load-bearing: eight files in the corpus
+    carry `design` inside the name (`…-gui-redesign-bridges-freeports-plan.md`,
+    `…-design-handoff-completion-plan.md`, …). Every one of them is a real
+    plan. A substring test would have swallowed all eight; requiring the
+    hyphen-delimited final token keeps them.
+
+    Case is not folded because the corpus does not vary: all 88 matches are
+    lowercase, and folding would be an untested widening of a rule whose whole
+    value is that it only matches what was measured.
+    """
+    return Path(path).name.endswith(NOT_A_PLAN_SUFFIXES)
 
 
 # --------------------------------------------------------------------------
@@ -256,6 +298,28 @@ def classify(text, path):
        blocked on an irreversible owner confirmation, and it reads 10/10 instead
        of 10/11 — a completion candidate that must never be offered as one.
 
+    5. `not-a-plan` is decided LAST of all the non-counting classes — below
+       every human-authored marker AND below `unclassifiable` — and it is the
+       only class keyed on the FILENAME rather than on the document's contents.
+       That ranking is the whole safety argument. A filename is a convention,
+       and a convention is a guess; a `**Completed:**` line, a `[~]` gate box
+       and an out-of-contract Status marker are all EVIDENCE, written inside
+       the document by someone who meant it. Evidence outranks a guess, in
+       every direction. Live proof that this is not hypothetical: the vault
+       holds an architecture document carrying an author's `**Abandoned:**`
+       line. Deciding `not-a-plan` first would have swallowed that marker and
+       reported the file as a document nobody need look at.
+
+       It is also placed INSIDE the `total == 0` branch rather than above the
+       counting, so a document can only be called not-a-plan when it has no
+       task entries whatsoever. This makes two properties structural rather
+       than lucky: `not-a-plan` can only ever draw from what would have been
+       `no-status`, and it can never touch a completion candidate — a candidate
+       needs `done == total > 0`, so it never reaches this branch at all. The
+       cost of the narrow placement is that a design document someone fills
+       with real `### Task N.N` entries keeps being counted as a plan, which is
+       the direction that fails safe: it stays visible.
+
     Everything after that is ordinary counting.
     """
     abandoned = pu.ABANDONED_RE.search(text)
@@ -290,6 +354,13 @@ def classify(text, path):
 
     done, total = task_counts(text, path)
     if total == 0:
+        # Reached only when the document carries no terminal marker and no
+        # Status line of any kind, in or out of contract. See ORDER note 5:
+        # this branch is the ONLY way into `not-a-plan`, which is what keeps
+        # the filename heuristic from ever outranking evidence or reaching a
+        # completion candidate.
+        if is_not_a_plan(path):
+            return "not-a-plan", "design/architecture/done-record, not a plan"
         return "no-status", None
     if done == 0 and not any_started(text, path):
         return "never-started", None

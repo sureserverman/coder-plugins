@@ -67,7 +67,29 @@ PLANS = {
     "2026-01-05-never-started-plan.md": task("1.1", " ") + task("1.2", " "),
     "2026-01-06-partway-plan.md": task("1.1", "x") + task("1.2", " "),
     "2026-01-07-no-status-plan.md": "# Plan\n\nSome prose and a - [ ] loose bullet.\n",
+    # The three document kinds that live in `plans/` and are NOT plans. Each
+    # was previously swept into `no-status` — 88 of 210 files in that class on
+    # the live vault — inflating a number people read as "plans nobody started".
     "2026-01-08-design.md": "# Design\n\nNo Status fields at all.\n",
+    "2026-01-18-architecture.md": "# Architecture: the thing\n\nA decision, not a plan.\n",
+    "2026-01-19-some-backlog-item-done.md": "# Done: some backlog item\n\nA completion record.\n",
+    # ANCHOR CASE. `design` appears inside this name but not as the final
+    # hyphen-delimited token, and the file is a REAL plan. Eight such files
+    # exist in the live vault; a substring rule would have hidden every one.
+    "2026-01-20-gui-redesign-plan.md": task("1.1", "x") + task("1.2", " "),
+    # The other near-miss shape: the final token ENDS in `design` without the
+    # hyphen. `endswith("design.md")` would swallow it; the anchored rule does
+    # not. Task-free on purpose, so the only thing under test is the filename.
+    "2026-01-23-gui-redesign.md": "# Plan\n\nProse, no tasks yet.\n",
+    # ORDER CASE, and this one is live: the vault holds an architecture
+    # document carrying its author's **Abandoned:** line. The filename rule
+    # must NOT outrank a human-authored marker, so this stays `abandoned`.
+    "2026-01-21-dropped-architecture.md": ("# Architecture: dropped\n\n"
+                                           "**Abandoned:** 2026-01-22 — overtaken\n"),
+    # PLACEMENT CASE. A design document someone filled with real tasks, all
+    # done. `not-a-plan` is decided inside the `total == 0` branch, so evidence
+    # wins and this stays a completion candidate rather than being hidden.
+    "2026-01-22-tasked-design.md": task("1.1", "x") + task("1.2", "x"),
     "2026-01-09-out-of-contract-plan.md": task("1.1", "x") + task("1.2", "!"),
     "2026-01-10-annotated-marker-plan.md": task("1.1", "x") + task("1.2", "~ BLOCKED"),
     # The adversarial `[~]`-only plan: started, but `done` is 0. A classifier
@@ -175,7 +197,13 @@ def case_classification():
         "2026-01-05-never-started-plan.md": "never-started",
         "2026-01-06-partway-plan.md": "started-unfinished",
         "2026-01-07-no-status-plan.md": "no-status",
-        "2026-01-08-design.md": "no-status",
+        "2026-01-08-design.md": "not-a-plan",
+        "2026-01-18-architecture.md": "not-a-plan",
+        "2026-01-19-some-backlog-item-done.md": "not-a-plan",
+        "2026-01-20-gui-redesign-plan.md": "started-unfinished",
+        "2026-01-23-gui-redesign.md": "no-status",
+        "2026-01-21-dropped-architecture.md": "abandoned",
+        "2026-01-22-tasked-design.md": "started-unfinished",
         "2026-01-09-out-of-contract-plan.md": "unclassifiable",
         "2026-01-10-annotated-marker-plan.md": "unclassifiable",
         "2026-01-11-partial-only-plan.md": "started-unfinished",
@@ -236,6 +264,41 @@ def case_classification():
     check("2026-01-13-alpha-sub-01-plan.md" not in cands,
           "its unfinished sub-plan is NOT dragged in with it")
 
+    print("  documents that are not plans get their own class, per kind:")
+    nap = {Path(e["path"]).name for e in report["classes"].get("not-a-plan", [])}
+    for fname, kind in (("2026-01-08-design.md", "a design document"),
+                        ("2026-01-18-architecture.md", "an architecture document"),
+                        ("2026-01-19-some-backlog-item-done.md", "a backlog done-record")):
+        check(fname in nap, f"{kind} classifies `not-a-plan` ({fname})")
+    ns = {Path(e["path"]).name for e in report["classes"]["no-status"]}
+    check(not (nap & ns), "and none of them is still inflating `no-status`")
+    check("2026-01-07-no-status-plan.md" in ns,
+          "while a genuinely task-free PLAN still classifies `no-status`")
+
+    print("  the rule is anchored on the hyphen, not a substring:")
+    check("2026-01-20-gui-redesign-plan.md" not in nap,
+          "`-redesign-plan.md` contains `design` but is a real plan, so it is kept")
+    check(not mod.is_not_a_plan(Path("x/2026-01-20-gui-redesign-plan.md")),
+          "is_not_a_plan() rejects it directly too")
+    check(not mod.is_not_a_plan(Path("x/2026-01-23-gui-redesign.md")),
+          "`-redesign.md` ends in `design` without the hyphen, so it is kept too")
+    check("2026-01-23-gui-redesign.md" in ns,
+          "and it stays in `no-status` rather than being reclassified")
+    check(mod.is_not_a_plan(Path("x/2026-01-08-design.md")),
+          "and accepts the anchored form")
+
+    print("  a filename never outranks evidence inside the document:")
+    check("2026-01-21-dropped-architecture.md" not in nap,
+          "an architecture doc with **Abandoned:** stays `abandoned`, marker intact")
+    check("2026-01-22-tasked-design.md" not in nap,
+          "a design doc carrying real tasks is still counted as a plan")
+    check("2026-01-22-tasked-design.md" in {Path(c["path"]).name
+                                            for c in report["candidates"]},
+          "and is still offered as a completion candidate rather than hidden")
+    check(all(e.get("detail") != "all-tasks-done-no-closeout"
+              for e in report["classes"].get("not-a-plan", [])),
+          "no `not-a-plan` document can ever be a completion candidate")
+
     print("  candidates carry evidence from the PROJECT REPO's git:")
     done = [c for c in report["candidates"]
             if Path(c["path"]).name == "2026-01-01-done-plan.md"]
@@ -259,13 +322,13 @@ def case_invariants_and_determinism():
         check(ok, f"invariant: {label}")
 
     # The corpus observations are deliberately NOT asserted here. They are true
-    # of the live vault, not of any corpus — this fixture vault has two
+    # of the live vault, not of any corpus — this fixture vault has three
     # abandoned plans on purpose — and asserting them over synthetic data is
     # how a suite goes red on correct code. What IS asserted is that they
     # report the fixture honestly rather than silently holding.
     obs = dict((lab.split(" —")[0], ok) for ok, lab in mod.check_corpus_observations(report))
-    check(not obs["abandoned is 2"],
-          "the abandoned observation correctly reports 2 on a corpus that has 2")
+    check(not obs["abandoned is 3"],
+          "the abandoned observation correctly reports 3 on a corpus that has 3")
 
     print("  the partition invariant can actually FAIL, not just hold:")
     # Drop one classified entry, exactly as a raising classifier would have.
@@ -299,7 +362,7 @@ def case_default_run_writes_nothing():
           f"a default --check run exits 0 even though a corpus OBSERVATION is "
           f"false here — only invariants gate the exit status "
           f"(rc={r.returncode}, {r.stderr[:200]})")
-    check("NOTE" in r.stdout and "abandoned is 2" in r.stdout,
+    check("NOTE" in r.stdout and "abandoned is 3" in r.stdout,
           "and the false observation is still surfaced, not swallowed")
     check(before == after, "every plan file is byte-identical after a full default run")
     check(not (plans / ".audit-backups").exists(), "and no backup directory was created")
