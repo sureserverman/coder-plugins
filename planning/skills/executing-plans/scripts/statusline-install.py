@@ -243,6 +243,11 @@ def detect_indent(text):
     return indent if "\t" in indent else len(indent)
 
 
+def warn(msg):
+    """A non-fatal notice on stderr. stdout stays parseable for --status."""
+    print(f"statusline-install: {msg}", file=sys.stderr)
+
+
 def die(msg):
     print(f"statusline-install: {msg}", file=sys.stderr)
     sys.exit(1)
@@ -402,6 +407,62 @@ def write_settings(path, data, existed):
     # "café" — semantically equal, but not the verbatim survival this
     # promises. indent comes from the original file so its formatting survives.
     text = json.dumps(data, indent=indent, ensure_ascii=False) + "\n"
+
+    # A hardlinked settings.json is written IN PLACE, not replaced.
+    #
+    # os.replace() swaps a whole inode, so a file that is one of several
+    # hardlinks loses the link — count drops to 1 and every other path keeps the
+    # old content forever, diverging silently with nothing to notice it. That is
+    # the same damage get_settings_path() already refuses to do to a SYMLINK,
+    # for the reason stated there: following the link "writes where they
+    # expect". A hardlink is the same user-established topology and gets the
+    # same answer.
+    #
+    # The cost is real and is not hidden: an in-place write is not atomic, so an
+    # interrupted one can leave this file truncated where the replace path could
+    # not. Two things bound it — backup() has already run by this point and is
+    # itself atomic, so a complete copy exists before a byte is touched; and the
+    # warning below tells the user which guarantee they are on. Refusing the
+    # install instead was the alternative, and it breaks the dotfile-manager
+    # setup this exists to support.
+    nlink = 0
+    if existed:
+        try:
+            nlink = path.stat().st_nlink
+        except OSError as e:
+            # Refuse rather than guess. Defaulting to 0 here would route to the
+            # atomic replace — which is exactly the link-breaking behaviour this
+            # branch exists to prevent — and would do it silently, with nothing
+            # to distinguish it from a legitimate single-link file. That is a
+            # fail-OPEN default on the one question this code exists to answer.
+            # backup() and the prev_mode stat both succeeded a few lines above,
+            # so a failure here is anomalous rather than routine, and the file's
+            # established posture on "cannot determine" is to refuse (malformed
+            # JSON, non-object top level, non-UTF-8 all die). A retry costs the
+            # user nothing; a silently orphaned dotfile-manager link costs them
+            # a divergence they will not notice.
+            die(f"cannot determine whether {path} is hardlinked ({e}); "
+                f"refusing to write rather than risk breaking a link. Retry, or "
+                f"check the file is readable.")
+    # TOCTOU: a link created or removed between this stat and the write below
+    # takes whichever path the stat saw. Accepted — backup() has already run on
+    # either path, and this is a single-user config file rather than a security
+    # boundary.
+    if nlink > 1:
+        warn(
+            f"{path} has {nlink} hard links; writing in place to keep them. "
+            f"This single write is not atomic — the backup taken above is the "
+            f"recovery path if it is interrupted."
+        )
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+        except OSError as e:
+            die(f"cannot write {path}: {e}")
+        return
+
     tmp_path = None
     try:
         fd, tmp_name = tempfile.mkstemp(

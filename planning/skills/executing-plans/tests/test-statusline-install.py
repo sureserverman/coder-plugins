@@ -357,6 +357,121 @@ def case_backup_atomic_and_pruned():
     # green), and removed.
 
 
+
+def case_hardlinked_settings():
+    """A hardlinked settings.json keeps its links (BL-048).
+
+    mkstemp + os.replace swaps a whole inode, so a settings.json that is one of
+    several hardlinks to the same file loses the link: count drops 2 -> 1 and
+    every other path keeps the OLD content forever, diverging silently.
+
+    The fix preserves the link and pays for it in atomicity, which is a real
+    trade and is disclosed rather than hidden. The precedent is this script's
+    own get_settings_path(), which already resolves SYMLINKS so a dotfile
+    manager's real file is the one written -- "following the link writes where
+    they expect". A hardlink is the same class of user-established topology, so
+    the same reasoning applies. The single-link path is untouched and stays
+    fully atomic, which this case pins by inode identity: replaced when there is
+    one link, preserved when there are two. Losing that distinction silently is
+    the regression worth catching.
+    """
+    print("28. a hardlinked settings.json:")
+    # (a) two links: the link survives and BOTH paths see the new content
+    home = mkdtemp(prefix="sl hl ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = Path(cl) / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    other = Path(home) / "dotfiles-settings.json"
+    os.link(sp, other)
+    ino_before = sp.stat().st_ino
+    r = subprocess.run([sys.executable, SCRIPT, "--install"],
+                       env=dict(os.environ, HOME=home), capture_output=True, text=True)
+    check(r.returncode == 0, "install rc 0 on a hardlinked settings.json")
+    check(sp.stat().st_nlink == 2,
+          "the hardlink survives the install (nlink=%d, was 2)" % sp.stat().st_nlink)
+    check(sp.stat().st_ino == ino_before,
+          "the inode is preserved, so every other link still points at this file")
+    check("statusLine" in other.read_text(encoding="utf-8"),
+          "the OTHER link sees the new content rather than keeping a stale copy")
+    check("atomic" in r.stderr.lower() or "hardlink" in r.stderr.lower(),
+          "the reduced-atomicity trade is disclosed on stderr (got %r)"
+          % r.stderr.strip()[:90])
+    # The whole design leans on a backup existing before the non-atomic write,
+    # so pin the artifact rather than trusting the prose that asserts it.
+    check(list(Path(cl).glob("settings.json.bak.*")),
+          "a backup exists after the in-place write — the recovery path the "
+          "non-atomic branch depends on is a file, not a claim")
+
+    # (a2) if the link count cannot be READ, the write refuses rather than
+    # guessing. The old default was nlink = 0, which routes to the atomic
+    # replace -- the exact link-breaking behaviour this branch prevents, done
+    # silently and indistinguishably from a legitimate single-link file. A
+    # fail-open default on the one question the code exists to answer.
+    spec_h = importlib.util.spec_from_file_location("statusline_install_hl", str(SCRIPT))
+    mod_h = importlib.util.module_from_spec(spec_h)
+    spec_h.loader.exec_module(mod_h)
+
+    class StatFailsOnceReady(type(Path(cl))):
+        """Real Path in every respect until arming; then stat() raises.
+
+        Armed only after backup() and the prev_mode read have run, so the test
+        exercises the nlink read specifically rather than an earlier failure.
+        """
+        _armed = False
+
+        def stat(self, *a, **kw):
+            if StatFailsOnceReady._armed:
+                raise OSError(5, "Input/output error")
+            return super().stat(*a, **kw)
+
+    home3 = mkdtemp(prefix="sl statfail ")
+    cl3 = os.path.join(home3, ".claude")
+    os.makedirs(cl3)
+    sp3 = Path(cl3) / "settings.json"
+    sp3.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    before3 = sp3.read_bytes()
+    victim = StatFailsOnceReady(str(sp3))
+    real_backup = mod_h.backup
+
+    def arming_backup(pth):
+        out = real_backup(pth)
+        StatFailsOnceReady._armed = True
+        return out
+
+    mod_h.backup = arming_backup
+    refused = False
+    try:
+        mod_h.write_settings(victim, {"statusLine": {"type": "command", "command": "x"}}, True)
+    except SystemExit:
+        refused = True
+    except OSError:
+        refused = False
+    finally:
+        StatFailsOnceReady._armed = False
+        mod_h.backup = real_backup
+    check(refused,
+          "an unreadable link count makes the write REFUSE, rather than "
+          "defaulting to the path that breaks hardlinks")
+    check(sp3.read_bytes() == before3,
+          "and settings.json is left byte-identical when it refuses")
+
+    # (b) one link: the atomic replace path is unchanged, proven by inode change
+    home2 = mkdtemp(prefix="sl nohl ")
+    cl2 = os.path.join(home2, ".claude")
+    os.makedirs(cl2)
+    sp2 = Path(cl2) / "settings.json"
+    sp2.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    ino2_before = sp2.stat().st_ino
+    r2 = subprocess.run([sys.executable, SCRIPT, "--install"],
+                        env=dict(os.environ, HOME=home2), capture_output=True, text=True)
+    check(r2.returncode == 0, "install rc 0 on an ordinary settings.json")
+    check(sp2.stat().st_ino != ino2_before,
+          "a single-link file still goes through mkstemp + os.replace (inode changed)")
+    check("atomic" not in r2.stderr.lower(),
+          "and says nothing about atomicity, because nothing was traded")
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -862,6 +977,7 @@ def main():
     case_apostrophe_in_path()
     case_bom_settings()
     case_backup_atomic_and_pruned()
+    case_hardlinked_settings()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()
