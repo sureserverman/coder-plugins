@@ -42,6 +42,19 @@ Date: 2026-01-01
 - [{mgate}] the thing integrates
 {closeout}"""
 
+MASTER_PLAN_FIRST = """# Master Plan: T
+Date: 2026-01-01
+
+## Sub-plans
+
+### Sub-plan 1: The only one
+- **Plan:** ./sub-01-thing-plan.md
+- **Status:** [x]
+
+**Gate:**
+- [ ] the thing integrates
+"""
+
 SUB = """# Project Plan: The only one
 Date: 2026-01-01
 Master: ./master-plan.md
@@ -221,6 +234,37 @@ def main():
         check("mutant dies: the same content under a -plan.md name IS reported",
               "SUBPLAN-UNREGISTERED" in got, f"got {got}")
 
+
+    # M3: MASTER-CLOSED-OVER-ABANDONED had no pair — it could fire and nothing proved it.
+    case("MASTER-CLOSED-OVER-ABANDONED", "MASTER-CLOSED-OVER-ABANDONED",
+         fires={"state": "[x]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n",
+                "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                 "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"})
+
+    # M2: a master's own `[~]` is acceptable on the same terms a sub-plan's is. Without
+    # this, the kind was unclearable except by falsifying the `[~]`.
+    case("master acceptance clears MASTER-GATE-BLOCKED", "MASTER-GATE-BLOCKED",
+         fires={"state": "[x]", "mgate": "~",
+                "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"},
+         silent={"state": "[x]", "mgate": "~",
+                 "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                 "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"
+                                    "**Blocked-accepted:** 2026-01-03 — no hardware here\n"})
+
+    # M3: ENTRY-UNPARSED's second branch — a `- **Plan:**` with no Status before it — was
+    # unreachable in every fixture, because the template always emitted Status first.
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp) / "Portfolio" / "area" / "proj" / "plans"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "master-plan.md").write_text(MASTER_PLAN_FIRST, encoding="utf-8")
+        (d / "sub-01-thing-plan.md").write_text(
+            SUB.format(gate="x", closeout="\n**Completed:** 2026-01-02 — done\n"), encoding="utf-8")
+        got, _ = kinds(tmp)
+        check("ENTRY-UNPARSED fires on a Plan line preceding its Status",
+              "ENTRY-UNPARSED" in got, f"got {got}")
+
     print(f"assertions run ({len(RAN)})")
     for n in RAN:
         print(f"  - {n}")
@@ -229,7 +273,7 @@ def main():
         for f in FAILURES:
             print(f"  ✗ {f}", file=sys.stderr)
         return 1
-    print("\nOK — every desync kind fires, and every inverted fixture is silent")
+    print(f"\nOK — {len(RAN)} assertions; every kind exercised here fires, and every\n     inverted fixture is silent. This proves the kinds the suite NAMES, not that the\n     checker's kind set is complete — completeness is the gate evaluator's judgment.")
     return 0
 
 

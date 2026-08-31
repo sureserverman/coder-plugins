@@ -187,7 +187,16 @@ def audit(vault):
             # IS at close-out, which is decidable now, so the kind is live there too.
             at_closeout = bool(entries) and all(
                 pu.status_state(st) == "done" for _, st, _ in entries)
+            # A master's own `[~]` is acceptable on exactly the terms a sub-plan's is:
+            # `plan_blocked()` checks `**Blocked-accepted:**` first and short-circuits, and
+            # nothing here did the same, so a master that performed the prescribed act still
+            # fired — a red clearable only by falsifying the `[~]`, which is the failure this
+            # whole plan exists to forbid. Found at the close-out evaluator pass, on a master
+            # accepted earlier the same day.
+            master_accepted = pu.blocked_acceptance(mtext)
             for blocked_line in master_gate_blocked(mtext):
+                if master_accepted:
+                    continue
                 if master_closed or at_closeout:
                     add("MASTER-GATE-BLOCKED", master, master,
                         f"master's own `[~]` register gate check is unrun while the "

@@ -156,7 +156,9 @@ a plan can be genuinely finished with a check that will never run here.
 
 **Write `**Blocked-accepted:** <date> — <why>` beside the `**Completed:**` line.** It records
 that someone looked, understood, and closed the plan anyway; it does not claim the gate ran.
-It is the only thing that retires such a plan.
+Short of abandoning the plan outright, it is the only thing that retires one — `**Abandoned:**`
+is terminal over a `[~]` too (`master-plans.md` step 3's third marker), but that closes the plan
+by giving up on it rather than by accepting the block.
 
 **Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
 and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.

@@ -470,7 +470,7 @@ def is_not_a_plan(path):
     never were: `*-design.md` (a `# Design:` document from brainstorming),
     `*-architecture.md` (a `# Architecture:` decision document), and
     `*-done.md` (a `# Done:` backlog completion record). None carries tasks,
-    so all of them landed in `no-status` — 88 of the 210 files in that class
+    so all of them landed in `no-status` — 87 of the 210 files in that class
     when measured, which is not a small distortion of a number people read as
     "plans nobody has started".
 
