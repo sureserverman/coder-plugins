@@ -376,7 +376,17 @@ planning/skills/portfolio/SKILL.md 13721
 #
 # Raised 13608 -> 13645 (+37 B) in the same close-out: the untiering citation names
 #   DEC-017 beside DEC-010, for the reason above. Citation only; no rule changed.
-planning/skills/honest-gates/SKILL.md 13645
+#
+# Raised 13645 -> 15802 (+2157) 2026-08-31 for the corpus-sweep rule, closing BL-108:
+#   a parsing-contract, marker-vocabulary or classification change does not ship until
+#   the corpus it reclassifies has been inventoried and backfilled or filed. It is in
+#   the trunk rather than a reference for the same reason the mutant section is — it
+#   binds at the moment someone writes the contract change, and a pointer followed
+#   afterwards is the same as no rule, which is exactly what `4bb486e` demonstrated:
+#   19 already-closed plans across 9 projects silently reclassified, unswept for four
+#   days. Untiered by DEC-010's cost line as DEC-017 extends it: one command and at
+#   most one backlog entry, never a dispatch.
+planning/skills/honest-gates/SKILL.md 15802
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
