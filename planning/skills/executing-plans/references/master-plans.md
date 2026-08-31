@@ -71,6 +71,20 @@ gate and surfaces only at the master close-out — the most expensive place to f
    for** (below), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
 
+   **"Every register entry is `[x]`" is re-derived from the sub-plan files, not read off the
+   register.** The register records a flip somebody performed; it is not evidence the flip was
+   earned, and the two come apart exactly when step 3 was hard to satisfy. So before the
+   master's `**Completed:**` line goes in, check each `[x]` entry against the sub-plan it names:
+   **it carries a terminal marker** (`**Completed:**`, or `**Completed:**` with
+   `**Blocked-accepted:**`), and **no gate check in it is `[~]` without that acceptance beside
+   the close-out line**. An entry failing either is not done — it is a flip that outran its
+   sub-plan, and the master close-out is the last place it can be caught before the whole
+   decomposition is declared finished over it.
+
+   This is the master's half of BL-081: nothing here used to cross-check sub-plan **gate**
+   state, so a master could be marked `**Completed:**` while a sub-plan gate was `[~]`. Both
+   halves are one condition and one check.
+
    **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*
    (`../references/review-scope.md`), so none of them governs the master itself. The master takes the
    **highest tier any sub-plan declared** — its close-out is the only pass that sees the
