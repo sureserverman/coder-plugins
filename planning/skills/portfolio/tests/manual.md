@@ -19,7 +19,7 @@ pass/fail vs. expected (per `tests/fixtures/README.md`).
 **Command (notional, Claude-executed against the spec):**
 ```
 backlog unify \
-  /home/user/dev/ai-tools/coder-plugins/planning/skills/portfolio/tests/fixtures/proj-a-plans-and-backlog \
+  <abs-path>/tests/fixtures/proj-a-plans-and-backlog \
   --plans-dir docs/sample-plans
   # no --write; dry-run is default
 ```
@@ -338,6 +338,7 @@ Every pilot produces ≥1 auto-tick. **PASS**.
 
 - Re-walked `~/dev/`; diff vs first walk: identical (no disk drift).
 - Drift vs registry: `found_not_in_registry: ['/home/user/dev/ai-tools']` — expected (user-excluded meta-parent); `registered_but_missing: []`. Scan correctly reports the drift on every run.
+  (The absolute path there is verbatim output from the recorded run, not an example to copy. The doc examples in this repo use a `<you>` / `<abs-path>` placeholder instead of a real home directory; a transcript is evidence and is left exactly as observed.)
 - Registry mtime unchanged (no `--write` accepted during the re-run).
 - First rebuild: wrote both globals (2 backlogs indexed, 3 MATURITY rows).
 - Second rebuild immediately after: both files unchanged, `**Last rebuilt:**` line not bumped per the spec rule. `md5sum` matches first-rebuild output byte-for-byte. **Idempotency PASS**.

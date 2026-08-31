@@ -43,7 +43,17 @@ N lines and the N+1th surfaces. Set membership was the original shape and it
 made this paragraph false, because the tokens are low-entropy enough that a new
 dead pointer routinely collides with an allowlisted one.
 
-Read-only: never writes to the repo. Exit 0 when clean, 1 when any finding.
+Read-only: never writes to the repo. Exit 0 when clean, 1 when any finding, and
+2 when the scan itself is invalid: fewer than `--min-files` files discovered
+(default 1). Without that floor a typo'd `--scope` degrades to a silent clean
+pass — `Scanned 0 file(s); 0 finding(s)` and exit 0 — which is the failure
+`scripts/run-tests.sh` already refuses for the identical shape, in its own
+words: "an empty sweep must never report a pass". The floor is a NUMBER rather
+than a bare non-empty test because the sharper case is a scope that matches a
+few files instead of none: a caller that knows it should sweep the whole tree
+can assert the size of the sweep it expects, not merely that something was
+looked at. Exit 2 rather than 1 keeps "the scan did not run" distinguishable
+from "the scan ran and found something" (BL-067).
 """
 import argparse
 import collections
@@ -400,6 +410,9 @@ def main(argv=None):
     ap.add_argument("--allowlist", default=None)
     ap.add_argument("--scope", default=None,
                     help="repo-relative subtree to restrict the scan to")
+    ap.add_argument("--min-files", type=int, default=1, metavar="N",
+                    help="fail with exit 2 if fewer than N files are discovered "
+                         "(default 1; pass 0 to allow a legitimately empty scope)")
     ap.add_argument("--list-allowlisted", action="store_true")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -414,6 +427,25 @@ def main(argv=None):
 
     allowed = load_allowlist(allow_path)
     files = discover(args.root, args.scope)
+
+    # An empty (or unexpectedly small) sweep must never read as a pass. discover()
+    # returns [] both for a scope that does not exist and for one that exists and
+    # matches nothing, and neither is distinguishable downstream from a clean tree
+    # — so the check belongs here, before any finding is counted.
+    if len(files) < args.min_files:
+        where = f" under {args.scope}" if args.scope else ""
+        print(f"FAIL: discovered {len(files)} file(s){where}, "
+              f"below the --min-files floor of {args.min_files}.", file=sys.stderr)
+        if args.scope:
+            print("Either --scope names a subtree that does not exist or holds no "
+                  "SKILL.md / references/*.md, or it is misspelled.", file=sys.stderr)
+        else:
+            print("Either --root is not this repo's tree (a partial checkout, or a "
+                  "copy of this script elsewhere), or discovery no longer matches "
+                  "this repo's layout.", file=sys.stderr)
+        print("Both are failures here: an empty sweep must never report a pass. "
+              "Pass --min-files 0 if the empty scope is intended.", file=sys.stderr)
+        return 2
 
     findings, suppressed = [], []
     remaining = collections.Counter(allowed)

@@ -20,7 +20,7 @@ flow modifies this file without the user's say-so.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `path` | string | Absolute filesystem path to the project root. Must not contain `~` — expand at write time. E.g. `/home/user/dev/android/my-app`. |
+| `path` | string | Absolute filesystem path to the project root. Must not contain `~` — expand at write time. E.g. `/home/<you>/dev/android/my-app`. |
 | `name` | slug (string) | Kebab-case identifier derived from the final path component. Informational only; may collide across areas. Uniqueness is enforced by `path`, not `name`. |
 | `area` | string | The top-level category directory under `~/dev/` that contains this project. One of: `anon-tools`, `android`, `browsers`, `containers`, `infra`, `routers`, `servers`, `web`, `whonix`, `xray-host`, `ai-tools`, `big-projects`, `tor-vanity`, `virt`, `watch`, `telebots`. |
 | `enabled` | boolean | When `true` (default), the project is included in unify and maturity runs. When `false`, the project remains listed in the registry but is skipped during all portfolio operations. Use this for archived or on-hold projects. |
@@ -32,19 +32,19 @@ flow modifies this file without the user's say-so.
 version: 1
 
 projects:
-  - path: /home/user/dev/android/fennec-privacy-browser
+  - path: /home/<you>/dev/android/fennec-privacy-browser
     name: fennec-privacy-browser
     area: android
     enabled: true
     added: 2026-05-22
 
-  - path: /home/user/dev/infra/vps-bootstrap
+  - path: /home/<you>/dev/infra/vps-bootstrap
     name: vps-bootstrap
     area: infra
     enabled: true
     added: 2026-04-10
 
-  - path: /home/user/dev/anon-tools/tor-resolver
+  - path: /home/<you>/dev/anon-tools/tor-resolver
     name: tor-resolver
     area: anon-tools
     enabled: false
