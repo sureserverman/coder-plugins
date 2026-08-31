@@ -181,6 +181,77 @@ def case_apostrophe_in_path():
     check(again == written, "the written command is byte-identical on re-install")
 
 
+
+def case_bom_settings():
+    """A UTF-8 BOM is stripped on read, not reported as malformed JSON (BL-046).
+
+    The script reads settings.json in THREE places, and a sweep found the third
+    after the plan had named only two. Two of the three are real defects:
+
+      load_settings_for_write -> json.loads raises, so --install dies with
+        "refusing to modify ... malformed JSON" and sends the user to hand-edit
+        a file that is not malformed;
+      cmd_status              -> the same, so --status reports "not valid JSON"
+        and exits 1 on a perfectly good file.
+
+    The third, detect_indent's read inside write_settings, is NOT a defect and
+    is deliberately not asserted here: `detect_indent` matches `^([ \t]+)"`
+    under re.M, so it scans any line and a leading BOM never reached its answer
+    (verified directly: detect_indent returns 4 with and without one). Its read
+    was changed anyway so all three sites share one encoding rule, but claiming
+    a fixture proves that change would be claiming coverage this suite does not
+    have. Editors that write a BOM by default (Notepad, some VS Code setups) are
+    how a settings.json acquires one.
+
+    The written file must come back WITHOUT a BOM: utf-8-sig on read, plain
+    utf-8 on write, so the file is normalised rather than carrying it forever.
+    """
+    print("26. a UTF-8 BOM in settings.json:")
+    # (a) --install: the loud failure
+    home = mkdtemp(prefix="sl bom ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = os.path.join(cl, "settings.json")
+    with open(sp, "w", encoding="utf-8-sig") as f:
+        json.dump({"theme": "dark"}, f, indent=4)
+    r = subprocess.run([sys.executable, SCRIPT, "--install"],
+                       env=dict(os.environ, HOME=home), capture_output=True, text=True)
+    check(r.returncode == 0,
+          "install succeeds on a BOM'd settings.json (rc=%d: %s)"
+          % (r.returncode, r.stderr.strip()[:90]))
+    raw = Path(sp).read_bytes()
+    check(not raw.startswith(b"\xef\xbb\xbf"),
+          "the written settings.json carries no BOM")
+    try:
+        with open(sp, encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (ValueError, OSError) as e:
+        data = {}
+        check(False, "settings.json is readable JSON after the install (%s)" % e)
+    check(data.get("theme") == "dark", "the pre-existing key survives")
+    check("statusLine" in data, "the statusLine entry was written")
+    # The indent assertion is only meaningful because the entry above proves the
+    # file was actually rewritten; on an untouched file it would pass vacuously.
+    lines = Path(sp).read_text(encoding="utf-8-sig").split("\n")
+    indent = (len(lines[1]) - len(lines[1].lstrip())) if len(lines) > 1 else -1
+    check(indent == 4, "the 4-space indent survives the rewrite (got %d)" % indent)
+
+    # (b) --status: the same defect on the read the sweep found
+    home2 = mkdtemp(prefix="sl bomstat ")
+    cl2 = os.path.join(home2, ".claude")
+    os.makedirs(cl2)
+    sp2 = os.path.join(cl2, "settings.json")
+    with open(sp2, "w", encoding="utf-8-sig") as f:
+        json.dump({"statusLine": {"type": "command", "command": "x"}}, f, indent=2)
+    r2 = subprocess.run([sys.executable, SCRIPT, "--status"],
+                        env=dict(os.environ, HOME=home2), capture_output=True, text=True)
+    check(r2.returncode == 0,
+          "--status succeeds on a BOM'd settings.json (rc=%d: %s)"
+          % (r2.returncode, r2.stderr.strip()[:90]))
+    check("not valid JSON" not in r2.stderr,
+          "--status does not call a BOM'd file invalid JSON")
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -684,6 +755,7 @@ def main():
     print()
     case_space_in_path()
     case_apostrophe_in_path()
+    case_bom_settings()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()

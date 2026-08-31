@@ -255,7 +255,14 @@ def load_settings_for_write(path):
         # under LC_ALL=C a settings.json holding any non-ASCII byte died with an
         # unactionable "'ascii' codec can't decode". write_settings() already
         # got this right; both read paths did not.
-        raw = path.read_text(encoding="utf-8")
+        #
+        # utf-8-sig, not utf-8: an editor that writes a BOM (Notepad, some VS
+        # Code setups) produced "refusing to modify ... malformed JSON", which
+        # sent the user to hand-edit a file that was not malformed. utf-8-sig
+        # strips a BOM when present and is identical to utf-8 when absent, so
+        # it costs nothing on the common path. The WRITE stays plain utf-8, so
+        # a BOM'd file is normalised rather than carrying it forever (BL-046).
+        raw = path.read_text(encoding="utf-8-sig")
     except OSError as e:
         die(f"cannot read {path}: {e}")
     except UnicodeDecodeError as e:
@@ -301,7 +308,7 @@ def write_settings(path, data, existed):
         backup(path)
         try:
             prev_mode = path.stat().st_mode & 0o7777
-            indent = detect_indent(path.read_text(encoding="utf-8"))
+            indent = detect_indent(path.read_text(encoding="utf-8-sig"))
         except (OSError, UnicodeDecodeError):
             indent = 2
     try:
@@ -347,7 +354,7 @@ def cmd_status():
         print(f"statusLine: not wired ({path} does not exist)")
         return 0
     try:
-        raw = path.read_text(encoding="utf-8")
+        raw = path.read_text(encoding="utf-8-sig")
     except OSError as e:
         print(f"statusline-install: cannot read {path}: {e}", file=sys.stderr)
         return 1
