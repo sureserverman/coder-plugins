@@ -252,6 +252,111 @@ def case_bom_settings():
           "--status does not call a BOM'd file invalid JSON")
 
 
+def case_backup_atomic_and_pruned():
+    """The backup is the one artifact the rollback path depends on (BL-049).
+
+    Two defects in `backup()`. It was a plain `write_bytes()`, so an ENOSPC or
+    EIO part-way through left a TRUNCATED `.bak` — the original untouched, but
+    the file you would restore from silently unreliable, which is the one file
+    that must not be. And nothing pruned, so backups accumulated in ~/.claude
+    forever, one per install, each a copy of a file that can hold `env` API keys.
+
+    Fault injection is on os.fsync, which is a real symptom (a full or failing
+    disk surfaces there) and which also discriminates: the old write_bytes()
+    path never called fsync, so injecting it left a complete .bak and the
+    "nothing survives a failed backup" assertion failed. The new path writes to
+    a temp name, fsyncs, then renames, so an injected failure leaves neither.
+
+    The mode inheritance is asserted here as a REGRESSION guard, not as new
+    work: it already existed deliberately, and rewriting the function around it
+    is exactly when it would be lost.
+    """
+    print("27. backup() is atomic and pruned:")
+    # `mod` is a local of main(); load our own handle rather than reaching for it.
+    spec = importlib.util.spec_from_file_location("statusline_install_bak", str(SCRIPT))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    home = mkdtemp(prefix="sl bak ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = Path(cl) / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    os.chmod(sp, 0o600)
+
+    # (a) a failed backup leaves nothing behind
+    real_fsync = os.fsync
+    def boom(fd):
+        raise OSError(28, "No space left on device")
+    mod.os.fsync = boom
+    try:
+        try:
+            mod.backup(sp)
+        except (SystemExit, OSError):
+            pass
+    finally:
+        mod.os.fsync = real_fsync
+    leftovers = sorted(Path(cl).glob("settings.json.bak.*")) + sorted(Path(cl).glob("settings.json.*.tmp"))
+    check(not leftovers,
+          "a backup interrupted mid-write leaves no .bak and no .tmp (found %r)"
+          % [f.name for f in leftovers])
+    check(sp.read_text(encoding="utf-8").strip().endswith("}"),
+          "the original settings.json is untouched by a failed backup")
+
+    # (b) mode inheritance survives the rewrite. 0640, deliberately: mkstemp
+    # creates at 0600, so a 0600 source cannot distinguish "inherited" from
+    # "mkstemp's default" and the assertion passes with the chmod deleted — it
+    # did, until the mutant survived and exposed it. 0640 differs from both the
+    # umask default and mkstemp's, so only a real inherit produces it.
+    os.chmod(sp, 0o640)
+    b = mod.backup(sp)
+    got = oct(Path(b).stat().st_mode & 0o777)
+    check(got == "0o640",
+          "the backup inherits the source's mode rather than mkstemp's 0600 or the "
+          "umask's 0644 (got %s) — settings.json can carry env API keys and an "
+          "apiKeyHelper" % got)
+    check(Path(b).read_bytes() == sp.read_bytes(), "the backup is a complete copy")
+    # and the security direction specifically: never WIDER than the source
+    os.chmod(sp, 0o600)
+    b2 = mod.backup(sp)
+    m2 = Path(b2).stat().st_mode & 0o777
+    check(m2 & 0o077 == 0,
+          "a 0600 settings.json never yields a group/world-readable backup (got %s)"
+          % oct(m2))
+
+    # (c) pruning: backups do not accumulate forever
+    created = [Path(mod.backup(sp)) for _ in range(15)]
+    baks = sorted(Path(cl).glob("settings.json.bak.*"))
+    keep = getattr(mod, "BACKUP_KEEP", None)
+    check(keep is not None, "the script declares a BACKUP_KEEP retention bound")
+    check(keep is not None and len(baks) <= keep,
+          "backups are pruned to the newest %s (found %d)" % (keep, len(baks)))
+    # Anchored to the paths backup() actually returned, in creation order.
+    # The previous form compared a sorted list against a slice of itself, which
+    # is true of ANY list and would have passed even had pruning kept the OLDEST
+    # and deleted the newest — the exact regression it was written to catch.
+    survivors = {f.name for f in baks}
+    check(created[-1].name in survivors,
+          "the most recently created backup survived pruning")
+    check(created[0].name not in survivors,
+          "the oldest backup was the one evicted, not an arbitrary member")
+
+    # (d) a crash-orphaned .tmp never occupies a retention slot
+    orphan = Path(cl) / "settings.json.bak.zz_orphan.tmp"
+    orphan.write_bytes(b"partial")
+    hand = Path(cl) / "settings.json.bak.mine"
+    hand.write_bytes(b"a copy the user made")
+    mod.backup(sp)
+    check(not orphan.exists(),
+          "a crash-orphaned .tmp is swept rather than counted as a backup")
+    check(hand.exists(),
+          "a user's own hand-named settings.json.bak.mine is never deleted")
+    # Stated rather than implied: that assertion holds because eviction takes the
+    # lexically smallest and digits sort before letters, so a non-timestamp name
+    # is never the oldest — NOT because of any name-shape filter. A filter was
+    # written, found unprovable by mutation (widening the glob left this check
+    # green), and removed.
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -756,6 +861,7 @@ def main():
     case_space_in_path()
     case_apostrophe_in_path()
     case_bom_settings()
+    case_backup_atomic_and_pruned()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()

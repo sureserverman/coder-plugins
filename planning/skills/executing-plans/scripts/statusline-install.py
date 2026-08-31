@@ -222,6 +222,12 @@ def is_ours(entry):
     )
 
 
+# How many timestamped backups of settings.json to keep. Each is a full copy of a
+# file that can hold `env` API keys, so the pile is bounded rather than endless;
+# ten is enough to walk back through a bad session and small enough to stay tidy.
+BACKUP_KEEP = 10
+
+
 def detect_indent(text):
     """The original file's indent string, so a rewrite preserves its formatting.
 
@@ -279,19 +285,95 @@ def load_settings_for_write(path):
     return data, True
 
 
+def prune_backups(path, keep=None):
+    """Drop all but the newest `keep` backups of `path`. Never raises.
+
+    Backups accumulate one per install, each a full copy of a file that can hold
+    `env` API keys and an `apiKeyHelper`, so an unbounded pile is both clutter
+    and a widening secret surface. Sorted by NAME, which is sound because the
+    suffix is a fixed-width UTC-ish timestamp — no stat() call, so a backup whose
+    mtime was clobbered still sorts correctly.
+
+    Pruning failure is never fatal: the backup we just took is what the caller
+    needs, and losing an old one is not worth aborting an install over.
+    """
+    keep = BACKUP_KEEP if keep is None else keep
+    try:
+        entries = list(path.parent.glob(path.name + ".bak.*"))
+        # backup()'s own mkstemp sentinel is `<name>.bak.<random>.tmp`, which this
+        # glob matches. Normally its finally-block unlinks it, but a SIGKILL, OOM
+        # or power loss skips that — and mkstemp's letter-led random suffix sorts
+        # AFTER the digit-led timestamps, so an orphan would rank "newest", never
+        # age out, and permanently hold a retention slot. Each crash would eat
+        # another slot until real backups stopped surviving at all. So: never
+        # count a .tmp as a backup, and sweep orphans on sight regardless of age.
+        for orphan in [e for e in entries if e.name.endswith(".tmp")]:
+            try:
+                orphan.unlink()
+            except OSError:
+                pass
+        # A user's own hand-named `settings.json.bak.mine` survives, but not
+        # because of a name-shape filter — one was written here and removed as
+        # unprovable: eviction takes the LEXICALLY SMALLEST names, the suffixes
+        # are digit-led timestamps, and digits sort before letters, so any
+        # non-timestamp name is always among the newest and never reaches the
+        # cut. A filter guarding a case that cannot occur is cost without
+        # protection, and its magic offsets would break the moment the timestamp
+        # format changed. `.tmp` is different and IS excluded above: mkstemp's
+        # letter-led random suffix sorts last for the same reason, which is
+        # exactly why an orphan would never age out.
+        existing = sorted(e for e in entries if not e.name.endswith(".tmp"))
+        for stale in existing[:-keep] if keep else existing:
+            try:
+                stale.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
 def backup(path):
-    """Timestamped backup next to settings.json, taken before any write."""
+    """Timestamped backup next to settings.json, taken before any write.
+
+    Written the same way write_settings() writes: temp file in the SAME
+    directory, fsync, then os.replace(). A plain write_bytes() left a TRUNCATED
+    .bak when the copy hit ENOSPC or EIO part-way — the original untouched, but
+    the one artifact the rollback path depends on silently unreliable. A partial
+    backup is worse than no backup, because it looks like one.
+    """
     ts = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     backup_path = path.with_name(path.name + f".bak.{ts}")
+    tmp_path = None
     try:
-        backup_path.write_bytes(path.read_bytes())
-        # Inherit the source's mode rather than the umask. write_bytes() creates
-        # at 0666 & ~umask — typically 0644 — so a settings.json deliberately
-        # chmod'd 0600 because it carries `env` API keys or an apiKeyHelper left
-        # a world-readable copy of those secrets sitting in ~/.claude forever.
-        os.chmod(backup_path, path.stat().st_mode & 0o7777)
+        data = path.read_bytes()
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(path.parent), prefix=path.name + ".bak.", suffix=".tmp"
+        )
+        tmp_path = Path(tmp_name)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        # Inherit the source's mode rather than the umask. mkstemp creates at
+        # 0600 and write_bytes() would have created at 0666 & ~umask — typically
+        # 0644 — so a settings.json deliberately chmod'd 0600 because it carries
+        # `env` API keys or an apiKeyHelper left a world-readable copy of those
+        # secrets sitting in ~/.claude forever. Set BEFORE the rename, so the
+        # file is never briefly visible at the wrong mode under its final name.
+        os.chmod(tmp_path, path.stat().st_mode & 0o7777)
+        os.replace(tmp_path, backup_path)
+        tmp_path = None
     except OSError as e:
         die(f"could not create backup at {backup_path}: {e}")
+    finally:
+        # A failed backup leaves nothing behind — not a truncated .bak, and not
+        # the temp file either.
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+    prune_backups(path)
     return backup_path
 
 
