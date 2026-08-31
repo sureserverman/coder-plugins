@@ -283,11 +283,11 @@ def load_settings_for_write(path):
     """Load settings.json for a write operation. Never overwrites malformed
     or non-object JSON — dies with a clear message instead.
 
-    Returns (data, existed).
+    Returns (data, existed, stamp) — stamp identifies the exact bytes read, so
+    write_settings can refuse if another process changes them in the window.
     """
     if not path.exists():
         return {}, False, None
-    stamp = stamp_of(path)
     try:
         # Explicit encoding: read_text() defaults to the locale encoding, so
         # under LC_ALL=C a settings.json holding any non-ASCII byte died with an
@@ -300,11 +300,20 @@ def load_settings_for_write(path):
         # strips a BOM when present and is identical to utf-8 when absent, so
         # it costs nothing on the common path. The WRITE stays plain utf-8, so
         # a BOM'd file is normalised rather than carrying it forever (BL-046).
-        raw = path.read_text(encoding="utf-8-sig")
+        # ONE read, hashed and decoded from the same bytes. stamp_of() used to
+        # take its own separate read a line above this, which meant an edit
+        # landing in the gap gave a stamp of the OLD bytes and `data` parsed from
+        # the NEW ones — so write_settings would later refuse a write whose data
+        # already incorporated that edit. Fails safe, but it is a wider version
+        # of the very race the stamp exists to close, and it sits UPSTREAM of the
+        # residual window documented in write_settings rather than inside it.
+        raw_bytes = path.read_bytes()
+        stamp = hashlib.sha256(raw_bytes).hexdigest()
+        raw = raw_bytes.decode("utf-8-sig")
     except OSError as e:
         die(f"cannot read {path}: {e}")
     except UnicodeDecodeError as e:
-        die(f"refusing to modify {path}: it is not valid UTF-8 ({e}).")
+        die(f"refusing to modify {path}: it is not valid UTF-8 ({e}). Re-save it as UTF-8, or remove it, before retrying.")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -313,7 +322,7 @@ def load_settings_for_write(path):
             "Fix or remove it by hand before retrying."
         )
     if not isinstance(data, dict):
-        die(f"refusing to modify {path}: top-level JSON value is not an object.")
+        die(f"refusing to modify {path}: top-level JSON value is not an object. Settings must be a JSON object; fix or remove it by hand before retrying.")
     return data, True, stamp
 
 
@@ -447,8 +456,9 @@ def write_settings(path, data, existed, stamp=None):
 
     indent = 2
     prev_mode = None
+    backup_path = None
     if existed:
-        backup(path)
+        backup_path = backup(path)
         try:
             prev_mode = path.stat().st_mode & 0o7777
             indent = detect_indent(path.read_text(encoding="utf-8-sig"))
@@ -498,8 +508,10 @@ def write_settings(path, data, existed, stamp=None):
             # user nothing; a silently orphaned dotfile-manager link costs them
             # a divergence they will not notice.
             die(f"cannot determine whether {path} is hardlinked ({e}); "
-                f"refusing to write rather than risk breaking a link. Retry, or "
-                f"check the file is readable.")
+                f"refusing to write rather than risk breaking a link. "
+                f"{path} is unchanged, and a backup of it is at {backup_path}. "
+                f"Retry once the file is readable; delete that backup if the "
+                f"retry succeeds, or it will accumulate.")
     # TOCTOU: a link created or removed between this stat and the write below
     # takes whichever path the stat saw. Accepted — backup() has already run on
     # either path, and this is a single-user config file rather than a security
@@ -507,8 +519,8 @@ def write_settings(path, data, existed, stamp=None):
     if nlink > 1:
         warn(
             f"{path} has {nlink} hard links; writing in place to keep them. "
-            f"This single write is not atomic — the backup taken above is the "
-            f"recovery path if it is interrupted."
+            f"This single write is not atomic. If it is interrupted, restore "
+            f"from {backup_path}."
         )
         try:
             with open(path, "w", encoding="utf-8") as f:
@@ -516,7 +528,16 @@ def write_settings(path, data, existed, stamp=None):
                 f.flush()
                 os.fsync(f.fileno())
         except OSError as e:
-            die(f"cannot write {path}: {e}")
+            # The only path in this file that can leave settings.json partially
+            # written: open(path, "w") truncates before writing, and this branch
+            # deliberately forgoes the atomic replace to keep the hard links. A
+            # bare errno here would leave the user staring at [Errno 28] with no
+            # idea their global config may now be damaged, or that a good copy
+            # exists a filename away.
+            die(f"failed part-way through writing {path}: {e}. Because this file "
+                f"has hard links it was written in place, so it may now be "
+                f"INCOMPLETE. A complete copy from before this run is at "
+                f"{backup_path} — restore it with: cp {backup_path} {path}")
         return
 
     tmp_path = None
@@ -634,6 +655,7 @@ def cmd_install(force):
             merged["command"] = (
                 f"PLAN_STATUSLINE_BASE={shlex.quote(base)} " + merged["command"]
             )
+    prefix, reason, shown = None, None, None
     if current is not None and not ours:
         prefix, reason = chain_through(current)
         # `current` may be a bare string rather than a {type, command} object;
@@ -643,21 +665,27 @@ def cmd_install(force):
         if prefix:
             merged["command"] = prefix + merged["command"]
             print(f"Preserved your previous statusline as the base: {shown}")
-        elif reason == "doubles-bar":
-            print(f"NOTE: your previous statusline was NOT chained in:\n"
-                  f"  {shown}\n"
-                  f"  It runs plan-progress.py itself, so chaining it would print the\n"
-                  f"  plan progress bar twice. It is preserved in the backup beside\n"
-                  f"  settings.json; delete it once this install renders correctly.",
-                  file=sys.stderr)
-        else:
-            print(f"NOTE: replaced a statusline this tool cannot chain through:\n"
-                  f"  {shown}\n"
-                  f"  It is preserved in the backup beside settings.json. To keep it "
-                  f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.",
-                  file=sys.stderr)
     data["statusLine"] = merged
+    # These NOTEs are deferred until AFTER the write returns, and that ordering is
+    # the whole point. They tell the user their old statusline "is preserved in the
+    # backup" — a claim about an artifact that only exists if the write actually
+    # happened. Printed beforehand, a refusal (a concurrent edit, an unreadable
+    # link count, a failed backup) produced two contradictory paragraphs in one
+    # run: "it is preserved in the backup", then "nothing was created or changed".
+    # Both cannot be true, and the reader has no way to tell which is.
     write_settings(path, data, existed, stamp)
+    if current is not None and not ours and not prefix:
+        if reason == "doubles-bar":
+            warn(f"your previous statusline was NOT chained in:\n"
+                 f"  {shown}\n"
+                 f"  It runs plan-progress.py itself, so chaining it would print the\n"
+                 f"  plan progress bar twice. It is preserved in the backup beside\n"
+                 f"  settings.json; delete it once this install renders correctly.")
+        else:
+            warn(f"replaced a statusline this tool cannot chain through:\n"
+                 f"  {shown}\n"
+                 f"  It is preserved in the backup beside settings.json. To keep it "
+                 f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.")
     action = "Repaired" if current is not None else "Installed"
     print(f"{action} statusLine -> {merged['command']} in {path}")
     return 0

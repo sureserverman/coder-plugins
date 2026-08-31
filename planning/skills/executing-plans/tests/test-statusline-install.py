@@ -396,7 +396,7 @@ def case_hardlinked_settings():
           "the inode is preserved, so every other link still points at this file")
     check("statusLine" in other.read_text(encoding="utf-8"),
           "the OTHER link sees the new content rather than keeping a stale copy")
-    check("atomic" in r.stderr.lower() or "hardlink" in r.stderr.lower(),
+    check("atomic" in r.stderr.lower() and "hard link" in r.stderr.lower(),
           "the reduced-atomicity trade is disclosed on stderr (got %r)"
           % r.stderr.strip()[:90])
     # The whole design leans on a backup existing before the non-atomic write,
@@ -451,6 +451,12 @@ def case_hardlinked_settings():
         refused = True
     except OSError:
         refused = False
+    # If write_settings ever makes fewer than 5 stat() calls, the injection never
+    # fires and this case would silently stop testing anything. Assert the seam
+    # was actually reached, so drift fails loudly rather than going quiet.
+    check(seen[0] >= 5,
+          "the injected stat failure actually fired (write_settings made %d stat "
+          "calls; the nlink read is the 5th — re-derive if this changes)" % seen[0])
     check(refused and "hardlinked" in err3.getvalue(),
           "an unreadable link count REFUSES with a message naming the hardlink "
           "question, rather than defaulting to the path that breaks links "
