@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """A master's register and its sub-plans agree — in both directions.
 
+RUN AT THE MASTER CLOSE-OUT, which is its position (DEC-017) and not a repo validator.
+It lives here rather than in `scripts/` deliberately: its corpus is the VAULT, so as a
+`check-*.py` in the repo's validator set it made this repo's build red or green according
+to whether four other projects had tidied their registers. A repo's CI may not depend on
+another project's plan hygiene. `master-plans.md` step 5 is what invokes it.
+
 WHY THIS EXISTS. `master-plans.md` step 3 flips a register entry to `[x]` once the
 sub-plan carries a terminal marker, and step 5 forbids the master's own
 `**Completed:**` line while any `[x]` entry's sub-plan is unclosed or carries an
@@ -42,10 +48,26 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-_UNIFY = _HERE.parent / "planning" / "skills" / "portfolio" / "scripts" / "portfolio-unify.py"
+_UNIFY = _HERE.parent.parent / "portfolio" / "scripts" / "portfolio-unify.py"
 _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
 pu = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pu)
+
+# The staleness probe lives beside portfolio-unify.py, not beside this file, so a bare
+# `import _staleness` resolves against sys.path[0] — this script's own directory — and
+# raises. Guarded, that failure is silent, and the probe would pass a grep while warning
+# nobody. Loaded by explicit path for the same reason `pu` is.
+_STALE = _UNIFY.parent / "_staleness.py"
+
+
+def _warn_if_stale():
+    try:
+        spec = importlib.util.spec_from_file_location("_staleness", _STALE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.warn_if_stale(__file__)
+    except Exception:
+        pass          # a probe that cannot load must never stop the command it advises on
 
 # BL-107: the marker is recognised only at column 0. An indented one is the shape an
 # author writes when tying it to the gate box it accepts, and it parses as absent.
@@ -138,6 +160,7 @@ def audit(vault):
 
 
 def main():
+    _warn_if_stale()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", action="store_true", help="machine-readable report")
     ap.add_argument("--vault", help="override the vault directory")

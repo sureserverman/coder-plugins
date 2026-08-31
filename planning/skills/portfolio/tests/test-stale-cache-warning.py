@@ -349,6 +349,10 @@ WIRED = [
     # vault state and its answer is cache-sensitive, so a stale cached copy would resolve
     # against yesterday's rules and say nothing about it.
     ("portfolio", "resolve-plan-home.py"),
+    # Reads vault state at a master close-out; a stale cached copy would judge the
+    # register against yesterday's rules and say nothing about it. Same reason as
+    # resolve-plan-home.py above.
+    ("executing-plans", "check-master-register.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

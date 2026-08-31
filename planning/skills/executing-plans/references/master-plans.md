@@ -79,7 +79,11 @@ gate and surfaces only at the master close-out — the most expensive place to f
    `**Blocked-accepted:**`), and **no gate check in it is `[~]` without that acceptance beside
    the close-out line**. An entry failing either is not done — it is a flip that outran its
    sub-plan, and the master close-out is the last place it can be caught before the whole
-   decomposition is declared finished over it.
+   decomposition is declared finished over it. **The check is a command, not a reading:**
+   `python3 <plugin>/skills/executing-plans/scripts/check-master-register.py` reports every
+   register/sub-plan disagreement in the vault, in both directions, and exits non-zero on
+   any. Run it here. It is deliberately not in the repo's validator set — its corpus is the
+   vault, and a repo's build may not depend on another project's plan hygiene.
 
    This is the master's half of BL-081: nothing here used to cross-check sub-plan **gate**
    state, so a master could be marked `**Completed:**` while a sub-plan gate was `[~]`. Both

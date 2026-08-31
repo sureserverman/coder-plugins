@@ -15,7 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CHECK = Path(__file__).resolve().parents[4] / "scripts" / "check-master-register.py"
+CHECK = Path(__file__).resolve().parents[1] / "scripts" / "check-master-register.py"
 
 RAN, FAILURES = [], []
 
