@@ -15,6 +15,8 @@ repair, and resolve_command()'s versioned/literal resolution.
 """
 import atexit
 import glob
+import io
+import contextlib
 import importlib.util
 import json
 import os
@@ -128,6 +130,611 @@ def case_space_in_path():
           "it execs the newest chain script (got %r)" % run.stdout)
     check(run.stderr == "",
           "and stays silent on stderr")
+
+
+def case_apostrophe_in_path():
+    """The apostrophe half of a claim the record already made.
+
+    Commits `fd2ca84` / `d827283` say the quoting was verified "against paths
+    containing a space **and an apostrophe**". Only the space half shipped as a
+    case (`case_space_in_path`); the apostrophe was checked by hand once and
+    never pinned, so nothing in the suite would notice it regressing. That is a
+    behavioral claim in the permanent record with no artifact behind it — the
+    shape honest-gates names — and this case is the artifact (BL-050).
+
+    An apostrophe is the harder character precisely because the two quoting
+    branches disagree about it: double quotes carry a space fine but leave a
+    single quote to whatever the shell does next, so only the shlex.quote path
+    survives it.
+    """
+    print("25. end-to-end through the generated command, path containing an apostrophe:")
+    home = mkdtemp(prefix="sl it's ")
+    base = os.path.join(home, ".claude", "plugins", "cache", "mkt", "planning")
+    for v in ("0.9.0", "0.37.0"):
+        d = os.path.join(base, v, "skills", "executing-plans", "scripts")
+        os.makedirs(d, exist_ok=True)
+        chain = os.path.join(d, "statusline-chain.sh")
+        with open(chain, "w") as f:
+            f.write('#!/bin/bash\ncat >/dev/null\nprintf "CHAIN-%s"\n' % v)
+        os.chmod(chain, 0o755)
+    installer = os.path.join(base, "0.37.0", "skills", "executing-plans",
+                             "scripts", "statusline-install.py")
+    shutil.copy(SCRIPT, installer)
+    os.makedirs(os.path.join(home, ".claude"), exist_ok=True)
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, installer, "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode == 0, "install rc 0 from a cache path containing an apostrophe")
+    with open(os.path.join(home, ".claude", "settings.json")) as f:
+        written = json.load(f)["statusLine"]["command"]
+    run = subprocess.run(written, shell=True, input="{}",
+                         capture_output=True, text=True)
+    check(run.returncode == 0,
+          "the command written to settings.json exits 0 with an apostrophe in the path")
+    check(run.stdout == "CHAIN-0.37.0",
+          "it execs the newest chain script (got %r)" % run.stdout)
+    check(run.stderr == "", "and stays silent on stderr")
+    # Idempotence: a second install must not double-quote or re-wrap the entry.
+    r2 = subprocess.run([sys.executable, installer, "--install"],
+                        env=env, capture_output=True, text=True)
+    check(r2.returncode == 0, "re-install rc 0")
+    with open(os.path.join(home, ".claude", "settings.json")) as f:
+        again = json.load(f)["statusLine"]["command"]
+    check(again == written, "the written command is byte-identical on re-install")
+
+
+
+def case_bom_settings():
+    """A UTF-8 BOM is stripped on read, not reported as malformed JSON (BL-046).
+
+    The script reads settings.json in THREE places, and a sweep found the third
+    after the plan had named only two. Two of the three are real defects:
+
+      load_settings_for_write -> json.loads raises, so --install dies with
+        "refusing to modify ... malformed JSON" and sends the user to hand-edit
+        a file that is not malformed;
+      cmd_status              -> the same, so --status reports "not valid JSON"
+        and exits 1 on a perfectly good file.
+
+    The third, detect_indent's read inside write_settings, is NOT a defect and
+    is deliberately not asserted here: `detect_indent` matches `^([ \t]+)"`
+    under re.M, so it scans any line and a leading BOM never reached its answer
+    (verified directly: detect_indent returns 4 with and without one). Its read
+    was changed anyway so all three sites share one encoding rule, but claiming
+    a fixture proves that change would be claiming coverage this suite does not
+    have. Editors that write a BOM by default (Notepad, some VS Code setups) are
+    how a settings.json acquires one.
+
+    The written file must come back WITHOUT a BOM: utf-8-sig on read, plain
+    utf-8 on write, so the file is normalised rather than carrying it forever.
+    """
+    print("26. a UTF-8 BOM in settings.json:")
+    # (a) --install: the loud failure
+    home = mkdtemp(prefix="sl bom ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = os.path.join(cl, "settings.json")
+    with open(sp, "w", encoding="utf-8-sig") as f:
+        json.dump({"theme": "dark"}, f, indent=4)
+    r = subprocess.run([sys.executable, SCRIPT, "--install"],
+                       env=dict(os.environ, HOME=home), capture_output=True, text=True)
+    check(r.returncode == 0,
+          "install succeeds on a BOM'd settings.json (rc=%d: %s)"
+          % (r.returncode, r.stderr.strip()[:90]))
+    raw = Path(sp).read_bytes()
+    check(not raw.startswith(b"\xef\xbb\xbf"),
+          "the written settings.json carries no BOM")
+    try:
+        with open(sp, encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (ValueError, OSError) as e:
+        data = {}
+        check(False, "settings.json is readable JSON after the install (%s)" % e)
+    check(data.get("theme") == "dark", "the pre-existing key survives")
+    check("statusLine" in data, "the statusLine entry was written")
+    # The indent assertion is only meaningful because the entry above proves the
+    # file was actually rewritten; on an untouched file it would pass vacuously.
+    lines = Path(sp).read_text(encoding="utf-8-sig").split("\n")
+    indent = (len(lines[1]) - len(lines[1].lstrip())) if len(lines) > 1 else -1
+    check(indent == 4, "the 4-space indent survives the rewrite (got %d)" % indent)
+
+    # (b) --status: the same defect on the read the sweep found
+    home2 = mkdtemp(prefix="sl bomstat ")
+    cl2 = os.path.join(home2, ".claude")
+    os.makedirs(cl2)
+    sp2 = os.path.join(cl2, "settings.json")
+    with open(sp2, "w", encoding="utf-8-sig") as f:
+        json.dump({"statusLine": {"type": "command", "command": "x"}}, f, indent=2)
+    r2 = subprocess.run([sys.executable, SCRIPT, "--status"],
+                        env=dict(os.environ, HOME=home2), capture_output=True, text=True)
+    check(r2.returncode == 0,
+          "--status succeeds on a BOM'd settings.json (rc=%d: %s)"
+          % (r2.returncode, r2.stderr.strip()[:90]))
+    check("not valid JSON" not in r2.stderr,
+          "--status does not call a BOM'd file invalid JSON")
+
+
+def case_backup_atomic_and_pruned():
+    """The backup is the one artifact the rollback path depends on (BL-049).
+
+    Two defects in `backup()`. It was a plain `write_bytes()`, so an ENOSPC or
+    EIO part-way through left a TRUNCATED `.bak` — the original untouched, but
+    the file you would restore from silently unreliable, which is the one file
+    that must not be. And nothing pruned, so backups accumulated in ~/.claude
+    forever, one per install, each a copy of a file that can hold `env` API keys.
+
+    Fault injection is on os.fsync, which is a real symptom (a full or failing
+    disk surfaces there) and which also discriminates: the old write_bytes()
+    path never called fsync, so injecting it left a complete .bak and the
+    "nothing survives a failed backup" assertion failed. The new path writes to
+    a temp name, fsyncs, then renames, so an injected failure leaves neither.
+
+    The mode inheritance is asserted here as a REGRESSION guard, not as new
+    work: it already existed deliberately, and rewriting the function around it
+    is exactly when it would be lost.
+    """
+    print("27. backup() is atomic and pruned:")
+    # `mod` is a local of main(); load our own handle rather than reaching for it.
+    spec = importlib.util.spec_from_file_location("statusline_install_bak", str(SCRIPT))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    home = mkdtemp(prefix="sl bak ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = Path(cl) / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    os.chmod(sp, 0o600)
+
+    # (a) a failed backup leaves nothing behind
+    real_fsync = os.fsync
+    def boom(fd):
+        raise OSError(28, "No space left on device")
+    mod.os.fsync = boom
+    try:
+        try:
+            mod.backup(sp)
+        except (SystemExit, OSError):
+            pass
+    finally:
+        mod.os.fsync = real_fsync
+    leftovers = sorted(Path(cl).glob("settings.json.bak.*")) + sorted(Path(cl).glob("settings.json.*.tmp"))
+    check(not leftovers,
+          "a backup interrupted mid-write leaves no .bak and no .tmp (found %r)"
+          % [f.name for f in leftovers])
+    check(sp.read_text(encoding="utf-8").strip().endswith("}"),
+          "the original settings.json is untouched by a failed backup")
+
+    # (b) mode inheritance survives the rewrite. 0640, deliberately: mkstemp
+    # creates at 0600, so a 0600 source cannot distinguish "inherited" from
+    # "mkstemp's default" and the assertion passes with the chmod deleted — it
+    # did, until the mutant survived and exposed it. 0640 differs from both the
+    # umask default and mkstemp's, so only a real inherit produces it.
+    os.chmod(sp, 0o640)
+    b = mod.backup(sp)
+    got = oct(Path(b).stat().st_mode & 0o777)
+    check(got == "0o640",
+          "the backup inherits the source's mode rather than mkstemp's 0600 or the "
+          "umask's 0644 (got %s) — settings.json can carry env API keys and an "
+          "apiKeyHelper" % got)
+    check(Path(b).read_bytes() == sp.read_bytes(), "the backup is a complete copy")
+    # and the security direction specifically: never WIDER than the source
+    os.chmod(sp, 0o600)
+    b2 = mod.backup(sp)
+    m2 = Path(b2).stat().st_mode & 0o777
+    check(m2 & 0o077 == 0,
+          "a 0600 settings.json never yields a group/world-readable backup (got %s)"
+          % oct(m2))
+
+    # (c) pruning: backups do not accumulate forever
+    created = [Path(mod.backup(sp)) for _ in range(15)]
+    baks = sorted(Path(cl).glob("settings.json.bak.*"))
+    keep = getattr(mod, "BACKUP_KEEP", None)
+    check(keep is not None, "the script declares a BACKUP_KEEP retention bound")
+    check(keep is not None and len(baks) <= keep,
+          "backups are pruned to the newest %s (found %d)" % (keep, len(baks)))
+    # Anchored to the paths backup() actually returned, in creation order.
+    # The previous form compared a sorted list against a slice of itself, which
+    # is true of ANY list and would have passed even had pruning kept the OLDEST
+    # and deleted the newest — the exact regression it was written to catch.
+    survivors = {f.name for f in baks}
+    check(created[-1].name in survivors,
+          "the most recently created backup survived pruning")
+    check(created[0].name not in survivors,
+          "the oldest backup was the one evicted, not an arbitrary member")
+
+    # (d) a crash-orphaned .tmp never occupies a retention slot
+    orphan = Path(cl) / "settings.json.bak.zz_orphan.tmp"
+    orphan.write_bytes(b"partial")
+    # DIGIT-LED hand-names, deliberately. An earlier version of this case used
+    # only `.bak.mine` and concluded no name-shape filter was needed, reasoning
+    # that eviction takes the lexically smallest and digits sort before letters.
+    # That covers a letter-led name and nothing else: each of these sorts AMONG
+    # the timestamps, and all three were silently deleted. The suite proved the
+    # filter unnecessary by testing the one hand-name the reasoning happened to
+    # cover, and generalised from it.
+    hands = [Path(cl) / n for n in ("settings.json.bak.mine",
+                                    "settings.json.bak.1",
+                                    "settings.json.bak.0-original",
+                                    "settings.json.bak.2024-01-01-manual")]
+    for h in hands:
+        h.write_bytes(b"a copy the user made")
+    for _ in range(12):
+        mod.backup(sp)
+    check(not orphan.exists(),
+          "a crash-orphaned .tmp is swept rather than counted as a backup")
+    survivors = [h.name for h in hands if h.exists()]
+    check(len(survivors) == len(hands),
+          "no hand-named backup is deleted, digit-led ones included — this tool "
+          "does not remove files it did not create (lost: %r)"
+          % [h.name for h in hands if not h.exists()])
+    ours = [f for f in Path(cl).glob("settings.json.bak.*")
+            if mod.BACKUP_NAME_RE.search(f.name)]
+    check(len(ours) <= mod.BACKUP_KEEP,
+          "and OUR backups are still pruned to %d (found %d) — the filter must "
+          "not disable pruning" % (mod.BACKUP_KEEP, len(ours)))
+
+
+
+def case_hardlinked_settings():
+    """A hardlinked settings.json keeps its links (BL-048).
+
+    mkstemp + os.replace swaps a whole inode, so a settings.json that is one of
+    several hardlinks to the same file loses the link: count drops 2 -> 1 and
+    every other path keeps the OLD content forever, diverging silently.
+
+    The fix preserves the link and pays for it in atomicity, which is a real
+    trade and is disclosed rather than hidden. The precedent is this script's
+    own get_settings_path(), which already resolves SYMLINKS so a dotfile
+    manager's real file is the one written -- "following the link writes where
+    they expect". A hardlink is the same class of user-established topology, so
+    the same reasoning applies. The single-link path is untouched and stays
+    fully atomic, which this case pins by inode identity: replaced when there is
+    one link, preserved when there are two. Losing that distinction silently is
+    the regression worth catching.
+    """
+    print("28. a hardlinked settings.json:")
+    # (a) two links: the link survives and BOTH paths see the new content
+    home = mkdtemp(prefix="sl hl ")
+    cl = os.path.join(home, ".claude")
+    os.makedirs(cl)
+    sp = Path(cl) / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    other = Path(home) / "dotfiles-settings.json"
+    os.link(sp, other)
+    ino_before = sp.stat().st_ino
+    r = subprocess.run([sys.executable, SCRIPT, "--install"],
+                       env=dict(os.environ, HOME=home), capture_output=True, text=True)
+    check(r.returncode == 0, "install rc 0 on a hardlinked settings.json")
+    check(sp.stat().st_nlink == 2,
+          "the hardlink survives the install (nlink=%d, was 2)" % sp.stat().st_nlink)
+    check(sp.stat().st_ino == ino_before,
+          "the inode is preserved, so every other link still points at this file")
+    check("statusLine" in other.read_text(encoding="utf-8"),
+          "the OTHER link sees the new content rather than keeping a stale copy")
+    check("atomic" in r.stderr.lower() and "hard link" in r.stderr.lower(),
+          "the reduced-atomicity trade is disclosed on stderr (got %r)"
+          % r.stderr.strip()[:90])
+    # The whole design leans on a backup existing before the non-atomic write,
+    # so pin the artifact rather than trusting the prose that asserts it.
+    check(list(Path(cl).glob("settings.json.bak.*")),
+          "a backup exists after the in-place write — the recovery path the "
+          "non-atomic branch depends on is a file, not a claim")
+
+    # (a2) if the link count cannot be READ, the write refuses rather than
+    # guessing. The old default was nlink = 0, which routes to the atomic
+    # replace -- the exact link-breaking behaviour this branch prevents, done
+    # silently and indistinguishably from a legitimate single-link file.
+    #
+    # The stat is armed on the FIFTH call, which is the nlink read; the four
+    # before it are backup()'s and the prev_mode/mkdir reads. An earlier
+    # attempt armed on a flag set right after backup(), which also broke
+    # prev_mode and detect_indent two lines later -- so BOTH the fixed and the
+    # fail-open builds died for unrelated reasons and the assertion passed
+    # either way. It was vacuous, and only the mutation showed it.
+    #
+    # This is why the assertion below checks the MESSAGE and not just the exit:
+    # if the call order ever drifts so that call 5 is no longer the nlink read,
+    # this fails loudly and tells you to re-count, instead of quietly passing.
+    spec_h = importlib.util.spec_from_file_location("statusline_install_hl", str(SCRIPT))
+    mod_h = importlib.util.module_from_spec(spec_h)
+    spec_h.loader.exec_module(mod_h)
+
+    home3 = mkdtemp(prefix="sl statfail ")
+    cl3 = os.path.join(home3, ".claude")
+    os.makedirs(cl3)
+    sp3 = Path(cl3) / "settings.json"
+    sp3.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    before3 = sp3.read_bytes()
+
+    seen = [0]
+
+    class StatFailsOnNlinkRead(type(Path(cl3))):
+        def stat(self, *a, **kw):
+            seen[0] += 1
+            if seen[0] == 5:
+                raise OSError(5, "Input/output error")
+            return super().stat(*a, **kw)
+
+    err3 = io.StringIO()
+    refused = False
+    try:
+        with contextlib.redirect_stderr(err3):
+            mod_h.write_settings(
+                StatFailsOnNlinkRead(str(sp3)),
+                {"statusLine": {"type": "command", "command": "x"}}, True)
+    except SystemExit:
+        refused = True
+    except OSError:
+        refused = False
+    # If write_settings ever makes fewer than 5 stat() calls, the injection never
+    # fires and this case would silently stop testing anything. Assert the seam
+    # was actually reached, so drift fails loudly rather than going quiet.
+    check(seen[0] >= 5,
+          "the injected stat failure actually fired (write_settings made %d stat "
+          "calls; the nlink read is the 5th — re-derive if this changes)" % seen[0])
+    check(refused and "hardlinked" in err3.getvalue(),
+          "an unreadable link count REFUSES with a message naming the hardlink "
+          "question, rather than defaulting to the path that breaks links "
+          "(refused=%s, stderr=%r)" % (refused, err3.getvalue().strip()[:80]))
+    check(sp3.read_bytes() == before3,
+          "and settings.json is left byte-identical when it refuses")
+
+    # (b) one link: the atomic replace path is unchanged, proven by inode change
+    home2 = mkdtemp(prefix="sl nohl ")
+    cl2 = os.path.join(home2, ".claude")
+    os.makedirs(cl2)
+    sp2 = Path(cl2) / "settings.json"
+    sp2.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    ino2_before = sp2.stat().st_ino
+    r2 = subprocess.run([sys.executable, SCRIPT, "--install"],
+                        env=dict(os.environ, HOME=home2), capture_output=True, text=True)
+    check(r2.returncode == 0, "install rc 0 on an ordinary settings.json")
+    check(sp2.stat().st_ino != ino2_before,
+          "a single-link file still goes through mkstemp + os.replace (inode changed)")
+    check("atomic" not in r2.stderr.lower(),
+          "and says nothing about atomicity, because nothing was traded")
+
+
+
+def case_concurrent_edit_refused():
+    """A concurrent edit is detected, not silently discarded (BL-045).
+
+    The atomic replace protects against a TORN settings.json, not a STALE one.
+    Between load_settings_for_write() and write_settings() the whole file is
+    held in memory, so anything Claude Code itself writes in that window -- a
+    /config theme change, a permission approval -- is overwritten by the older
+    copy and gone, with nothing to trace the loss back here. The window is
+    milliseconds, but this is global config that another process edits by design.
+
+    The refusal names WHAT changed and states that nothing was created or lost —
+    deliberately not a backup path, because the check runs before backup() and
+    no backup is taken. An earlier draft of this docstring claimed the opposite
+    and contradicted the code it describes.
+
+    The stamp is a content digest, not (mtime, size): macOS HFS+ has one-second
+    mtime granularity, so a same-second same-length edit would have slipped
+    through on a platform this repo supports.
+
+    The negative half matters as much: an install with NO concurrent edit must
+    still succeed. A staleness check that refuses too eagerly breaks every
+    ordinary install, which is a worse defect than the one being fixed.
+    """
+    print("29. a concurrent edit between load and write:")
+    spec = importlib.util.spec_from_file_location("statusline_install_conc", str(SCRIPT))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    # (a) an edit lands in the window -> refuse, and say where the backup is
+    home = mkdtemp(prefix="sl conc ")
+    cl = Path(home) / ".claude"
+    cl.mkdir()
+    sp = cl / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    loaded = mod.load_settings_for_write(sp)
+    data, existed, stamp = loaded if len(loaded) == 3 else (loaded[0], loaded[1], None)
+    concurrent = {"theme": "dark", "permissions": {"allow": ["Bash"]}}
+    sp.write_text(json.dumps(concurrent, indent=2) + "\n", encoding="utf-8")
+    data["statusLine"] = {"type": "command", "command": "x"}
+    err = io.StringIO()
+    refused = False
+    try:
+        with contextlib.redirect_stderr(err):
+            try:
+                mod.write_settings(sp, data, existed, stamp)
+            except TypeError:
+                # write_settings does not take a stamp yet — that IS the defect,
+                # so record it as one rather than crashing the suite.
+                mod.write_settings(sp, data, existed)
+    except SystemExit:
+        refused = True
+    msg = err.getvalue()
+    check(refused, "a write over a concurrently-edited settings.json refuses")
+    check("changed" in msg.lower() or "concurrent" in msg.lower(),
+          "the refusal names the conflict (got %r)" % msg.strip()[:90])
+    check(not list(cl.glob("settings.json.bak.*")),
+          "the refusal takes NO backup — it happens before any side effect, so "
+          "there is nothing to clean up and no backup of the concurrent edit "
+          "masquerading as a backup of ours")
+    final = json.loads(sp.read_text(encoding="utf-8"))
+    check("permissions" in final,
+          "the concurrent edit survives — refusing means not writing at all")
+
+    # (a2) the case (mtime, size) could not see, and macOS would actually hit.
+    # The concurrent edit keeps the byte length ("dark" -> "lite") AND the mtime
+    # is pinned back to the original, which is what one-second HFS+ granularity
+    # produces for two writes in the same second. Under the old stamp both
+    # components match and the edit is silently overwritten; the digest sees the
+    # bytes. Without the utime this fixture would pass on Linux either way,
+    # because nanosecond mtime differs — it would look like coverage and be none.
+    home1b = mkdtemp(prefix="sl samelen ")
+    cl1b = Path(home1b) / ".claude"
+    cl1b.mkdir()
+    sp1b = cl1b / "settings.json"
+    sp1b.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    orig_st = sp1b.stat()
+    loaded1b = mod.load_settings_for_write(sp1b)
+    d1b, e1b, s1b = loaded1b if len(loaded1b) == 3 else (loaded1b[0], loaded1b[1], None)
+    sp1b.write_text(json.dumps({"theme": "lite"}, indent=2) + "\n", encoding="utf-8")
+    os.utime(sp1b, ns=(orig_st.st_atime_ns, orig_st.st_mtime_ns))
+    after_st = sp1b.stat()
+    check(after_st.st_size == orig_st.st_size
+          and after_st.st_mtime_ns == orig_st.st_mtime_ns,
+          "the fixture really is indistinguishable by (mtime, size)")
+    d1b["statusLine"] = {"type": "command", "command": "x"}
+    refused1b = False
+    err1b = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err1b):
+            mod.write_settings(sp1b, d1b, e1b, s1b)
+    except SystemExit:
+        refused1b = True
+    check(refused1b,
+          "a same-length edit at an identical mtime is still caught — the case "
+          "one-second mtime granularity on macOS actually produces")
+    check("lite" in sp1b.read_text(encoding="utf-8"),
+          "and that concurrent edit survives")
+
+    # (c) the file did NOT exist at read time and another process CREATES it in
+    # the window. Every guard here is gated on `existed`, decided at read time,
+    # so without an explicit check the staleness test is skipped, no backup is
+    # taken, nlink stays 0, and the atomic replace overwrites what that process
+    # just wrote — all of this plan's protections failing open together.
+    home1c = mkdtemp(prefix="sl created ")
+    cl1c = Path(home1c) / ".claude"
+    cl1c.mkdir()
+    sp1c = cl1c / "settings.json"
+    loaded1c = mod.load_settings_for_write(sp1c)          # absent: existed=False
+    d1c, e1c, s1c = loaded1c if len(loaded1c) == 3 else (loaded1c[0], loaded1c[1], None)
+    check(e1c is False, "the fixture really starts from an absent settings.json")
+    sp1c.write_text(json.dumps({"permissions": {"allow": ["Bash"]}}, indent=2) + "\n",
+                    encoding="utf-8")
+    d1c["statusLine"] = {"type": "command", "command": "x"}
+    refused1c = False
+    err1c = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err1c):
+            mod.write_settings(sp1c, d1c, e1c, s1c)
+    except SystemExit:
+        refused1c = True
+    check(refused1c and "created" in err1c.getvalue(),
+          "a file created in the window is not overwritten unseen (stderr=%r)"
+          % err1c.getvalue().strip()[:80])
+    check("permissions" in json.loads(sp1c.read_text(encoding="utf-8")),
+          "and the other process's content survives")
+
+    # (b) no concurrent edit -> an ordinary install still works
+    home2 = mkdtemp(prefix="sl noconc ")
+    cl2 = Path(home2) / ".claude"
+    cl2.mkdir()
+    sp2 = cl2 / "settings.json"
+    sp2.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    r2 = subprocess.run([sys.executable, SCRIPT, "--install"],
+                        env=dict(os.environ, HOME=str(home2)), capture_output=True, text=True)
+    check(r2.returncode == 0,
+          "an ordinary install with no concurrent edit still succeeds (rc=%d: %s)"
+          % (r2.returncode, r2.stderr.strip()[:80]))
+    check("statusLine" in sp2.read_text(encoding="utf-8"),
+          "and actually wrote the entry")
+
+
+
+def case_literal_mode_is_disclosed():
+    """A dev-checkout install says so, on both surfaces that report mode (BL-047).
+
+    Run from a working tree, the installer writes a literal path into that tree,
+    so every session in every project renders from the checkout rather than the
+    installed plugin -- the exact "shipped renderer and the running one silently
+    diverge" defect progress-state-file.md and README.md blame on hand-written
+    wrappers. The docstring called literal mode "correct for a dev checkout",
+    which is true about the path's stability and silent about the divergence,
+    and neither the install nor --status distinguished a checkout copy from an
+    installed one.
+
+    Literal mode is NOT suppressed -- it is the only mode available before a
+    version carrying these files is published, and it still works. It just says
+    what it is. Both surfaces are asserted because a warning on one and silence
+    on the other is the same divergence in a smaller form.
+
+    Fixture paths deliberately avoid the words this asserts on: an earlier probe
+    reported the mode was disclosed when it was only reading its own temp
+    directory name.
+    """
+    print("30. a dev-checkout install discloses literal mode:")
+    home = mkdtemp(prefix="sl tree ")
+    cl = Path(home) / ".claude"
+    cl.mkdir()
+    d = Path(home) / "wt" / "skills" / "executing-plans" / "scripts"
+    d.mkdir(parents=True)
+    shutil.copy(SCRIPT, d / "statusline-install.py")
+    chain = d / "statusline-chain.sh"
+    chain.write_text('#!/bin/bash\ncat >/dev/null\nprintf "X"\n')
+    os.chmod(chain, 0o755)
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode == 0, "a checkout install still SUCCEEDS — literal mode is not suppressed")
+    check("checkout" in r.stderr.lower(),
+          "the install says it is running from a checkout (got %r)" % r.stderr.strip()[:100])
+    # a REPEAT install (the common case) must disclose too — it returns early
+    r_again = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--install"],
+                             env=env, capture_output=True, text=True)
+    check("nothing to do" in r_again.stdout, "the second install is a no-op")
+    check("checkout" in r_again.stderr.lower(),
+          "and STILL says it is a checkout — the repeat install is the common "
+          "case, so silence there hides it exactly when someone is checking "
+          "(got %r)" % r_again.stderr.strip()[:90])
+
+    s = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--status"],
+                       env=env, capture_output=True, text=True)
+    check("checkout" in s.stdout.lower(),
+          "--status reports the mode as a checkout, not merely the path (got %r)"
+          % s.stdout.strip()[:120])
+
+    # --status must describe the WIRED ENTRY, not the running script. Invoke the
+    # checkout's --status against a settings.json holding a VERSIONED entry: the
+    # old code asked resolve_command() about itself and answered "checkout",
+    # which is this repo's own workflow producing a false diagnostic.
+    home_x = mkdtemp(prefix="sl cross ")
+    clx = Path(home_x) / ".claude"
+    clx.mkdir()
+    versioned_cmd = (
+        "sh -c 'd=/somewhere/.claude/plugins/cache/mkt/planning; "
+        "s=skills/executing-plans/scripts/statusline-chain.sh; exec bash \"$d\"'")
+    (clx / "settings.json").write_text(
+        json.dumps({"statusLine": {"type": "command", "command": versioned_cmd}}, indent=2) + "\n",
+        encoding="utf-8")
+    sx = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--status"],
+                        env=dict(os.environ, HOME=home_x), capture_output=True, text=True)
+    check("checkout" not in sx.stdout.lower(),
+          "a checkout's --status does NOT call a versioned entry a checkout — the "
+          "mode describes the entry, not the running script (got %r)"
+          % sx.stdout.strip()[:110])
+
+    # a versioned install says neither thing
+    home2 = mkdtemp(prefix="sl pub ")
+    cl2 = Path(home2) / ".claude"
+    cl2.mkdir()
+    base = Path(home2) / ".claude" / "plugins" / "cache" / "mkt" / "planning"
+    for v in ("0.9.0", "0.37.0"):
+        vd = base / v / "skills" / "executing-plans" / "scripts"
+        vd.mkdir(parents=True)
+        c = vd / "statusline-chain.sh"
+        c.write_text('#!/bin/bash\ncat >/dev/null\nprintf "CHAIN-%s"\n' % v)
+        os.chmod(c, 0o755)
+    inst = base / "0.37.0" / "skills" / "executing-plans" / "scripts" / "statusline-install.py"
+    shutil.copy(SCRIPT, inst)
+    env2 = dict(os.environ, HOME=home2)
+    r2 = subprocess.run([sys.executable, str(inst), "--install"],
+                        env=env2, capture_output=True, text=True)
+    check(r2.returncode == 0, "a versioned install succeeds")
+    check("checkout" not in r2.stderr.lower(),
+          "and says nothing about a checkout, because it is not one (got %r)"
+          % r2.stderr.strip()[:100])
+    s2 = subprocess.run([sys.executable, str(inst), "--status"],
+                        env=env2, capture_output=True, text=True)
+    check("checkout" not in s2.stdout.lower(),
+          "nor does --status (got %r)" % s2.stdout.strip()[:120])
+
 
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
@@ -631,6 +1238,12 @@ def main():
 
     print()
     case_space_in_path()
+    case_apostrophe_in_path()
+    case_bom_settings()
+    case_backup_atomic_and_pruned()
+    case_hardlinked_settings()
+    case_concurrent_edit_refused()
+    case_literal_mode_is_disclosed()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()
