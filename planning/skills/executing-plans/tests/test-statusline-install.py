@@ -15,6 +15,8 @@ repair, and resolve_command()'s versioned/literal resolution.
 """
 import atexit
 import glob
+import io
+import contextlib
 import importlib.util
 import json
 import os
@@ -406,24 +408,21 @@ def case_hardlinked_settings():
     # (a2) if the link count cannot be READ, the write refuses rather than
     # guessing. The old default was nlink = 0, which routes to the atomic
     # replace -- the exact link-breaking behaviour this branch prevents, done
-    # silently and indistinguishably from a legitimate single-link file. A
-    # fail-open default on the one question the code exists to answer.
+    # silently and indistinguishably from a legitimate single-link file.
+    #
+    # The stat is armed on the FIFTH call, which is the nlink read; the four
+    # before it are backup()'s and the prev_mode/mkdir reads. An earlier
+    # attempt armed on a flag set right after backup(), which also broke
+    # prev_mode and detect_indent two lines later -- so BOTH the fixed and the
+    # fail-open builds died for unrelated reasons and the assertion passed
+    # either way. It was vacuous, and only the mutation showed it.
+    #
+    # This is why the assertion below checks the MESSAGE and not just the exit:
+    # if the call order ever drifts so that call 5 is no longer the nlink read,
+    # this fails loudly and tells you to re-count, instead of quietly passing.
     spec_h = importlib.util.spec_from_file_location("statusline_install_hl", str(SCRIPT))
     mod_h = importlib.util.module_from_spec(spec_h)
     spec_h.loader.exec_module(mod_h)
-
-    class StatFailsOnceReady(type(Path(cl))):
-        """Real Path in every respect until arming; then stat() raises.
-
-        Armed only after backup() and the prev_mode read have run, so the test
-        exercises the nlink read specifically rather than an earlier failure.
-        """
-        _armed = False
-
-        def stat(self, *a, **kw):
-            if StatFailsOnceReady._armed:
-                raise OSError(5, "Input/output error")
-            return super().stat(*a, **kw)
 
     home3 = mkdtemp(prefix="sl statfail ")
     cl3 = os.path.join(home3, ".claude")
@@ -431,28 +430,31 @@ def case_hardlinked_settings():
     sp3 = Path(cl3) / "settings.json"
     sp3.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
     before3 = sp3.read_bytes()
-    victim = StatFailsOnceReady(str(sp3))
-    real_backup = mod_h.backup
 
-    def arming_backup(pth):
-        out = real_backup(pth)
-        StatFailsOnceReady._armed = True
-        return out
+    seen = [0]
 
-    mod_h.backup = arming_backup
+    class StatFailsOnNlinkRead(type(Path(cl3))):
+        def stat(self, *a, **kw):
+            seen[0] += 1
+            if seen[0] == 5:
+                raise OSError(5, "Input/output error")
+            return super().stat(*a, **kw)
+
+    err3 = io.StringIO()
     refused = False
     try:
-        mod_h.write_settings(victim, {"statusLine": {"type": "command", "command": "x"}}, True)
+        with contextlib.redirect_stderr(err3):
+            mod_h.write_settings(
+                StatFailsOnNlinkRead(str(sp3)),
+                {"statusLine": {"type": "command", "command": "x"}}, True)
     except SystemExit:
         refused = True
     except OSError:
         refused = False
-    finally:
-        StatFailsOnceReady._armed = False
-        mod_h.backup = real_backup
-    check(refused,
-          "an unreadable link count makes the write REFUSE, rather than "
-          "defaulting to the path that breaks hardlinks")
+    check(refused and "hardlinked" in err3.getvalue(),
+          "an unreadable link count REFUSES with a message naming the hardlink "
+          "question, rather than defaulting to the path that breaks links "
+          "(refused=%s, stderr=%r)" % (refused, err3.getvalue().strip()[:80]))
     check(sp3.read_bytes() == before3,
           "and settings.json is left byte-identical when it refuses")
 
