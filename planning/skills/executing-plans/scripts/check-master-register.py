@@ -254,6 +254,11 @@ def audit(vault):
             for cand in sorted(d.rglob("*.md")):
                 if ".audit-backups" in cand.parts or cand.resolve() in listed:
                     continue
+                if pu.is_not_a_plan(cand):
+                    # Same predicate the classifier uses, from the same owner. Two
+                    # scripts reading one corpus while disagreeing about what counts as
+                    # a plan is the drift the one-owner rule exists to prevent.
+                    continue
                 try:
                     ctext = cand.read_text(encoding="utf-8", errors="replace")
                 except OSError:

@@ -204,6 +204,23 @@ def main():
         check("an abandoned sub-plan's unrun gate is clean (step 3's third marker)",
               rc == 0 and not got, f"exit {rc} with findings {got}")
 
+    # The two scripts read one corpus and must agree about what a plan is. A design doc
+    # backlinking a master is not an unregistered sub-plan — it is not a sub-plan at all.
+    DESIGN = "# Design: something\nDate: 2026-01-01\nMaster: ./master-plan.md\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        d = build(tmp, state="[x]", sub_closeout="\n**Completed:** 2026-01-02 — done\n")
+        (d / "2026-01-01-thing-design.md").write_text(DESIGN, encoding="utf-8")
+        got, rc = kinds(tmp)
+        check("a design doc backlinking a master is not SUBPLAN-UNREGISTERED",
+              "SUBPLAN-UNREGISTERED" not in got, f"got {got}")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = build(tmp, state="[x]", sub_closeout="\n**Completed:** 2026-01-02 — done\n")
+        # inversion: the same file under a plan name IS an unregistered sub-plan
+        (d / "2026-01-01-thing-plan.md").write_text(DESIGN, encoding="utf-8")
+        got, rc = kinds(tmp)
+        check("mutant dies: the same content under a -plan.md name IS reported",
+              "SUBPLAN-UNREGISTERED" in got, f"got {got}")
+
     print(f"assertions run ({len(RAN)})")
     for n in RAN:
         print(f"  - {n}")
