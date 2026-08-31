@@ -45,10 +45,18 @@ gate and surfaces only at the master close-out — the most expensive place to f
    `"Sub-plan N green"`.
 
    **What flips the entry is a terminal marker in the sub-plan file, and the set has exactly
-   two members:** `**Completed:**` alone, or `**Completed:**` **together with**
-   `**Blocked-accepted:** <date> — <why>` when one of that sub-plan's gate checks is `[~]`.
-   Both are written into the sub-plan **before** the entry flips. **An intention to close out
-   later is not a member of that set.**
+   three members:** `**Completed:**` alone; `**Completed:**` **together with**
+   `**Blocked-accepted:** <date> — <why>` when one of that sub-plan's gate checks is `[~]`; or
+   `**Abandoned:**`. All are written into the sub-plan **before** the entry flips. **An
+   intention to close out later is not a member of that set.**
+
+   **Why abandonment is in the set, though it is not completion.** The register's vocabulary is
+   `[ xX~]` and has no abandoned state, so the only alternative is leaving the entry `[ ]`
+   forever — and step 5 needs every entry `[x]` before a master can close, which strands the
+   whole decomposition on one sub-plan that will never finish. `[x]` beside a sub-plan carrying
+   `**Abandoned:**` is the least-lossy representation available: the register says the entry is
+   resolved, and the sub-plan says how. What it must never mean is that the work was done — if
+   an abandoned sub-plan's goal still matters, the master is what needs re-scoping.
 
    **Why this needed saying.** With a blocked gate, three rules collide and cannot all hold:
    this step wants the sub-plan's `**Completed:**` line first; `close-out.md` § *Closing a plan

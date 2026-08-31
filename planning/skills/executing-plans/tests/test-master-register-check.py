@@ -32,14 +32,14 @@ Date: 2026-01-01
 ## Sub-plans
 
 ### Sub-plan 1: The only one
-- **Status:** [{state}]
+- **Status:** {state}
 - **Plan:** ./sub-01-thing-plan.md
 - **Goal:** a thing
 - **Depends on:** none
 - **Blocks:** none
 
 **Gate:**
-- [ ] the thing integrates
+- [{mgate}] the thing integrates
 {closeout}"""
 
 SUB = """# Project Plan: The only one
@@ -55,14 +55,22 @@ Master: ./master-plan.md
 {closeout}"""
 
 
-def build(tmp, *, state, sub_closeout="", master_closeout="", gate="x"):
-    """One master + one sub-plan on disk, in the vault layout the checker globs."""
+def build(tmp, *, state, sub_closeout="", master_closeout="", gate="x", mgate=" ",
+          extra_sub=None):
+    """One master + one sub-plan on disk, in the vault layout the checker globs.
+
+    `state` is the literal Status payload, so a case can pass an out-of-contract one.
+    `extra_sub` writes a second sub-plan file that backlinks the master.
+    """
     d = Path(tmp) / "Portfolio" / "area" / "proj" / "plans"
     d.mkdir(parents=True, exist_ok=True)
     (d / "master-plan.md").write_text(
-        MASTER.format(title="T", state=state, closeout=master_closeout), encoding="utf-8")
+        MASTER.format(title="T", state=state, closeout=master_closeout, mgate=mgate),
+        encoding="utf-8")
     (d / "sub-01-thing-plan.md").write_text(
         SUB.format(gate=gate, closeout=sub_closeout), encoding="utf-8")
+    if extra_sub is not None:
+        (d / "sub-02-other-plan.md").write_text(extra_sub, encoding="utf-8")
     return d
 
 
@@ -95,37 +103,84 @@ def main():
 
     # Step 3: the entry flips only once the sub-plan carries a terminal marker.
     case("REGISTER-AHEAD", "REGISTER-AHEAD",
-         fires={"state": "x", "sub_closeout": ""},
-         silent={"state": "x", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"})
+         fires={"state": "[x]", "sub_closeout": ""},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"})
 
     # BL-104: the mirror. A closed sub-plan whose entry never got flipped.
     case("REGISTER-BEHIND", "REGISTER-BEHIND",
-         fires={"state": " ", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"},
-         silent={"state": "x", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"})
+         fires={"state": "[ ]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"})
 
     # Step 5 / BL-081: a master closed over a sub-plan whose gate never ran.
     case("MASTER-OVER-BLOCKED", "MASTER-OVER-BLOCKED",
-         fires={"state": "x", "gate": "~",
+         fires={"state": "[x]", "gate": "~",
                 "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
                 "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"},
          # the inversion is the acceptance, at column 0 — the whole point of the marker
-         silent={"state": "x", "gate": "~",
+         silent={"state": "[x]", "gate": "~",
                  "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"
                                  "**Blocked-accepted:** 2026-01-02 — no hardware here\n",
                  "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"})
 
     # BL-107: the same acceptance, indented, parses as absent.
     case("ACCEPTANCE-UNPARSED", "ACCEPTANCE-UNPARSED",
-         fires={"state": "x", "gate": "~",
+         fires={"state": "[x]", "gate": "~",
                 "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"
                                 "  **Blocked-accepted:** 2026-01-02 — indented, so invisible\n"},
-         silent={"state": "x", "gate": "~",
+         silent={"state": "[x]", "gate": "~",
                  "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"
                                  "**Blocked-accepted:** 2026-01-02 — column 0\n"})
 
+
+    # B1 (Blocking, found by the gate evaluator): step 5 runs BEFORE the master's
+    # Completed line, so a check gated on master_closed is inert at the one moment the
+    # rule invokes it. The fires-fixture has NO master close-out on purpose.
+    case("REGISTER-AHEAD-UNACCEPTED", "REGISTER-AHEAD-UNACCEPTED",
+         fires={"state": "[x]", "gate": "~",
+                "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"},
+         silent={"state": "[x]", "gate": "~",
+                 "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"
+                                 "**Blocked-accepted:** 2026-01-02 — no hardware\n"})
+
+    # M2: step 5's FIRST clause — every entry [x] — had no check at all.
+    case("MASTER-OVER-UNFINISHED", "MASTER-OVER-UNFINISHED",
+         fires={"state": "[ ]", "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                 "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"})
+
+    # M3: the master's own cross-plan **Gate:** checks are class members too.
+    case("MASTER-GATE-BLOCKED", "MASTER-GATE-BLOCKED",
+         fires={"state": "[x]", "mgate": "~",
+                "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"},
+         silent={"state": "[x]", "mgate": "x",
+                 "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                 "master_closeout": "\n**Completed:** 2026-01-03 — sub-plans: 1\n"})
+
+    # M4: an entry whose Status is outside `[ xX~]` was dropped by the walk in silence,
+    # so BOTH directions went unchecked for it.
+    case("ENTRY-UNPARSED", "ENTRY-UNPARSED",
+         fires={"state": "[done]"},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n"})
+
+    # M5: the membership axis — a sub-plan backlinking the master with no register entry.
+    ORPHAN = "# Project Plan: Other\nDate: 2026-01-01\nMaster: ./master-plan.md\n\n### Task 1.1: x\n- **Status:** [ ]\n"
+    case("SUBPLAN-UNREGISTERED", "SUBPLAN-UNREGISTERED",
+         fires={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                "extra_sub": ORPHAN},
+         silent={"state": "[x]", "sub_closeout": "\n**Completed:** 2026-01-02 — done\n",
+                 "extra_sub": ORPHAN.replace("Master: ./master-plan.md", "Master: ./other-master.md")})
+
+    # M1 / the reviewer split: abandonment IS terminal for the register (master-plans.md
+    # step 3 now names three members), so an unflipped abandoned entry is REGISTER-BEHIND
+    # rather than legal — otherwise it deadlocks the master forever.
+    case("REGISTER-BEHIND on abandonment", "REGISTER-BEHIND",
+         fires={"state": "[ ]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n"},
+         silent={"state": "[x]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n"})
+
     # An abandoned sub-plan is terminal too — closed, not unfinished.
     with tempfile.TemporaryDirectory() as t:
-        build(t, state="x", sub_closeout="\n**Abandoned:** 2026-01-02 — retired by the owner\n")
+        build(t, state="[x]", sub_closeout="\n**Abandoned:** 2026-01-02 — retired by the owner\n")
         got, rc = kinds(t)
         check("**Abandoned:** is a terminal marker, not a desync",
               "REGISTER-AHEAD" not in got, f"got {got}")
