@@ -474,6 +474,120 @@ def case_hardlinked_settings():
           "and says nothing about atomicity, because nothing was traded")
 
 
+
+def case_concurrent_edit_refused():
+    """A concurrent edit is detected, not silently discarded (BL-045).
+
+    The atomic replace protects against a TORN settings.json, not a STALE one.
+    Between load_settings_for_write() and write_settings() the whole file is
+    held in memory, so anything Claude Code itself writes in that window -- a
+    /config theme change, a permission approval -- is overwritten by the older
+    copy and gone, with nothing to trace the loss back here. The window is
+    milliseconds, but this is global config that another process edits by design.
+
+    The refusal names WHAT changed and states that nothing was created or lost —
+    deliberately not a backup path, because the check runs before backup() and
+    no backup is taken. An earlier draft of this docstring claimed the opposite
+    and contradicted the code it describes.
+
+    The stamp is a content digest, not (mtime, size): macOS HFS+ has one-second
+    mtime granularity, so a same-second same-length edit would have slipped
+    through on a platform this repo supports.
+
+    The negative half matters as much: an install with NO concurrent edit must
+    still succeed. A staleness check that refuses too eagerly breaks every
+    ordinary install, which is a worse defect than the one being fixed.
+    """
+    print("29. a concurrent edit between load and write:")
+    spec = importlib.util.spec_from_file_location("statusline_install_conc", str(SCRIPT))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    # (a) an edit lands in the window -> refuse, and say where the backup is
+    home = mkdtemp(prefix="sl conc ")
+    cl = Path(home) / ".claude"
+    cl.mkdir()
+    sp = cl / "settings.json"
+    sp.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    loaded = mod.load_settings_for_write(sp)
+    data, existed, stamp = loaded if len(loaded) == 3 else (loaded[0], loaded[1], None)
+    concurrent = {"theme": "dark", "permissions": {"allow": ["Bash"]}}
+    sp.write_text(json.dumps(concurrent, indent=2) + "\n", encoding="utf-8")
+    data["statusLine"] = {"type": "command", "command": "x"}
+    err = io.StringIO()
+    refused = False
+    try:
+        with contextlib.redirect_stderr(err):
+            try:
+                mod.write_settings(sp, data, existed, stamp)
+            except TypeError:
+                # write_settings does not take a stamp yet — that IS the defect,
+                # so record it as one rather than crashing the suite.
+                mod.write_settings(sp, data, existed)
+    except SystemExit:
+        refused = True
+    msg = err.getvalue()
+    check(refused, "a write over a concurrently-edited settings.json refuses")
+    check("changed" in msg.lower() or "concurrent" in msg.lower(),
+          "the refusal names the conflict (got %r)" % msg.strip()[:90])
+    check(not list(cl.glob("settings.json.bak.*")),
+          "the refusal takes NO backup — it happens before any side effect, so "
+          "there is nothing to clean up and no backup of the concurrent edit "
+          "masquerading as a backup of ours")
+    final = json.loads(sp.read_text(encoding="utf-8"))
+    check("permissions" in final,
+          "the concurrent edit survives — refusing means not writing at all")
+
+    # (a2) the case (mtime, size) could not see, and macOS would actually hit.
+    # The concurrent edit keeps the byte length ("dark" -> "lite") AND the mtime
+    # is pinned back to the original, which is what one-second HFS+ granularity
+    # produces for two writes in the same second. Under the old stamp both
+    # components match and the edit is silently overwritten; the digest sees the
+    # bytes. Without the utime this fixture would pass on Linux either way,
+    # because nanosecond mtime differs — it would look like coverage and be none.
+    home1b = mkdtemp(prefix="sl samelen ")
+    cl1b = Path(home1b) / ".claude"
+    cl1b.mkdir()
+    sp1b = cl1b / "settings.json"
+    sp1b.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    orig_st = sp1b.stat()
+    loaded1b = mod.load_settings_for_write(sp1b)
+    d1b, e1b, s1b = loaded1b if len(loaded1b) == 3 else (loaded1b[0], loaded1b[1], None)
+    sp1b.write_text(json.dumps({"theme": "lite"}, indent=2) + "\n", encoding="utf-8")
+    os.utime(sp1b, ns=(orig_st.st_atime_ns, orig_st.st_mtime_ns))
+    after_st = sp1b.stat()
+    check(after_st.st_size == orig_st.st_size
+          and after_st.st_mtime_ns == orig_st.st_mtime_ns,
+          "the fixture really is indistinguishable by (mtime, size)")
+    d1b["statusLine"] = {"type": "command", "command": "x"}
+    refused1b = False
+    err1b = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err1b):
+            mod.write_settings(sp1b, d1b, e1b, s1b)
+    except SystemExit:
+        refused1b = True
+    check(refused1b,
+          "a same-length edit at an identical mtime is still caught — the case "
+          "one-second mtime granularity on macOS actually produces")
+    check("lite" in sp1b.read_text(encoding="utf-8"),
+          "and that concurrent edit survives")
+
+    # (b) no concurrent edit -> an ordinary install still works
+    home2 = mkdtemp(prefix="sl noconc ")
+    cl2 = Path(home2) / ".claude"
+    cl2.mkdir()
+    sp2 = cl2 / "settings.json"
+    sp2.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
+    r2 = subprocess.run([sys.executable, SCRIPT, "--install"],
+                        env=dict(os.environ, HOME=str(home2)), capture_output=True, text=True)
+    check(r2.returncode == 0,
+          "an ordinary install with no concurrent edit still succeeds (rc=%d: %s)"
+          % (r2.returncode, r2.stderr.strip()[:80]))
+    check("statusLine" in sp2.read_text(encoding="utf-8"),
+          "and actually wrote the entry")
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -980,6 +1094,7 @@ def main():
     case_bom_settings()
     case_backup_atomic_and_pruned()
     case_hardlinked_settings()
+    case_concurrent_edit_refused()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()

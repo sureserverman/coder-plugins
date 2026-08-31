@@ -20,6 +20,7 @@ Settings path is ~/.claude/settings.json, resolved via Path.home() (which
 honors the HOME environment variable) so tests can point it at a temp dir.
 """
 import argparse
+import hashlib
 import json
 import re
 import os
@@ -253,6 +254,31 @@ def die(msg):
     sys.exit(1)
 
 
+def stamp_of(path):
+    """A content digest identifying the file's exact bytes, or None if absent.
+
+    (mtime_ns, size) was the first version and it has a blind spot this repo
+    walks straight into: macOS HFS+ carries ONE-SECOND mtime granularity, and
+    macOS is an explicitly supported platform here. A same-second edit that also
+    keeps the byte length — swapping a `"dark"` theme for `"lite"`, say, which is
+    the same length — is invisible to it. That is precisely the "Claude Code
+    wrote something in the window" case BL-045 exists to catch, so a guard that
+    misses it is the guard not working on one of its two target platforms.
+
+    Hashing was rejected in the first draft as cost without a matching threat.
+    That reasoning does not survive the actual numbers: settings.json is a few
+    kilobytes, so this is microseconds, once per install, on a path that already
+    reads the whole file anyway.
+
+    Not a security boundary — it answers "did these bytes change", not "who
+    changed them", and a deliberate forgery is out of scope.
+    """
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
 def load_settings_for_write(path):
     """Load settings.json for a write operation. Never overwrites malformed
     or non-object JSON — dies with a clear message instead.
@@ -260,7 +286,8 @@ def load_settings_for_write(path):
     Returns (data, existed).
     """
     if not path.exists():
-        return {}, False
+        return {}, False, None
+    stamp = stamp_of(path)
     try:
         # Explicit encoding: read_text() defaults to the locale encoding, so
         # under LC_ALL=C a settings.json holding any non-ASCII byte died with an
@@ -287,7 +314,7 @@ def load_settings_for_write(path):
         )
     if not isinstance(data, dict):
         die(f"refusing to modify {path}: top-level JSON value is not an object.")
-    return data, True
+    return data, True, stamp
 
 
 def prune_backups(path, keep=None):
@@ -382,13 +409,42 @@ def backup(path):
     return backup_path
 
 
-def write_settings(path, data, existed):
+def write_settings(path, data, existed, stamp=None):
     """Atomic write: temp file in the SAME directory, then os.replace().
 
     An interrupted run must never leave a truncated settings.json — the
     replace is atomic on POSIX, and the temp file lives next to the target so
     the replace can't cross a filesystem boundary.
     """
+    # Refuse to write over a file that changed since we read it — BEFORE taking
+    # a backup, so a refusal has no side effects at all.
+    #
+    # The atomic replace protects against a TORN settings.json, never a STALE
+    # one: the whole file is held in memory between load and write, so anything
+    # Claude Code itself wrote in that window — a /config theme change, a
+    # permission approval — would be overwritten by our older copy and gone,
+    # with nothing to trace the loss back to this script. Milliseconds wide, but
+    # this is global config another process edits by design.
+    #
+    # Checked here rather than just before the replace, which is where it was
+    # first written: by then backup() has already run and captured the
+    # CONCURRENT version, so the message would be naming a backup of the very
+    # edit it is protecting. Refusing first means nothing was created, nothing
+    # was changed, and the user's file is exactly as their other process left it.
+    #
+    # Residual, stated rather than implied: an edit landing between this check
+    # and the replace a few lines below is still possible. Closing that needs a
+    # lock on a file another process does not cooperate on, which is a larger
+    # design than this defect warrants.
+    if existed and stamp is not None:
+        now = stamp_of(path)
+        if now is not None and now != stamp:
+            die(f"{path} changed on disk while this ran — another process "
+                f"(most likely Claude Code itself) wrote it between the read and "
+                f"the write. Refusing rather than discarding that edit. Nothing "
+                f"was created or changed; your file is as the other process left "
+                f"it. Re-run to pick up the new contents.")
+
     indent = 2
     prev_mode = None
     if existed:
@@ -537,7 +593,7 @@ def cmd_status():
 
 def cmd_install(force):
     path = get_settings_path()
-    data, existed = load_settings_for_write(path)
+    data, existed, stamp = load_settings_for_write(path)
     desired = desired_entry()
     current = data.get("statusLine")
 
@@ -601,7 +657,7 @@ def cmd_install(force):
                   f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.",
                   file=sys.stderr)
     data["statusLine"] = merged
-    write_settings(path, data, existed)
+    write_settings(path, data, existed, stamp)
     action = "Repaired" if current is not None else "Installed"
     print(f"{action} statusLine -> {merged['command']} in {path}")
     return 0
@@ -612,7 +668,7 @@ def cmd_remove(force):
     if not path.exists():
         print(f"Nothing to remove: {path} does not exist.")
         return 0
-    data, existed = load_settings_for_write(path)
+    data, existed, stamp = load_settings_for_write(path)
     if "statusLine" not in data:
         print(f"statusLine not present in {path}; nothing to do.")
         return 0
@@ -647,12 +703,12 @@ def cmd_remove(force):
             if k not in ("type", "command"):
                 restored[k] = v
         data["statusLine"] = restored
-        write_settings(path, data, existed)
+        write_settings(path, data, existed, stamp)
         print(f"Removed the plan bar and restored your previous statusline in {path}.\n"
               f"  {restored['command']}")
         return 0
     del data["statusLine"]
-    write_settings(path, data, existed)
+    write_settings(path, data, existed, stamp)
     print(f"Removed statusLine from {path}.")
     return 0
 
