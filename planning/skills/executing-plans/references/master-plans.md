@@ -32,7 +32,7 @@ gate and surfaces only at the master close-out — the most expensive place to f
    user start the next one in a fresh session pointed at the master path. The master
    file — register `Status` flips plus its handoff notes — is the cross-session handoff
    artifact; a fresh session needs the master, the next sub-plan, and nothing else.
-3. **On a sub-plan's close-out** (its `**Completed:**` line just landed): flip the
+3. **On a sub-plan's close-out** — once the sub-plan file carries a terminal marker — flip the
    master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
    checks (they prove integration with previously completed sub-plans — a failure here
    is handled like any stage-gate failure — same severity classification, remediation
@@ -58,7 +58,7 @@ gate and surfaces only at the master close-out — the most expensive place to f
    written, and a master that then declared the decomposition done without coming back. That is
    not hypothetical; it is `2026-08-13-backlog-closure-sub-04`'s own account of itself.
    `**Blocked-accepted:**` is what dissolves the collision, and this step predates it: the
-   marker landed 2026-08-27, months after the rule above was written, so until now there was no
+   marker landed 2026-08-27, months after step 3 was first written, so until now there was no
    legal way through and the executor had to break one of the three.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
    their usual steps (full suite, the evaluator **its own declared tier calls for**,
