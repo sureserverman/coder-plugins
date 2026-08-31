@@ -345,18 +345,33 @@ def case_backup_atomic_and_pruned():
     # (d) a crash-orphaned .tmp never occupies a retention slot
     orphan = Path(cl) / "settings.json.bak.zz_orphan.tmp"
     orphan.write_bytes(b"partial")
-    hand = Path(cl) / "settings.json.bak.mine"
-    hand.write_bytes(b"a copy the user made")
-    mod.backup(sp)
+    # DIGIT-LED hand-names, deliberately. An earlier version of this case used
+    # only `.bak.mine` and concluded no name-shape filter was needed, reasoning
+    # that eviction takes the lexically smallest and digits sort before letters.
+    # That covers a letter-led name and nothing else: each of these sorts AMONG
+    # the timestamps, and all three were silently deleted. The suite proved the
+    # filter unnecessary by testing the one hand-name the reasoning happened to
+    # cover, and generalised from it.
+    hands = [Path(cl) / n for n in ("settings.json.bak.mine",
+                                    "settings.json.bak.1",
+                                    "settings.json.bak.0-original",
+                                    "settings.json.bak.2024-01-01-manual")]
+    for h in hands:
+        h.write_bytes(b"a copy the user made")
+    for _ in range(12):
+        mod.backup(sp)
     check(not orphan.exists(),
           "a crash-orphaned .tmp is swept rather than counted as a backup")
-    check(hand.exists(),
-          "a user's own hand-named settings.json.bak.mine is never deleted")
-    # Stated rather than implied: that assertion holds because eviction takes the
-    # lexically smallest and digits sort before letters, so a non-timestamp name
-    # is never the oldest — NOT because of any name-shape filter. A filter was
-    # written, found unprovable by mutation (widening the glob left this check
-    # green), and removed.
+    survivors = [h.name for h in hands if h.exists()]
+    check(len(survivors) == len(hands),
+          "no hand-named backup is deleted, digit-led ones included — this tool "
+          "does not remove files it did not create (lost: %r)"
+          % [h.name for h in hands if not h.exists()])
+    ours = [f for f in Path(cl).glob("settings.json.bak.*")
+            if mod.BACKUP_NAME_RE.search(f.name)]
+    check(len(ours) <= mod.BACKUP_KEEP,
+          "and OUR backups are still pruned to %d (found %d) — the filter must "
+          "not disable pruning" % (mod.BACKUP_KEEP, len(ours)))
 
 
 
@@ -579,6 +594,34 @@ def case_concurrent_edit_refused():
     check("lite" in sp1b.read_text(encoding="utf-8"),
           "and that concurrent edit survives")
 
+    # (c) the file did NOT exist at read time and another process CREATES it in
+    # the window. Every guard here is gated on `existed`, decided at read time,
+    # so without an explicit check the staleness test is skipped, no backup is
+    # taken, nlink stays 0, and the atomic replace overwrites what that process
+    # just wrote — all of this plan's protections failing open together.
+    home1c = mkdtemp(prefix="sl created ")
+    cl1c = Path(home1c) / ".claude"
+    cl1c.mkdir()
+    sp1c = cl1c / "settings.json"
+    loaded1c = mod.load_settings_for_write(sp1c)          # absent: existed=False
+    d1c, e1c, s1c = loaded1c if len(loaded1c) == 3 else (loaded1c[0], loaded1c[1], None)
+    check(e1c is False, "the fixture really starts from an absent settings.json")
+    sp1c.write_text(json.dumps({"permissions": {"allow": ["Bash"]}}, indent=2) + "\n",
+                    encoding="utf-8")
+    d1c["statusLine"] = {"type": "command", "command": "x"}
+    refused1c = False
+    err1c = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err1c):
+            mod.write_settings(sp1c, d1c, e1c, s1c)
+    except SystemExit:
+        refused1c = True
+    check(refused1c and "created" in err1c.getvalue(),
+          "a file created in the window is not overwritten unseen (stderr=%r)"
+          % err1c.getvalue().strip()[:80])
+    check("permissions" in json.loads(sp1c.read_text(encoding="utf-8")),
+          "and the other process's content survives")
+
     # (b) no concurrent edit -> an ordinary install still works
     home2 = mkdtemp(prefix="sl noconc ")
     cl2 = Path(home2) / ".claude"
@@ -637,6 +680,26 @@ def case_literal_mode_is_disclosed():
     check("checkout" in s.stdout.lower(),
           "--status reports the mode as a checkout, not merely the path (got %r)"
           % s.stdout.strip()[:120])
+
+    # --status must describe the WIRED ENTRY, not the running script. Invoke the
+    # checkout's --status against a settings.json holding a VERSIONED entry: the
+    # old code asked resolve_command() about itself and answered "checkout",
+    # which is this repo's own workflow producing a false diagnostic.
+    home_x = mkdtemp(prefix="sl cross ")
+    clx = Path(home_x) / ".claude"
+    clx.mkdir()
+    versioned_cmd = (
+        "sh -c 'd=/somewhere/.claude/plugins/cache/mkt/planning; "
+        "s=skills/executing-plans/scripts/statusline-chain.sh; exec bash \"$d\"'")
+    (clx / "settings.json").write_text(
+        json.dumps({"statusLine": {"type": "command", "command": versioned_cmd}}, indent=2) + "\n",
+        encoding="utf-8")
+    sx = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--status"],
+                        env=dict(os.environ, HOME=home_x), capture_output=True, text=True)
+    check("checkout" not in sx.stdout.lower(),
+          "a checkout's --status does NOT call a versioned entry a checkout — the "
+          "mode describes the entry, not the running script (got %r)"
+          % sx.stdout.strip()[:110])
 
     # a versioned install says neither thing
     home2 = mkdtemp(prefix="sl pub ")

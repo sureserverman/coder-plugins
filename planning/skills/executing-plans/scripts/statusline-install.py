@@ -195,6 +195,26 @@ def get_settings_path():
     return path
 
 
+def entry_mode(command):
+    """"versioned" or "literal" for an already-written entry, or None.
+
+    Judged from the entry's own text so a reader of --status learns about the
+    entry in their settings.json rather than about whichever copy of this script
+    they happened to invoke.
+    """
+    if not isinstance(command, str) or not command:
+        return None
+    stripped = command.strip()
+    # split_base_prefix drops any PLAN_STATUSLINE_BASE=... the user chained in.
+    _base, rest = split_base_prefix(stripped)
+    rest = (rest or stripped).strip()
+    if rest.startswith("sh -c "):
+        return "versioned"
+    if rest.startswith("bash "):
+        return "literal"
+    return None
+
+
 def desired_entry():
     return {"type": "command", "command": resolve_command()[0]}
 
@@ -227,6 +247,11 @@ def is_ours(entry):
 # file that can hold `env` API keys, so the pile is bounded rather than endless;
 # ten is enough to walk back through a bad session and small enough to stay tidy.
 BACKUP_KEEP = 10
+
+# What backup() writes: `<settings name>.bak.` + datetime's %Y%m%dT%H%M%S%f, which
+# is exactly 21 digits with a `T` at index 8. Anchored so pruning can only ever
+# remove a file this script created.
+BACKUP_NAME_RE = re.compile(r"\.bak\.\d{8}T\d{12}$")
 
 
 def detect_indent(text):
@@ -353,17 +378,20 @@ def prune_backups(path, keep=None):
                 orphan.unlink()
             except OSError:
                 pass
-        # A user's own hand-named `settings.json.bak.mine` survives, but not
-        # because of a name-shape filter — one was written here and removed as
-        # unprovable: eviction takes the LEXICALLY SMALLEST names, the suffixes
-        # are digit-led timestamps, and digits sort before letters, so any
-        # non-timestamp name is always among the newest and never reaches the
-        # cut. A filter guarding a case that cannot occur is cost without
-        # protection, and its magic offsets would break the moment the timestamp
-        # format changed. `.tmp` is different and IS excluded above: mkstemp's
-        # letter-led random suffix sorts last for the same reason, which is
-        # exactly why an orphan would never age out.
-        existing = sorted(e for e in entries if not e.name.endswith(".tmp"))
+        # Only OUR OWN backups are eligible. The name this writes is
+        # `<name>.bak.<%Y%m%dT%H%M%S%f>` — 21 digits, nothing else — so anything
+        # not matching that shape was put there by someone else and is not ours
+        # to delete.
+        #
+        # A previous version dropped this filter as "unprovable", reasoning that
+        # eviction takes the lexically smallest and digits sort before letters,
+        # so a hand-name is never the oldest. That holds only for a LETTER-led
+        # name. `settings.json.bak.1`, `.bak.0-original` and
+        # `.bak.2024-01-01-manual` all sort among the timestamps and were
+        # deleted, silently — measured, not theorised. The test that "proved"
+        # the filter unnecessary used `.bak.mine`, the one hand-name the
+        # reasoning happened to cover, and generalised from it.
+        existing = sorted(e for e in entries if BACKUP_NAME_RE.search(e.name))
         for stale in existing[:-keep] if keep else existing:
             try:
                 stale.unlink()
@@ -403,6 +431,18 @@ def backup(path):
         # file is never briefly visible at the wrong mode under its final name.
         os.chmod(tmp_path, path.stat().st_mode & 0o7777)
         os.replace(tmp_path, backup_path)
+        # The rename itself is not durable until the DIRECTORY entry is synced.
+        # Ordinarily pedantic; load-bearing here because the hardlink branch
+        # writes settings.json in place immediately afterwards, and DEC-023's
+        # accepted cost rests on this backup existing after a power loss.
+        try:
+            dfd = os.open(str(path.parent), os.O_RDONLY)
+            try:
+                os.fsync(dfd)
+            finally:
+                os.close(dfd)
+        except OSError:
+            pass
         tmp_path = None
     except OSError as e:
         die(f"could not create backup at {backup_path}: {e}")
@@ -419,7 +459,14 @@ def backup(path):
 
 
 def write_settings(path, data, existed, stamp=None):
-    """Atomic write: temp file in the SAME directory, then os.replace().
+    """Write settings.json, atomically where that is possible.
+
+    An ORDINARY file goes through a temp file in the same directory then
+    os.replace(). A HARDLINKED one is written in place instead, trading
+    atomicity to keep the links the user established (DEC-023) — so "atomic"
+    is true of this function's common path and deliberately not of all of it.
+    The paragraphs below describe the atomic path; the hardlink branch carries
+    its own reasoning where it forks.
 
     An interrupted run must never leave a truncated settings.json — the
     replace is atomic on POSIX, and the temp file lives next to the target so
@@ -447,12 +494,29 @@ def write_settings(path, data, existed, stamp=None):
     # design than this defect warrants.
     if existed and stamp is not None:
         now = stamp_of(path)
-        if now is not None and now != stamp:
+        if now is None:
+            die(f"cannot re-read {path} to check it is unchanged; refusing rather "
+                f"than writing over a file whose current contents are unknown. "
+                f"Nothing was created or changed.")
+        if now != stamp:
             die(f"{path} changed on disk while this ran — another process "
                 f"(most likely Claude Code itself) wrote it between the read and "
                 f"the write. Refusing rather than discarding that edit. Nothing "
                 f"was created or changed; your file is as the other process left "
                 f"it. Re-run to pick up the new contents.")
+
+    # The file did not exist when we read it, but does now: another process
+    # created it in the window. Every protection below is gated on `existed`,
+    # which was decided at READ time — so without this the staleness check is
+    # skipped, no backup is taken, nlink stays 0, and the atomic replace
+    # silently discards whatever that process just wrote. Same defect class as
+    # the concurrent-EDIT case, for the creation case, and the one path where
+    # this plan's guards all fail open together.
+    if not existed and path.exists():
+        die(f"{path} was created while this ran — another process (most likely "
+            f"Claude Code itself) wrote it after this read it as absent. "
+            f"Refusing rather than overwriting it unseen. Nothing was created or "
+            f"changed. Re-run to pick up its contents.")
 
     indent = 2
     prev_mode = None
@@ -510,8 +574,7 @@ def write_settings(path, data, existed, stamp=None):
             die(f"cannot determine whether {path} is hardlinked ({e}); "
                 f"refusing to write rather than risk breaking a link. "
                 f"{path} is unchanged, and a backup of it is at {backup_path}. "
-                f"Retry once the file is readable; delete that backup if the "
-                f"retry succeeds, or it will accumulate.")
+                f"Retry once the file is readable.")
     # TOCTOU: a link created or removed between this stat and the write below
     # takes whichever path the stat saw. Accepted — backup() has already run on
     # either path, and this is a single-user config file rather than a security
@@ -596,11 +659,17 @@ def cmd_status():
     if is_ours(entry):
         current = entry.get("command", "")
         print(f"statusLine: wired to this installer's chain script\n  {current}")
-        # Which COPY it points at, not just the path. A reader cannot tell a
-        # checkout path from a published one by looking — that is the whole
-        # divergence — so --status says which it is rather than printing a
-        # string and leaving the reader to recognise a cache layout.
-        if resolve_command()[1] == "literal":
+        # Which COPY the WIRED ENTRY points at — read off the entry itself, not
+        # off resolve_command(), which answers for the script currently running.
+        # Those differ exactly when it matters: running a checkout's --status to
+        # inspect a settings.json an installed copy wrote is this repo's own
+        # daily workflow, and asking the running script would then report
+        # "checkout" about an entry that is nothing of the kind — a false
+        # diagnostic on the one surface built to be trustworthy about this.
+        #
+        # The two shapes are unambiguous: a versioned entry is the `sh -c`
+        # version-scanning wrapper, a literal one is a bare `bash "<path>"`.
+        if entry_mode(current) == "literal":
             print("  (a checkout, not a published plugin version — this renders "
                   "from a working tree and can diverge from the installed copy)")
         # Compare only the part AFTER any preserved-base prefix. Comparing the
@@ -672,18 +741,6 @@ def cmd_install(force):
         shown = current.get("command") if isinstance(current, dict) else current
         if prefix:
             merged["command"] = prefix + merged["command"]
-            print(f"Preserved your previous statusline as the base: {shown}")
-    if mode == "literal":
-        warn(
-            "installing from a checkout, not a published plugin version.\n"
-            "  The path written into settings.json points at this working tree, so\n"
-            "  every session in every project will render from it rather than from\n"
-            "  the installed plugin — the two can then diverge silently, which is\n"
-            "  the failure a hand-written wrapper causes and this installer exists\n"
-            "  to prevent. Correct and expected while developing; re-run this from\n"
-            "  an installed version to pin it to the published copy."
-        )
-
     data["statusLine"] = merged
     # These NOTEs are deferred until AFTER the write returns, and that ordering is
     # the whole point. They tell the user their old statusline "is preserved in the
@@ -693,6 +750,22 @@ def cmd_install(force):
     # run: "it is preserved in the backup", then "nothing was created or changed".
     # Both cannot be true, and the reader has no way to tell which is.
     write_settings(path, data, existed, stamp)
+    if prefix:
+        # Deferred for the same reason the NOTEs below are: it reports what the
+        # write DID, and printed beforehand it stood next to a refusal saying
+        # nothing had been written.
+        print(f"Preserved your previous statusline as the base: {shown}")
+    if mode == "literal":
+        warn(
+            "installed from a checkout, not a published plugin version.\n"
+            "  The path written into settings.json points at this working tree, so\n"
+            "  every session in every project will render from it rather than from\n"
+            "  the installed plugin — the two can then diverge silently, which is\n"
+            "  the failure a hand-written wrapper causes and this installer exists\n"
+            "  to prevent. Correct and expected while developing; re-run this from\n"
+            "  an installed version to pin it to the published copy."
+        )
+
     if current is not None and not ours and not prefix:
         if reason == "doubles-bar":
             warn(f"your previous statusline was NOT chained in:\n"
