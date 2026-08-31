@@ -675,6 +675,15 @@ def case_literal_mode_is_disclosed():
     check(r.returncode == 0, "a checkout install still SUCCEEDS — literal mode is not suppressed")
     check("checkout" in r.stderr.lower(),
           "the install says it is running from a checkout (got %r)" % r.stderr.strip()[:100])
+    # a REPEAT install (the common case) must disclose too — it returns early
+    r_again = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--install"],
+                             env=env, capture_output=True, text=True)
+    check("nothing to do" in r_again.stdout, "the second install is a no-op")
+    check("checkout" in r_again.stderr.lower(),
+          "and STILL says it is a checkout — the repeat install is the common "
+          "case, so silence there hides it exactly when someone is checking "
+          "(got %r)" % r_again.stderr.strip()[:90])
+
     s = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--status"],
                        env=env, capture_output=True, text=True)
     check("checkout" in s.stdout.lower(),

@@ -697,6 +697,14 @@ def cmd_install(force):
 
     if current == desired:
         print(f"statusLine already wired; nothing to do.\n  {desired['command']}")
+        # The no-op path still discloses the mode. Without this, the SECOND and
+        # every later install from a checkout said nothing — and a repeat install
+        # is the common case, so the disclosure would have been missing exactly
+        # when someone is checking whether their setup is right.
+        if mode == "literal":
+            warn("this is a checkout, not a published plugin version — the wired "
+                 "path points at a working tree and can diverge from the "
+                 "installed copy.")
         return 0
 
     # "Is this entry ours?" must be a STRUCTURAL question, not string equality
