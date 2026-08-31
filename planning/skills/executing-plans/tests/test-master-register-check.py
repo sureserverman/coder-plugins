@@ -184,7 +184,25 @@ def main():
         got, rc = kinds(t)
         check("**Abandoned:** is a terminal marker, not a desync",
               "REGISTER-AHEAD" not in got, f"got {got}")
-        check("a wholly legal tree exits 0", rc == 0 or got, f"exit {rc} with findings {got}")
+        check("a wholly legal tree is CLEAN — no findings, exit 0",
+              rc == 0 and not got,
+              f"exit {rc} with findings {got}")
+
+    # F5's own regression: the assertion above used to read `rc == 0 or got`, which any
+    # finding satisfies, so nothing in the suite asserted a clean tree is clean — and a
+    # false positive on a legal tree was invisible. Pin it with a second legal shape.
+    with tempfile.TemporaryDirectory() as t:
+        build(t, state="[x]", gate="~",
+              sub_closeout="\n**Completed:** 2026-01-02 — done\n"
+                           "**Blocked-accepted:** 2026-01-02 — no hardware\n")
+        got, rc = kinds(t)
+        check("an accepted blocked gate is clean, not a finding",
+              rc == 0 and not got, f"exit {rc} with findings {got}")
+    with tempfile.TemporaryDirectory() as t:
+        build(t, state="[x]", gate="~", sub_closeout="\n**Abandoned:** 2026-01-02 — retired\n")
+        got, rc = kinds(t)
+        check("an abandoned sub-plan's unrun gate is clean (step 3's third marker)",
+              rc == 0 and not got, f"exit {rc} with findings {got}")
 
     print(f"assertions run ({len(RAN)})")
     for n in RAN:

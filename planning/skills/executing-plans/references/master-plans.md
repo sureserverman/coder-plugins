@@ -83,9 +83,14 @@ gate and surfaces only at the master close-out — the most expensive place to f
    register.** The register records a flip somebody performed; it is not evidence the flip was
    earned, and the two come apart exactly when step 3 was hard to satisfy. So before the
    master's `**Completed:**` line goes in, check each `[x]` entry against the sub-plan it names:
-   **it carries a terminal marker** (`**Completed:**`, or `**Completed:**` with
-   `**Blocked-accepted:**`), and **no gate check in it is `[~]` without that acceptance beside
-   the close-out line**. An entry failing either is not done — it is a flip that outran its
+   **it carries a terminal marker** — any of step 3's three, `**Completed:**`, `**Completed:**`
+   with `**Blocked-accepted:**`, or `**Abandoned:**` — and, **for a sub-plan that claims
+   completion, no gate check in it is `[~]` without that acceptance beside the close-out line**.
+   The second clause does not bind an abandoned sub-plan: its gates are unrun by definition, so
+   a `[~]` there is its natural state rather than an unproven claim. (Step 3 and this step must
+   name the same set. They did not when the third marker was added here, and the checker
+   implementing one clause from each then reported abandoned sub-plans as unproven — recreating
+   the very deadlock the third marker exists to dissolve.) An entry failing either is not done — it is a flip that outran its
    sub-plan, and the master close-out is the last place it can be caught before the whole
    decomposition is declared finished over it. **The check is a command, not a reading:**
    `python3 <plugin>/skills/executing-plans/scripts/check-master-register.py` reports every

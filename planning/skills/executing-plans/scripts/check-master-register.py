@@ -34,10 +34,10 @@ WHAT THIS GUARD CANNOT SCREEN, disclosed per DEC-008:
   - A register entry whose `- **Plan:**` link does not resolve is skipped, not
     reported. A broken link is a different defect with a different owner, and a
     checker that fails on one would fail on every master mid-authoring.
-  - The master's own inline `**Gate:**` blocks are not scanned for `[~]`.
-    `plan_has_blocked_gate()` keys on `### Stage N Gate` headings, which a master
-    does not have; propagation through `plan_blocked()` covers the sub-plans' gates,
-    which is where the blocked checks actually live.
+  - A sub-plan carrying `**Blocked-accepted:**` with no `[~]` gate anywhere has both
+    blocked kinds permanently suppressed, because `plan_blocked()` checks acceptance
+    first and short-circuits. That is the contract predicate's behaviour, not this
+    checker's, and changing it here would be a second definition of "blocked".
   - It reads the vault, never the registry (DEC-011). A plans/ directory outside
     `Portfolio/*/*/plans` is not seen.
 """
@@ -73,6 +73,8 @@ def _warn_if_stale():
 
 # BL-107: the marker is recognised only at column 0. An indented one is the shape an
 # author writes when tying it to the gate box it accepts, and it parses as absent.
+# The one pattern with no owner upstream: the contract anchors the marker at column 0
+# (BL-107), so "the same marker, indented" has no representation there to import.
 INDENTED_ACCEPT = re.compile(r"^[ \t]+\*\*Blocked-accepted:\*\*", re.M)
 
 
@@ -109,6 +111,12 @@ def register_entries(master_text, master_path):
             unparsed.append(line.strip()[:90])
             status_line = None
             continue
+        if pu.SUBPLAN_LINK_RE.match(line) and status_line is None:
+            # F4: a `- **Plan:**` with no Status before it — the entry is dropped by the
+            # walk, so BOTH directions go unchecked for it. Same defect as an
+            # out-of-contract Status, different axis.
+            unparsed.append(f"Plan line with no preceding Status: {line.strip()[:70]}")
+            continue
         lm = pu.SUBPLAN_LINK_RE.match(line)
         if lm and status_line is not None:
             target = pu.link_target(lm.group(1))
@@ -137,9 +145,10 @@ def master_gate_blocked(master_text):
             in_gate = True
             continue
         if in_gate:
-            if line.strip().startswith("- [~]"):
+            gi = pu.GATE_ITEM_RE.match(line)
+            if gi and gi.group(1) == "~":
                 out.append(line.strip()[:90])
-            elif line.strip() and not line.strip().startswith("- ["):
+            elif line.strip() and not gi:
                 in_gate = False
     return out
 
@@ -148,7 +157,7 @@ def audit(vault):
     findings, seen = [], set()
 
     def add(kind, sub, master, detail):
-        key = (kind, str(sub), str(master))
+        key = (kind, str(sub), str(master), detail)
         if key in seen:                       # m2: one defect, one finding
             return
         seen.add(key)
@@ -172,13 +181,17 @@ def audit(vault):
 
         for master, mtext in masters:
             master_closed = bool(pu.COMPLETED_RE.search(mtext))
-            for blocked_line in master_gate_blocked(mtext):
-                if master_closed:
-                    add("MASTER-GATE-BLOCKED", master, master,
-                        f"master carries **Completed:** over its own `[~]` register gate "
-                        f"check: {blocked_line}")
-
             entries, unparsed = register_entries(mtext, master)
+            # F2: gating this on `master_closed` reproduced B1 — step 5 runs the check
+            # BEFORE the Completed line exists. A master whose every listed entry is [x]
+            # IS at close-out, which is decidable now, so the kind is live there too.
+            at_closeout = bool(entries) and all(
+                pu.status_state(st) == "done" for _, st, _ in entries)
+            for blocked_line in master_gate_blocked(mtext):
+                if master_closed or at_closeout:
+                    add("MASTER-GATE-BLOCKED", master, master,
+                        f"master's own `[~]` register gate check is unrun while the "
+                        f"decomposition is at close-out: {blocked_line}")
             for raw in unparsed:              # M4
                 add("ENTRY-UNPARSED", master, master,
                     f"register entry's Status is outside the contract's `[ xX~]`, so the "
@@ -202,7 +215,7 @@ def audit(vault):
                 # B1 (Blocking): step 5 runs BEFORE the master's Completed line, so this
                 # may not depend on master_closed or it is inert at the one gate that
                 # could prevent the defect.
-                if done and blocked:
+                if done and blocked and marker != "abandoned":
                     add("REGISTER-AHEAD-UNACCEPTED", sub, master,
                         f"register marks this sub-plan [x] but its completion was never "
                         f"proven and no acceptance stands: {why}")
@@ -214,7 +227,7 @@ def audit(vault):
                         f"sub-plan carries a terminal marker ({marker}) but its register "
                         f"entry reads {entry!r} — BL-104's direction, invisible to status_lag")
 
-                if master_closed and blocked:
+                if master_closed and blocked and marker != "abandoned":
                     add("MASTER-OVER-BLOCKED", sub, master,
                         f"master carries **Completed:** over this sub-plan: {why}")
 
@@ -223,6 +236,12 @@ def audit(vault):
                     add("MASTER-OVER-UNFINISHED", sub, master,
                         f"master carries **Completed:** while this entry still reads "
                         f"{entry!r} — the decomposition was declared done over it")
+
+                if master_closed and marker == "abandoned":
+                    add("MASTER-CLOSED-OVER-ABANDONED", sub, master,
+                        "master's **Completed:** enumerates this sub-plan, which is "
+                        "**Abandoned:** — the register cannot tell the two apart, so the "
+                        "close-out list must not read as though the work was done")
 
                 if INDENTED_ACCEPT.search(stext):
                     add("ACCEPTANCE-UNPARSED", sub, master,
@@ -239,19 +258,19 @@ def audit(vault):
                     ctext = cand.read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     continue
-                for line in ctext.splitlines()[:20]:
-                    if line.startswith("Master:"):
-                        target = pu.link_target(line.split(":", 1)[1].strip())
-                        try:
-                            same = target and (cand.parent / target).resolve() == master.resolve()
-                        except (OSError, ValueError):
-                            same = False
-                        if same:
-                            add("SUBPLAN-UNREGISTERED", cand, master,
-                                "sub-plan backlinks this master but has no register entry "
-                                "in it — the master can close with every listed entry [x] "
-                                "while this one is unfinished")
-                        break
+                bl = pu.MASTER_BACKLINK_RE.search(ctext)
+                if not bl:
+                    continue
+                target = pu.link_target(bl.group(1))
+                try:
+                    same = target and (cand.parent / target).resolve() == master.resolve()
+                except (OSError, ValueError):
+                    same = False
+                if same:
+                    add("SUBPLAN-UNREGISTERED", cand, master,
+                        "sub-plan backlinks this master but has no register entry in it — "
+                        "the master can close with every listed entry [x] while this one "
+                        "is unfinished")
     return findings
 
 
