@@ -129,6 +129,58 @@ def case_space_in_path():
     check(run.stderr == "",
           "and stays silent on stderr")
 
+
+def case_apostrophe_in_path():
+    """The apostrophe half of a claim the record already made.
+
+    Commits `fd2ca84` / `d827283` say the quoting was verified "against paths
+    containing a space **and an apostrophe**". Only the space half shipped as a
+    case (`case_space_in_path`); the apostrophe was checked by hand once and
+    never pinned, so nothing in the suite would notice it regressing. That is a
+    behavioral claim in the permanent record with no artifact behind it — the
+    shape honest-gates names — and this case is the artifact (BL-050).
+
+    An apostrophe is the harder character precisely because the two quoting
+    branches disagree about it: double quotes carry a space fine but leave a
+    single quote to whatever the shell does next, so only the shlex.quote path
+    survives it.
+    """
+    print("25. end-to-end through the generated command, path containing an apostrophe:")
+    home = mkdtemp(prefix="sl it's ")
+    base = os.path.join(home, ".claude", "plugins", "cache", "mkt", "planning")
+    for v in ("0.9.0", "0.37.0"):
+        d = os.path.join(base, v, "skills", "executing-plans", "scripts")
+        os.makedirs(d, exist_ok=True)
+        chain = os.path.join(d, "statusline-chain.sh")
+        with open(chain, "w") as f:
+            f.write('#!/bin/bash\ncat >/dev/null\nprintf "CHAIN-%s"\n' % v)
+        os.chmod(chain, 0o755)
+    installer = os.path.join(base, "0.37.0", "skills", "executing-plans",
+                             "scripts", "statusline-install.py")
+    shutil.copy(SCRIPT, installer)
+    os.makedirs(os.path.join(home, ".claude"), exist_ok=True)
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, installer, "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode == 0, "install rc 0 from a cache path containing an apostrophe")
+    with open(os.path.join(home, ".claude", "settings.json")) as f:
+        written = json.load(f)["statusLine"]["command"]
+    run = subprocess.run(written, shell=True, input="{}",
+                         capture_output=True, text=True)
+    check(run.returncode == 0,
+          "the command written to settings.json exits 0 with an apostrophe in the path")
+    check(run.stdout == "CHAIN-0.37.0",
+          "it execs the newest chain script (got %r)" % run.stdout)
+    check(run.stderr == "", "and stays silent on stderr")
+    # Idempotence: a second install must not double-quote or re-wrap the entry.
+    r2 = subprocess.run([sys.executable, installer, "--install"],
+                        env=env, capture_output=True, text=True)
+    check(r2.returncode == 0, "re-install rc 0")
+    with open(os.path.join(home, ".claude", "settings.json")) as f:
+        again = json.load(f)["statusLine"]["command"]
+    check(again == written, "the written command is byte-identical on re-install")
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -631,6 +683,7 @@ def main():
 
     print()
     case_space_in_path()
+    case_apostrophe_in_path()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()
