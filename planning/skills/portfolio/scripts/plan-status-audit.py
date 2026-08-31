@@ -66,8 +66,19 @@ GIT_TIMEOUT = 20        # seconds per repo; a hung git must not hang the audit
 
 # The classes, in the order classify() decides them. Order is load-bearing and
 # argued at classify() — do not reorder to make a count look better.
-CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "no-status",
-           "never-started", "started-unfinished")
+CLASSES = ("abandoned", "blocked", "completed", "unclassifiable", "not-a-plan",
+           "no-status", "never-started", "started-unfinished")
+
+# Filename suffixes for documents that live in `plans/` but are NOT plans:
+# design documents, architecture documents, and backlog done-records. See
+# is_not_a_plan() for how the rule was measured and why it is anchored.
+# NOT_A_PLAN_SUFFIXES / is_not_a_plan live in portfolio-unify.py, the contract owner.
+# They were defined here first and moved when check-master-register.py needed the same
+# answer: two scripts reading one corpus while disagreeing about what counts as a plan
+# is the drift this repo's one-owner rule exists to prevent (found at the close-out
+# Tier-2 pass, before either copy could diverge).
+is_not_a_plan = pu.is_not_a_plan
+NOT_A_PLAN_SUFFIXES = pu.NOT_A_PLAN_SUFFIXES
 
 
 # --------------------------------------------------------------------------
@@ -256,6 +267,28 @@ def classify(text, path):
        blocked on an irreversible owner confirmation, and it reads 10/10 instead
        of 10/11 — a completion candidate that must never be offered as one.
 
+    5. `not-a-plan` is decided LAST of all the non-counting classes — below
+       every human-authored marker AND below `unclassifiable` — and it is the
+       only class keyed on the FILENAME rather than on the document's contents.
+       That ranking is the whole safety argument. A filename is a convention,
+       and a convention is a guess; a `**Completed:**` line, a `[~]` gate box
+       and an out-of-contract Status marker are all EVIDENCE, written inside
+       the document by someone who meant it. Evidence outranks a guess, in
+       every direction. Live proof that this is not hypothetical: the vault
+       holds an architecture document carrying an author's `**Abandoned:**`
+       line. Deciding `not-a-plan` first would have swallowed that marker and
+       reported the file as a document nobody need look at.
+
+       It is also placed INSIDE the `total == 0` branch rather than above the
+       counting, so a document can only be called not-a-plan when it has no
+       task entries whatsoever. This makes two properties structural rather
+       than lucky: `not-a-plan` can only ever draw from what would have been
+       `no-status`, and it can never touch a completion candidate — a candidate
+       needs `done == total > 0`, so it never reaches this branch at all. The
+       cost of the narrow placement is that a design document someone fills
+       with real `### Task N.N` entries keeps being counted as a plan, which is
+       the direction that fails safe: it stays visible.
+
     Everything after that is ordinary counting.
     """
     abandoned = pu.ABANDONED_RE.search(text)
@@ -290,6 +323,13 @@ def classify(text, path):
 
     done, total = task_counts(text, path)
     if total == 0:
+        # Reached only when the document carries no terminal marker and no
+        # Status line of any kind, in or out of contract. See ORDER note 5:
+        # this branch is the ONLY way into `not-a-plan`, which is what keeps
+        # the filename heuristic from ever outranking evidence or reaching a
+        # completion candidate.
+        if is_not_a_plan(path):
+            return "not-a-plan", "design/architecture/done-record, not a plan"
         return "no-status", None
     if done == 0 and not any_started(text, path):
         return "never-started", None

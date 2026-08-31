@@ -32,7 +32,7 @@ gate and surfaces only at the master close-out — the most expensive place to f
    user start the next one in a fresh session pointed at the master path. The master
    file — register `Status` flips plus its handoff notes — is the cross-session handoff
    artifact; a fresh session needs the master, the next sub-plan, and nothing else.
-3. **On a sub-plan's close-out** (its `**Completed:**` line just landed): flip the
+3. **On a sub-plan's close-out** — once the sub-plan file carries a terminal marker — flip the
    master register entry's `- **Status:** [ ]` to `[x]`, run that entry's `**Gate:**`
    checks (they prove integration with previously completed sub-plans — a failure here
    is handled like any stage-gate failure — same severity classification, remediation
@@ -43,9 +43,34 @@ gate and surfaces only at the master close-out — the most expensive place to f
    filed, exactly as at a stage gate), append
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
+
+   **What flips the entry is a terminal marker in the sub-plan file, and the set has exactly
+   three members:** `**Completed:**` alone; `**Completed:**` **together with**
+   `**Blocked-accepted:** <date> — <why>` when one of that sub-plan's gate checks is `[~]`; or
+   `**Abandoned:**`. All are written into the sub-plan **before** the entry flips. **An
+   intention to close out later is not a member of that set.**
+
+   **Why abandonment is in the set, though it is not completion.** The register's vocabulary is
+   `[ xX~]` and has no abandoned state, so the only alternative is leaving the entry `[ ]`
+   forever — and step 5 needs every entry `[x]` before a master can close, which strands the
+   whole decomposition on one sub-plan that will never finish. `[x]` beside a sub-plan carrying
+   `**Abandoned:**` is the least-lossy representation available: the register says the entry is
+   resolved, and the sub-plan says how. What it must never mean is that the work was done — if
+   an abandoned sub-plan's goal still matters, the master is what needs re-scoping.
+
+   **Why this needed saying.** With a blocked gate, three rules collide and cannot all hold:
+   this step wants the sub-plan's `**Completed:**` line first; `close-out.md` § *Closing a plan
+   whose gate could not be run* forbids a clean `**Completed:**` over a `[~]`; and a dependent
+   sub-plan cannot start until this entry reads `[x]`. Something gives, and what gave in
+   practice was the record — a register flipped to unblock the next sub-plan, a close-out never
+   written, and a master that then declared the decomposition done without coming back. That is
+   not hypothetical; it is `2026-08-13-backlog-closure-sub-04`'s own account of itself.
+   `**Blocked-accepted:**` is what dissolves the collision, and this step predates it: the
+   marker landed 2026-08-27, a month after step 3 was written (2026-07-28), so until then there
+   was no legal way through and the executor had to break one of the three.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
    their usual steps (full suite, the evaluator **its own declared tier calls for**,
-   backlog reconcile, workflow audit) EXCEPT step 4 (version bumps) — one feature landing
+   backlog reconcile, workflow audit) EXCEPT step 4, **Bump versions for what changed** — one feature landing
    across five sub-plans is one release event, not five. Note the deferral in each
    sub-plan's close-out.
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
@@ -53,6 +78,29 @@ gate and surfaces only at the master close-out — the most expensive place to f
    run the full suite, run the independent evaluator pass **that the master's tier calls
    for** (below), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
+
+   **"Every register entry is `[x]`" is re-derived from the sub-plan files, not read off the
+   register.** The register records a flip somebody performed; it is not evidence the flip was
+   earned, and the two come apart exactly when step 3 was hard to satisfy. So before the
+   master's `**Completed:**` line goes in, check each `[x]` entry against the sub-plan it names:
+   **it carries a terminal marker** — any of step 3's three, `**Completed:**`, `**Completed:**`
+   with `**Blocked-accepted:**`, or `**Abandoned:**` — and, **for a sub-plan that claims
+   completion, no gate check in it is `[~]` without that acceptance beside the close-out line**.
+   The second clause does not bind an abandoned sub-plan: its gates are unrun by definition, so
+   a `[~]` there is its natural state rather than an unproven claim. (Step 3 and this step must
+   name the same set. They did not when the third marker was added here, and the checker
+   implementing one clause from each then reported abandoned sub-plans as unproven — recreating
+   the very deadlock the third marker exists to dissolve.) An entry failing either is not done — it is a flip that outran its
+   sub-plan, and the master close-out is the last place it can be caught before the whole
+   decomposition is declared finished over it. **The check is a command, not a reading:**
+   `python3 <plugin>/skills/executing-plans/scripts/check-master-register.py` reports every
+   register/sub-plan disagreement in the vault, in both directions, and exits non-zero on
+   any. Run it here. It is deliberately not in the repo's validator set — its corpus is the
+   vault, and a repo's build may not depend on another project's plan hygiene.
+
+   This is the master's half of BL-081: nothing here used to cross-check sub-plan **gate**
+   state, so a master could be marked `**Completed:**` while a sub-plan gate was `[~]`. Both
+   halves are one condition and one check.
 
    **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*
    (`../references/review-scope.md`), so none of them governs the master itself. The master takes the

@@ -460,6 +460,46 @@ def blocked_acceptance(text):
     return m.group(1).strip() if m else None
 
 
+NOT_A_PLAN_SUFFIXES = ("-design.md", "-architecture.md", "-done.md")
+
+
+def is_not_a_plan(path):
+    """Whether this document's FILENAME says it is not a plan.
+
+    `plans/` directories hold three kinds of document that are not plans and
+    never were: `*-design.md` (a `# Design:` document from brainstorming),
+    `*-architecture.md` (a `# Architecture:` decision document), and
+    `*-done.md` (a `# Done:` backlog completion record). None carries tasks,
+    so all of them landed in `no-status` — 87 of the 210 files in that class
+    when measured, which is not a small distortion of a number people read as
+    "plans nobody has started".
+
+    Measured before it was chosen, not guessed, over every enumerated file:
+
+        plan-status-audit.py --json | python3 -c "<count trailing -token>"
+
+    which reported, vault-wide: 449 `-plan.md`, 41 `-done.md`, 37 `-design.md`,
+    10 `-architecture.md`, and then a long tail of one- and two-offs. The three
+    above are the only non-plan conventions with enough weight to be a
+    convention at all. The tail was deliberately NOT swept in: `-migration.md`,
+    `-hardening.md`, `-acceptance.md` and `-implementation.md` (3-4 files each)
+    read as though they could name real plans, and a filename heuristic that
+    guesses wrong here hides a plan from the one tool that would have offered
+    it. Narrow and provable beats broad and plausible.
+
+    ANCHORED ON THE HYPHEN, which is load-bearing: eight files in the corpus
+    carry `design` inside the name (`…-gui-redesign-bridges-freeports-plan.md`,
+    `…-design-handoff-completion-plan.md`, …). Every one of them is a real
+    plan. A substring test would have swallowed all eight; requiring the
+    hyphen-delimited final token keeps them.
+
+    Case is not folded because the corpus does not vary: all 88 matches are
+    lowercase, and folding would be an untested widening of a rule whose whole
+    value is that it only matches what was measured.
+    """
+    return Path(path).name.endswith(NOT_A_PLAN_SUFFIXES)
+
+
 def plan_blocked(text, path=None, _depth=0):
     """(is_blocked, why) — the ONE question every consumer asks about blockage.
 

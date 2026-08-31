@@ -210,6 +210,41 @@ less than the reader takes it to mean. Nothing in a passing run distinguishes a
 test that would catch the regression from one that would not, which is why the
 distinguishing step has to be performed rather than assumed.
 
+## Changing a contract reclassifies everything already written
+
+Every other rule here reads the artifact in front of you. This one governs a change
+whose effect lands elsewhere: a parsing rule, marker vocabulary or classification
+predicate re-reads every document already written, under rules their authors could not
+have followed.
+
+**A change to a parsing contract, marker vocabulary or classification rule does not ship
+until the corpus it reclassifies has been inventoried, and each member either backfilled
+or filed as a named migration entry.** Shipping the rule and leaving the corpus is not a
+partial fix — it is a new classification asserted over documents nobody opened.
+
+**The inventory is a command and its output, never an estimate.** An uncounted set cannot
+be backfilled, checked off, or declared done; "~20+" is what a migration entry says when
+the sweep was never run.
+
+Worked example, both halves of one commit. `4bb486e` (2026-08-27) made `[~]` outrank a
+plan's close-out line and propagate to masters — retroactive over every plan already
+written — while adding `**Blocked-accepted:**`, the only marker that retires such a plan,
+which nothing closed earlier could carry. **19 closed plans across 9 projects flipped to
+`blocked`**, every one closed before that commit, and stood as phantom in-flight work
+until they were backfilled by hand. BL-103 is the same commit's other half, still
+unmigrated — which is why its entry says "~20+" rather than a count.
+
+**Tier: untiered.** One enumeration command and at most one backlog entry, never a
+dispatch, so per DEC-010's cost line as DEC-017 extends it to commands, it runs at every
+review scope including `none`. Named because DEC-017 requires a mandate to state the rule
+that gates it.
+
+**Adds, net.** It removes nothing — no other rule here looks at documents the change did
+not touch — and costs one sweep per contract change, paid only by the change that earns
+it. What it catches that nothing else does: a change that is right in the diff and wrong
+in the corpus, where the diff, the suite and the rule are all green and the whole of the
+damage sits in files no one opened.
+
 ## Reporting
 
 When you report status, every gate is one of: **GREEN** (real command + passed,
