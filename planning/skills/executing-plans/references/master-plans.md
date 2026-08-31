@@ -43,6 +43,23 @@ gate and surfaces only at the master close-out — the most expensive place to f
    filed, exactly as at a stage gate), append
    a short `**Sub-plan N handoff:**` note under the entry, and commit
    `"Sub-plan N green"`.
+
+   **What flips the entry is a terminal marker in the sub-plan file, and the set has exactly
+   two members:** `**Completed:**` alone, or `**Completed:**` **together with**
+   `**Blocked-accepted:** <date> — <why>` when one of that sub-plan's gate checks is `[~]`.
+   Both are written into the sub-plan **before** the entry flips. **An intention to close out
+   later is not a member of that set.**
+
+   **Why this needed saying.** With a blocked gate, three rules collide and cannot all hold:
+   this step wants the sub-plan's `**Completed:**` line first; `close-out.md` § *Closing a plan
+   whose gate could not be run* forbids a clean `**Completed:**` over a `[~]`; and a dependent
+   sub-plan cannot start until this entry reads `[x]`. Something gives, and what gave in
+   practice was the record — a register flipped to unblock the next sub-plan, a close-out never
+   written, and a master that then declared the decomposition done without coming back. That is
+   not hypothetical; it is `2026-08-13-backlog-closure-sub-04`'s own account of itself.
+   `**Blocked-accepted:**` is what dissolves the collision, and this step predates it: the
+   marker landed 2026-08-27, months after the rule above was written, so until now there was no
+   legal way through and the executor had to break one of the three.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
    their usual steps (full suite, the evaluator **its own declared tier calls for**,
    backlog reconcile, workflow audit) EXCEPT step 4 (version bumps) — one feature landing
