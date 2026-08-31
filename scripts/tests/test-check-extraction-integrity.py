@@ -282,12 +282,43 @@ def scope_cases():
 
 
 def empty_sweep_cases():
-    # honest-gates: an empty sweep must not read as a pass by accident
+    """An empty sweep must not read as a pass (BL-067).
+
+    This case previously pinned the DEFECT: it asserted "empty tree exits 0",
+    which is exactly the silent clean pass a typo'd --scope degrades to. The
+    assertion is inverted here deliberately, not relaxed — the old expectation
+    was the bug, recorded as a test.
+    """
     with tempfile.TemporaryDirectory() as root:
-        rc = integrity.main(["--root", root, "--allowlist", os.path.join(root, "n.txt")])
-        check(rc == 0, "empty tree exits 0")
+        allow = os.path.join(root, "n.txt")
+        rc = integrity.main(["--root", root, "--allowlist", allow])
+        check(rc == 2, "empty tree exits 2, not a silent clean 0")
         files = integrity.discover(root, None)
         check(files == [], "empty tree discovers no files (count is reported, not implied)")
+        rc = integrity.main(["--root", root, "--allowlist", allow, "--min-files", "0"])
+        check(rc == 0, "--min-files 0 opts a legitimately empty scope back in")
+
+    # The scenario BL-067 actually names: a scope typo over a NON-empty tree.
+    # Without the floor this is the worst shape, because the tree really does
+    # hold findings and the run still reports a clean pass.
+    with tempfile.TemporaryDirectory() as root:
+        allow = os.path.join(root, "n.txt")
+        write(os.path.join(root, "a/skills/s/references/r.md"),
+              "The gate rules above close this.\n")
+        check(integrity.main(["--root", root, "--allowlist", allow, "--scope", "a"]) == 1,
+              "the real scope sees the finding")
+        check(integrity.main(["--root", root, "--allowlist", allow, "--scope", "aa"]) == 2,
+              "a typo'd --scope fails loudly instead of passing clean")
+
+    # The floor is a number, not a bare non-empty test: a scope matching FEWER
+    # files than the caller expects is the same failure, one step subtler.
+    with tempfile.TemporaryDirectory() as root:
+        allow = os.path.join(root, "n.txt")
+        write(os.path.join(root, "a/skills/s/references/r.md"), "clean\n")
+        check(integrity.main(["--root", root, "--allowlist", allow]) == 0,
+              "one clean file clears the default floor of 1")
+        check(integrity.main(["--root", root, "--allowlist", allow, "--min-files", "5"]) == 2,
+              "a floor above the discovered count fails")
 
 
 def exclusion_cases():
