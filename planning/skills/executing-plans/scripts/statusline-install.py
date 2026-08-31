@@ -596,6 +596,13 @@ def cmd_status():
     if is_ours(entry):
         current = entry.get("command", "")
         print(f"statusLine: wired to this installer's chain script\n  {current}")
+        # Which COPY it points at, not just the path. A reader cannot tell a
+        # checkout path from a published one by looking — that is the whole
+        # divergence — so --status says which it is rather than printing a
+        # string and leaving the reader to recognise a cache layout.
+        if resolve_command()[1] == "literal":
+            print("  (a checkout, not a published plugin version — this renders "
+                  "from a working tree and can diverge from the installed copy)")
         # Compare only the part AFTER any preserved-base prefix. Comparing the
         # whole string meant a chained entry never equalled a fresh install's
         # command, so --status permanently advised `--install` to "repair" it —
@@ -616,6 +623,7 @@ def cmd_install(force):
     path = get_settings_path()
     data, existed, stamp = load_settings_for_write(path)
     desired = desired_entry()
+    mode = resolve_command()[1]
     current = data.get("statusLine")
 
     if current == desired:
@@ -665,6 +673,17 @@ def cmd_install(force):
         if prefix:
             merged["command"] = prefix + merged["command"]
             print(f"Preserved your previous statusline as the base: {shown}")
+    if mode == "literal":
+        warn(
+            "installing from a checkout, not a published plugin version.\n"
+            "  The path written into settings.json points at this working tree, so\n"
+            "  every session in every project will render from it rather than from\n"
+            "  the installed plugin — the two can then diverge silently, which is\n"
+            "  the failure a hand-written wrapper causes and this installer exists\n"
+            "  to prevent. Correct and expected while developing; re-run this from\n"
+            "  an installed version to pin it to the published copy."
+        )
+
     data["statusLine"] = merged
     # These NOTEs are deferred until AFTER the write returns, and that ordering is
     # the whole point. They tell the user their old statusline "is preserved in the

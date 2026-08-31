@@ -594,6 +594,76 @@ def case_concurrent_edit_refused():
           "and actually wrote the entry")
 
 
+
+def case_literal_mode_is_disclosed():
+    """A dev-checkout install says so, on both surfaces that report mode (BL-047).
+
+    Run from a working tree, the installer writes a literal path into that tree,
+    so every session in every project renders from the checkout rather than the
+    installed plugin -- the exact "shipped renderer and the running one silently
+    diverge" defect progress-state-file.md and README.md blame on hand-written
+    wrappers. The docstring called literal mode "correct for a dev checkout",
+    which is true about the path's stability and silent about the divergence,
+    and neither the install nor --status distinguished a checkout copy from an
+    installed one.
+
+    Literal mode is NOT suppressed -- it is the only mode available before a
+    version carrying these files is published, and it still works. It just says
+    what it is. Both surfaces are asserted because a warning on one and silence
+    on the other is the same divergence in a smaller form.
+
+    Fixture paths deliberately avoid the words this asserts on: an earlier probe
+    reported the mode was disclosed when it was only reading its own temp
+    directory name.
+    """
+    print("30. a dev-checkout install discloses literal mode:")
+    home = mkdtemp(prefix="sl tree ")
+    cl = Path(home) / ".claude"
+    cl.mkdir()
+    d = Path(home) / "wt" / "skills" / "executing-plans" / "scripts"
+    d.mkdir(parents=True)
+    shutil.copy(SCRIPT, d / "statusline-install.py")
+    chain = d / "statusline-chain.sh"
+    chain.write_text('#!/bin/bash\ncat >/dev/null\nprintf "X"\n')
+    os.chmod(chain, 0o755)
+    env = dict(os.environ, HOME=home)
+    r = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--install"],
+                       env=env, capture_output=True, text=True)
+    check(r.returncode == 0, "a checkout install still SUCCEEDS — literal mode is not suppressed")
+    check("checkout" in r.stderr.lower(),
+          "the install says it is running from a checkout (got %r)" % r.stderr.strip()[:100])
+    s = subprocess.run([sys.executable, str(d / "statusline-install.py"), "--status"],
+                       env=env, capture_output=True, text=True)
+    check("checkout" in s.stdout.lower(),
+          "--status reports the mode as a checkout, not merely the path (got %r)"
+          % s.stdout.strip()[:120])
+
+    # a versioned install says neither thing
+    home2 = mkdtemp(prefix="sl pub ")
+    cl2 = Path(home2) / ".claude"
+    cl2.mkdir()
+    base = Path(home2) / ".claude" / "plugins" / "cache" / "mkt" / "planning"
+    for v in ("0.9.0", "0.37.0"):
+        vd = base / v / "skills" / "executing-plans" / "scripts"
+        vd.mkdir(parents=True)
+        c = vd / "statusline-chain.sh"
+        c.write_text('#!/bin/bash\ncat >/dev/null\nprintf "CHAIN-%s"\n' % v)
+        os.chmod(c, 0o755)
+    inst = base / "0.37.0" / "skills" / "executing-plans" / "scripts" / "statusline-install.py"
+    shutil.copy(SCRIPT, inst)
+    env2 = dict(os.environ, HOME=home2)
+    r2 = subprocess.run([sys.executable, str(inst), "--install"],
+                        env=env2, capture_output=True, text=True)
+    check(r2.returncode == 0, "a versioned install succeeds")
+    check("checkout" not in r2.stderr.lower(),
+          "and says nothing about a checkout, because it is not one (got %r)"
+          % r2.stderr.strip()[:100])
+    s2 = subprocess.run([sys.executable, str(inst), "--status"],
+                        env=env2, capture_output=True, text=True)
+    check("checkout" not in s2.stdout.lower(),
+          "nor does --status (got %r)" % s2.stdout.strip()[:120])
+
+
 def case_remove_ownership_gate():
     """--remove must refuse a statusLine this tool did not write.
 
@@ -1101,6 +1171,7 @@ def main():
     case_backup_atomic_and_pruned()
     case_hardlinked_settings()
     case_concurrent_edit_refused()
+    case_literal_mode_is_disclosed()
     case_remove_ownership_gate()
     case_repair_preserves_base()
     case_remove_restores_base()
