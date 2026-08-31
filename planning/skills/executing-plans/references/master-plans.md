@@ -58,11 +58,11 @@ gate and surfaces only at the master close-out — the most expensive place to f
    written, and a master that then declared the decomposition done without coming back. That is
    not hypothetical; it is `2026-08-13-backlog-closure-sub-04`'s own account of itself.
    `**Blocked-accepted:**` is what dissolves the collision, and this step predates it: the
-   marker landed 2026-08-27, months after step 3 was first written, so until now there was no
-   legal way through and the executor had to break one of the three.
+   marker landed 2026-08-27, a month after step 3 was written (2026-07-28), so until then there
+   was no legal way through and the executor had to break one of the three.
 4. **Version bumps are deferred to the master close-out.** Sub-plan close-outs run all
    their usual steps (full suite, the evaluator **its own declared tier calls for**,
-   backlog reconcile, workflow audit) EXCEPT step 4 (version bumps) — one feature landing
+   backlog reconcile, workflow audit) EXCEPT step 4, **Bump versions for what changed** — one feature landing
    across five sub-plans is one release event, not five. Note the deferral in each
    sub-plan's close-out.
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run

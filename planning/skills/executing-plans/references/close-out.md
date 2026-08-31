@@ -1,6 +1,9 @@
 # Phase Close-out — after the last stage
 
-Reached once, at the end of a plan, and only when every stage is green. The trunk
+Reached once, at the end of a plan, and only when every stage is green — **or when a stage
+gate is BLOCKED (`[~]`) and cannot be unblocked here**, which is not a green stage and is
+routed here anyway: § Closing a plan whose gate could not be run is the procedure for it, and
+lives in this file because closing out is what it governs. The trunk
 (`../SKILL.md` § Phase Close-out — After the last stage) points here; this file is the
 procedure. Work the steps in order.
 
@@ -50,8 +53,15 @@ procedure. Work the steps in order.
    marketplace set itself changed. Add a `CHANGELOG.md` entry if the project keeps one, and
    commit the bumps (`"chore: bump <component> to <version>"`). When the right bump is
    genuinely ambiguous, state your call and let the user override — don't silently skip.
+   **On a sub-plan, skip this step entirely** — version bumps defer to the master close-out,
+   because one feature landing across five sub-plans is one release event and not five
+   (`master-plans.md` § *Version bumps are deferred to the master close-out*). Note the
+   deferral in the sub-plan's close-out report. Every other step here runs as written.
 5. Update the plan document with a closing note: append `**Completed:** YYYY-MM-DD — commits:
-   <list>` at the end. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]`
+   <list>` at the end. **If any gate check in this plan is `[~]`, read
+   § Closing a plan whose gate could not be run before you write this line** — a bare
+   `**Completed:**` over a blocked gate is the one form of this line that is wrong, and this
+   step is where it gets written. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]`
    task was not executed — either finish it or note it as deferred). The close-out line +
    all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that
@@ -151,15 +161,17 @@ It is the only thing that retires such a plan.
 **Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
 and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.
 
-**Write it at column 0.** `**Blocked-accepted:**` is recognised only at the start of a line
-(BL-107): indented two spaces under the gate item it accepts — the natural place, since it
-explains that specific `[~]` box — it does not parse, `plan_blocked()` stays true, and the plan
-stays on the in-flight board having done everything right. Put it beside the close-out line and
-name the gate check in its text instead.
+**Write it at column 0, flush with the `**Completed:**` line**, and name the blocked gate check
+in its text.
+
+**The natural-seeming place does not parse.** Indented two spaces under the `[~]` item it
+accepts — where it would sit right beside the box it explains — `**Blocked-accepted:**` is
+invisible to `BLOCKED_ACCEPTED_RE`, which anchors to line start (BL-107). `plan_blocked()` then
+stays true and the plan stays on the in-flight board, having done everything right.
 
 ### On a sub-plan, this line is load-bearing for the master
 
-**A sub-plan's close-out line is what flips its master register entry** to `- **Status:** [x]`
+**A sub-plan's close-out line is what authorizes flipping its master register entry** to `- **Status:** [x]`
 (`master-plans.md` step 3), so on a sub-plan it is not only this plan's record — it is the
 master's precondition. That makes deferring it a different act here than on a standalone plan:
 a sub-plan whose close-out is postponed leaves the master with no legal way to advance.
@@ -172,4 +184,8 @@ that has actually failed: the register got flipped anyway to let the next sub-pl
 close-out was never written, and the master then declared the decomposition done over a
 sub-plan that never closed.
 
-Delete `.claude/plan-progress.json` as the last step, once the report is out.
+## Last step, every close-out
+
+Delete `.claude/plan-progress.json` once the report is out. This applies to every close-out,
+blocked or clean — it is a `##` section rather than a trailing line because it previously sat
+inside the blocked-gate section, where a reader working an unblocked plan never reached it.
