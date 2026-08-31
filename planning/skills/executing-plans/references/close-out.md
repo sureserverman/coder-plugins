@@ -151,4 +151,25 @@ It is the only thing that retires such a plan.
 **Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
 and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.
 
+**Write it at column 0.** `**Blocked-accepted:**` is recognised only at the start of a line
+(BL-107): indented two spaces under the gate item it accepts — the natural place, since it
+explains that specific `[~]` box — it does not parse, `plan_blocked()` stays true, and the plan
+stays on the in-flight board having done everything right. Put it beside the close-out line and
+name the gate check in its text instead.
+
+### On a sub-plan, this line is load-bearing for the master
+
+**A sub-plan's close-out line is what flips its master register entry** to `- **Status:** [x]`
+(`master-plans.md` step 3), so on a sub-plan it is not only this plan's record — it is the
+master's precondition. That makes deferring it a different act here than on a standalone plan:
+a sub-plan whose close-out is postponed leaves the master with no legal way to advance.
+
+**So when the gate is blocked, write both markers now rather than deferring the close-out.**
+The pairing — `**Completed:**` plus `**Blocked-accepted:**` — is the whole point: it lets the
+register flip on an honest record instead of forcing the choice between an unearned `[x]` and a
+sub-plan that cannot unblock its dependents. Deferring "until the gate can be run" is the shape
+that has actually failed: the register got flipped anyway to let the next sub-plan start, the
+close-out was never written, and the master then declared the decomposition done over a
+sub-plan that never closed.
+
 Delete `.claude/plan-progress.json` as the last step, once the report is out.
