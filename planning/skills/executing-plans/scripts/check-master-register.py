@@ -180,6 +180,14 @@ def audit(vault):
             masters.append((master, mtext))
 
         for master, mtext in masters:
+            if pu.ABANDONED_RE.search(mtext):
+                # An abandoned master's register is a historical record, not a live
+                # contract: the decomposition is over, so demanding its entries flip
+                # reports a red nobody can legitimately clear — the same failure as a
+                # master gate `[~]` with no acceptance. Found triaging BL-110, where 5
+                # of 16 findings were sub-plans of two claude-pacer masters their author
+                # had abandoned (one superseded, one a reverted dead end).
+                continue
             master_closed = bool(pu.COMPLETED_RE.search(mtext))
             entries, unparsed = register_entries(mtext, master)
             # F2: gating this on `master_closed` reproduced B1 — step 5 runs the check

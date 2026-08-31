@@ -265,6 +265,14 @@ def main():
         check("ENTRY-UNPARSED fires on a Plan line preceding its Status",
               "ENTRY-UNPARSED" in got, f"got {got}")
 
+
+    # An abandoned master's register is history. Demanding entry flips on it is a red
+    # nobody can clear — the same shape as an unaccepted master gate.
+    case("an abandoned master's register is not enforced", "REGISTER-BEHIND",
+         fires={"state": "[ ]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n"},
+         silent={"state": "[ ]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n",
+                 "master_closeout": "\n**Abandoned:** 2026-01-03 — superseded\n"})
+
     print(f"assertions run ({len(RAN)})")
     for n in RAN:
         print(f"  - {n}")
