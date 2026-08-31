@@ -148,6 +148,45 @@ INTERNAL_MARKERS = ("/references/", "references/", "/skills/", "skills/",
                     "/scripts/", "scripts/", "/agents/", "agents/")
 
 
+def is_placeholder(tok):
+    """A `<name>` template stands for a path the reader substitutes, not a path.
+
+    Note this screen lives here and NOT in is_pathish: `<applicationId>.yml`
+    ends with a known extension and carries no space, so is_pathish accepts it.
+    Any caller that bypasses is_internal_ref must apply this itself (BL-065).
+    """
+    return "<" in tok or ">" in tok
+
+
+def is_link_target(tok):
+    """True for a markdown link target that should be resolved (BL-065).
+
+    is_internal_ref demands a structural marker (`references/`, `skills/`, ...)
+    or a SKILL.md suffix, which is right for a BARE token: skill prose cites
+    paths in the user's project constantly, and treating every path-ish token as
+    internal produced 847 findings of which ~18 were real. A markdown LINK is
+    different in kind — `[text](target)` is a promise the reader can follow it —
+    so the structural marker is not needed to disambiguate intent.
+
+    Two screens still apply, and both are load-bearing. Measured on this tree:
+    56 link targets pass is_pathish, 12 of them do not resolve.
+      - 11 are `<placeholder>` templates (`<vault>/Portfolio/global-maturity.md`).
+      - 1 is `planning/skills/workflow-spec/SKILL.md:26`, which reads
+        ``- [auth](auth.md) — login, signup, ...`` INSIDE a backtick span: it
+        illustrates a line in the *user's* docs/workflows/README.md. A link
+        displayed as literal code is quoted material, not a reference this repo
+        makes, which is the same reason the deixis checks skip fenced blocks.
+    With both screens the rule fires on 0 of the 56 today — it costs no
+    allowlist churn and starts guarding bare-filename links from here on.
+    """
+    return not is_placeholder(tok)
+
+
+def in_code_span(line, start):
+    """True when offset `start` falls inside a backtick span on this line."""
+    return line.count("`", 0, start) % 2 == 1
+
+
 def is_internal_ref(tok):
     """True when the token points at another file in this repo's own tree.
 
@@ -240,7 +279,32 @@ def _structure_present(text, noun, word):
 
 
 def _resolves_locally(text, noun):
-    """True when the noun phrase names something present in this same file."""
+    """True when the noun phrase names something present in this same file.
+
+    This is a whole-file substring count, and BL-069 is right that it is loose:
+    the phrase need only appear twice anywhere, so a coincidental later mention
+    can silence a genuinely dead pointer. Requiring the second occurrence to be
+    a DEFINITION site (heading, bold run, colon-terminated label, table cell)
+    was built and measured against this tree on 2026-08-31, and reverted:
+
+      lab case (BL-069's own constructed repro) .... caught
+      live tree true positives ..................... 0
+      live tree false positives ................... 11
+      allowlist growth to ship it ............ 27 -> 38
+
+    All 11 were live references the stricter rule cannot see -- a generic noun
+    pointing at a specific named thing ("the formal `**Abandoned:**` marker
+    below", "the per-row `retained` figures below"), physical space ("Cameras
+    below the head"), a hyphenated comparison ("a below-threshold verdict"), and
+    a backticked HTML sentinel that merely quotes the word. With no true
+    positive anywhere in the corpus the tightening is unfalsifiable here: it can
+    only be measured by what it breaks, and 11 fresh allowlist entries to catch
+    nothing is the "guard cries wolf, gets allowlisted wholesale, then guards
+    nothing" failure this module's own header warns about.
+
+    Re-attempt when the corpus has a real dead positional pointer to calibrate
+    against -- that is the missing evidence, not a missing heuristic.
+    """
     n = normalize(noun)
     if not n:
         return False
@@ -278,14 +342,19 @@ def scan_file(relpath, text, root):
             continue
 
         # --- DEAD-PATH -------------------------------------------------
-        toks = [m.group(1) for m in BACKTICK_RE.finditer(line)]
-        toks += [m.group(1) for m in MDLINK_RE.finditer(line)]
+        toks = [(m.group(1), False) for m in BACKTICK_RE.finditer(line)]
+        # A markdown link target is a reference by construction, so it does not
+        # need is_internal_ref's structural marker to prove intent (BL-065) --
+        # unless the link is being *displayed* inside a backtick span, where it
+        # is quoted text rather than a link this file makes.
+        toks += [(m.group(1), not in_code_span(line, m.start()))
+                 for m in MDLINK_RE.finditer(line)]
         # Inside a fence there are no backticks to delimit anything: the whole
         # line is a command, and its bare arguments are paths the reader will
         # actually run. BL-039's sharper half lives here.
         if in_fence:
-            toks += line.split()
-        for tok in toks:
+            toks += [(t, False) for t in line.split()]
+        for tok, is_link in toks:
             # Strip shell quoting before anything else. `trap 'skills/.../down.sh
             # --mock' EXIT` inside a fence splits to a token carrying a leading
             # quote, which resolves against nothing — so a file that EXISTS was
@@ -293,7 +362,9 @@ def scan_file(relpath, text, root):
             # cries wolf, gets allowlisted, guards nothing" failure this
             # script's own docstring warns about, reached by its own tokenizer.
             cand = tok.strip("'\"").split("#", 1)[0].strip()
-            if not is_pathish(cand) or not is_internal_ref(cand):
+            if not is_pathish(cand):
+                continue
+            if not (is_link_target(cand) if is_link else is_internal_ref(cand)):
                 continue
             # Three addressing conventions are all legitimate here, so a token
             # is dead only when it resolves under none of them:

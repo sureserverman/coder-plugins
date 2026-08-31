@@ -77,9 +77,19 @@ def ratchet_cases():
         check(budget.main(["--root", root, "--budgets", bf]) == 0,
               "file exactly at its ceiling passes")
 
+        # This case used to read "file under its ceiling passes" and exit 0.
+        # That expectation WAS the gap BL-066 names: a ceiling sitting above a
+        # shrunk trunk is re-growth room, and nothing reported it. Under the
+        # default exact ratchet it is now STALE; slack is opt-in per run.
         write(bf, f"{skill} 600\n")
-        check(budget.main(["--root", root, "--budgets", bf]) == 0,
-              "file under its ceiling passes")
+        check(budget.main(["--root", root, "--budgets", bf]) == 1,
+              "file 100 B under its ceiling is STALE by default")
+        check(budget.main(["--root", root, "--budgets", bf,
+                           "--max-slack", "100"]) == 0,
+              "--max-slack 100 tolerates exactly that much drift")
+        check(budget.main(["--root", root, "--budgets", bf,
+                           "--max-slack", "99"]) == 1,
+              "one byte more drift than --max-slack allows FAILS")
 
         # THE case: growth past the ceiling must fail
         write(bf, f"{skill} 499\n")
@@ -116,6 +126,57 @@ def unbudgeted_cases():
         check(rc == 0, "a trunk under --min-size needs no entry")
 
 
+def stale_ceiling_cases():
+    """A ceiling left above a shrunk trunk is silent re-growth room (BL-066).
+
+    The ratchet's own header says ceilings are lowered by hand when an
+    extraction lands, "which is what makes the reduction durable rather than a
+    number that drifts back up" -- but nothing verified the hand-lowering. Two
+    of this repo's 23 ceilings had already drifted when the check was written.
+    """
+    with tempfile.TemporaryDirectory() as root:
+        skill = "p/skills/s/SKILL.md"
+        write(os.path.join(root, skill), "x" * 500)
+        bf = os.path.join(root, "b.txt")
+
+        write(bf, f"{skill} 500\n")
+        check(budget.main(["--root", root, "--budgets", bf]) == 0,
+              "a ceiling equal to the measured size is not stale")
+
+        # The shape that bit: the trunk shrinks, the budget file does not move.
+        write(os.path.join(root, skill), "x" * 300)
+        check(budget.main(["--root", root, "--budgets", bf]) == 1,
+              "a trunk that shrank without its ceiling being lowered FAILS")
+
+        write(bf, f"{skill} 300\n")
+        check(budget.main(["--root", root, "--budgets", bf]) == 0,
+              "lowering the ceiling to the new size clears it")
+
+        # Over-ceiling must still outrank stale: growth is the primary defect.
+        write(os.path.join(root, skill), "x" * 900)
+        check(budget.main(["--root", root, "--budgets", bf]) == 1,
+              "growth past the ceiling still FAILS with the stale check present")
+
+
+def unmeasured_headroom_cases():
+    """The floor and the stale ceiling are one defect: room nobody measures."""
+    with tempfile.TemporaryDirectory() as root:
+        write(os.path.join(root, "p/skills/s/SKILL.md"), "x" * 500)
+        write(os.path.join(root, "p/skills/small/SKILL.md"), "x" * 100)
+        bf = os.path.join(root, "b.txt")
+        write(bf, "p/skills/s/SKILL.md 500\n")
+        import io as _io, json as _json, contextlib as _ctx
+        buf = _io.StringIO()
+        with _ctx.redirect_stdout(buf):
+            budget.main(["--root", root, "--budgets", bf,
+                         "--min-size", "1000", "--json"])
+        data = _json.loads(buf.getvalue())
+        # small/ is 100 B under a 1000 B floor -> 900 B of room nothing ratchets
+        check(data["unmeasured_headroom"] == 900,
+              f"sub-floor headroom is counted and reported (got {data['unmeasured_headroom']})")
+        check(data["stale"] == [], "no stale ceilings when every ceiling is exact")
+
+
 def report_cases():
     with tempfile.TemporaryDirectory() as root:
         skill = "p/skills/s/SKILL.md"
@@ -127,7 +188,8 @@ def report_cases():
         r = rows[0]
         check(r["size"] == 400 and r["budget"] == 1000 and r["headroom"] == 600,
               "row carries size, budget and headroom")
-        check(budget.main(["--root", root, "--budgets", bf]) == 0,
+        check(budget.main(["--root", root, "--budgets", bf,
+                           "--max-slack", "600"]) == 0,
               "reporting run exits 0 when compliant")
 
 
@@ -150,6 +212,10 @@ if __name__ == "__main__":
     missing_file_cases()
     print("unbudgeted trunks:")
     unbudgeted_cases()
+    print("stale ceilings:")
+    stale_ceiling_cases()
+    print("unmeasured headroom:")
+    unmeasured_headroom_cases()
     print("reporting:")
     report_cases()
     print("empty sweep:")

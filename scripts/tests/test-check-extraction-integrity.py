@@ -107,6 +107,48 @@ def dead_path_cases():
         check(codes(f) == ["DEAD-PATH"], "plugin-rooted reference to a missing file flagged")
 
 
+def link_target_cases():
+    """A markdown link target is a reference by construction (BL-065).
+
+    is_internal_ref demands a structural marker or a SKILL.md suffix, which is
+    right for a BARE token -- skill prose cites the user's project paths
+    constantly. But `[text](target)` promises the reader can follow it, so the
+    marker is not needed to establish intent. Two screens still apply, and both
+    were measured against the live tree before this shipped: of 56 link targets
+    passing is_pathish, 12 do not resolve -- 11 `<placeholder>` templates and
+    one link displayed INSIDE a backtick span, illustrating a line in the
+    user's own README rather than referencing anything here.
+    """
+    with tempfile.TemporaryDirectory() as root:
+        rel = "p/skills/s/references/r.md"
+        base = os.path.join(root, "p/skills/s/references")
+
+        write(os.path.join(base, "r.md"), "[the tier table](tier-table.md)\n")
+        f = integrity.scan_file(rel, "[the tier table](tier-table.md)\n", root)
+        check(codes(f) == ["DEAD-PATH"],
+              "a bare-filename LINK target is now resolved and flagged when dead")
+        check(f[0]["token"] == "tier-table.md", "the token is the link target")
+
+        write(os.path.join(base, "tier-table.md"), "x\n")
+        check(codes(integrity.scan_file(rel, "[t](tier-table.md)\n", root)) == [],
+              "the same link resolves once the sibling exists")
+
+        # A bare token is still NOT resolved -- that measurement stands.
+        check(codes(integrity.scan_file(rel, "See `sibling-gone.md`.\n", root)) == [],
+              "a bare filename outside a link is still not treated as internal")
+
+        # The live-tree false positive this screen exists for.
+        quoted = "`- [auth](auth.md) - login, signup` is the index line format.\n"
+        check(codes(integrity.scan_file(rel, quoted, root)) == [],
+              "a link DISPLAYED inside a backtick span is quoted text, not a reference")
+
+        placeholder = "[global](<vault>/Portfolio/global-maturity.md)\n"
+        check(codes(integrity.scan_file(rel, placeholder, root)) == [],
+              "a <placeholder> link target is a template, not a path")
+        check(integrity.is_placeholder("<vault>/x.md"),
+              "is_placeholder screens what is_pathish does not")
+
+
 def positional_deixis_cases():
     # Real deixis in a reference file -> flagged
     for text, why in [
@@ -333,6 +375,8 @@ def exclusion_cases():
 if __name__ == "__main__":
     print("dead paths:")
     dead_path_cases()
+    print("link targets:")
+    link_target_cases()
     print("positional deixis:")
     positional_deixis_cases()
     print("section refs:")
