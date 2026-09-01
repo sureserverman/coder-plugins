@@ -425,16 +425,26 @@ def case_hardlinked_settings():
     # replace -- the exact link-breaking behaviour this branch prevents, done
     # silently and indistinguishably from a legitimate single-link file.
     #
-    # The stat is armed on the FIFTH call, which is the nlink read; the four
-    # before it are backup()'s and the prev_mode/mkdir reads. An earlier
-    # attempt armed on a flag set right after backup(), which also broke
-    # prev_mode and detect_indent two lines later -- so BOTH the fixed and the
-    # fail-open builds died for unrelated reasons and the assertion passed
-    # either way. It was vacuous, and only the mutation showed it.
+    # The failure is armed on the LINK-COUNT READ ITSELF -- `st_nlink` access on
+    # a stat result -- not on an ordinal among the stat() calls.
     #
-    # This is why the assertion below checks the MESSAGE and not just the exit:
-    # if the call order ever drifts so that call 5 is no longer the nlink read,
-    # this fails loudly and tells you to re-count, instead of quietly passing.
+    # It was armed on the fifth call, and that broke (BL-112). `write_settings`
+    # makes five stat() calls on CPython 3.12 and three on 3.14, because pathlib
+    # internals are not a stable call-count contract and this workflow pins
+    # `python-version: 3.x`, which follows the newest release. On 3.14 the
+    # injection never fired: no refusal, and all three assertions below failed.
+    # Re-deriving the number would restore green and re-arm the same trap for
+    # the next interpreter, so the seam is selective instead of counted -- the
+    # number was never a property of the code under test.
+    #
+    # Selectivity is also what keeps the case non-vacuous, which is the older
+    # lesson here. An earlier attempt armed on a flag set right after backup(),
+    # which also broke prev_mode and detect_indent two lines later -- so BOTH
+    # the fixed and the fail-open builds died for unrelated reasons and the
+    # assertion passed either way. Only the mutation showed it. Failing on
+    # `st_nlink` alone leaves every other attribute readable, so a fail-open
+    # build (nlink defaulting to 0) does NOT die here: it proceeds to the atomic
+    # replace and the refusal assertion correctly fails.
     spec_h = importlib.util.spec_from_file_location("statusline_install_hl", str(SCRIPT))
     mod_h = importlib.util.module_from_spec(spec_h)
     spec_h.loader.exec_module(mod_h)
@@ -446,14 +456,37 @@ def case_hardlinked_settings():
     sp3.write_text(json.dumps({"theme": "dark"}, indent=2) + "\n", encoding="utf-8")
     before3 = sp3.read_bytes()
 
-    seen = [0]
+    nlink_reads = [0]
+
+    class NlinkUnreadable:
+        """A stat result that answers everything except the link count.
+
+        Delegation is explicit for the mapping/sequence protocol because Python
+        looks special methods up on the TYPE, not the instance, so __getattr__
+        would not cover them.
+        """
+
+        def __init__(self, real):
+            self._real = real
+
+        def __getattr__(self, name):
+            if name == "st_nlink":
+                nlink_reads[0] += 1
+                raise OSError(5, "Input/output error")
+            return getattr(self._real, name)
+
+        def __getitem__(self, i):
+            return self._real[i]
+
+        def __len__(self):
+            return len(self._real)
+
+        def __iter__(self):
+            return iter(self._real)
 
     class StatFailsOnNlinkRead(type(Path(cl3))):
         def stat(self, *a, **kw):
-            seen[0] += 1
-            if seen[0] == 5:
-                raise OSError(5, "Input/output error")
-            return super().stat(*a, **kw)
+            return NlinkUnreadable(super().stat(*a, **kw))
 
     err3 = io.StringIO()
     refused = False
@@ -466,12 +499,15 @@ def case_hardlinked_settings():
         refused = True
     except OSError:
         refused = False
-    # If write_settings ever makes fewer than 5 stat() calls, the injection never
+    # If write_settings ever stops reading the link count, the injection never
     # fires and this case would silently stop testing anything. Assert the seam
-    # was actually reached, so drift fails loudly rather than going quiet.
-    check(seen[0] >= 5,
-          "the injected stat failure actually fired (write_settings made %d stat "
-          "calls; the nlink read is the 5th — re-derive if this changes)" % seen[0])
+    # was actually reached, so drift fails loudly rather than going quiet. This
+    # counts the thing the case is ABOUT, so it cannot go stale against an
+    # interpreter — only against the code under test, which is the point.
+    check(nlink_reads[0] >= 1,
+          "the injected failure actually fired (write_settings read st_nlink %d "
+          "time(s); 0 means it no longer asks, so this case proves nothing)"
+          % nlink_reads[0])
     check(refused and "hardlinked" in err3.getvalue(),
           "an unreadable link count REFUSES with a message naming the hardlink "
           "question, rather than defaulting to the path that breaks links "
