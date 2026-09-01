@@ -92,6 +92,9 @@ prohibitions; pinned by one string, seven could be demoted with this sweep green
 | Prohibited (these are gate-faking) | outcomes is not a gate |
 | Prohibited (these are gate-faking) | Fabricated evidence. |
 | Prohibited (these are gate-faking) | Silently excluding the failing case. |
+| Prohibited (these are gate-faking) | BLOCKED on that suite |
+| Prohibited (these are gate-faking) | never an authorizing rule |
+| Prohibited (these are gate-faking) | reported on the gate's scope line, not an |
 | Prohibited (these are gate-faking) | Heuristic self-grading. |
 | Prohibited (these are gate-faking) | Proxy data that doesn't measure what the gate measures. |
 | Prohibited (these are gate-faking) | Unannotated amendment of a gate's own checks. |

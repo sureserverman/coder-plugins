@@ -406,7 +406,9 @@ planning/skills/portfolio/SKILL.md 13718
 #   reachable from a named test; a mutation battery is the proof for a verdict-producing check.
 # Raised 14073 -> 14620 (+547 B) 2026-09-01, Task 2.3, BL-094 + BL-040: a GREEN names
 #   where its evidence executed, and every figure in a report is reproducible at a sha.
-planning/skills/honest-gates/SKILL.md 14620
+# Raised 14620 -> 15095 (+475 B) 2026-09-01, Task 2.4, BL-080: a suite dropped for cost is BLOCKED
+#   on that suite; cost never authorizes an amendment; tier-declared narrowing is scope, not one.
+planning/skills/honest-gates/SKILL.md 15095
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

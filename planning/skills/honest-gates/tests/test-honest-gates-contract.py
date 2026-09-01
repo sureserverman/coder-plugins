@@ -185,6 +185,26 @@ def sentence_checks(trunk):
     check("prohibited: both stub shapes are named (`echo OK` pass, unconditional `exit 2` block)",
           re.search(r"`echo OK`", prohibited) is not None and re.search(r"`exit 2`", prohibited) is not None)
 
+    # BL-080 — cost is never an authorizing rule; a dropped suite is BLOCKED on that suite;
+    # the tiering policy's declared narrowing is scope, not an amendment (the reconciliation).
+    excl = re.search(r"- \*\*Silently excluding the failing case\.\*\*.*?(?=\n- \*\*)", prohibited, re.S)
+    excl = excl.group(0) if excl else ""
+    pin_neg("prohibited: a suite removed from a gate command for time, disk or cost is `[~]` BLOCKED on that suite",
+        excl, ws(r"for time, disk or cost is `\[~\]` BLOCKED on that suite"))
+    check("prohibited: cost, time and disk are never an authorizing rule for an amendment (literal, run-up screened)",
+          re.search(ws(r"never an authorizing rule"), excl) is not None
+          and not _helper.NEGATION_RE.search(re.split(r"[.;:]\s", excl[:re.search(ws(r"never an authorizing rule"), excl).start()])[-1][-40:])
+          if re.search(ws(r"never an authorizing rule"), excl) else False)
+    check("prohibited: the bullet cites test-scope-tiers.md for the declared-scope distinction",
+          "test-scope-tiers.md" in excl)
+    pin_neg("prohibited: declared stage-scope narrowing is scope on the gate's scope line, not an amendment",
+        excl, ws(r"scope line, not an amendment"))
+    tiers_path = os.path.join(REPO, "planning", "skills", "planning-projects", "references", "test-scope-tiers.md")
+    with open(tiers_path, encoding="utf-8") as fh:
+        tiers = fh.read()
+    check("mirror: test-scope-tiers.md § Guard rails still says the gate report names which scope ran",
+          re.search(ws(r"the gate report says which scope"), tiers) is not None)
+
     reporting = section(trunk, "Reporting")
     pin("reporting: every gate is GREEN, RED or BLOCKED", reporting,
         r"every gate is one of: \*\*GREEN\*\*.*?\*\*RED\*\*.*?\*\*BLOCKED\*\*")

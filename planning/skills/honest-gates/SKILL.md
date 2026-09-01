@@ -47,7 +47,13 @@ fix that happens to make the check pass.
   don't have the evidence.
 - **Silently excluding the failing case.** Do not add runner exclusions
   (`notClass`, `-PexcludeTests`, `@Ignore`, skip flags) to make a suite green, then
-  report the suite green. Disabling a check is a BLOCKED gate, not a pass.
+  report the suite green. Disabling a check is a BLOCKED gate, not a pass — and so is
+  an economy: a suite removed from a gate command for time, disk or cost is `[~]`
+  BLOCKED on that suite. Cost, time and disk are never an authorizing rule for an
+  amendment; they argue for re-scoping the plan, never the evidence a written gate
+  demands. The tiering policy is untouched: the stage-scope narrowing
+  `test-scope-tiers.md` declares is scope, reported on the gate's scope line, not an
+  amendment of a written check (`references/incidents.md`).
 - **"Written" ≠ "passing."** A test that exists but never executed proves nothing.
   Authoring `FooTest.kt` does not satisfy a gate that requires `FooTest` to pass.
 - **Heuristic self-grading.** Do not stamp `Pass: true` on a measurement that

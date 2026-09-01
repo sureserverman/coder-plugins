@@ -22,6 +22,18 @@ own gates ran. One had the body `echo "soft residual"; echo OK` and passed; anot
 The project owner reverted both (`b85c294`, "make live gates fail blocked instead of
 succeeding on stubs"). Nothing in the rules had asked who wrote the gate.
 
+## Prohibited — suites dropped "for disk/time" (f430ccbe)
+
+Cursor session `f430ccbe` (pi-modem, 2026-08) removed `make clean`, `test-deauth-all` and
+`test-release-stage` from gate commands "for disk/time" and closed the sub-plan green; the
+same session downgraded a Critical reviewer finding titled "Gate theater" and closed on the
+downgrade. Disk and wall-clock are real constraints and arguments for re-scoping the plan —
+never for re-scoping the evidence a written gate demands. The reconciliation with the tiering
+policy is deliberate: `test-scope-tiers.md` narrows a *declared stage-scope command* when it
+crosses ~5 minutes and requires the gate report to say which scope ran; that is scope, and
+disclosed as scope. Dropping a suite a written check names is an amendment, and cost never
+authorizes one. Recorded as DEC-024.
+
 ## Prohibited — the proxy-data example
 
 Facilitator runs on the optimal path do not validate a "first-time casual player, 8–15 min"
