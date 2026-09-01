@@ -498,7 +498,7 @@
       "name": "architecture-researcher",
       "path": "planning/agents/architecture-researcher.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to reproduce ONE slice of a Claude Design handoff pack (component/screen plus tokens and assets) precisely, self-checked against the fidelity rubric. Triggers include \"reproduce this design slice\", \"implement this component to spec\", \"build this screen to match the handoff\".",
@@ -508,7 +508,7 @@
       "name": "design-handoff-reproducer",
       "path": "planning/agents/design-handoff-reproducer.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Wire, check, or remove the plan-execution progress bar in the Claude Code status line. Triggers on \"install the progress bar\", \"wire the plan statusline\", \"is the progress bar set up\", \"remove the statusline bar\".",
@@ -518,7 +518,7 @@
       "name": "statusline",
       "path": "planning/commands/statusline.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use when redesigning an app to reproduce a Claude Design handoff pack (tokens, components, layout, assets) precisely, reshaping functionality to fit the design where they conflict. Triggers on \"reproduce this design\", \"apply the handoff pack\", \"redesign to match the design\".",
@@ -528,7 +528,7 @@
       "name": "applying-design-handoff",
       "path": "planning/skills/applying-design-handoff/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use after a design is validated (or on a direct architecture request) to produce a researched, user-approved architecture document that planning-projects consumes. Triggers on \"design the architecture\", \"architecture options\", \"pick an architecture\", \"compare architecture candidates\".",
@@ -538,7 +538,7 @@
       "name": "architecting-projects",
       "path": "planning/skills/architecting-projects/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to read, append, or remove entries in docs/backlog.md \u2014 the register for deferred improvements and decisions, not defects. Triggers on \"add to backlog\", \"defer this\", \"what's in the backlog\", \"BL-007 is done \u2014 remove it\". Append on defer, remove on implement, list on research.",
@@ -548,7 +548,7 @@
       "name": "backlog",
       "path": "planning/skills/backlog/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use before any non-trivial creative or implementation work \u2014 new features, components, services, migrations, or behavior changes \u2014 to turn a vague idea into a validated design, one question at a time. Triggers on \"I want to build\", \"let's design\", \"brainstorm\", \"help me think through\".",
@@ -558,7 +558,7 @@
       "name": "brainstorming",
       "path": "planning/skills/brainstorming/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
@@ -568,7 +568,7 @@
       "name": "capability-router",
       "path": "planning/skills/capability-router/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to decide and organize work across every project in the portfolio \u2014 what's in flight, what to work on next, and a periodic review sweep. Triggers on \"what should I work on next\", \"what's in flight\", \"portfolio review\", \"what's going stale\". Report-only \u2014 recommends, never launches work.",
@@ -578,7 +578,7 @@
       "name": "compass",
       "path": "planning/skills/compass/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to record, read, or promote architectural decisions and the reasons behind them \u2014 per-project and per-architecture-domain. Triggers on \"record this decision\", \"why did we choose X\", \"log this sec-audit recommendation\", \"promote this to the android decisions\", \"what binds all Rust projects\".",
@@ -588,7 +588,7 @@
       "name": "decisions",
       "path": "planning/skills/decisions/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on \"dispatch these tasks in parallel\", \"run these Parallel YES tasks\", \"fan out these independent fixes\".",
@@ -598,7 +598,7 @@
       "name": "dispatching-parallel-agents",
       "path": "planning/skills/dispatching-parallel-agents/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use when you have a planning-projects plan \u2014 Standard (staged), master (sub-plans), or light (single-stage) \u2014 and need to execute it, driving Red-Green loops and stage gates. Triggers on \"execute this plan\", \"run the plan\", \"execute the master plan\".",
@@ -608,7 +608,7 @@
       "name": "executing-plans",
       "path": "planning/skills/executing-plans/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Integrity rules for any verification gate, acceptance check, test command, or \"done\" claim. Use whenever something must pass, build, run, or be measured \u2014 before reporting a gate green, registering a build/test task, or recording test/benchmark evidence. Apply eagerly; do not wait to be asked.",
@@ -618,7 +618,7 @@
       "name": "honest-gates",
       "path": "planning/skills/honest-gates/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use at the START of ANY debugging or diagnostic work \u2014 before forming theories or proposing fixes. Fires on \"debug this\", \"why is X broken\", \"fix this bug\", \"tests are failing\", a stack trace, or any unexpected behavior. Drives evidence-first root-cause analysis.",
@@ -628,7 +628,7 @@
       "name": "no-fafo-debugging",
       "path": "planning/skills/no-fafo-debugging/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use when the user wants a plan for a project of any size \u2014 triages to a format first (Direct/Light/Standard/Master) and may decline to plan a trivial job. Triggers on \"roadmap\", \"break this down\", \"create a plan\", \"plan this\", \"how should I build\".",
@@ -638,7 +638,7 @@
       "name": "planning-projects",
       "path": "planning/skills/planning-projects/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to manage backlog, maturity, and ship-readiness across every project in ~/dev/ via a single command. Triggers on \"portfolio scan\", \"global backlog\", \"maturity dashboard\", \"scan all my projects\". Subcommands: scan, unify, maturity, migrate, integrate, rebuild, plan-status.",
@@ -648,7 +648,7 @@
       "name": "portfolio",
       "path": "planning/skills/portfolio/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to scaffold, audit, and read a per-project docs/MATURITY.md checklist tracking ship-readiness across six axes (Documentation, Security, Packaging, UI/UX, i18n, Testing). Triggers: \"scaffold maturity\", \"audit project maturity\", \"is this ready to publish\", \"check ship-readiness\".",
@@ -658,7 +658,7 @@
       "name": "project-maturity",
       "path": "planning/skills/project-maturity/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Use to capture, audit, or refresh behavior contracts (docs/workflows/) \u2014 user-visible flows with stable IDs, steps, and invariants. Triggers on \"document the app's workflow\", \"capture the auth flow\", \"audit this diff against the workflow spec\". Regression checklist after a non-trivial change.",
@@ -668,7 +668,7 @@
       "name": "workflow-spec",
       "path": "planning/skills/workflow-spec/SKILL.md",
       "plugin": "planning",
-      "requires_enablement": false
+      "requires_enablement": true
     },
     {
       "description": "Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only \u2014 never posts, never edits files. Fires from /promote-release, or on a direct request for one channel's post.",
