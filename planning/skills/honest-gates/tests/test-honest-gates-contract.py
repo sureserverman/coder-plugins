@@ -82,9 +82,10 @@ def pin_neg(name, hay, pattern):
     be screened is everything in the sentence EXCEPT the match: the run-up from the
     previous clause boundary ("You need not **Never collapse …**") and the tail to the
     sentence end ("…never an estimate, though this is optional in practice") — the
-    trailing-withdrawal shape check-trunk-retention.py's docstring demonstrates. Both
-    ends are derived from the text with the helper's own boundary regexes. The phrase
-    itself is specific enough that no inversion can match it by accident.
+    trailing-withdrawal shape `affirms_claim`'s own docstring names. Both ends are
+    derived from the text with the helper's own boundary regexes (SENTENCE_END's `.**`
+    alternative is what stops a bold sentence's tail leaking into the next paragraph).
+    The phrase itself is specific enough that no inversion can match it by accident.
 
     **Stated limit:** a withdrawal in the NEXT sentence ("Never collapse … . That said,
     this is advisory.") is not screened — the sentence boundary is where the claim ends,
