@@ -112,6 +112,8 @@ prohibitions; pinned by one string, seven could be demoted with this sweep green
 | A test does not exist until its mutant dies | Make the property structural |
 | A test does not exist until its mutant dies | Write the set down before the fix. |
 | A test does not exist until its mutant dies | Revert the fix; the suite must go red. |
+| A test does not exist until its mutant dies | independently reachable from a named test |
+| A test does not exist until its mutant dies | battery, one mutation per guard |
 | A test does not exist until its mutant dies | Build fixtures from the requirement, never from observed behavior. |
 | A test does not exist until its mutant dies | Assert the discriminating cause, not the outcome. |
 | Changing a contract reclassifies everything already written | A change to a parsing contract, marker vocabulary or classification rule does not ship |

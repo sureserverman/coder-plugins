@@ -70,6 +70,15 @@ A fix scoped from the counterexample that revealed it will regenerate the findin
 next sibling, and each round reads as progress — which is why the set is written down as a
 command before the fix.
 
+## A test does not exist until its mutant dies — the masking pair (99/101)
+
+Measured in one stage of engineering-skills' 2026-08-25 plan: a suite stayed green at 31/31
+with a whole clause removed, 91/91 with four findings' severity unpinned, and 99/101 with two
+env-var guards each keeping the single negative fixture clean — so deleting *either alone*
+looked harmless. No individual test was wrong, and no reader of the suite would have seen it.
+A mutation battery of 24, one per guard, first ran 20 killed / 4 survived, every survivor a
+masking pair; after one isolating fixture per guard, 24/24.
+
 ## A test does not exist until its mutant dies — the Portfolio/ fixture
 
 Rule 3 is not theoretical: a vault fixture built without `Portfolio/` — because that was

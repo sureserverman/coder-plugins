@@ -176,7 +176,12 @@ re-run is not tiered; a mandate costing an agent is).
    identical from a passing run. Name the mutation and the count in the commit
    ("reverting the `active` expression turns 3 checks red"). This is the whole
    rule: a check that cannot fail is not evidence, and it is indistinguishable
-   from one that can until you try.
+   from one that can until you try. One red proves one guard, so **each guard is
+   independently reachable from a named test** — two guards that each keep the other's
+   fixture clean stay green with either deleted, and that is no test for either. For a
+   check whose output is a *verdict* rather than a value, the proof is a **mutation
+   battery, one mutation per guard**; a survivor is a masking pair
+   (`references/incidents.md`).
 
 3. **Build fixtures from the requirement, never from observed behavior.** The
    moment a fixture is shaped by what the code currently does, it can no longer

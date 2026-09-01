@@ -402,7 +402,9 @@ planning/skills/portfolio/SKILL.md 13718
 #   the executor authored is disclosed, and one that cannot reach both outcomes is not a
 #   gate. Spent from the 2693 B Task 1.2 freed; the 15802 origin is the bound no rule in
 #   that plan may cross.
-planning/skills/honest-gates/SKILL.md 13669
+# Raised 13669 -> 14073 (+404 B) 2026-09-01, Task 2.2, BL-086: each guard independently
+#   reachable from a named test; a mutation battery is the proof for a verdict-producing check.
+planning/skills/honest-gates/SKILL.md 14073
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

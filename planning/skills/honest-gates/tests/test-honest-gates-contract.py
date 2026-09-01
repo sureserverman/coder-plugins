@@ -153,6 +153,11 @@ def sentence_checks(trunk):
         r"Write the set down before the fix")
     pin("mutant: rule 2 — revert the fix; the suite must go red", mutant,
         r"Revert the fix; the suite must go red")
+    # BL-086 — one red proves one guard; masking pairs survive rule 2 as first written.
+    pin("mutant: each guard is independently reachable from a named test", mutant,
+        r"each guard is independently reachable from a named\s+test")
+    pin("mutant: a mutation battery, one mutation per guard, proves a verdict-producing check", mutant,
+        r"mutation battery, one mutation per\s+guard")
     pin_neg("mutant: rule 3 — fixtures from the requirement, never from observed behavior", mutant,
         r"Build fixtures from the requirement, never from observed behavior")
     pin_neg("mutant: assert the discriminating cause, not the outcome", mutant,
