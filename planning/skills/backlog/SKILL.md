@@ -28,7 +28,7 @@ Resolve `portfolio_home` per `../portfolio/references/registry-format.md` (resol
 ```markdown
 # Backlog
 
-Deferred items from plan execution, code review, or ad-hoc capture. Entries are removed when implemented; git history is the audit trail.
+Deferred items from plan execution, code review, or ad-hoc capture. Entries are removed when implemented. This file lives in the vault, not a git repo, so a removed entry is unrecoverable here; the closing commit in the project repo is the audit trail, and an entry carries inline whatever it needs from another entry.
 
 ---
 
@@ -63,7 +63,7 @@ you keep getting nagged about; remove the line to unpark.
 **ID rules:**
 
 - Format `BL-NNN`, three digits, zero-padded.
-- Next ID = `max(existing BL-NNN) + 1`. **Never reuse a removed ID.** The git history of removals is the audit trail.
+- Next ID = `max(existing BL-NNN) + 1`. **Never reuse a removed ID.**
 - IDs are referenced from plan files and commit messages: `Closes BL-007`.
 
 **Required fields:** `Opened`, `Source`, `Reason`, `Next step`. `Tags` is optional.
@@ -121,7 +121,7 @@ Inputs: one or more BL-IDs.
 
 - Only remove by explicit ID. Never bulk-remove by tag, source, or "looks done."
 - Implementation status is asserted by a user or by a plan's Close-out — never inferred from a heuristic.
-- Don't move entries to an archive section. Removal is removal; git is the archive.
+- Don't move entries to an archive section. Removal is removal.
 
 ### `list` — show open entries
 
@@ -221,7 +221,7 @@ Operation:
 
 ## Safety rails
 
-- **Do not assume the file is recoverable.** It lives in the vault, which is frequently a network mount and not a git working tree — check before relying on "git is the archive", because where this file actually sits there may be no archive at all.
+- **Do not assume the file is recoverable.** The vault is not a git working tree, so there is no archive where it sits.
 - Don't `rm` it, don't rewrite it whole — only append/remove discrete blocks.
 - Never auto-remove from a "looks implemented" heuristic — only on explicit instruction or `Closes BL-NNN` declared in a plan's Close-out.
 - Preserve unrelated entries byte-for-byte during any edit. **Prove it by counting** (`remove` step 3) rather than by inspecting: missing `---` separators are the normal state of a file that has been appended to for a while, not a sign of corruption, and treating them as one is what let an over-wide delete through. Duplicate IDs are still worth stopping on.
@@ -231,4 +231,4 @@ Operation:
 - Append on defer, remove on implement, list on research.
 - The backlog admits improvements, non-urgent decisions, and explicitly-deferred work — never a defect found during plan execution. `add` refuses those; see § What belongs here.
 - IDs are immutable and never reused.
-- Git history — not an in-file archive — is the record of what was closed and why.
+- The closing commit — not an in-file archive — records what was closed and why.

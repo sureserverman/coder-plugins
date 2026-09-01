@@ -392,7 +392,7 @@ android-dev/skills/android-play-publish/SKILL.md 18018
 # out of the executing-plans trunk, leaving a citation here pointing at a section
 # that no longer exists in the file it named. Repointed at the file that now owns
 # it, which is longer than the bare skill name it replaced.
-planning/skills/backlog/SKILL.md 17353
+planning/skills/backlog/SKILL.md 17333
 # The six raises below share one cause: Stage 3 Task 3.3 burned the BL-039
 # allowlist debt down to zero for this plugin by REWRITING the prose rather than
 # suppressing the findings, and position-neutral prose runs a little longer than
