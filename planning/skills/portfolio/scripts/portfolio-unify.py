@@ -451,6 +451,114 @@ def plan_has_blocked_gate(text):
 # the same purpose theirs do.
 BLOCKED_ACCEPTED_RE = re.compile(r"^\*\*Blocked-accepted:\*\*\s*(.+)$", re.M)
 
+# --------------------------------------------------------------------------
+# Out-of-contract markers: one warner, beside the regexes it is a difference
+# against (BL-044, BL-053, BL-054, BL-059, BL-107)
+# --------------------------------------------------------------------------
+#
+# Five entries asked the same question — authors write a marker several ways,
+# the parser accepts one — and it was answered three separate times before
+# anyone noticed it was one question. The answer, decided 2026-09-01: the
+# PARSER STAYS STRICT and the mistake is reported where it is made.
+#
+# Widening the regexes was the other candidate and it loses on blast radius.
+# Tolerating leading whitespace on `**Blocked-accepted:**` also makes one inside
+# a quoted example silently close a plan; accepting `### 01.` as a register
+# opener also matches a Research Summary heading anywhere in a document;
+# accepting more close-out spellings also matches the prose that merely mentions
+# them. Each widening trades a rare miss for a routine false read, and a false
+# read is worse here because it runs in the OPTIMISTIC direction: it reports
+# work as finished.
+#
+# So these are warnings, and they live here rather than in any one consumer.
+# The renderer, `unify`, `compass` and the audit all read this contract; a
+# warning known to only one of them is the lockstep site the difference-based
+# design exists to avoid.
+FENCE_RE = re.compile(r"^\s*```")
+INDENTED_ACCEPTED_RE = re.compile(r"^[ \t]+\*\*Blocked-accepted:\*\*")
+# A heading that opens a register entry the way an author might, but that
+# SUBPLAN_RE does not read: `### 01. Foundation`, `### 1) Domain contracts`.
+ORDINAL_HEADING_RE = re.compile(r"^###\s+0*\d+\s*[.)]\s+\S")
+# A line that presents itself as a close-out but is not the recognised form.
+# The discriminator is WHERE THE BOLD CLOSES: a close-out marker ends its bold
+# right after the colon (`**Close-out (2026-08-03):**`), while a gate-report
+# line keeps going inside it (`**Close-out evaluator: PASS, 0 Blocking...**`).
+# A looser rule — line-start plus a colon anywhere — was measured over 620 vault
+# plans and produced 25 hits of which 1 was real: it swept up gate-report lines
+# and any wrapped prose line whose first word happened to be "close-out". The
+# bare word in running text is a mention, not a marker.
+# Narrowed once more after reading all 12 survivors: "Close-out" is a common
+# SECTION LABEL in this corpus (`**Close-out evaluator:**`, `**Close-out notes /
+# deviations:**`, `**Close-out state:**`) and labelling a section is not claiming
+# the plan is finished. "Completed" is never used that way — every instance is a
+# close-out attempt — while "Close-out" only claims completion when it carries
+# the date, as `**Close-out (2026-08-03):**`. Matching the label form would put
+# six false positives in front of a reader for one real find, and a warning
+# nobody trusts is a warning nobody reads.
+NEAR_COMPLETED_RE = re.compile(
+    r"^(?:##\s*)?\*\*(?:Completed[^*\n]*?|Close-out\s*\(\d{4}-\d{2}-\d{2}\)\s*):\*\*",
+    re.I)
+
+
+def contract_warnings(text, path=None):
+    """(code, line_no, excerpt) for every marker this contract cannot read.
+
+    A DIFFERENCE against the authoritative regexes, never an enumerated list of
+    known-bad spellings — the same reasoning `out_of_contract_markers` records:
+    a list goes stale the first time someone invents a form nobody predicted,
+    and it goes stale silently.
+
+    Silent on a well-formed document. Measured over the vault when written:
+    every warning below fires 0 or 1 times corpus-wide, so this is a guard
+    against the next instance rather than a report on the current mess.
+    """
+    out = []
+    master = is_master_plan(text, path)
+    in_fence = False
+    for i, line in enumerate(text.splitlines(), 1):
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+
+        if in_fence:
+            # BL-059: none of the parsers is fence-aware, so a literal example
+            # of the syntax inside a ``` block parses as a real marker. Zero
+            # occurrences vault-wide, and the parsers are deliberately NOT being
+            # taught about fences — changing five regexes' scanning model on a
+            # corpus with no instance of the bug is a blast radius exceeding its
+            # evidence. Warning costs nothing and catches the day it happens.
+            if (STATUS_RE.match(line) or TASK_RE.match(line)
+                    or SUBPLAN_RE.match(line) or COMPLETED_RE.match(line)):
+                out.append(("MARKER-IN-FENCE", i, line.strip()[:80]))
+            continue
+
+        # BL-044: `[!]` and friends match STATUS_RE not at all, so the line is
+        # not miscounted — it is ABSENT, and the plan reads as fully complete.
+        if not STATUS_RE.match(line):
+            m = STATUS_LINE_RE.match(line)
+            if m:
+                out.append(("STATUS-OUT-OF-CONTRACT", i,
+                            (m.group(1).strip() or "(empty)")[:80]))
+
+        # BL-107: the marker parses only at column 0. Indented under the gate
+        # item it accepts — the natural place, and the one its own docs make
+        # attractive — it parses as absent and the plan stays on the board.
+        if INDENTED_ACCEPTED_RE.match(line):
+            out.append(("ACCEPTANCE-INDENTED", i, line.strip()[:80]))
+
+        # BL-053: a close-out written in an unrecognised dialect leaves the plan
+        # reading as in flight forever.
+        if NEAR_COMPLETED_RE.match(line) and not COMPLETED_RE.match(line):
+            out.append(("CLOSE-OUT-DIALECT", i, line.strip()[:80]))
+
+        # BL-054: a master whose register uses bare ordinals reads 0/0 — no bar,
+        # and no sub-plan the register can be checked against.
+        if master and ORDINAL_HEADING_RE.match(line) and not SUBPLAN_RE.match(line):
+            out.append(("REGISTER-DIALECT", i, line.strip()[:80]))
+
+    return out
+
+
 _MAX_SUBPLAN_DEPTH = 2       # a master links sub-plans; a sub-plan is not a master
 
 

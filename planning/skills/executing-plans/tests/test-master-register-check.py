@@ -109,6 +109,86 @@ def case(name, kind, fires, silent):
               f"{kind} still reported after removing the thing that causes it: {got}")
 
 
+def kinds_with_allow(tmp, allow_text):
+    """Run the checker against a written acceptance file."""
+    p = Path(tmp) / "allow.txt"
+    p.write_text(allow_text, encoding="utf-8")
+    r = subprocess.run([sys.executable, str(CHECK), "--vault", tmp, "--json",
+                        "--allowlist", str(p)], capture_output=True, text=True)
+    import json
+    return {f["kind"] for f in json.loads(r.stdout)["findings"]}, r.returncode
+
+
+def case_acceptance_allowlist():
+    """A sub-plan closed DELIBERATELY partial must not be punished for saying so.
+
+    MASTER-OVER-UNFINISHED cannot otherwise be cleared except by flipping an
+    entry that is correctly `[ ]` — the checker demanding the disclosure be
+    withdrawn (BL-111 case 2). Decided 2026-09-01: an allowlist with a mandatory
+    reason, not a new register state, because the contract had just decided to
+    stop adding marker dialects and because keying off the master's close-out
+    prose would make free text load-bearing.
+
+    Both halves matter. An acceptance that suppresses is only half a guard: one
+    that suppresses the WRONG finding, or suppresses on a malformed line, is how
+    an allowlist quietly becomes a blanket.
+    """
+    fires = dict(state="[ ]", master_closeout="\n**Completed:** 2026-02-01 — commits: a")
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, rc = kinds(t)
+        check("allowlist: the finding fires with no acceptance on file",
+              "MASTER-OVER-UNFINISHED" in got, str(got))
+        check("allowlist: and exits non-zero", rc == 1)
+
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, rc = kinds_with_allow(
+            t, "MASTER-OVER-UNFINISHED sub-01-thing-plan.md — closed partial, "
+               "BL-002 still open, disclosed in the master's close-out\n")
+        check("allowlist: an accepted finding is cleared",
+              "MASTER-OVER-UNFINISHED" not in got, str(got))
+        check("allowlist: and the run exits 0", rc == 0, f"rc={rc}")
+
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, _ = kinds_with_allow(
+            t, "MASTER-OVER-UNFINISHED some-other-plan.md — a different plan\n")
+        check("allowlist: an entry for a DIFFERENT plan does not suppress",
+              "MASTER-OVER-UNFINISHED" in got, str(got))
+
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, _ = kinds_with_allow(
+            t, "MASTER-OVER-BLOCKED sub-01-thing-plan.md — right plan, wrong kind\n")
+        check("allowlist: an entry for a DIFFERENT kind does not suppress",
+              "MASTER-OVER-UNFINISHED" in got, str(got))
+
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, _ = kinds_with_allow(t, "MASTER-OVER-UNFINISHED sub-01-thing-plan.md\n")
+        check("allowlist: an entry with NO reason does not suppress",
+              "MASTER-OVER-UNFINISHED" in got,
+              "a reasonless line suppressed a finding — the reason is the "
+              "whole point of the file")
+
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        got, _ = kinds_with_allow(
+            t, "# a comment — not an entry\n\n   \n")
+        check("allowlist: comments and blank lines suppress nothing",
+              "MASTER-OVER-UNFINISHED" in got, str(got))
+
+    # A missing acceptance file is the normal case, not an error.
+    with tempfile.TemporaryDirectory() as t:
+        build(t, **fires)
+        r = subprocess.run([sys.executable, str(CHECK), "--vault", t, "--json",
+                            "--allowlist", str(Path(t) / "nope.txt")],
+                           capture_output=True, text=True)
+        check("allowlist: a missing acceptance file degrades to suppressing nothing",
+              r.returncode == 1 and "MASTER-OVER-UNFINISHED" in r.stdout)
+
+
 def main():
     if not CHECK.exists():
         print(f"checker not found at {CHECK}", file=sys.stderr)
@@ -273,6 +353,7 @@ def main():
          silent={"state": "[ ]", "sub_closeout": "\n**Abandoned:** 2026-01-02 — retired\n",
                  "master_closeout": "\n**Abandoned:** 2026-01-03 — superseded\n"})
 
+    case_acceptance_allowlist()
     print(f"assertions run ({len(RAN)})")
     for n in RAN:
         print(f"  - {n}")

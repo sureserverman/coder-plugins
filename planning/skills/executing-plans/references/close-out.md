@@ -163,6 +163,18 @@ by giving up on it rather than by accepting the block.
 **Do not edit the `[~]` to `[x]`.** That is the falsification the marker exists to prevent,
 and it is what BL-077 was filed from. The block is the record; the acceptance is the decision.
 
+**Unless the check has since actually run and passed — then tick it, and say why you could.**
+This is the one case where the box moves, and it is not the falsification this section
+forbids: editing a still-unrunnable check claims a proof nobody has, whereas here the proof
+exists and can be named.
+Write `- [x] <the check> *(ran YYYY-MM-DD — <the evidence>)*` and name what made it runnable,
+usually a sibling sub-plan landing. `**Blocked-accepted:**` is the wrong marker for it — that
+one says the gate was accepted UNRUN, so writing it over a check that ran is false in the
+other direction, and the plan would carry an acceptance it never needed. A careful author hits
+this whenever a master's forward-looking check (*"verified when sub-plan 02 runs"*) comes true,
+which is a state the contract could previously only express by choosing between two wrong
+answers (BL-111).
+
 **Write it at column 0, flush with the `**Completed:**` line**, and name the blocked gate check
 in its text.
 

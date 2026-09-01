@@ -723,6 +723,80 @@ check("stale diff is whole-stage: every item surfaces when its stage is done",
 case_gate_item_contract()
 case_blocked_acceptance_and_propagation()
 
+
+def case_contract_warnings():
+    """The parser stays strict; the mistake is reported where it is made.
+
+    Five backlog entries (BL-044/053/054/059/107) asked one question — authors
+    write a marker several ways, the parser accepts one — and it was answered
+    three separate times before anyone noticed it was one question. Decided
+    2026-09-01: do NOT widen the regexes, warn instead. Each widening trades a
+    rare miss for a routine false read in the OPTIMISTIC direction, which is the
+    worse failure: it reports work as finished.
+
+    Every warning below was measured over 620 vault plans before shipping and
+    fires 0 or 1 times per document corpus-wide, with zero false positives. The
+    close-out rule needed two rounds of narrowing to get there — see its regex.
+    """
+    codes = lambda t, p=None: sorted({c for c, _l, _e in mod.contract_warnings(t, p)})
+
+    check("a well-formed plan warns about nothing",
+          codes("# Plan: x\n\n### Task 1.1: a\n- **Status:** [x] done\n") == [])
+
+    # BL-044 — not miscounted, ABSENT: the plan reads as fully complete.
+    check("an out-of-contract Status marker warns",
+          codes("### Task 1.1: a\n- **Status:** [!] blocked on the owner\n")
+          == ["STATUS-OUT-OF-CONTRACT"])
+    check("a Status line with no brackets at all warns too",
+          codes("- **Status:** done\n") == ["STATUS-OUT-OF-CONTRACT"])
+
+    # BL-107 — parses only at column 0; indented under the gate item it accepts
+    # (the natural place) it parses as absent and the plan stays on the board.
+    check("an indented **Blocked-accepted:** warns",
+          codes("  **Blocked-accepted:** 2026-08-27 — why\n")
+          == ["ACCEPTANCE-INDENTED"])
+    check("the same marker at column 0 does not",
+          codes("**Blocked-accepted:** 2026-08-27 — why\n") == [])
+
+    # BL-053 — a close-out in an unrecognised dialect reads as in flight forever.
+    check("a qualified **Completed (...):** warns",
+          codes("**Completed (through Stage 7):** 2026-07-03\n")
+          == ["CLOSE-OUT-DIALECT"])
+    check("a dated **Close-out (YYYY-MM-DD):** warns",
+          codes("**Close-out (2026-08-03):** Complete.\n") == ["CLOSE-OUT-DIALECT"])
+    check("the plain **Completed:** form does not",
+          codes("**Completed:** 2026-08-30 — commits: abc\n") == [])
+    # The narrowing that took this from 25 hits to 5. "Close-out" is a common
+    # SECTION LABEL here, and labelling a section is not claiming completion.
+    check("a **Close-out evaluator:** section label does NOT warn",
+          codes("**Close-out evaluator:** PASS, 0 Blocking, 4 Material\n") == [])
+    check("prose beginning with the bare word does NOT warn",
+          codes("close-out, each against evidence available now: a claim\n") == [])
+
+    # BL-054 — a bare-ordinal register opens on nothing, so the master reads 0/0.
+    master = "# Master Plan: x\n\n### 01. Foundation and domain contracts\n"
+    check("a bare-ordinal register heading warns in a master",
+          codes(master) == ["REGISTER-DIALECT"])
+    check("the recognised Sub-plan form does not",
+          codes("# Master Plan: x\n\n### Sub-plan 1: Foundation\n") == [])
+    check("the same ordinal heading in a NON-master is not a register at all",
+          codes("# Plan: x\n\n### 01. Research summary\n") == [])
+
+    # BL-059 — zero occurrences vault-wide when filed; the parsers are
+    # deliberately NOT taught about fences, because changing five regexes'
+    # scanning model on a corpus with no instance exceeds its evidence.
+    fenced = "# Plan: x\n\n```\n- **Status:** [x] an EXAMPLE, not a real marker\n```\n"
+    check("a marker inside a fence warns", codes(fenced) == ["MARKER-IN-FENCE"])
+    check("and the parser still reads it, which is exactly why the warning exists",
+          mod.STATUS_RE.match("- **Status:** [x] an EXAMPLE, not a real marker") is not None)
+
+    # Line numbers make it actionable rather than merely true.
+    w = mod.contract_warnings("a\nb\n  **Blocked-accepted:** 2026-01-01 — w\n")
+    check("a warning carries its line number", w and w[0][1] == 3, str(w))
+
+
+case_contract_warnings()
+
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")
     sys.exit(1)

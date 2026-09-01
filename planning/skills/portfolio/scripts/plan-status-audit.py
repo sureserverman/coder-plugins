@@ -314,7 +314,7 @@ def classify(text, path):
     if completed:
         return "completed", None
 
-    odd = out_of_contract_markers(text)
+    odd = out_of_contract_markers(text, path)
     if odd:
         # No `[{m}]` wrapper: STATUS_LINE_RE captures everything after the
         # colon, brackets included, so wrapping double-bracketed it.
@@ -360,7 +360,7 @@ def any_started(text, path):
     return False
 
 
-def out_of_contract_markers(text):
+def out_of_contract_markers(text, path=None):
     """Status markers ANY_STATUS_RE sees that STATUS_RE cannot.
 
     Defined as a DIFFERENCE against the authoritative regex rather than as its
@@ -368,20 +368,14 @@ def out_of_contract_markers(text):
     `[~ N/A]` — the three that exist vault-wide today) would be a lockstep site:
     it would go stale the first time someone invents a fourth, and it would go
     stale silently, in the optimistic direction. Difference cannot drift.
+
+    Now a thin projection of `pu.contract_warnings`, which lives beside the
+    regexes it differences against. This function used to hold its own copy of
+    the loop — the second implementation of a rule that must agree, i.e. exactly
+    the lockstep site its own docstring warns about, reached from the inside.
     """
-    out = []
-    for line in text.splitlines():
-        if pu.STATUS_RE.match(line):
-            continue                    # in-contract; the parser reads it fine
-        m = pu.STATUS_LINE_RE.match(line)
-        if m:
-            # STATUS_LINE_RE, not ANY_STATUS_RE: the latter requires brackets,
-            # so `- **Status:** done` slipped past both it and STATUS_RE and
-            # counted toward nothing. Its plan then read "every task done" with
-            # a task missing. Difference against the authoritative regex over
-            # the WIDEST match is the only formulation that cannot drift.
-            out.append(m.group(1).strip() or "(empty)")
-    return out
+    return [ex for code, _ln, ex in pu.contract_warnings(text, path)
+            if code == "STATUS-OUT-OF-CONTRACT"]
 
 
 # --------------------------------------------------------------------------
@@ -630,6 +624,12 @@ def audit(vault, projects, with_evidence=True):
         "classes": {c: [] for c in CLASSES},
         "candidates": [],
         "unclassifiable": [],
+        # Out-of-contract markers the parser cannot read, reported for EVERY
+        # plan rather than only for the ones that fail to classify. A close-out
+        # written in an unrecognised dialect classifies perfectly well — as in
+        # flight, forever — so routing these through the classification would
+        # hide the case that most needs saying (BL-044/053/054/059/107).
+        "contract_warnings": [],
         "unreadable": [],
         "total_files": 0,
     }
@@ -657,6 +657,12 @@ def audit(vault, projects, with_evidence=True):
                      "repo": project.get("path") or "",
                      "done": done, "total": total, "detail": detail,
                      "gates_ticked": gt, "gates_total": gtot}
+            for code, lineno, excerpt in pu.contract_warnings(text, f):
+                if code == "STATUS-OUT-OF-CONTRACT" and cls == "unclassifiable":
+                    continue        # already stated as the reason it cannot classify
+                report["contract_warnings"].append({
+                    "path": str(f), "project": project["name"],
+                    "code": code, "line": lineno, "excerpt": excerpt})
             report["classes"][cls].append(entry)
             if cls == "unclassifiable":
                 report["unclassifiable"].append(entry)
@@ -805,6 +811,23 @@ def describe_evidence(c):
             "commit is dated on or after it")
 
 
+# What each warning means for the reader, in the terms that matter: what the
+# document says versus what every consumer of the contract actually reads.
+WARNING_HELP = {
+    "STATUS-OUT-OF-CONTRACT":
+        "the task is not miscounted, it is ABSENT: the plan reads as finished",
+    "CLOSE-OUT-DIALECT":
+        "the plan is closed and reads as in flight, permanently",
+    "REGISTER-DIALECT":
+        "the master's register opens on nothing, so it reads 0/0",
+    "ACCEPTANCE-INDENTED":
+        "the acceptance parses as absent, so the plan stays on the board "
+        "(must sit at column 0)",
+    "MARKER-IN-FENCE":
+        "a literal example inside a ``` block parses as a real marker",
+}
+
+
 def print_report(report, verbose=False):
     print("Plan-status audit — observed figures (not assertions)\n")
     width = max((len(p["name"]) for p in report["projects"]), default=10)
@@ -832,6 +855,27 @@ def print_report(report, verbose=False):
           f"plan reads MORE finished than it is: {len(report['unclassifiable'])}")
     for u in report["unclassifiable"]:
         print(f"  {u['path']}\n    {u['detail']}")
+
+    warns = report.get("contract_warnings", [])
+    print(f"\nOut-of-contract markers — written as the author meant them, read by "
+          f"nothing: {len(warns)}")
+    if not warns:
+        print("  none — every marker in every plan is in contract.")
+    else:
+        # The parser is deliberately NOT widened to accept these; each widening
+        # trades a rare miss for a routine false read in the optimistic
+        # direction. Reported here, where the author can fix the document.
+        by_code = {}
+        for w in warns:
+            by_code.setdefault(w["code"], []).append(w)
+        for code in sorted(by_code):
+            rows = by_code[code]
+            print(f"  {code} ({len(rows)}) — {WARNING_HELP.get(code, '')}")
+            for w in rows if verbose else rows[:5]:
+                print(f"    {w['path']}:{w['line']}")
+                print(f"        {w['excerpt']}")
+            if not verbose and len(rows) > 5:
+                print(f"    ... {len(rows) - 5} more (--verbose to list)")
     print("\nThese are never offered as completion candidates, under any flag.")
 
     # `blocked` is the one class that OVERRULES a human-authored close-out line,
