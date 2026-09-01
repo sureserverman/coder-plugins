@@ -27,11 +27,16 @@ _sections = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sections)
 
 
-def sections(text):
-    """[(heading or 'scaffolding', bytes)] in document order; bytes sum to len(text)."""
+def sections(text, all_levels=False):
+    """[(heading or 'scaffolding', bytes)] in document order; bytes sum to len(text).
+
+    Default: one row per `## ` section, sub-headings counted inside their parent.
+    `all_levels`: one row per heading of any level (`##`–`####`), each running to the
+    next heading of any level — the accounting an extraction classification with
+    per-sub-heading rows uses (executing-plans has 32 such rows)."""
     out, cur, buf = [], "scaffolding", []
     for is_heading, heading, raw in _sections._walk(text):
-        if is_heading and raw.startswith("## "):
+        if is_heading and (all_levels or raw.startswith("## ")):
             out.append((cur, len("\n".join(buf).encode("utf-8"))))
             cur, buf = heading, [raw]
         else:
@@ -52,12 +57,14 @@ def sections(text):
 
 
 def main(argv):
-    if len(argv) != 2:
-        print(__doc__.strip().split("\n")[0], file=sys.stderr)
+    all_levels = "--all-levels" in argv
+    args = [a for a in argv[1:] if a != "--all-levels"]
+    if len(args) != 1:
+        print(__doc__.strip().split("\n")[0] + "  [--all-levels]", file=sys.stderr)
         return 2
-    with open(argv[1], encoding="utf-8") as fh:
+    with open(args[0], encoding="utf-8") as fh:
         text = fh.read()
-    rows = sections(text)
+    rows = sections(text, all_levels)
     for name, n in rows:
         print(f"{n}\t{name}")
     print(f"{sum(n for _, n in rows)}\tTOTAL")

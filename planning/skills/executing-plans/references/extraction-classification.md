@@ -86,7 +86,11 @@ the only place it can now live.
 ## The table
 
 `bytes` is the section's size in the 92987 B trunk. `retained` is what Task 2.1
-actually left in the trunk, measured — not estimated.
+actually left in the trunk, measured — not estimated. Four rows (Run to completion, Step 3.3,
+Stop conditions, A bug found during execution) were re-emitted on 2026-09-01 by
+`python3 scripts/trunk-sections.py --all-levels planning/skills/executing-plans/SKILL.md` after the
+honest-gates-rule-gaps plan's Task 3.1 moved their rationale into the references they already
+pointed at; the rest of the column is the Task 2.1 measurement.
 
 ### unconditional — 13 sections, 13735 B, 14583 B retained
 
@@ -94,10 +98,10 @@ actually left in the trunk, measured — not estimated.
 |---|---|---|---|
 | 2643 | 2638 | Phase 1 — Load and critique | runs on every plan |
 | 2461 | 2488 | The plan is the authorization — dispatch without a confirmation turn | DEC-014 obligation; binds every dispatch decision |
-| 2262 | 2298 | Stop conditions | must bind every run, whole — never a pointer |
+| 2262 | 1290 | Stop conditions | must bind every run, whole — never a pointer |
 | 1435 | 1452 | What this skill expects | the format contract; every run validates against it |
 | 1078 | 1200 | Phase 2 — Preflight | phase header + the check list itself |
-| 970 | 965 | Run to completion — don't stop until you have to | governs every turn of every run |
+| 970 | 1274 | Run to completion — don't stop until you have to | governs every turn of every run |
 | 956 | 1605 | Reference map | the index — without it no reference is reachable |
 | 526 | 532 | Safety rails | branch/destructive/secrets/shared-infra — every run |
 | 520 | 517 | Checklist | the four-step loop every execution follows |
@@ -111,8 +115,8 @@ actually left in the trunk, measured — not estimated.
 | bytes | retained | section | reason |
 |---|---|---|---|
 | 21784 | 5949 | Step 3.5 — Stage gate | exit criterion + gate order stay; the two verify hooks (Android, redesign), evaluator briefing, Tier-2 shape, decisions sweep and failure procedure are each branch-taken |
-| 12342 | 5671 | Step 3.3 — Red-Green loop (per task) | loop rules 1-7 stay; Tier-1 machinery is tier-gated and the test-first rationale is elaboration |
-| 4106 | 1910 | A bug found during execution is a class — sweep it, fix every instance | rule is one paragraph; the worked reasoning is elaboration |
+| 12342 | 7426 | Step 3.3 — Red-Green loop (per task) | loop rules 1-7 stay; Tier-1 machinery is tier-gated and the test-first rationale is elaboration |
+| 4106 | 1988 | A bug found during execution is a class — sweep it, fix every instance | rule is one paragraph; the worked reasoning is elaboration |
 | 3689 | 1556 | Review scope — the machinery scales to the change | tier declaration is unconditional; the table is RESTATED from references/review-scope.md, which the trunk already calls the authority |
 | 3331 | 2060 | Step 3.2 — Split by parallelism | the YES-obligates-dispatch rule stays; the retired-nudge history is elaboration |
 | 2704 | 1971 | Dispatch roster and capability probe | fires every Preflight; rationale already in references/dispatch-fidelity.md |

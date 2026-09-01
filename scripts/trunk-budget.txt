@@ -160,7 +160,13 @@
 #   untiering citation now names DEC-017 beside DEC-010. DEC-017 exists precisely because
 #   DEC-010's cost line "was right about text and wrong about commands", so citing only
 #   DEC-010 for a command-costing mandate cited the superseded half.
-planning/skills/executing-plans/SKILL.md 49016
+#
+# Lowered 49016 -> 48133 (-883 B) 2026-09-01, honest-gates-rule-gaps plan Task 3.1: rationale
+#   moved to stage-gate.md (announcement), dispatch-fidelity.md (stop-condition symmetry),
+#   bug-is-a-class.md (search space) and honest-gates (4a's corollaries, already there); every
+#   retention marker and every executing-plans contract suite green. Spent by Tasks 3.2 and
+#   3.4 of the same plan on BL-079/082/084; the 49016 origin is the bound.
+planning/skills/executing-plans/SKILL.md 48133
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

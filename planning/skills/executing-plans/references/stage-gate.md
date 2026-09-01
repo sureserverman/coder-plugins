@@ -305,7 +305,11 @@ So the boundary is not a decision point:
   issue the next stage's first tool call. No "should I continue?", no "ready to start Stage
   3", no summary offered in place of the work.
 - **The announcement and the call ship together.** If you name the next task, the tool call
-  starting it is in the same turn. An announcement alone has started nothing.
+  starting it is in the same turn. An announcement alone has started nothing: it hands the
+  turn back on a promise, and the user has to ask again for work already authorized. An
+  announcement the trunk mandates is still made — in the same turn as the call, never in
+  place of it, or instead of it where the sentence was yours to choose. This is
+  run-to-completion at the granularity of a single turn.
 - **Waiting is not stopping.** A turn that ends because a dispatched reviewer or a background
   suite has not reported is correct on a host that re-invokes you when it lands — say what
   you are waiting on, and end the turn. Thirty of the thirty-nine measured turn ends were
