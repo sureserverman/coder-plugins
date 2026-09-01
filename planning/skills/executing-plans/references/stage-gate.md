@@ -42,7 +42,14 @@ a dispatch nobody can reproduce. Write the type that ran, then the role:
 ```
 review: Tier-2 git-github:code-reviewer over <base>..HEAD — APPROVE, 0 Critical
 evaluator: general-purpose in the goal-evaluator role, briefed on the stage goal + gate criteria — PASS, 2 Material
+evidence: pytest tests/integration — host; Playwright e2e — container (compose); device acceptance — target device (CM4 over ssh)
 ```
+
+Each **evidence** line likewise names the **substrate** it ran on — host, emulator,
+container, or target device — because "the tests passed" says nothing about where. What
+that changes for the verdict (a deployed-behaviour claim whose evidence ran elsewhere) is
+defined once, in `../../honest-gates/SKILL.md` § Reporting; this line is the place the
+substrate gets written down so that rule has something to read.
 
 Naming the **agent** distinguishes a dispatched review from the executor reading its own diff,
 which both tiers forbid; naming the **diff** makes its coverage checkable, since a reviewer
