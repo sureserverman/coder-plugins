@@ -1,0 +1,13 @@
+# Accepted findings for check-master-register.py.
+#
+# Format:  <KIND> <sub-plan filename> — <reason>
+#
+# One line, one acceptance. The reason is MANDATORY and is the point of the
+# file: the acceptance lives here rather than in the plan, so this is the only
+# place a reviewer can see why an exception exists and count how many there are.
+#
+# This is not a place to quiet a checker you disagree with. Every entry says a
+# real state the contract cannot express, and each one is evidence the contract
+# is short a word — read it that way when the list grows.
+
+MASTER-OVER-UNFINISHED 2026-07-24-backlog-closeout-sub-02-least-privilege-plan.md — deliberately closed PARTIAL and disclosed as such. The master's close-out names it "sub-02-least-privilege (**partial** — BL-001 done, BL-002 open, 7 commits)" and correctly leaves the register entry `[ ]`, with BL-002 still open in sec-audit's backlog. Clearing this any other way means flipping an entry that is honestly `[ ]`, which punishes the disclosure (BL-111 case 2). Remove this line when BL-002 closes.

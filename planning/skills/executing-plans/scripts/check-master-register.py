@@ -153,14 +153,62 @@ def master_gate_blocked(master_text):
     return out
 
 
-def audit(vault):
+ALLOW_PATH = Path(__file__).resolve().parent / "master-register-allow.txt"
+
+
+def load_allowlist(path=None):
+    """`<KIND> <sub-plan filename> — <reason>` per line; blanks and `#` ignored.
+
+    Why an allowlist and not a new marker in the plan (BL-111 case 2). A sub-plan
+    can be closed DELIBERATELY partial — sec-audit's 2026-07-24 master closes with
+    "sub-02-least-privilege (**partial** — BL-001 done, BL-002 open)" and honestly
+    leaves that register entry `[ ]`, with BL-002 still open in its backlog.
+    MASTER-OVER-UNFINISHED fires on it and cannot be cleared except by flipping an
+    entry that is correctly `[ ]`. The checker was punishing the disclosure.
+
+    The two alternatives both cost more. A new register state is another marker
+    dialect, and the contract just decided (2026-09-01) to stop adding those —
+    see `portfolio-unify.py` § contract_warnings for that reasoning. Keying off
+    the master's close-out prose ("names this sub-plan partial") makes free text
+    load-bearing, which is the fragile parsing this repo has been bitten by.
+
+    An allowlist adds no dialect, and the shape is already proven here:
+    `scripts/extraction-integrity-allow.txt` runs exactly this way. The cost is
+    real and worth naming — the acceptance lives beside the checker rather than
+    in the plan, so a reader of the plan alone does not see it. The reason field
+    is mandatory to blunt that: an entry has to say why, in the file a reviewer
+    reads when counting how many exceptions exist.
+    """
+    p = Path(path) if path else ALLOW_PATH
+    out = {}
+    try:
+        lines = p.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return out
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        head, _, reason = line.partition("—")
+        parts = head.split()
+        if len(parts) < 2 or not reason.strip():
+            # A malformed entry must not silently suppress nothing OR everything.
+            continue
+        out[(parts[0], " ".join(parts[1:]).strip())] = reason.strip()
+    return out
+
+
+def audit(vault, allowlist=None):
     findings, seen = [], set()
+    allowed = load_allowlist(allowlist) if not isinstance(allowlist, dict) else allowlist
 
     def add(kind, sub, master, detail):
         key = (kind, str(sub), str(master), detail)
         if key in seen:                       # m2: one defect, one finding
             return
         seen.add(key)
+        if (kind, Path(sub).name) in allowed:
+            return                            # accepted, with a reason on file
         findings.append(dict(kind=kind, path=str(sub), master=str(master), detail=detail))
 
     for d in sorted(Path(vault).glob("Portfolio/*/*/plans")):
@@ -301,15 +349,24 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", action="store_true", help="machine-readable report")
     ap.add_argument("--vault", help="override the vault directory")
+    ap.add_argument("--allowlist", help="override the acceptance file")
+    ap.add_argument("--list-allowlisted", action="store_true",
+                    help="print accepted findings and their reasons, then exit")
     args = ap.parse_args()
     vault = args.vault or pu.vault_dir()
-    findings = audit(vault)
+    if args.list_allowlisted:
+        for (kind, name), reason in sorted(load_allowlist(args.allowlist).items()):
+            print(f"{kind}  {name}\n    {reason}")
+        return 0
+    findings = audit(vault, args.allowlist)
     if args.json:
         print(json.dumps({"findings": findings}, indent=2, sort_keys=True))
     else:
         for f in findings:
             print(f"  {f['kind']}  {f['path']}\n      {f['detail']}")
-        print(f"Scanned {vault}; {len(findings)} finding(s).")
+        n_allowed = len(load_allowlist(args.allowlist))
+        print(f"Scanned {vault}; {len(findings)} finding(s), "
+              f"{n_allowed} accepted on file.")
     return 1 if findings else 0
 
 
