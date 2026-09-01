@@ -404,7 +404,9 @@ planning/skills/portfolio/SKILL.md 13718
 #   that plan may cross.
 # Raised 13669 -> 14073 (+404 B) 2026-09-01, Task 2.2, BL-086: each guard independently
 #   reachable from a named test; a mutation battery is the proof for a verdict-producing check.
-planning/skills/honest-gates/SKILL.md 14073
+# Raised 14073 -> 14620 (+547 B) 2026-09-01, Task 2.3, BL-094 + BL-040: a GREEN names
+#   where its evidence executed, and every figure in a report is reproducible at a sha.
+planning/skills/honest-gates/SKILL.md 14620
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

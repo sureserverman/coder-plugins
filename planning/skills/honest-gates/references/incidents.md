@@ -124,3 +124,21 @@ touch — and costs one sweep per contract change, paid only by the change that 
 it catches that nothing else does: a change that is right in the diff and wrong in the
 corpus, where the diff, the suite and the rule are all green and the whole of the damage
 sits in files no one opened.
+
+## Reporting — host fixtures reported as device acceptance
+
+Measured across the sessions engineering-skills' 2026-08-25 plan audited: Playwright runs
+against **host fixtures** were reported as browser acceptance of the product, and nothing was
+deployed to a reachable device until the user asked three separate times. Every individual
+claim was true — the tests ran, and passed. What was false was the implied subject: evidence
+about the host, presented as evidence about the artifact.
+
+## Reporting — figures that drifted three rounds running, and the 188 plans
+
+Every round of the 2026-07-28 context-engineering plan's Stage 4 recorded before/after word
+and line counts, and every round they were wrong: the "after" numbers went stale by
+construction because the same commit kept editing the files, and the "before" numbers were
+transcribed rather than measured (12,913 vs 12,912). A second instance on 2026-08-26 was a
+different shape: a false-positive rate "over 188 non-pi-modem plans" that does not reproduce,
+because no selection rule for those 188 was ever stated — a sha would not have helped there;
+the missing line was the one naming what was counted.

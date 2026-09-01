@@ -41,7 +41,7 @@ only the story behind it may.
 |---|---|---|---|
 | 824 | 824 | The one rule | the definition of green and BLOCKED; every gate report is written under it |
 | 1410 | 1410 | When a gate is BLOCKED | the five-step procedure and the `[~]` rule; binds the moment a check cannot run |
-| 281 | 281 | Reporting | the three states and the collapse prohibition; every status report is written under it |
+| 281 | 281 | Reporting | the three states, the collapse prohibition, the substrate line and the reproducible-figure rule (Task 2.3); every status report is written under it |
 
 ### rule+elaboration — 4 sections, 12215 B, 9522 B retained
 
@@ -121,3 +121,7 @@ prohibitions; pinned by one string, seven could be demoted with this sweep green
 | Changing a contract reclassifies everything already written | Tier: untiered. |
 | Reporting | every gate is one of: **GREEN** |
 | Reporting | Never collapse BLOCKED into GREEN. |
+| Reporting | names where its evidence executed |
+| Reporting | ran anywhere else is |
+| Reporting | emitted by a command at a sha it names |
+| Reporting | a corpus figure states its selection rule |

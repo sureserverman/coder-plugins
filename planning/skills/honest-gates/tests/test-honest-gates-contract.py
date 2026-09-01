@@ -162,9 +162,9 @@ def sentence_checks(trunk):
         r"Revert the fix; the suite must go red")
     # BL-086 — one red proves one guard; masking pairs survive rule 2 as first written.
     pin("mutant: each guard is independently reachable from a named test", mutant,
-        ws(r"each guard is independently reachable from a named test")
+        ws(r"each guard is independently reachable from a named test"))
     pin("mutant: a mutation battery, one mutation per guard, proves a verdict-producing check", mutant,
-        ws(r"mutation battery, one mutation per guard")
+        ws(r"mutation battery, one mutation per guard"))
     pin_neg("mutant: rule 3 — fixtures from the requirement, never from observed behavior", mutant,
         r"Build fixtures from the requirement, never from observed behavior")
     pin_neg("mutant: assert the discriminating cause, not the outcome", mutant,
@@ -192,15 +192,15 @@ def sentence_checks(trunk):
         r"Never collapse BLOCKED into GREEN")
     # BL-094 — where did the evidence execute; BL-040 — a figure is reproducible at a sha.
     pin("reporting: a GREEN names where its evidence executed", reporting,
-        ws(r"names where its evidence executed")
+        ws(r"names where its evidence executed"))
     check("reporting: the four substrates are listed (host, emulator, container, target device)",
-          all(re.search(w, reporting, re.I) for w in (r"\bhost\b", r"\bemulator\b", r"\bcontainer\b", r"target device")))
+          all(re.search(w, reporting, re.I) for w in (r"\bhost\b", r"\bemulator\b", r"\bcontainer\b", ws(r"target device"))))
     pin_neg("reporting: a deployed-behaviour claim whose evidence ran elsewhere is BLOCKED, not green",
-        reporting, ws(r"ran anywhere else is \*\*BLOCKED\*\*, not green")
+        reporting, ws(r"ran anywhere else is \*\*BLOCKED\*\*, not green"))
     pin("reporting: a number in a gate report is emitted by a command at a sha it names, or carries the sha",
-        reporting, ws(r"emitted by a command at a sha it names, or carries the sha")
+        reporting, ws(r"emitted by a command at a sha it names, or carries the sha"))
     pin("reporting: a corpus figure states its selection rule", reporting,
-        ws(r"corpus figure states its selection rule")
+        ws(r"corpus figure states its selection rule"))
 
     dupes = {p for _, p in PINNED if [q for _, q in PINNED].count(p) > 1}
     check("one owner per fact: no two checks pin the same sentence", not dupes, str(sorted(dupes)))

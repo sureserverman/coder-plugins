@@ -229,6 +229,14 @@ quote it), **RED** (ran, failed), or **BLOCKED** (couldn't run, with the reason)
 Never collapse BLOCKED into GREEN. If asked "is this done?", a stage with any
 BLOCKED gate is not done.
 
+A GREEN also names where its evidence executed — host, emulator, container, or target
+device — because a claim about *deployed* behaviour whose evidence ran anywhere else is
+**BLOCKED**, not green. The tests ran and passed; they were evidence about the host, and
+the claim was about the artifact (`references/incidents.md`). Every number is reproducible:
+a figure is emitted by a command at a sha it names, or carries the sha it was taken at,
+and a corpus figure states its selection rule — a count nobody can re-take is not a
+measurement.
+
 ## Integration
 
 - `executing-plans` — enforces these rules at every stage gate.
