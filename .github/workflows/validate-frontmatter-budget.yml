@@ -7,40 +7,40 @@ name: validate-frontmatter-budget
 # unquoted plain scalar containing ': ' parses to the naive regex but breaks a
 # real YAML loader). The fixture suite asserts that contract; the live check
 # fails the build if any shipped description regresses.
+#
+# Deliberately NOT path-filtered, for the reason validate-usage-tokens.yml
+# records in its own header and this job then demonstrated. It used to filter on
+# component and script paths, and the final step —
+# `build-capability-index.py --write` plus `git diff --exit-code` — validates an
+# artifact DERIVED FROM THE WHOLE TREE. Its inputs are not the paths that were
+# filtered on:
+#
+#     */skills/*/SKILL.md, */agents/*.md, */commands/*.md    filtered
+#     */.claude-plugin/plugin.json                           filtered
+#     */hooks/hooks.json                                     NOT filtered
+#     */**/.mcp.json                                         NOT filtered
+#     */infrastructure/mcp-server/                           NOT filtered
+#
+# The last three decide `requires_enablement`. When 27551b9 added
+# planning/hooks/hooks.json on 2026-08-30, it invalidated the committed index
+# and did not touch a single filtered path, so this job never ran on the one
+# commit that broke it and stayed green on everything after. 18 components
+# advertised `requires_enablement: false` for two days, telling the router it
+# could inject a planning agent's body with the plugin disabled, when planning's
+# hooks mean it cannot. It surfaced only when an unrelated push happened to
+# touch a SKILL.md.
+#
+# Enumerating the three missing patterns would fix today and rebuild the trap:
+# the filter would have to track the generator's inputs forever, and the
+# generator gaining `hooks` without the filter gaining it is exactly how this
+# broke. A filter cannot be a lockstep copy of a script's globs. This is the
+# third instance of the same trap in this repo (see 1271e4c, b250d15), so the
+# rule is stated rather than re-derived: a check over a tree-derived artifact
+# does not get a path filter. The job takes ~14s.
 
 on:
   push:
-    paths:
-      - 'scripts/check-frontmatter-budget.py'
-      - 'scripts/frontmatter-budget-allow.txt'
-      - 'scripts/tests/test-check-frontmatter-budget.py'
-      - 'scripts/build-capability-index.py'
-      - 'scripts/check-plugin-description-sync.py'
-      - '*/.claude-plugin/plugin.json'
-      - '.claude-plugin/marketplace.json'
-      - 'scripts/tests/test-build-capability-index.py'
-      - 'scripts/_frontmatter_common.py'
-      - 'scripts/tests/test-frontmatter-common.py'
-      - 'capability-index.json'
-      - '**/skills/*/SKILL.md'
-      - '**/agents/*.md'
-      - '**/commands/*.md'
   pull_request:
-    paths:
-      - 'scripts/check-frontmatter-budget.py'
-      - 'scripts/frontmatter-budget-allow.txt'
-      - 'scripts/tests/test-check-frontmatter-budget.py'
-      - 'scripts/build-capability-index.py'
-      - 'scripts/check-plugin-description-sync.py'
-      - '*/.claude-plugin/plugin.json'
-      - '.claude-plugin/marketplace.json'
-      - 'scripts/tests/test-build-capability-index.py'
-      - 'scripts/_frontmatter_common.py'
-      - 'scripts/tests/test-frontmatter-common.py'
-      - 'capability-index.json'
-      - '**/skills/*/SKILL.md'
-      - '**/agents/*.md'
-      - '**/commands/*.md'
   workflow_dispatch:
 
 jobs:

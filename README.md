@@ -146,7 +146,7 @@ Two further levers keep the footprint down:
   `model` pin. This lets a plugin stay agent-centric (a few big components) instead of many
   always-on skill descriptions.
 
-CI runs it via `.github/workflows/validate-frontmatter-budget.yml`, on pushes and PRs touching component or script paths (that workflow is path-filtered).
+CI runs it via `.github/workflows/validate-frontmatter-budget.yml`, on every push and PR. That workflow is deliberately unfiltered: its last step validates `capability-index.json`, which is derived from the whole tree, and a filter on component paths missed the inputs that decide `requires_enablement` — see the header comment for what that cost.
 Rare, justified exceptions go in `scripts/frontmatter-budget-allow.txt` with a
 reason.
 
@@ -169,9 +169,12 @@ runner by name rather than being silently skipped. Making it actually execute me
 an interpreter to `run_one()`. The guarantee is "never silently skipped", not "runs
 anything".
 
-CI does not use the runner — it runs suites through path-filtered per-workflow jobs in
-`.github/workflows/`, so a change touching one area doesn't re-run everything. The runner
-is the local and plan-authoring path.
+CI does not use the runner — it runs suites through per-workflow jobs in
+`.github/workflows/`, most of them path-filtered so a change touching one area doesn't
+re-run everything. A job whose check reads a TREE-DERIVED artifact is unfiltered instead,
+because its inputs cannot be enumerated as paths without the filter becoming a lockstep
+copy of the script's globs; those jobs say so in their headers. The runner is the local and
+plan-authoring path.
 
 ## License
 
