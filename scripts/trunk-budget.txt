@@ -439,9 +439,9 @@ git-github/skills/license-audit/SKILL.md 13335
 planning/skills/brainstorming/SKILL.md 13182
 # Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
 #   the Output location citation now carries the path it refers to
-planning/skills/decisions/SKILL.md 13053
+planning/skills/decisions/SKILL.md 13049
 android-dev/skills/android-fdroid-publish/SKILL.md 12879
-planning/skills/architecting-projects/SKILL.md 11935
+planning/skills/architecting-projects/SKILL.md 11832
 # Raised 11658 -> 11674 (+16) by the Task 3.3 deixis burn-down:
 #   the business-aware rules and the agenda sources are named rather than
 #   pointed at

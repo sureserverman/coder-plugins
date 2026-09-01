@@ -15,15 +15,30 @@ trunk may shrink freely and may not grow at all. Ceilings are lowered by hand
 when an extraction lands, which is what makes the reduction durable rather than
 a number that drifts back up.
 
-Two failure modes this deliberately treats as errors rather than skips:
+Three failure modes this deliberately treats as errors rather than skips:
 
   - A budgeted file that does not exist. Skipping it would let a deleted or
     renamed trunk read as compliant forever.
   - A trunk over `--min-size` with no budget entry. Without this the ratchet is
     opt-in, and a new fat trunk opts out of it by simply never being listed.
+  - A STALE ceiling: a trunk that has shrunk more than `--max-slack` below its
+    recorded ceiling (BL-066). The paragraph above says ceilings are lowered by
+    hand when an extraction lands, "which is what makes the reduction durable
+    rather than a number that drifts back up" -- but nothing checked that the
+    hand-lowering happened, so the gap between a shrunk trunk and its unchanged
+    ceiling was silent room to grow straight back. Measured 2026-08-31: 2 of 23
+    ceilings had already drifted (+4 B and +103 B), where all 22 sat at +0 when
+    the gap was filed three weeks earlier.
+
+The floor and the stale ceiling are the same defect wearing two hats, which is
+why one fix answers both: each is room to grow that the ratchet does not
+measure. A trunk under `--min-size` carries implicit headroom up to the floor;
+a stale ceiling carries it explicitly. So the summary states the total
+unmeasured headroom rather than implying the ratchet covers everything -- a
+count of budgeted trunks says nothing about what is NOT budgeted.
 
 Read-only: never writes to the repo. Exit 0 when every trunk is within its
-ceiling, 1 otherwise.
+ceiling and no ceiling is stale, 1 otherwise.
 """
 import argparse
 import json
@@ -111,6 +126,10 @@ def main(argv=None):
     ap.add_argument("--budgets", default=None)
     ap.add_argument("--min-size", type=int, default=DEFAULT_MIN_SIZE,
                     help="trunks at or above this size must carry a budget entry")
+    ap.add_argument("--max-slack", type=int, default=0, metavar="B",
+                    help="a budgeted trunk more than B bytes under its ceiling is "
+                         "STALE: the ceiling was not lowered when the trunk shrank "
+                         "(default 0 -- the ratchet is exact by design)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -128,14 +147,34 @@ def main(argv=None):
             unbudgeted.append(rel)
 
     over = [r for r in rows if r["over"]]
+    # A ceiling left above a shrunk trunk is re-growth room nothing reports.
+    stale = [r for r in rows
+             if not r["missing"] and r["headroom"] > args.max_slack]
+
+    # What the ratchet is NOT measuring, from both sources.
+    slack_bytes = sum(r["headroom"] for r in stale)
+    floor_bytes = 0
+    for rel in discover_trunks(args.root):
+        if rel in budgets:
+            continue
+        size = os.path.getsize(os.path.join(args.root, rel))
+        if size < args.min_size:
+            floor_bytes += args.min_size - size
 
     if args.json:
-        print(json.dumps({"rows": rows, "unbudgeted": unbudgeted}, indent=2))
+        print(json.dumps({"rows": rows, "unbudgeted": unbudgeted,
+                          "stale": [r["path"] for r in stale],
+                          "unmeasured_headroom": slack_bytes + floor_bytes},
+                         indent=2))
     else:
         # honest-gates: state the population, so an empty sweep cannot read as
         # a pass over something.
         print(f"{len(rows)} budgeted trunk(s); {len(over)} over ceiling, "
+              f"{len(stale)} stale ceiling(s), "
               f"{len(unbudgeted)} unbudgeted over {args.min_size} B.")
+        print(f"  unmeasured headroom: {slack_bytes + floor_bytes} B "
+              f"({slack_bytes} B stale ceilings + {floor_bytes} B under the "
+              f"{args.min_size} B floor).")
         for r in sorted(rows, key=lambda x: -(x["size"] or 0)):
             if r["missing"]:
                 print(f"  MISSING  {r['path']}  (budgeted {r['budget']} B)")
@@ -147,7 +186,14 @@ def main(argv=None):
             print(f"  NO-BUDGET  {rel}  "
                   f"({os.path.getsize(os.path.join(args.root, rel))} B)")
 
-    return 1 if (over or unbudgeted) else 0
+    if stale:
+        print("\nSTALE ceiling(s) -- the trunk shrank and the ceiling did not. "
+              "Paste these lines into scripts/trunk-budget.txt:", file=sys.stderr)
+        for r in stale:
+            print(f"  {r['path']} {r['size']}"
+                  f"    # was {r['budget']} ({r['headroom']:+d})", file=sys.stderr)
+
+    return 1 if (over or unbudgeted or stale) else 0
 
 
 if __name__ == "__main__":

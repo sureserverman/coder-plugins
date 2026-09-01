@@ -1,0 +1,51 @@
+name: validate-extraction-guards
+
+# Guards what extraction breaks that a diff cannot see, and what it un-breaks
+# that nobody lowers afterwards. Two scripts, one concern — a skill trunk split
+# into references/:
+#
+#   check-extraction-integrity.py  a pointer that resolved from the monolith and
+#                                  resolves from nowhere one level down, plus the
+#                                  positional deixis ("the rules above") the move
+#                                  silently invalidated.
+#   check-trunk-budget.py          the ratchet on trunk sizes, including a STALE
+#                                  ceiling left above a trunk that has shrunk.
+#
+# Both shipped without CI wiring, so they ran only when someone invoked
+# scripts/run-tests.sh locally (BL-064). A ratchet nobody runs on push does not
+# stop a regression from landing, and silent trunk re-growth is the exact
+# regression check-trunk-budget.py exists to catch: executing-plans/SKILL.md
+# gained 34% in six days while a budget file that could have caught it existed.
+#
+# Deliberately NOT path-filtered, for the reason validate-usage-tokens.yml
+# records in its own header. What these guards resolve is CROSS-FILE: a pointer
+# in a trunk against a file somewhere else in the tree. Deleting, renaming or
+# moving the *referent* breaks a pointer without touching the file that holds
+# it, and BL-068 measured exactly that direction going unreported. A path filter
+# would be the "guard that never runs on the change that broke it" trap.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Fixture tests for the extraction guard
+        run: python3 scripts/tests/test-check-extraction-integrity.py
+      - name: Fixture tests for the trunk ratchet
+        run: python3 scripts/tests/test-check-trunk-budget.py
+      # --min-files guards the guard: a scan that discovers nothing exits 2
+      # rather than reporting a clean pass (BL-067). The floor is set to the
+      # live population so a discovery regression that halves the sweep is a
+      # failure too, not a quieter pass.
+      - name: No dead pointers or dangling deixis
+        run: python3 scripts/check-extraction-integrity.py --min-files 150
+      - name: No trunk over its ceiling, and no ceiling left stale
+        run: python3 scripts/check-trunk-budget.py
