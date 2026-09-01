@@ -86,7 +86,30 @@ These fields are symmetric: if Task 2.1 depends on Task 1.3, then Task 1.3 must 
 
 Mark each task's **Parallel** field. It is a directive to the executor, not a description
 of the task: `executing-plans` dispatches every `Parallel: YES` task to a subagent (its
-Step 3.2), it does not merely note that a subagent *could* handle it.
+Step 3.2), it does not merely note that a subagent *could* handle it. The authority for
+what the field MEANS is `../SKILL.md` § Stage structure, where it is defined; this section
+is the authoring rule built on it.
+
+> **Where else this rule is stated, and why that is not duplication.** The
+> directive-not-description distinction reads as repeated prose across the repo, and a
+> count of the sites was once used to close an entry — wrongly, because the count was
+> taken against a narrower reading of the class than the entry used (BL-076). The class
+> is therefore stated here rather than left to be re-counted. A site belongs to it when
+> it restates the distinction as the **premise for a consequence that site alone draws**,
+> and cites `../SKILL.md` § Stage structure. Every current site does:
+>
+> | Where | The consequence it draws |
+> |---|---|
+> | `../SKILL.md` § Stage structure | the definition itself — the authority |
+> | `../SKILL.md`, load-bearing rules list | trunk summary of its own definition |
+> | here | how to mark the field when authoring |
+> | `../../executing-plans/references/dispatch-fidelity.md` | an ignored directive leaves no trace in the diff, so nothing later reveals it |
+> | `../../executing-plans/references/task-execution.md` | a sibling touching the same file does not withdraw the directive |
+> | `../../dispatching-parallel-agents/SKILL.md` | approval came with the plan, so do not re-confirm; and `|S| = 1` still dispatches |
+>
+> Six sites, six different consequences. What would NOT belong: a seventh site restating
+> the distinction and drawing nothing new from it, or one that states it without citing
+> the authority. Either is a duplicate to delete rather than a cross-reference to keep.
 - **YES** if the task has no unfinished dependencies (all its `Depends on` items are green
   or "none") — it is dispatched, whether or not another ready task exists to run alongside
   it. A lone ready task with no concurrent sibling is still dispatched, not inlined for

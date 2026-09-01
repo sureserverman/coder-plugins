@@ -116,15 +116,20 @@ Every review enters through one of six protocols. Announce which protocol you ar
 
 Run first on any unfamiliar change, and do not critique until it has reported.
 
-Identify the scope (commit range, PR, single file, "the code I just wrote" — ask if unclear). Read the **plan or design document** if one exists (usually `plans/YYYY-MM-DD-*` in the vault, or `docs/plans/*`); plans from `planning-projects` carry task dependencies, tests and stage gates, and the review compares the diff to those rather than to imagined requirements. Read the diff, then the surrounding code — a function is judged in context, and a pattern that would be a smell elsewhere may be the house convention here. Scan for the project's own rules (CONTRIBUTING, CODEOWNERS, `.editorconfig`, `rustfmt.toml`, `.prettierrc`, Ruff, Checkstyle); the review applies those, not your preferences.
+Ordered steps — each one feeds the next, so do not reorder them:
 
-Report: scope, base/head, plan document, languages, linter config, test invocation, conventions the review must respect.
+1. **Identify the scope** (commit range, PR, single file, "the code I just wrote" — ask if unclear).
+2. **Read the plan or design document** if one exists (usually `plans/YYYY-MM-DD-*` in the vault, or `docs/plans/*`); plans from `planning-projects` carry task dependencies, tests and stage gates, and the review compares the diff to those rather than to imagined requirements.
+3. **Read the diff** — `git diff <base>..<head>` for a range, `git show <sha>` for a single commit — then the surrounding code. A function is judged in context, and a pattern that would be a smell elsewhere may be the house convention here.
+4. **Scan for the project's own rules** (CONTRIBUTING, CODEOWNERS, `.editorconfig`, `rustfmt.toml`, `.prettierrc`, Ruff, Checkstyle); the review applies those, not your preferences.
+
+Report: scope, base/head, plan document, languages, linter config, test invocation, conventions the review must respect. Emit the **Context Report** schema below.
 
 ## Protocol 2 — Plan-alignment review
 
 For a change claiming to implement plan tasks. For each task, check that the files the plan implies are the files actually touched, that the task's `Test:` is present and runs, and that the functionality matches the task description — tests are a floor, not a ceiling.
 
-Flag deviations (code mapping to no task, tasks with no code) and classify each as **justified**, **scope creep**, or **missed**. If the plan has a stage gate, verify every gate check has a corresponding implementation or test: a green gate with an uncovered check is theater.
+Flag deviations (code mapping to no task, tasks with no code) and classify each as **justified**, **scope creep**, or **missed**. If the plan has a stage gate, verify every gate check has a corresponding implementation or test: a green gate with an uncovered check is theater. Emit the **Plan Alignment Report** schema below.
 
 ## Protocol 3 — Structural review
 
@@ -138,6 +143,9 @@ depth 6 is almost certainly doing too much. **Read** `${CLAUDE_PLUGIN_ROOT}/refe
 § Structural principles for the per-principle discriminators. Do not critique what the
 project's conventions or linters haven't adopted — flag those as "not project convention,
 but worth considering."
+
+Emit the **Structural / Smell / Security Review** schema below — the same schema serves
+Protocols 4 and 5, so a finding from any of the three is written the same way.
 
 ## Protocol 4 — Code-smell review
 
@@ -165,6 +173,7 @@ Does a test exist for each change, and if not, is the reason a real one? Is the 
 8. **Plan deviations require the author's acknowledgment.** Surface them; the caller decides whether to update the plan or revert the code.
 9. **Recommend specialists.** Deep testing review goes to `testing-expert`; Rust depth to `rust-expert`; game feel and UX to `game-design-expert`. Code-reviewer covers breadth, not all depths.
 10. **Small changes get small reviews.** A 2000-line change gets a "split this" response before any deep review.
+11. **Name a source, cite it.** When a finding leans on a named authority — an OWASP or CWE id, a Fowler smell, a SOLID principle — **Read** `${CLAUDE_PLUGIN_ROOT}/references/review-catalogs.md` § Sources and cite the entry from there rather than from memory.
 
 ## Triage thresholds
 
