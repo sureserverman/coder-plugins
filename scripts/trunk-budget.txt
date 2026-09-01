@@ -357,7 +357,7 @@ planning/skills/planning-projects/SKILL.md 37502
 # Raised 13543 -> 13721 (+178 B) settling BL-106, the no-vault_dir fallback: three
 #   sites stated one rule and two of them contradicted each other. Decided by the user
 #   (option A — keep the fallback); the 'NEVER write to <repo>/docs/' claim was FALSE — the code has always written there on an unconfigured machine — and correcting a false rule to a true one plus a pointer costs more bytes than the falsehood did.
-planning/skills/portfolio/SKILL.md 13721
+planning/skills/portfolio/SKILL.md 13718
 
 # Seeded 2026-08-27 at 12519 B, its first entry: honest-gates crossed 10000 B when it
 #   gained § "A test does not exist until its mutant dies". The section is here rather than
@@ -392,7 +392,7 @@ android-dev/skills/android-play-publish/SKILL.md 18018
 # out of the executing-plans trunk, leaving a citation here pointing at a section
 # that no longer exists in the file it named. Repointed at the file that now owns
 # it, which is longer than the bare skill name it replaced.
-planning/skills/backlog/SKILL.md 17706
+planning/skills/backlog/SKILL.md 17353
 # The six raises below share one cause: Stage 3 Task 3.3 burned the BL-039
 # allowlist debt down to zero for this plugin by REWRITING the prose rather than
 # suppressing the findings, and position-neutral prose runs a little longer than
