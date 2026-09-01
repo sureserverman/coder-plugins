@@ -53,11 +53,28 @@ _spec.loader.exec_module(pu)
 BAR_WIDTH = 20
 STALE_AFTER_H = 12  # a state file this old is probably a crashed session
 
-GREEN = "\033[38;2;0;160;0m"
-RED = "\033[38;2;255;85;85m"
-YELLOW = "\033[38;2;230;200;0m"
-CYAN = "\033[38;2;46;149;153m"
-PURPLE = "\033[38;2;167;139;250m"
+# Palette: every colour clears WCAG 3:1 -- the bar for non-text UI elements, which
+# is what a status-line glyph is -- against BOTH a white and a black terminal
+# background. The old palette was tuned for a dark terminal only and measured
+# 1.66:1 (YELLOW) and 2.72:1 (PURPLE) on white, so the preflight flag and the
+# remediation counter were effectively invisible there -- and the remediation
+# counter is precisely the signal that exists to make a quietly-looping gate
+# visible (BL-058).
+#
+# Clearing a bar against both grounds confines a colour to a narrow luminance
+# band, because contrast on white wants it dark and contrast on black wants it
+# light. These were chosen by holding each role's hue, requiring it stay
+# recognisably that hue (HSV saturation >= 70%, value >= 55% -- a status line
+# codes by colour, so a colour that reads as mud has lost its job), and then
+# maximising the worst of the two contrasts. All five land at 4.38:1 or better
+# on both, which also clears the stricter 4.5:1 text bar in four of five cases.
+# test-plan-progress.py recomputes these from the escape codes and fails below
+# 3:1, so the property is pinned rather than merely documented.
+GREEN = "\033[38;2;0;140;47m"      # 4.38:1 white / 4.79:1 black
+RED = "\033[38;2;219;54;48m"       # 4.58:1 white / 4.58:1 black
+YELLOW = "\033[38;2;148;112;6m"    # 4.59:1 white / 4.58:1 black
+CYAN = "\033[38;2;22;129;145m"     # 4.58:1 white / 4.58:1 black
+PURPLE = "\033[38;2;162;62;250m"   # 4.56:1 white / 4.61:1 black
 DIM = "\033[2m"
 RESET = "\033[0m"
 

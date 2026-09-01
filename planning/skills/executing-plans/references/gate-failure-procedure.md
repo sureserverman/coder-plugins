@@ -62,6 +62,20 @@ news. Triage before repairing, and bound the loop.
 **Remediation budget — default 2 rounds per gate.** One round is classify →
 repair → re-verify — and **a re-dispatched review or evaluator is itself a round**
 (trunk, § Remediation budget), never a free confirmation of a round already spent.
+
+**What a round now costs, stated because the default was chosen before it grew.**
+Step 2 above absorbed evidence-first root-cause diagnosis, three-way set derivation
+with the enumerating command written down, and reconciliation — work the round always
+implied but that used to be a sentence and is now the bulk of it. The default stayed
+at 2 deliberately: a budget raised on speculation is worse than one left alone, and a
+third round buys another *repair* attempt when the thing that actually runs long is
+the *diagnosis* inside round one. Measured instance: the Stage 3 gate of
+`engineering-skills`' 2026-08-25 cursor-execution-quality plan spent the full 2 rounds
+under the heavier step 2 and still closed with an open question. That is the expected
+shape, not a budget failure — **exhaustion with a residual list is a legitimate
+outcome, not a defeat**, and escalating it is cheaper than a third round that
+re-diagnoses from the same evidence. Raise the number on a stage only when the *repair*
+was the part that ran out of room, and say so on the stage when you do.
 Without that, a gate has two counters and one limit: repairs bounded at 2, while
 fix → re-review → new findings → fix runs until the reviewer goes quiet, which for a
 fresh judgment agent is not a reachable state. It is a default, and a plan may override it by stating a

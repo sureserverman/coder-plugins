@@ -686,11 +686,18 @@ def case_degrades_without_raising():
 # Provenance is the whole point: a golden captured from the code it is meant to
 # pin proves only that the code equals itself. This one was taken from the
 # earlier implementation, so it can fail.
+# These goldens pin LAYOUT — field order, widths, glyphs, spacing — and carry the
+# palette only incidentally, because a rendered line contains its colour codes.
+# Contrast is NOT their job: case_palette_contrast owns that and recomputes it
+# from the module. So a deliberate palette change updates the escape codes here
+# and nothing else; if a diff to these shows anything but colour digits moving,
+# the layout regressed. (BL-058 existed partly because a gate demanding every
+# pre-change colour still appear froze the palette it was meant to protect.)
 GOLDEN_SINGLE_PLAN = (
-    "\x1b[38;2;46;149;153m⚙ 2026-08-06-demo\x1b[0m "
-    "\x1b[2m▐\x1b[0m\x1b[38;2;0;160;0m██████████\x1b[0m"
+    "\x1b[38;2;22;129;145m⚙ 2026-08-06-demo\x1b[0m "
+    "\x1b[2m▐\x1b[0m\x1b[38;2;0;140;47m██████████\x1b[0m"
     "\x1b[2m░░░░░░░░░░▌\x1b[0m 2/4 \x1b[2m(50%)\x1b[0m \x1b[2m·\x1b[0m S2/2 "
-    "\x1b[38;2;0;160;0m▶ T2.1 \x1b[0mz"
+    "\x1b[38;2;0;140;47m▶ T2.1 \x1b[0mz"
 )
 
 GOLDEN_PLAN_BODY = """# Plan: demo
@@ -1441,11 +1448,11 @@ def case_phase_indicator():
 # that moves them apart is a regression.
 COMPOSED_GOLDEN = [
     '\x1b[2m⚙ 2026-08-01-alpha-master              \x1b[0m \x1b[2m▐\x1b[0m'
-    '\x1b[38;2;0;160;0m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
+    '\x1b[38;2;0;140;47m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
     '\x1b[2m├─ \x1b[0m\x1b[2m⚙ 2026-08-02-alpha-sub-01-foundation\x1b[0m \x1b[2m▐\x1b[0m'
-    '\x1b[38;2;0;160;0m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
+    '\x1b[38;2;0;140;47m██████████\x1b[0m\x1b[2m░░░░░░░░░░▌\x1b[0m 1/2 \x1b[2m(50%)\x1b[0m',
     '\x1b[2m└─ \x1b[0m\x1b[2m⚙ 2026-08-03-alpha-sub-02-second    \x1b[0m \x1b[2m▐\x1b[0m'
-    '\x1b[38;2;0;160;0m\x1b[0m\x1b[2m░░░░░░░░░░░░░░░░░░░░▌\x1b[0m 0/2 \x1b[2m(0%)\x1b[0m',
+    '\x1b[38;2;0;140;47m\x1b[0m\x1b[2m░░░░░░░░░░░░░░░░░░░░▌\x1b[0m 0/2 \x1b[2m(0%)\x1b[0m',
 ]
 
 
@@ -2069,6 +2076,49 @@ def case_budget_check():
     check("Traceback" not in r.stderr, f"no traceback ({r.stderr!r})")
 
 
+def case_palette_contrast():
+    """Every palette colour is legible on a light terminal as well as a dark one.
+
+    The original palette was tuned for a dark background only: YELLOW measured
+    1.66:1 and PURPLE 2.72:1 against white, so the preflight flag and the
+    remediation counter were effectively invisible there — and the remediation
+    counter exists specifically to make a quietly-looping gate visible (BL-058).
+
+    The bar is WCAG 3:1, which is the threshold for non-text UI elements; a
+    status-line glyph is one. Recomputed from the escape codes themselves rather
+    than from a copied table, so editing a colour and forgetting the contrast is
+    a test failure and not a silent regression.
+    """
+    print("palette contrast (WCAG 3:1 on BOTH a white and a black terminal):")
+
+    def channel(c):
+        c /= 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    def luminance(rgb):
+        r, g, b = (channel(v) for v in rgb)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    mod = load_module()
+    seen = 0
+    for name in ("GREEN", "RED", "YELLOW", "CYAN", "PURPLE"):
+        code = getattr(mod, name)
+        m = re.fullmatch(r"\033\[38;2;(\d+);(\d+);(\d+)m", code)
+        check(m is not None, f"{name} is a 24-bit colour this test can parse")
+        if not m:
+            continue
+        seen += 1
+        lum = luminance(tuple(int(g) for g in m.groups()))
+        on_white = 1.05 / (lum + 0.05)
+        on_black = (lum + 0.05) / 0.05
+        check(min(on_white, on_black) >= 3.0,
+              f"{name} clears 3:1 on both grounds "
+              f"({on_white:.2f}:1 white, {on_black:.2f}:1 black)")
+    # An empty sweep must not read as a pass: if the names are renamed away,
+    # the loop above would silently assert nothing at all.
+    check(seen == 5, f"all 5 palette colours were measured (saw {seen})")
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -2209,6 +2259,7 @@ def main():
     case_blocked_gate_renders()
     case_status_lag_warns()
     case_budget_check()
+    case_palette_contrast()
 
     print()
     if FAILURES:
