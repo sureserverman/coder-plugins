@@ -88,6 +88,35 @@ over uncommitted edits certifies a plan nobody else can see — the same defect 
 verified against a dirty working tree, one phase earlier
 (`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`).
 
+## Access probe (hardware and remote targets are proven by I/O, not by environment)
+
+"Access / permissions verified" used to say nothing about what verification is, and twice
+an executor read an unset `PI_MODEM_HIL_CM4` and concluded the hardware did not exist —
+while the repo's own deploy script named the host, and the same executor had edited that
+script. Its own admission: *"The CM4 was never missing. The gate never tried SSH."*
+
+So for every device, board, VM or remote host a task or gate depends on:
+
+1. **Resolve the target from the repo's own deploy, HIL or provisioning scripts** — the
+   address, port, user and serial the project already uses — before concluding anything
+   from an environment variable. An unset variable is **missing configuration**; only an
+   executed probe can report **missing hardware**, and the two have opposite consequences
+   for a gate.
+2. **Run a probe** (ssh, ping, a serial identity read — whatever the project's scripts do)
+   and **record what answered**, verbatim, in the Preflight report.
+3. **Nothing answered** → the target is unreachable: Preflight fails on that line, and every
+   gate needing it is **BLOCKED**, written `[~]`. **Something answered but was not what was
+   expected** (wrong serial, wrong identity, auth refused) → **investigate before excusing**:
+   in the incident the day's first probe found the device genuinely down, the second failed
+   on the probe's own `BatchMode=yes` against a password-only host, and a third defect sat
+   behind that in the serial comparison — two of three failures were the tool's, not the
+   device's, and an env-var check would have reported "no hardware" at every one of them.
+
+Position, per DEC-017: once at Preflight, like the gate-selector probe. A command,
+never a dispatch, so untiered. This plugin ships no probe script; the Cursor port's
+`probe-device.sh` (exit 0 answered-and-matched, 1 answered-but-wrong, 78 nothing answered)
+is the shape worth copying, and its exit codes encode exactly the split in step 3.
+
 ## Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure)
 
 `planning-projects` cross-references every `pytest <file> -k <expr>` in a gate against the

@@ -198,6 +198,7 @@ adding the three Step 3.5 rows below.
 | Phase 1 — Load and critique | INSTANCE-SHAPED |
 | Phase 1 — Load and critique | Decisions in force |
 | Phase 2 — Preflight | Baseline test suite passes |
+| Phase 2 — Preflight | proven by an executed probe, never by an environment variable |
 | Phase 2 — Preflight | Review scope is declared |
 | Decisions re-check (the plan's snapshot can be stale) | accretes between planning and execution |
 | Calibration re-check (the plan's ceremony can be stale) | What is never recomputed: the plan's facts |

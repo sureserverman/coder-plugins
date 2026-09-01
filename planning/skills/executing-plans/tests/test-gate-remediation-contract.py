@@ -90,6 +90,7 @@ What it pins:
      actually happens; they do not pretend to catch every rewording, and no meta-layer
      is added to make them pretend harder.
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -1265,6 +1266,42 @@ def main():
           "no markdown files scanned — an empty sweep is not a pass")
     check(f"no {BANNED_PHRASE!r} under planning/skills/", not offenders,
           f"instance-shaped framing survives at: {', '.join(offenders)}")
+
+    # 11. (honest-gates-rule-gaps plan, Task 3.2 / BL-079) Preflight proves hardware and
+    #     remote access by an executed probe, never by an environment variable. Two sites:
+    #     the trunk's Preflight bullet, and the procedure in preflight-checks.md.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(_here, "..", "SKILL.md"), encoding="utf-8") as fh:
+        _trunk = fh.read()
+    with open(os.path.join(_here, "..", "references", "preflight-checks.md"), encoding="utf-8") as fh:
+        _pre = fh.read()
+    _ws = lambda pat: re.sub(r" ", r"\\s+", pat)
+    _access = re.search(r"^- Access / permissions verified.*$", _trunk, re.M)
+    check("Preflight's access line is no longer bare",
+          _access is not None and re.search(r"^- Access / permissions verified$", _trunk, re.M) is None,
+          "the trunk still lists 'Access / permissions verified' with no probe")
+    check("Preflight's access line names a probe",
+          _access is not None and "probe" in _access.group(0),
+          "the access bullet does not say access is proven by a probe")
+    _probe = section(_pre, r"\n## Access probe", r"\n## ")
+    check("preflight-checks.md has an access-probe section", bool(_probe),
+          "no '## Access probe' heading in preflight-checks.md")
+    check("access probe: the host is resolved from the repo's own deploy/HIL scripts",
+          affirms_claim(_probe, _ws(r"from the repo's own deploy, HIL or provisioning scripts")),
+          "nothing says to resolve the target from the repo's own scripts")
+    check("access probe: the probe is run and what answered is recorded",
+          affirms_claim(_probe, _ws(r"record what answered")),
+          "nothing says to run the probe and record what answered")
+    check("access probe: nothing answered -> BLOCKED",
+          re.search(_ws(r"nothing answered.{0,200}BLOCKED"), _probe, re.S | re.I) is not None,
+          "the 'nothing answered' outcome is not mapped to BLOCKED")
+    check("access probe: something answered but not what was expected -> investigate, not excuse",
+          re.search(_ws(r"not what was expected.{0,120}investigat"), _probe, re.S) is not None,
+          "the wrong-identity outcome is not mapped to investigation")
+    check("access probe: an unset variable is missing configuration, not missing hardware",
+          re.search(_ws(r"missing configuration"), _probe) is not None
+          and re.search(_ws(r"missing hardware"), _probe) is not None,
+          "the configuration/hardware distinction is not stated")
 
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:

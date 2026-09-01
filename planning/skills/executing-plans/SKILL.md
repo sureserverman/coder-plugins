@@ -239,7 +239,7 @@ Run every check in the Preflight section and report pass/fail:
 - Tools installed and at compatible versions
 - Dependencies resolvable
 - APIs reachable, keys valid
-- Access / permissions verified
+- Access / permissions verified — a hardware or remote target is proven by an executed probe, never by an environment variable; see below
 - Baseline test suite passes
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
