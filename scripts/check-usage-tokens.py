@@ -85,7 +85,20 @@ NON_COMPONENTS = {
 # Whitespace is tested with str.isspace() rather than listed, because listing it is
 # how the first cut of this dropped 31 of 89 tokens: it enumerated space and tab but
 # not newline, silently un-checking every token that begins a line.
-TOKEN_START_PUNCT = set("`([{\"'*|,;")
+# The dashes are here for the same reason newline was: an em-dash is ordinary
+# sentence punctuation in this repo's prose, so `... the router — /planning:compass
+# picks it up` put a token directly after one and it was never extracted (BL-033).
+# An en-dash is the identical shape and is included rather than left as the next
+# instance of this bug. A plain hyphen is NOT: it is part of component names
+# (`code-review`), so treating it as a boundary would split tokens rather than
+# start them.
+TOKEN_START_PUNCT = set("`([{\"'*|,;" + "\u2014\u2013")
+
+
+# The two slash-token shapes, named once because the flow-composition sweep below
+# needs the identical extraction main() uses. A copy would drift.
+QUALIFIED_TOKEN = r"/([a-z0-9-]+):([a-z0-9-]+)\b(?!/)"
+BARE_TOKEN = r"/([a-z0-9-]+)(?![:\w/-])"
 
 
 def token_starts(text, body):
@@ -222,6 +235,100 @@ def attribution_claims(text, plugins):
                 yield comp, claimed, f"prose, line {lineno}"
 
 
+FLOW_HEADING = re.compile(r"^## (\d+)\.[ \t]*(.*)$", re.M)
+# The purpose statement names its own exceptions in bold: "**flow 6** ... and
+# **flow 7** ... are *layers* rather than pipelines".
+ADMITTED_FLOW = re.compile(r"\*\*flow (\d+)\*\*", re.I)
+
+
+def flow_sections(text):
+    """(number, heading, body) for each numbered flow in USAGE.md."""
+    out = []
+    marks = list(FLOW_HEADING.finditer(text))
+    for i, m in enumerate(marks):
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        out.append((int(m.group(1)), m.group(2).strip(), text[m.end():end]))
+    return out
+
+
+def plugins_in(section, owners):
+    """Every plugin the components named in this section belong to.
+
+    Uses token_starts, not a hand-rolled backtick scan. That matters: flow 9's
+    only `business` components sit in a fenced ```text block, and a sweep reading
+    inline backticks alone counts that flow as single-plugin and reports a false
+    violation on its first run. Verified against the live doc -- inline-only says
+    flow 9 spans 1 plugin, the real extraction says 2.
+    """
+    found = set()
+    for _plugin, name in token_starts(section, QUALIFIED_TOKEN):
+        found |= owners_of(owners, name)
+    for (name,) in token_starts(section, BARE_TOKEN):
+        found |= owners_of(owners, name)
+    for name in re.findall(r"`([a-z][a-z0-9-]*)`", section):
+        if name not in NON_COMPONENTS:
+            found |= owners_of(owners, name)
+    return found
+
+
+def flow_composition(text, owners):
+    """Check USAGE.md's purpose statement against what its flows actually name.
+
+    The statement claims most flows cross plugin boundaries and admits a named
+    few that do not. That is a behavioral claim about a document that grows:
+    renumber a flow, add one, or let an existing flow shrink to a single plugin,
+    and it quietly becomes false. It was proved true exactly once, by a sweep run
+    inline at a stage gate and never shipped (BL-029).
+
+    The admitted set is PARSED FROM the statement, never hardcoded. Pinning
+    "flows 6 and 7" here would mean adding a flow turns this suite red and
+    someone hand-edits the numbers back -- the counting treadmill killed in
+    plans/2026-07-27-bl028-calibration-treadmill-light-plan.md, which went red on
+    two consecutive plans before it was removed. Parsed, the doc stays its own
+    source of truth and this only fires when doc and reality actually disagree.
+
+    Checked in BOTH directions: an unadmitted flow that resolves to one plugin,
+    and an admitted flow that turns out to span several. The second matters
+    because the statement makes a positive claim about those flows too.
+    """
+    preamble = re.split(r"^## ", text, maxsplit=1, flags=re.M)[0]
+    admitted = {int(n) for n in ADMITTED_FLOW.findall(preamble)}
+    flows = flow_sections(text)
+    problems = []
+
+    if not flows:
+        # No flows AND no claim about them: there is nothing to verify, so this
+        # sweep is simply not applicable to that document. A claim with no flows
+        # behind it is different -- that is the extraction failing, and it must
+        # never read as a pass.
+        if admitted:
+            problems.append(
+                f"the purpose statement admits flow(s) "
+                f"{', '.join(str(n) for n in sorted(admitted))} but no numbered "
+                f"flow heading was found — the extraction is broken, not the doc")
+        return admitted, flows, problems
+
+    # Note there is deliberately no "claim missing" branch. If the purpose
+    # statement is deleted, `admitted` empties and every genuinely single-plugin
+    # flow becomes unadmitted below — so removing the sentence makes this FIRE
+    # rather than fall silent, which is the property a guard over a claim needs.
+
+    for n, head, body in flows:
+        span = plugins_in(body, owners)
+        if len(span) >= 2 and n in admitted:
+            problems.append(
+                f"flow {n} ({head}) is admitted as single-plugin by the purpose "
+                f"statement but names components from {len(span)}: "
+                f"{', '.join(sorted(span))}")
+        elif len(span) < 2 and n not in admitted:
+            problems.append(
+                f"flow {n} ({head}) resolves to {len(span)} plugin(s) "
+                f"({', '.join(sorted(span)) or 'none'}) and the purpose statement "
+                f"does not admit it as single-plugin — say so there, or the "
+                f"statement is false")
+    return admitted, flows, problems
+
+
 def main():
     if not USAGE.exists():
         sys.exit(f"FAIL: {USAGE} does not exist")
@@ -231,7 +338,7 @@ def main():
     checked, unresolved = [], []
 
     # /plugin:component
-    for plugin, name in token_starts(text, r"/([a-z0-9-]+):([a-z0-9-]+)\b(?!/)"):
+    for plugin, name in token_starts(text, QUALIFIED_TOKEN):
         checked.append(f"/{plugin}:{name}")
         if plugin not in plugins:
             unresolved.append(f"/{plugin}:{name} — no such plugin '{plugin}'")
@@ -243,7 +350,7 @@ def main():
                    else "; no plugin ships it"))
 
     # bare /command (no colon, so not the qualified form above)
-    for (name,) in token_starts(text, r"/([a-z0-9-]+)(?![:\w/-])"):
+    for (name,) in token_starts(text, BARE_TOKEN):
         if name in BUILTINS or name in plugins:
             continue
         checked.append(f"/{name}")
@@ -287,6 +394,10 @@ def main():
                 f"`{comp}` attributed to `{claimed}` ({where}) — actually shipped "
                 f"by {', '.join(sorted(actual))}")
 
+    # The purpose statement's own claim about which flows are single-plugin.
+    admitted, flows, comp_problems = flow_composition(text, owners)
+    unresolved.extend(comp_problems)
+
     if not checked:
         sys.exit("FAIL: swept 0 tokens — the extraction is broken, not the doc")
 
@@ -298,6 +409,9 @@ def main():
 
     print(f"OK — {len(checked)} token(s) checked in docs/USAGE.md, all resolve "
           f"({len(set(checked))} distinct)")
+    print(f"OK — {len(flows)} flow(s) match the purpose statement "
+          f"({len(admitted)} admitted single-plugin: "
+          f"{', '.join(str(n) for n in sorted(admitted)) or 'none'})")
     return 0
 
 

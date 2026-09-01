@@ -131,9 +131,11 @@ in-container MCP server, brought up and torn down per task:
 /android-dev:android-screenshots
 ```
 
-> Set `APK_DIR` and `SCREENSHOT_DIR` to absolute paths first. The stack's defaults are
-> placeholders relative to the bundled plugin directory, so `up.sh` exits 4 with a guiding
-> message rather than mounting an empty directory (see the `android-dev` README).
+> Set `APK_DIR` and `SCREENSHOT_DIR` — the **host-side** mount sources, not the
+> container-side `APK_BASE_DIR` / `SCREENSHOTS_DIR` the MCP server reads — to absolute paths
+> first. The stack's defaults are placeholders relative to the bundled plugin directory, so
+> `up.sh` exits 4 with a guiding message rather than mounting an empty directory (see the
+> `android-dev` README for the full mapping).
 
 ---
 

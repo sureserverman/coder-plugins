@@ -278,6 +278,45 @@ try:
 except SystemExit as exc:
     check("stale" in str(exc.code), "a plugin missing from the index is reported as STALE")
 
+print("group 6 — a token after an em-dash is extracted (BL-033)")
+# TOKEN_START_PUNCT enumerated quotes and brackets but no dash, so a fabrication
+# written directly after ordinary sentence punctuation was never extracted at all.
+check(run("Use the router \u2014 /alpha:do-thing picks it up.\n") == 0,
+      "a real token after an em-dash still resolves")
+check(run("Use the router \u2014 /alpha:ghost-skill picks it up.\n") == 1,
+      "a FABRICATION after an em-dash is caught (was silently unextracted)")
+check(run("Use the router \u2013 /alpha:ghost-skill picks it up.\n") == 1,
+      "same for an en-dash")
+check(run("A code-review token keeps its hyphen: /alpha:do-thing\n") == 0,
+      "a hyphen is not a token boundary — component names contain them")
+
+print("group 7 — USAGE.md's purpose statement matches its flows (BL-029)")
+CROSS = "## 1. Cross\n\nRun `/alpha:do-thing` then ask `beta-only`.\n"
+SINGLE = "## 2. Single\n\nRun `/alpha:do-thing` and `/alpha:run-thing`.\n"
+
+check(run(CROSS) == 0, "a cross-plugin flow with no claim to check passes")
+check(run(CROSS + SINGLE) == 1,
+      "a single-plugin flow the purpose statement does not admit FAILS")
+check(run("**flow 2** is a layer.\n\n" + CROSS + SINGLE) == 0,
+      "admitting it in the purpose statement clears it")
+check(run("**flow 1** is a layer.\n\n" + CROSS + SINGLE) == 1,
+      "admitting the WRONG flow does not clear it")
+check(run("**flow 1** is a layer.\n\n" + CROSS) == 1,
+      "a flow admitted as single-plugin that actually spans two FAILS")
+check(run("**flow 3** is a layer.\n\nProse only, `/alpha:do-thing`.\n") == 1,
+      "a claim with no numbered flow behind it is a broken extraction, not a pass")
+
+# The property that keeps this from being silenced: deleting the sentence must
+# make the guard fire, not fall quiet.
+check(run("**flow 2** is a layer.\n\n" + CROSS + SINGLE) == 0
+      and run(CROSS + SINGLE) == 1,
+      "removing the purpose statement makes the guard FIRE, never go silent")
+
+# The treadmill guard: adding an ordinary cross-plugin flow must not turn it red,
+# or someone starts hand-editing numbers back in every time the doc grows.
+check(run(CROSS + "## 3. Another cross\n\n`/alpha:run-thing` and `beta-only`.\n") == 0,
+      "adding a normal cross-plugin flow needs no edit to the purpose statement")
+
 print("group 4 — an empty sweep is a failure, not a pass")
 try:
     rc = run("Prose with no tokens at all.\n")

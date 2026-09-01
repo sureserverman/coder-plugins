@@ -54,14 +54,15 @@ where the roster and the gate's reconciliation can see it.
 ## Routing table
 
 Match by what the task touches. Pick the most specific row that fits; fall through to
-`general-purpose` when nothing does. `(if installed)` agents are not part of this
-marketplace — if the agent type isn't available, note it and fall back to the generic
-worker named in the row.
+`general-purpose` when nothing does.
 
 Agent names are written as Claude Code dispatches them: plugin-provided agents use
 their `plugin:agent` form, built-ins (`general-purpose`, `Explore`) are bare, and
 agents this marketplace does **not** ship are tagged `*(if installed)*` with a
-built-in fallback.
+built-in fallback: if that agent type isn't available, note it and fall back to the
+generic worker the row names. No row uses the tag today — the five that did are gone —
+but `../scripts/validate-stack-routing.py` still accepts it, so it stays a supported
+way to declare an external dependency rather than a convention to hunt for an example of.
 
 | Task / stack signal | Subagent type | Stack skill the subagent loads first |
 |---|---|---|
@@ -94,8 +95,10 @@ routing signal.
 The **design-handoff redesign** row carries the redesign path on its own: the
 `applying-design-handoff` skill orchestrates and dispatches
 `planning:design-handoff-reproducer` for precise per-slice reproduction. Platform idiom
-is the dispatched agent's job, informed by whatever stack skill its row names — there is
-no separate per-surface UI agent to pair it with.
+is the dispatched agent's job, informed by whatever stack skill the row matching the
+TARGET stack names — not this row, which names `applying-design-handoff`. On most
+surfaces that is nothing at all, and the agent works from its own judgment; there is no
+separate per-surface UI agent to pair it with.
 
 **Exception — Garmin Connect IQ / Monkey C** (`*.mc`, `monkey.jungle`, `manifest.xml`, watch
 face / data field / widget / glance). A Claude Design handoff pack is a visual
