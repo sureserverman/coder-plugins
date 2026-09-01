@@ -84,7 +84,7 @@ components, layout, assets) defined in
 [references/handoff-pack-format.md](references/handoff-pack-format.md#normalized-representation).
 Record which dimensions the pack can support — a missing section is absent here too;
 **never fabricate** tokens, components, or screens the pack doesn't contain. The
-gradeable set determines which fidelity dimensions apply in Phase 6.
+gradeable set determines which fidelity dimensions apply in Phase 7.
 
 ## Phase 3 — Inventory the app + its behavior contracts
 
@@ -141,10 +141,10 @@ Apply the design in code, standard-components-first within each platform.
    [../dispatching-parallel-agents/references/stack-routing.md](../dispatching-parallel-agents/references/stack-routing.md).
    **This lookup is skill-only** — the subagent this skill dispatches is always
    `planning:design-handoff-reproducer` (the table's own *Reproduce a Claude Design handoff
-   pack* row), whichever platform row matches the stack. Android names
-   `android-ui-design-figma` + `android-ui-layout-patterns`; web, GNOME, macOS and Windows
-   name no stack skill at all, so on those surfaces the reproducer works from its own
-   standard-components-first judgment and the brief should say so rather than pointing at
+   pack* row), whatever the lookup returns. Only Android names stack skills:
+   `android-ui-design-figma` + `android-ui-layout-patterns`. Web, GNOME, macOS and Windows
+   have no row, so the lookup ends at *Nothing above fits* and the reproducer works
+   from its own standard-components-first judgment; the brief should say so, not name
    a skill that does not exist.
 2. **Tokens first.** Realize the pack's tokens as the project's theme tokens (not
    one-off hardcoded values) so every component inherits them.
