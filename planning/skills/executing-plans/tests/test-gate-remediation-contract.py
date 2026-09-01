@@ -1303,6 +1303,26 @@ def main():
           and re.search(_ws(r"missing hardware"), _probe) is not None,
           "the configuration/hardware distinction is not stated")
 
+    # 12. (rule-gaps plan, Task 3.3 / BL-080) The amendment protocol names what never
+    #     authorizes an amendment, and the two definition sites cite each other.
+    _amend = section(_pre, r"\n## Amending authored ceremony", r"\n## ")
+    with open(os.path.join(_here, "..", "..", "honest-gates", "SKILL.md"), encoding="utf-8") as fh:
+        _hg = fh.read()
+    check("amendment protocol: cost, wall-clock and disk argue for re-scoping the plan, never the evidence",
+          re.search(_ws(r"cost, wall-clock and disk"), _amend, re.I) is not None
+          and re.search(_ws(r"re-scoping the plan"), _amend) is not None
+          and re.search(_ws(r"never (?:for )?(?:re-scoping )?the evidence"), _amend) is not None,
+          "the protocol does not say cost/time/disk are arguments for re-scoping the plan, not the evidence")
+    check("amendment protocol: a suite dropped from a gate command is recorded [~] BLOCKED on that suite",
+          re.search(_ws(r"dropped from a gate command.{0,120}`\[~\]`.{0,40}BLOCKED on that suite"), _amend, re.S) is not None,
+          "the dropped-suite consequence is not stated as [~] on that suite")
+    check("amendment protocol: cites test-scope-tiers.md for the declared-scope distinction",
+          "test-scope-tiers.md" in _amend and re.search(_ws(r"neither touched nor depend on"), _amend) is not None,
+          "the protocol does not name the tiering discriminator (trees the stage neither touched nor depends on)")
+    check("cross-citation: preflight-checks § Amending cites honest-gates, and honest-gates' amendment bullet cites § Amending authored ceremony",
+          "honest-gates" in _amend and "Amending authored ceremony" in _hg,
+          "one of the two definition sites does not point at the other")
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")

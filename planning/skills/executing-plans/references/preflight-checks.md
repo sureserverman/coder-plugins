@@ -82,6 +82,18 @@ distinguishing "the rules moved" from "the executor wanted a cheaper run". Amend
 to make a *failing* gate pass is not recalibration under any reading; that is the gate-
 failure procedure, and it is not this.
 
+**What never authorizes an amendment.** Cost, wall-clock and disk are real constraints and
+arguments for **re-scoping the plan** — never for re-scoping the evidence a written gate
+demands. A suite dropped from a gate command "for disk/time" does not make the gate cheaper;
+it is recorded `[~]` **BLOCKED on that suite**, not reported as a pass on the remainder
+(`../../honest-gates/SKILL.md`, the *Prohibited* section's excluding-the-failing-case bullet,
+which owns this rule).
+The tiering policy is not an exception to it: narrowing per `test-scope-tiers.md` drops only
+trees the stage's commits neither touched nor depend on, is declared as scope, and lands on
+the gate report's scope line — a suite a written check names, or a tree the stage touched,
+removed for cost, is an amendment whatever the report calls it, and cost is not among the
+rules that can authorize one.
+
 **Verify against committed state.** Recompute from the plan file as committed and confirm
 the working tree is clean before recording any Preflight result. A calibration re-check run
 over uncommitted edits certifies a plan nobody else can see — the same defect as a gate
