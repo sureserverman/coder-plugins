@@ -37,7 +37,8 @@ fix that happens to make the check pass.
   and exits 0. If the real tooling isn't wired, the gate is BLOCKED.
 - **A gate artifact the executor authored.** A gate script written or modified during
   the run is named in the gate report, with what changed — the author of a check is part
-  of what the check discloses. And a script whose non-comment body cannot reach both
+  of what the check discloses (*No-op tasks* above governs a registered task by name;
+  this governs the script the executor wrote). A script whose non-comment body cannot reach both
   outcomes is not a gate: `echo OK` after a comment is a stub pass, an unconditional
   `exit 2` is a stub block, and both closed the same sub-plan green in one fortnight
   (`references/incidents.md`).
@@ -51,9 +52,12 @@ fix that happens to make the check pass.
   an economy: a suite removed from a gate command for time, disk or cost is `[~]`
   BLOCKED on that suite. Cost, time and disk are never an authorizing rule for an
   amendment; they argue for re-scoping the plan, never the evidence a written gate
-  demands. The tiering policy is untouched: the stage-scope narrowing
-  `test-scope-tiers.md` declares is scope, reported on the gate's scope line, not an
-  amendment of a written check (`references/incidents.md`).
+  demands. The tiering policy is untouched, and the line between the two is substantive,
+  not a matter of disclosure: narrowing per `test-scope-tiers.md` drops only trees the
+  stage's commits neither touched nor depend on; that is scope, reported on the gate's
+  scope line, not an amendment. A suite a written check names, or a tree the
+  stage did touch, removed for cost, is `[~]` whatever the report calls it
+  (`references/incidents.md`).
 - **"Written" ≠ "passing."** A test that exists but never executed proves nothing.
   Authoring `FooTest.kt` does not satisfy a gate that requires `FooTest` to pass.
 - **Heuristic self-grading.** Do not stamp `Pass: true` on a measurement that
@@ -186,8 +190,8 @@ re-run is not tiered; a mandate costing an agent is).
    independently reachable from a named test** — two guards that each keep the other's
    fixture clean stay green with either deleted, and that is no test for either. For a
    check whose output is a *verdict* rather than a value, the proof is a **mutation
-   battery, one mutation per guard**; a survivor is a masking pair
-   (`references/incidents.md`).
+   battery, one mutation per guard**; a survivor is a guard with no test, and a masking
+   pair is its common shape (`references/incidents.md`).
 
 3. **Build fixtures from the requirement, never from observed behavior.** The
    moment a fixture is shaped by what the code currently does, it can no longer
@@ -236,9 +240,9 @@ Never collapse BLOCKED into GREEN. If asked "is this done?", a stage with any
 BLOCKED gate is not done.
 
 A GREEN also names where its evidence executed — host, emulator, container, or target
-device — because a claim about *deployed* behaviour whose evidence ran anywhere else is
-**BLOCKED**, not green. The tests ran and passed; they were evidence about the host, and
-the claim was about the artifact (`references/incidents.md`). Every number is reproducible:
+device — and a claim about *deployed* behaviour whose evidence ran anywhere else is
+**BLOCKED**, not green — the *Proxy data* prohibition with the substrate as its subject
+(`references/incidents.md`). Every number is reproducible:
 a figure is emitted by a command at a sha it names, or carries the sha it was taken at,
 and a corpus figure states its selection rule — a count nobody can re-take is not a
 measurement.

@@ -191,10 +191,12 @@ def sentence_checks(trunk):
     excl = excl.group(0) if excl else ""
     pin_neg("prohibited: a suite removed from a gate command for time, disk or cost is `[~]` BLOCKED on that suite",
         excl, ws(r"for time, disk or cost is `\[~\]` BLOCKED on that suite"))
-    check("prohibited: cost, time and disk are never an authorizing rule for an amendment (literal, run-up screened)",
-          re.search(ws(r"never an authorizing rule"), excl) is not None
-          and not _helper.NEGATION_RE.search(re.split(r"[.;:]\s", excl[:re.search(ws(r"never an authorizing rule"), excl).start()])[-1][-40:])
-          if re.search(ws(r"never an authorizing rule"), excl) else False)
+    pin_neg("prohibited: cost, time and disk are never an authorizing rule for an amendment",
+        excl, ws(r"never an authorizing rule for an amendment"))
+    pin_neg("prohibited: narrowing is scope only for trees the stage neither touched nor depends on (the discriminator)",
+        excl, ws(r"drops only trees the stage's commits neither touched nor depend on"))
+    pin_neg("prohibited: a named suite or a touched tree removed for cost is `[~]` whatever the report calls it",
+        excl, ws(r"removed for cost, is `\[~\]` whatever the report calls it"))
     check("prohibited: the bullet cites test-scope-tiers.md for the declared-scope distinction",
           "test-scope-tiers.md" in excl)
     pin_neg("prohibited: declared stage-scope narrowing is scope on the gate's scope line, not an amendment",
@@ -213,8 +215,8 @@ def sentence_checks(trunk):
     # BL-094 — where did the evidence execute; BL-040 — a figure is reproducible at a sha.
     pin("reporting: a GREEN names where its evidence executed", reporting,
         ws(r"names where its evidence executed"))
-    check("reporting: the four substrates are listed (host, emulator, container, target device)",
-          all(re.search(w, reporting, re.I) for w in (r"\bhost\b", r"\bemulator\b", r"\bcontainer\b", ws(r"target device"))))
+    check("reporting: the four substrates are listed as one list (host, emulator, container, target device)",
+          re.search(ws(r"host, emulator, container, or target device"), reporting) is not None)
     pin_neg("reporting: a deployed-behaviour claim whose evidence ran elsewhere is BLOCKED, not green",
         reporting, ws(r"ran anywhere else is \*\*BLOCKED\*\*, not green"))
     pin("reporting: a number in a gate report is emitted by a command at a sha it names, or carries the sha",
