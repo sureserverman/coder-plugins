@@ -149,14 +149,15 @@ Returns a structure of the shape:
 }
 ```
 
-Operation:
+**Do not execute this by hand.** `../portfolio/scripts/portfolio-unify.py` implements it, and it is the tool the close-out transcripts record actually running:
 
-1. Resolve the plans directory: `<project-path>/<plans-dir>`. If it does not exist, return `{candidates: [], existing: [...], duplicates_skipped: 0}` with a note in the report; this is not an error.
-2. Read every `*.md` file in that directory. For each, apply the parser rules documented in `../portfolio/references/plan-parser.md`: task `Status:` fields that are not done, unchecked bullets inside a Task section, and Deferred-section bullets — plus, only when `--include-stale` is passed, unresolved items in plans older than 90 days.
-3. Construct each candidate's `Source` string as `<plans-dir>/<plan-filename> — <source_locator>` (em-dash, single space each side), matching the byte-for-byte equality the dedup rule requires.
-4. Read the project's `docs/backlog.md` (auto-create from the standard header template if missing). Build the set of existing `Source` values.
-5. For each candidate whose `Source` exactly matches an existing entry's `Source`, drop it and increment `duplicates_skipped`. (This is exact string equality — no fuzzy match, no token overlap; the duplicate-guard in `add` already handles fuzzy-title cases.)
-6. Return the structure above. **Do not write** unless `--write` was passed. The caller (the `portfolio` orchestrator, or the user via ad-hoc invocation) presents the candidate list and confirms; on confirm, each accepted candidate is appended via the existing `add` op.
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/portfolio/scripts/portfolio-unify.py" --project <abs-path>
+```
+
+Reading plan files and comparing `Source` strings is decidable, so it is a script; the judgment left for a model is presenting the candidates and taking the user's decision (BL-072).
+
+The rest of this section is the CONTRACT the script implements, kept because an author reading a candidate needs to know where it came from. A missing plans directory returns empty candidates with a note, not an error. Each candidate's `Source` is `<plans-dir>/<plan-filename> — <source_locator>` (em-dash, single space each side), and dedup drops any candidate whose `Source` is byte-identical to an existing entry's — exact equality, no fuzzy match, no token overlap; `add`'s duplicate-guard handles fuzzy titles. Parser rules: `../portfolio/references/plan-parser.md`. Nothing is written without `--write`.
 
 When `--write` is set, every candidate becomes a new BL entry via `add`, with auto-filled fields:
 

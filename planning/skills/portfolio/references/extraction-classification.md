@@ -206,7 +206,7 @@ block's named line rather than a share of the measured file.
 | 4522 | 320 | `plan-status` — reconcile every vault plan's recorded status against its real progress | classification and evidence-grading detail, read only on this subcommand |
 | 3374 | 320 | `migrate` — move a project's operational docs from its repo into the vault (one-time) | a one-time per-project procedure; the retained pointer must name the copy→verify→delete invariant |
 | 2187 | 260 | `scan` — load the registry, detect drift, optionally first-run-seed | first-run and drift procedures, read only when scan runs |
-| 1756 | 240 | `unify` — derive backlog candidates for every enabled project, in parallel | the six-step fan-out; its two hard rules are already restated in `../SKILL.md` § Hard rules |
+| 1756 | 240 | `unify` — derive backlog candidates for every enabled project | the procedure, now a script invocation plus the confirm; its two hard rules are already restated in `../SKILL.md` § Hard rules |
 | 1232 | 210 | `integrate` — roll up inter-project edges + integration backlog | four-step rollup, read only on this subcommand |
 | 1160 | 210 | `maturity` — audit per-project MATURITY.md and surface staleness | four-step audit, read only on this subcommand |
 | 711 | 220 | Integration | per-skill descriptions consulted only when routing to one |

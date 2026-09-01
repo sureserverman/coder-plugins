@@ -9,7 +9,7 @@ description: >
 Single user-facing skill that ties together every project in `~/dev/`:
 
 1. A canonical **registry** at `~/.claude/projects-registry.yaml` listing every tracked project. Schema in `references/registry-format.md`.
-2. **Per-project unification** of plans ↔ backlog via the `backlog` skill's `unify` subcommand. Parser rules in `references/plan-parser.md`.
+2. **Per-project unification** of plans ↔ backlog via `scripts/portfolio-unify.py`. Parser rules in `references/plan-parser.md`.
 3. **Per-project maturity audit** + roll-up via the `project-maturity` skill. Axes in `references/maturity-axes.md`.
 4. **Inter-project integration** edges, symmetry, and cross-project arcs. Formats in `references/integration-format.md` and `references/integration-plan-format.md`.
 5. **Architectural decisions**, per project and per architecture domain, rolled up to `global-decisions.md`. Format in `references/decisions-format.md`; authored through the `decisions` skill, never by this one.
@@ -40,7 +40,7 @@ The trunk carries what binds every run, whatever was invoked. These load when th
 | Read this | When |
 |---|---|
 | `references/subcommand-scan.md` | running `scan` — first-run seeding, drift detection |
-| `references/subcommand-unify.md` | running `unify` — the fan-out and its report |
+| `references/subcommand-unify.md` | running `unify` — the sweep and its report |
 | `references/subcommand-maturity.md` | running `maturity`, or why the default flow gates it |
 | `references/subcommand-migrate.md` | running `migrate` — steps, preflight skips, rollback |
 | `references/subcommand-integrate.md` | running `integrate` |
@@ -67,9 +67,9 @@ An explicit invocation runs exactly one; the default flow composes four, one of 
 
 Loads `~/.claude/projects-registry.yaml`, seeds it on first run and then **exits** (the user re-invokes for the actual work), and on every later run re-walks `~/dev/` and reports drift for add/remove/skip. The registry changes only on user confirm AND `--write`. Procedure: `references/subcommand-scan.md`.
 
-### `unify` — derive backlog candidates for every enabled project, in parallel
+### `unify` — derive backlog candidates for every enabled project
 
-Dispatches one sub-agent per enabled project (up to 8 in flight) via `dispatching-parallel-agents`, each invoking the `backlog` skill's `unify`; the aggregated per-project report is presented for accept-all / pick-some / skip-project, and only then does a second wave run `backlog add`. **Never write during dry-run.** Procedure: `references/subcommand-unify.md`.
+Runs `scripts/portfolio-unify.py` over the whole registry in one process; its report is presented for accept-all / pick-some / skip-project, and only an accepted list is re-run with `--write`. **Never write during dry-run.** No fan-out: the parse is decidable, so the model's part is the confirm. Procedure: `references/subcommand-unify.md`.
 
 ### `maturity` — audit per-project MATURITY.md and surface staleness
 
@@ -145,7 +145,7 @@ Hard rules:
 
 ## Integration
 
-Routes to `planning-projects` and `executing-plans` (which produce and tick the plans `unify` parses), `backlog` and `project-maturity` (invoked per-project via sub-agent), `dispatching-parallel-agents` (the fan-out), and `compass` (which reads, never writes, the artifacts this skill maintains). What each is for: `references/integration.md`.
+Routes to `planning-projects` and `executing-plans` (which produce and tick the plans `unify` parses), `backlog` (the contract `unify`'s script implements) and `project-maturity` (per-project via sub-agent), `dispatching-parallel-agents` (the `maturity` fan-out), and `compass` (which reads, never writes, the artifacts this skill maintains). What each is for: `references/integration.md`.
 
 ## Remember
 
