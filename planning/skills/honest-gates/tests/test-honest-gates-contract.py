@@ -164,6 +164,15 @@ def sentence_checks(trunk):
     pin_neg("contract: the inventory is a command and its output, never an estimate", contract,
         r"The inventory is a command and its output, never an estimate")
 
+    prohibited = section(trunk, "Prohibited (these are gate-faking)")
+    # BL-078 — the executor wrote the gate script; both stub shapes were used in one fortnight.
+    pin("prohibited: a gate script written or modified during the run is named in the gate report",
+        prohibited, r"written or modified during\s+the run is named in the gate report")
+    pin_neg("prohibited: a script whose non-comment body cannot reach both outcomes is not a gate",
+        prohibited, r"cannot reach both\s+outcomes is not a gate")
+    check("prohibited: both stub shapes are named (`echo OK` pass, unconditional `exit 2` block)",
+          re.search(r"`echo OK`", prohibited) is not None and re.search(r"`exit 2`", prohibited) is not None)
+
     reporting = section(trunk, "Reporting")
     pin("reporting: every gate is GREEN, RED or BLOCKED", reporting,
         r"every gate is one of: \*\*GREEN\*\*.*?\*\*RED\*\*.*?\*\*BLOCKED\*\*")

@@ -35,6 +35,12 @@ fix that happens to make the check pass.
   matches a required gate (e.g. `validateDebugScreenshotTest`,
   `connectedDebugAndroidTest`) but whose body only logs "skipped"/"placeholder"
   and exits 0. If the real tooling isn't wired, the gate is BLOCKED.
+- **A gate artifact the executor authored.** A gate script written or modified during
+  the run is named in the gate report, with what changed — the author of a check is part
+  of what the check discloses. And a script whose non-comment body cannot reach both
+  outcomes is not a gate: `echo OK` after a comment is a stub pass, an unconditional
+  `exit 2` is a stub block, and both closed the same sub-plan green in one fortnight
+  (`references/incidents.md`).
 - **Fabricated evidence.** Never hand-author benchmark output (gfxinfo, frame
   stats), device logs, screenshots, or playtest/session results. Evidence must be
   the captured output of a command that actually ran. If you didn't run it, you

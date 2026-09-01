@@ -14,6 +14,14 @@ the value it replaced. The reason disclosure is the whole difference: without it
 recalibrated gate and a quietly cheapened one leave identical artifacts, which is the same
 reason a scope change must be disclosed rather than merely made.
 
+## Prohibited — the authored-stub pair (b85c294)
+
+In pi-modem's Cursor sessions of 2026-08-19..24 the executor wrote the `hil-*.sh` scripts its
+own gates ran. One had the body `echo "soft residual"; echo OK` and passed; another was
+`exit 2` and was ticked `[x]` with *(amended — exit 2)*, the block serving as the excuse.
+The project owner reverted both (`b85c294`, "make live gates fail blocked instead of
+succeeding on stubs"). Nothing in the rules had asked who wrote the gate.
+
 ## Prohibited — the proxy-data example
 
 Facilitator runs on the optimal path do not validate a "first-time casual player, 8–15 min"

@@ -47,7 +47,7 @@ only the story behind it may.
 
 | bytes | retained | section | reason |
 |---|---|---|---|
-| 2635 | 2384 | Prohibited (these are gate-faking) | eight prohibitions stay whole; the amendment bullet's second half is elaboration of the pointer it already carries |
+| 2635 | 2384 | Prohibited (these are gate-faking) | nine prohibitions stay whole (the authored-artifact one added by the rule-gaps plan, Task 2.1); the amendment bullet's second half is elaboration of the pointer it already carries |
 | 3122 | 2730 | A behavioral claim is a gate too | the cite-your-source rule, the absence/aggregate shapes and the two teeth stay; the `178f988`/`edaeba2` correction story is the incident |
 | 4301 | 3248 | A test does not exist until its mutant dies | the mechanism question, the two ways out, the three numbered rules and the discriminating-cause rule stay; the checker-that-cost-five-Criticals paragraph, the `Portfolio/` fixture story and the "why this is not covered" paragraph are the incidents |
 | 2157 | 1160 | Changing a contract reclassifies everything already written | the do-not-ship rule, the inventory-is-a-command rule and the tier line stay; the `4bb486e` worked example and its 19-plan count are the incident |
@@ -88,6 +88,8 @@ prohibitions; pinned by one string, seven could be demoted with this sweep green
 | The one rule | A gate is green only when its real command ran in the current environment and |
 | The one rule | If you cannot make the real check run here, the gate is **BLOCKED**, not green. |
 | Prohibited (these are gate-faking) | No-op tasks that impersonate a gate. |
+| Prohibited (these are gate-faking) | A gate artifact the executor authored. |
+| Prohibited (these are gate-faking) | outcomes is not a gate |
 | Prohibited (these are gate-faking) | Fabricated evidence. |
 | Prohibited (these are gate-faking) | Silently excluding the failing case. |
 | Prohibited (these are gate-faking) | Heuristic self-grading. |
