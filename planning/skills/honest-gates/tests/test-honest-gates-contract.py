@@ -79,18 +79,27 @@ def pin_neg(name, hay, pattern):
 
     `affirms_claim` screens the whole clause and so rejects these on true prose (the
     sibling suite records the same case for "conditional, not absolute"). What can still
-    be screened is the run-up: the text between the previous clause boundary and the
-    match. "You need not **Never collapse …**" carries its inversion there, and the
-    phrase itself is specific enough that no inversion can match it by accident.
+    be screened is everything in the sentence EXCEPT the match: the run-up from the
+    previous clause boundary ("You need not **Never collapse …**") and the tail to the
+    sentence end ("…never an estimate, though this is optional in practice") — the
+    trailing-withdrawal shape check-trunk-retention.py's docstring demonstrates. Both
+    ends are derived from the text with the helper's own boundary regexes. The phrase
+    itself is specific enough that no inversion can match it by accident.
+
+    **Stated limit:** a withdrawal in the NEXT sentence ("Never collapse … . That said,
+    this is advisory.") is not screened — the sentence boundary is where the claim ends,
+    the same limit affirms_claim carries.
     """
     PINNED.append((name, pattern))
     for m in re.finditer(pattern, hay, re.I | re.S):
         pre = hay[max(0, m.start() - _helper.NEGATION_LOOKBEHIND):m.start()]
         pre = re.split(r"[.;:]\s|\s[-–—]\s", pre)[-1]
-        if not _helper.NEGATION_RE.search(pre):
+        after = _helper.SENTENCE_END.search(hay, m.end())
+        tail = hay[m.end(): (after.start() if after else len(hay))]
+        if not _helper.NEGATION_RE.search(re.sub(r"`[^`]*`", " ", pre + " " + tail)):
             check(name, True)
             return
-    check(name, False, "phrase missing, or every occurrence is preceded by a negation")
+    check(name, False, "phrase missing, or every occurrence is negated in its run-up or tail")
 
 
 def section(text, heading):

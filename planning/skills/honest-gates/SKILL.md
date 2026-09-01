@@ -208,7 +208,8 @@ dispatch, so per DEC-010's cost line as DEC-017 extends it to commands, it runs 
 review scope including `none`. Named because DEC-017 requires a mandate to state the rule
 that gates it.
 
-**Adds, net** — the cost and coverage argument: `references/incidents.md`.
+**Adds, net.** It removes nothing, costs one sweep per contract change, and catches the
+change that is right in the diff and wrong in the corpus (`references/incidents.md`).
 
 ## Reporting
 

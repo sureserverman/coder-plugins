@@ -389,11 +389,15 @@ planning/skills/portfolio/SKILL.md 13718
 #
 # Lowered 15802 -> 13109 (-2693 B) 2026-09-01 by the honest-gates-rule-gaps plan, Task 1.2:
 #   the incidents behind the rules moved to references/incidents.md and every rule sentence
-#   stayed (retention: 78 binding sections, 32 markers, all killing). This is the trunk's first
+#   stayed (retention: 32 markers over this trunk's 7 binding sections, all killing; the
+#   sweep across all four paired trunks reads 78 binding sections). This is the trunk's first
 #   extraction; its classification is references/extraction-classification.md. The headroom is
 #   spent by Stages 2 and 3 of the same plan on the rules BL-078/086/094/040/080 name, and the
 #   ceiling is re-derived from what those retain, never raised to fit them.
-planning/skills/honest-gates/SKILL.md 13109
+#   Re-derived 13109 -> 13206 (+97 B) at the Stage 1 gate: the Tier-2 review found the
+#   'Adds, net' pointer had lost its one-clause summary; restoring it is what the
+#   classification's rule+elaboration class promises (the rule stays, the argument goes).
+planning/skills/honest-gates/SKILL.md 13206
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
