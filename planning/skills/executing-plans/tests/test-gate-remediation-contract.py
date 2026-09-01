@@ -1323,6 +1323,31 @@ def main():
           "honest-gates" in _amend and "Amending authored ceremony" in _hg,
           "one of the two definition sites does not point at the other")
 
+    # 13. (rule-gaps plan, Task 3.4 / BL-082 + BL-084) The host's own footing is a safety
+    #     rail; a mid-execution feature request goes back through triage.
+    _rails = section(_trunk, r"\n## Safety rails", r"\n## ")
+    _revisit = section(_trunk, r"\n## When to revisit earlier steps", r"\n## ")
+    check("safety rail: never reconfigure the agent host's own network interfaces, routes or DNS to reach a device under test",
+          re.search(_ws(r"own network interfaces, routes or DNS"), _rails) is not None
+          and re.search(_ws(r"device under test"), _rails) is not None,
+          "no rail names the host's own interfaces/routes/DNS")
+    check("safety rail: names the alternatives (second interface, spare client, subagent on another machine)",
+          all(re.search(_ws(w), _rails) for w in (r"second interface", r"spare client", r"subagent on another machine")),
+          "the rail does not name the three alternatives")
+    check("safety rail: with none available the gate is BLOCKED",
+          re.search(_ws(r"none is available.{0,60}BLOCKED"), _rails, re.S) is not None,
+          "the rail does not map 'no alternative' to BLOCKED")
+    check("safety rail: generalized to anything the session depends on to keep running",
+          re.search(_ws(r"anything the session depends on to keep running"), _rails) is not None,
+          "the rail is not generalized past networking")
+    check("revisit: a mid-execution request for new work goes through planning-projects triage before implementation",
+          affirms_claim(_revisit, _ws(r"mid-execution request for new work")) and re.search(_ws(r"triage"), _revisit) is not None
+          and "planning-projects" in _revisit,
+          "no sentence routes a mid-execution feature request through triage")
+    check("revisit: such work does not share the plan's branch or its gate (negation-subject, literal)",
+          re.search(_ws(r"does not share the plan's branch or its gate"), _revisit) is not None,
+          "the branch/gate separation is not stated")
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")

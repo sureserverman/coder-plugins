@@ -253,8 +253,10 @@ adding the three Step 3.5 rows below.
 | Stop conditions | never ask through a dispatch the plan mandated |
 | Stop conditions | cannot be performed |
 | When to revisit earlier steps | treat the new version as a fresh plan |
+| When to revisit earlier steps | does not share the plan's branch or its gate |
 | Phase Close-out — After the last stage | Do not merge without explicit confirmation |
 | Safety rails | Never start on `main` / `master` without explicit user consent |
 | Safety rails | Destructive commands |
+| Safety rails | routes or DNS to reach a device under test |
 | Sources and rationale | references/sources.md |
 | Integration | references/integration.md |

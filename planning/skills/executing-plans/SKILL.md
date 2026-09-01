@@ -686,6 +686,9 @@ Return to Phase 1 (critique) when:
 
 - The user updates the plan after feedback — treat the new version as a fresh plan and re-critique
 - A stage gate failure reveals a fundamental gap in the plan (e.g., missing task, wrong dependency) — stop execution, return to `planning-projects` to revise
+- A mid-execution request for new work arrives ("what else can you implement?") — it goes
+  through `planning-projects` triage before any of it is implemented (Direct for a one-liner,
+  a Light plan otherwise), and such work does not share the plan's branch or its gate
 
 ## Phase Close-out — After the last stage
 
@@ -705,6 +708,11 @@ Ordered procedure, and what the report must contain: `references/close-out.md`.
 - **Destructive commands** (schema migrations, data deletes, force pushes, production deploys) — confirm before running, even if the plan says to.
 - **Secrets** — if a task would read or write credentials, stop and confirm the mechanism (env var, secrets manager) with the user before proceeding.
 - **Shared infrastructure** — staging/prod-adjacent changes get confirmation per stage, not per plan.
+- **The host's own footing** — never reconfigure the agent host's own network interfaces,
+  routes or DNS to reach a device under test; use a second interface, a spare client, or a
+  subagent on another machine, and if none is available the gate is BLOCKED. Generalizes to
+  anything the session depends on to keep running: an agent that severs its own control
+  link cannot report that it did.
 
 ---
 

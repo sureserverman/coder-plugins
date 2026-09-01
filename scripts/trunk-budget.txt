@@ -168,7 +168,9 @@
 #   3.4 of the same plan on BL-079/082/084; the 49016 origin is the bound.
 # Raised 48133 -> 48241 (+108 B) 2026-09-01, Task 3.2, BL-079: the Preflight access line
 #   names an executed probe. Within the 49016 origin.
-planning/skills/executing-plans/SKILL.md 48241
+# Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
+#   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
+planning/skills/executing-plans/SKILL.md 48910
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
