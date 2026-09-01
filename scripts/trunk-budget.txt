@@ -386,7 +386,14 @@ planning/skills/portfolio/SKILL.md 13718
 #   19 already-closed plans across 9 projects silently reclassified, unswept for four
 #   days. Untiered by DEC-010's cost line as DEC-017 extends it: one command and at
 #   most one backlog entry, never a dispatch.
-planning/skills/honest-gates/SKILL.md 15802
+#
+# Lowered 15802 -> 13109 (-2693 B) 2026-09-01 by the honest-gates-rule-gaps plan, Task 1.2:
+#   the incidents behind the rules moved to references/incidents.md and every rule sentence
+#   stayed (retention: 78 binding sections, 32 markers, all killing). This is the trunk's first
+#   extraction; its classification is references/extraction-classification.md. The headroom is
+#   spent by Stages 2 and 3 of the same plan on the rules BL-078/086/094/040/080 name, and the
+#   ceiling is re-derived from what those retain, never raised to fit them.
+planning/skills/honest-gates/SKILL.md 13109
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
