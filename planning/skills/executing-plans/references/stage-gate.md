@@ -42,7 +42,14 @@ a dispatch nobody can reproduce. Write the type that ran, then the role:
 ```
 review: Tier-2 git-github:code-reviewer over <base>..HEAD — APPROVE, 0 Critical
 evaluator: general-purpose in the goal-evaluator role, briefed on the stage goal + gate criteria — PASS, 2 Material
+evidence: pytest tests/integration — host; Playwright e2e — container (compose); device acceptance — target device (CM4 over ssh)
 ```
+
+Each **evidence** line likewise names the **substrate** it ran on — host, emulator,
+container, or target device — because "the tests passed" says nothing about where. What
+that changes for the verdict (a deployed-behaviour claim whose evidence ran elsewhere) is
+defined once, in `../../honest-gates/SKILL.md` § Reporting; this line is the place the
+substrate gets written down so that rule has something to read.
 
 Naming the **agent** distinguishes a dispatched review from the executor reading its own diff,
 which both tiers forbid; naming the **diff** makes its coverage checkable, since a reviewer
@@ -305,7 +312,11 @@ So the boundary is not a decision point:
   issue the next stage's first tool call. No "should I continue?", no "ready to start Stage
   3", no summary offered in place of the work.
 - **The announcement and the call ship together.** If you name the next task, the tool call
-  starting it is in the same turn. An announcement alone has started nothing.
+  starting it is in the same turn. An announcement alone has started nothing: it hands the
+  turn back on a promise, and the user has to ask again for work already authorized. An
+  announcement the trunk mandates is still made — in the same turn as the call, never in
+  place of it, or instead of it where the sentence was yours to choose. This is
+  run-to-completion at the granularity of a single turn.
 - **Waiting is not stopping.** A turn that ends because a dispatched reviewer or a background
   suite has not reported is correct on a host that re-invokes you when it lands — say what
   you are waiting on, and end the turn. Thirty of the thirty-nine measured turn ends were

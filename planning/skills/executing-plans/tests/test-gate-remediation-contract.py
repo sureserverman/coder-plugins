@@ -90,6 +90,7 @@ What it pins:
      actually happens; they do not pretend to catch every rewording, and no meta-layer
      is added to make them pretend harder.
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -1265,6 +1266,90 @@ def main():
           "no markdown files scanned — an empty sweep is not a pass")
     check(f"no {BANNED_PHRASE!r} under planning/skills/", not offenders,
           f"instance-shaped framing survives at: {', '.join(offenders)}")
+
+    # 11. (honest-gates-rule-gaps plan, Task 3.2 / BL-079) Preflight proves hardware and
+    #     remote access by an executed probe, never by an environment variable. Two sites:
+    #     the trunk's Preflight bullet, and the procedure in preflight-checks.md.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(_here, "..", "SKILL.md"), encoding="utf-8") as fh:
+        _trunk = fh.read()
+    with open(os.path.join(_here, "..", "references", "preflight-checks.md"), encoding="utf-8") as fh:
+        _pre = fh.read()
+    _ws = lambda pat: re.sub(r" ", r"\\s+", pat)
+    _access = re.search(r"^- Access / permissions verified.*$", _trunk, re.M)
+    check("Preflight's access line is no longer bare",
+          _access is not None and re.search(r"^- Access / permissions verified$", _trunk, re.M) is None,
+          "the trunk still lists 'Access / permissions verified' with no probe")
+    check("Preflight's access line names a probe",
+          _access is not None and "probe" in _access.group(0),
+          "the access bullet does not say access is proven by a probe")
+    _probe = section(_pre, r"\n## Access probe", r"\n## ")
+    check("preflight-checks.md has an access-probe section", bool(_probe),
+          "no '## Access probe' heading in preflight-checks.md")
+    check("access probe: the host is resolved from the repo's own deploy/HIL scripts",
+          affirms_claim(_probe, _ws(r"from the repo's own deploy, HIL or provisioning scripts")),
+          "nothing says to resolve the target from the repo's own scripts")
+    check("access probe: the probe is run and what answered is recorded",
+          affirms_claim(_probe, _ws(r"record what answered")),
+          "nothing says to run the probe and record what answered")
+    check("access probe: nothing answered -> BLOCKED",
+          re.search(_ws(r"nothing answered.{0,200}BLOCKED"), _probe, re.S | re.I) is not None,
+          "the 'nothing answered' outcome is not mapped to BLOCKED")
+    check("access probe: something answered but not what was expected -> investigate, not excuse",
+          re.search(_ws(r"not what was expected.{0,120}investigat"), _probe, re.S) is not None,
+          "the wrong-identity outcome is not mapped to investigation")
+    check("access probe: an unset variable is missing configuration, not missing hardware",
+          re.search(_ws(r"missing configuration"), _probe) is not None
+          and re.search(_ws(r"missing hardware"), _probe) is not None,
+          "the configuration/hardware distinction is not stated")
+
+    # 12. (rule-gaps plan, Task 3.3 / BL-080) The amendment protocol names what never
+    #     authorizes an amendment, and the two definition sites cite each other.
+    _amend = section(_pre, r"\n## Amending authored ceremony", r"\n## ")
+    with open(os.path.join(_here, "..", "..", "honest-gates", "SKILL.md"), encoding="utf-8") as fh:
+        _hg = fh.read()
+    check("amendment protocol: cost, wall-clock and disk argue for re-scoping the plan, never the evidence",
+          re.search(_ws(r"cost, wall-clock and disk"), _amend, re.I) is not None
+          and re.search(_ws(r"re-scoping the plan"), _amend) is not None
+          and re.search(_ws(r"never (?:for )?(?:re-scoping )?the evidence"), _amend) is not None,
+          "the protocol does not say cost/time/disk are arguments for re-scoping the plan, not the evidence")
+    check("amendment protocol: a suite dropped from a gate command is recorded [~] BLOCKED on that suite",
+          re.search(_ws(r"dropped from a gate command.{0,120}`\[~\]`.{0,40}BLOCKED on that suite"), _amend, re.S) is not None,
+          "the dropped-suite consequence is not stated as [~] on that suite")
+    check("amendment protocol: cites test-scope-tiers.md for the declared-scope distinction",
+          "test-scope-tiers.md" in _amend and re.search(_ws(r"neither touched nor depend on"), _amend) is not None,
+          "the protocol does not name the tiering discriminator (trees the stage neither touched nor depends on)")
+    check("cross-citation: preflight-checks § Amending cites honest-gates, and honest-gates' amendment bullet cites § Amending authored ceremony",
+          "honest-gates" in _amend and "Amending authored ceremony" in _hg,
+          "one of the two definition sites does not point at the other")
+
+    # 13. (rule-gaps plan, Task 3.4 / BL-082 + BL-084) The host's own footing is a safety
+    #     rail; a mid-execution feature request goes back through triage.
+    _rails = section(_trunk, r"\n## Safety rails", r"\n## ")
+    _revisit = section(_trunk, r"\n## When to revisit earlier steps", r"\n## ")
+    check("safety rail: never reconfigure the agent host's own network interfaces, routes or DNS to reach a device under test",
+          re.search(_ws(r"own network interfaces, routes or DNS"), _rails) is not None
+          and re.search(_ws(r"device under test"), _rails) is not None,
+          "no rail names the host's own interfaces/routes/DNS")
+    check("safety rail: names the alternatives (second interface, spare client, subagent on another machine)",
+          all(re.search(_ws(w), _rails) for w in (r"second interface", r"spare client", r"subagent on another machine")),
+          "the rail does not name the three alternatives")
+    check("safety rail: with none available the gate is BLOCKED",
+          re.search(_ws(r"none is available.{0,60}BLOCKED"), _rails, re.S) is not None,
+          "the rail does not map 'no alternative' to BLOCKED")
+    check("safety rail: generalized to anything the session depends on to keep running",
+          re.search(_ws(r"anything the session depends on to keep running"), _rails) is not None,
+          "the rail is not generalized past networking")
+    check("revisit: a mid-execution request for new work goes through planning-projects triage before implementation",
+          affirms_claim(_revisit, _ws(r"mid-execution request for new work")) and re.search(_ws(r"triage"), _revisit) is not None
+          and "planning-projects" in _revisit,
+          "no sentence routes a mid-execution feature request through triage")
+    # Literal pin with a negation as its subject: catches deletion and rewording, not an
+    # outer inversion ("it is fine that such work does not share…") — the same stated
+    # limit as the honest-gates suite's pin_neg, and the reason the clause is kept short.
+    check("revisit: such work does not share the plan's branch or its gate (negation-subject, literal)",
+          re.search(_ws(r"does not share the plan's branch or its gate"), _revisit) is not None,
+          "the branch/gate separation is not stated")
 
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:

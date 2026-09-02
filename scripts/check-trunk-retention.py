@@ -77,6 +77,8 @@ PAIRS = [
      "planning/skills/planning-projects/references/extraction-classification.md"),
     ("planning/skills/portfolio/SKILL.md",
      "planning/skills/portfolio/references/extraction-classification.md"),
+    ("planning/skills/honest-gates/SKILL.md",
+     "planning/skills/honest-gates/references/extraction-classification.md"),
 ]
 
 VALID_CLASSES = ("unconditional", "rule+elaboration", "conditional")

@@ -150,4 +150,7 @@ invisible in the artifact, so nothing downstream will raise it. **The choice bel
 user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through
 `planning-projects`, or accept inline execution knowingly. What the executor may not do is
 make that call silently on their behalf, which is exactly what happened in the incident this
-rule comes from.
+rule comes from. The other half of the symmetry: the Stop condition fires when a mandated
+dispatch *cannot be performed*, never when the executor is merely unsure whether to perform
+one — that question the plan already answered, and asking it again is the confirmation turn
+the trunk's authorization rule deletes.

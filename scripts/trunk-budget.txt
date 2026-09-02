@@ -160,7 +160,17 @@
 #   untiering citation now names DEC-017 beside DEC-010. DEC-017 exists precisely because
 #   DEC-010's cost line "was right about text and wrong about commands", so citing only
 #   DEC-010 for a command-costing mandate cited the superseded half.
-planning/skills/executing-plans/SKILL.md 49016
+#
+# Lowered 49016 -> 48133 (-883 B) 2026-09-01, honest-gates-rule-gaps plan Task 3.1: rationale
+#   moved to stage-gate.md (announcement), dispatch-fidelity.md (stop-condition symmetry),
+#   bug-is-a-class.md (search space) and honest-gates (4a's corollaries, already there); every
+#   retention marker and every executing-plans contract suite green. Spent by Tasks 3.2 and
+#   3.4 of the same plan on BL-079/082/084; the 49016 origin is the bound.
+# Raised 48133 -> 48241 (+108 B) 2026-09-01, Task 3.2, BL-079: the Preflight access line
+#   names an executed probe. Within the 49016 origin.
+# Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
+#   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
+planning/skills/executing-plans/SKILL.md 48910
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -386,7 +396,33 @@ planning/skills/portfolio/SKILL.md 13718
 #   19 already-closed plans across 9 projects silently reclassified, unswept for four
 #   days. Untiered by DEC-010's cost line as DEC-017 extends it: one command and at
 #   most one backlog entry, never a dispatch.
-planning/skills/honest-gates/SKILL.md 15802
+#
+# Lowered 15802 -> 13109 (-2693 B) 2026-09-01 by the honest-gates-rule-gaps plan, Task 1.2:
+#   the incidents behind the rules moved to references/incidents.md and every rule sentence
+#   stayed (retention: 32 markers over this trunk's 7 binding sections, all killing; the
+#   sweep across all four paired trunks reads 78 binding sections). This is the trunk's first
+#   extraction; its classification is references/extraction-classification.md. The headroom is
+#   spent by Stages 2 and 3 of the same plan on the rules BL-078/086/094/040/080 name, and the
+#   ceiling is re-derived from what those retain, never raised to fit them.
+#   Re-derived 13109 -> 13206 (+97 B) at the Stage 1 gate: the Tier-2 review found the
+#   'Adds, net' pointer had lost its one-clause summary; restoring it is what the
+#   classification's rule+elaboration class promises (the rule stays, the argument goes).
+#
+# Raised 13206 -> 13669 (+463 B) 2026-09-01, rule-gaps plan Task 2.1, BL-078: a gate artifact
+#   the executor authored is disclosed, and one that cannot reach both outcomes is not a
+#   gate. Spent from the 2693 B Task 1.2 freed; the 15802 origin is the bound no rule in
+#   that plan may cross.
+# Raised 13669 -> 14073 (+404 B) 2026-09-01, Task 2.2, BL-086: each guard independently
+#   reachable from a named test; a mutation battery is the proof for a verdict-producing check.
+# Raised 14073 -> 14620 (+547 B) 2026-09-01, Task 2.3, BL-094 + BL-040: a GREEN names
+#   where its evidence executed, and every figure in a report is reproducible at a sha.
+# Raised 14620 -> 15095 (+475 B) 2026-09-01, Task 2.4, BL-080: a suite dropped for cost is BLOCKED
+#   on that suite; cost never authorizes an amendment; tier-declared narrowing is scope, not one.
+# Re-derived 15095 -> 15434 (+339 B) at the Stage 2 gate: the BL-080 bullet gained its
+#   discriminator (narrowing drops only trees the stage neither touched nor depends on), the
+#   substrate rule became an application of Proxy data, two cross-references and one
+#   overclaim fix. Still under the 15802 origin.
+planning/skills/honest-gates/SKILL.md 15434
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

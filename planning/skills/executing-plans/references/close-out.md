@@ -106,7 +106,9 @@ procedure. Work the steps in order.
      mandate it (named as scope, not as an excuse), or an evidenced opt-out or trivial diff
      where it did. Same requirement as the stage gate's, at plan scope: a close-out that says
      the work was reviewed without saying by what, over what, is the claim this list exists to
-     stop being unfalsifiable.
+     stop being unfalsifiable. For a master plan this bullet is the per-sub-plan reconciliation
+     `master-plans.md` step 5 defines, in the `reviews: <n> of <owed>` form — one line per
+     sub-plan, then the total.
    - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across
      the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)'
      <plan-base>..HEAD`) and state `dispatch: <n> of <total> rostered tasks dispatched`, naming

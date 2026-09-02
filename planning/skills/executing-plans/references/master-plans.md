@@ -76,7 +76,8 @@ gate and surfaces only at the master close-out — the most expensive place to f
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
    the deferred version bumps once across everything the sub-plans touched (all mirrors),
    run the full suite, run the independent evaluator pass **that the master's tier calls
-   for** (below), then append to the master:
+   for** (*Which tier the master close-out runs at*), reconcile the review ledger (*The
+   master close-out reconciles the review ledger plan-wide*), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
 
    **"Every register entry is `[x]`" is re-derived from the sub-plan files, not read off the
@@ -101,6 +102,18 @@ gate and surfaces only at the master close-out — the most expensive place to f
    This is the master's half of BL-081: nothing here used to cross-check sub-plan **gate**
    state, so a master could be marked `**Completed:**` while a sub-plan gate was `[~]`. Both
    halves are one condition and one check.
+
+   **The master close-out reconciles the review ledger plan-wide,** the same way it
+   reconciles dispatch: for each sub-plan, which review tiers ran, over which diff range,
+   and a count against what that sub-plan's declared tier owed — written into the master's
+   close-out report as `reviews: <n> of <owed>`, one line per sub-plan, then the total. A
+   record reading "6 gates, 1 evaluator" is then visible off the record rather than
+   recoverable from prose. The incident: under `review-scope: high`, two of three audited
+   sessions ran the gate evaluator for sub-plan 1 and never again through five and six
+   further sub-plans, and every per-gate report was individually honest — the failure is
+   one level up, where nothing summed them. This is a close-out rule, not a validator: the
+   ledger lives in gate-report prose that no script reads (DEC-022), so the master's report
+   is the only place the sum can be taken, and it is taken before `**Completed:**` goes in.
 
    **Which tier the master close-out runs at.** Tiers are declared *per sub-plan*
    (`../references/review-scope.md`), so none of them governs the master itself. The master takes the

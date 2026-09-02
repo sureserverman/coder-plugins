@@ -115,8 +115,7 @@ Create a task for each, work them in order:
 
 Once Preflight passes, **drive the plan straight through to close-out.** Stage boundaries
 are checkpoints, not approval gates: commit a passed gate and start the next stage without
-asking "should I continue?" The plan is the approval, and burning a turn to ask permission
-between green stages is the failure mode this skill exists to prevent. Keep going through a
+asking "should I continue?" — the plan is the approval. Keep going through a
 green task, a passed gate, a failed cycle that still has budget, and any surprise you can
 resolve from the plan plus evidence.
 
@@ -127,12 +126,10 @@ tactic for very large plans, **not** a licence to stop early: prefer a fresh ses
 *degraded* one, never over *finishing the work*.
 
 **Never end a turn on an announcement.** *"Starting Stage 3."* as a turn's last words has not
-started Stage 3 — it hands the turn back on a promise, and the user has to ask again for work
-already authorized. The tool call opening the announced work — a stage, a task, or
-anything else this skill has you announce — goes in the **same turn** as the sentence
-announcing it, or instead of it where the sentence was yours to choose. An announcement this
-skill mandates is still made — in the same turn as the call, never in place of it. This is
-run-to-completion at the granularity of a single turn.
+started Stage 3. The tool call opening the announced work — a stage, a task, or anything
+else this skill has you announce — goes in the **same turn** as the sentence announcing it,
+or instead of it where the sentence was yours to choose — never in place of it
+(`references/stage-gate.md` § If the gate passes).
 
 ---
 
@@ -175,8 +172,7 @@ Why the incident that produced this rule was invisible while it happened:
 **Any defect you find during a run is one sample of a class until a command proves
 otherwise.** This fires wherever a bug surfaces: a RED test inside a Red-Green loop, a
 finding from either review tier, an evaluator finding, a failed gate check, or something you
-simply notice while editing a file. It is **not** scoped to gates — the gate-failure branch
-is one caller of this rule, not its home.
+simply notice while editing a file. It is **not** scoped to gates.
 
 When you find one:
 
@@ -191,9 +187,8 @@ When you find one:
 4. **Write the command down** — in the commit body, or in the gate report when a gate is what
    surfaced the bug.
 
-**The whole project is the search space, not the plan's blast radius.** A sibling instance
-living in a file this plan never touches is the same defect; "out of scope" describes a plan's
-*subject matter*, never a defect's *reach*. **Where the sweep stops:** it covers the defect's
+**The whole project is the search space, not the plan's blast radius** — "out of scope"
+describes a plan's *subject matter*, never a defect's *reach*. **Where the sweep stops:** it covers the defect's
 own predicate — whatever makes an instance an instance — and nothing wider; it is not a licence
 to refactor whatever lives nearby. **A class you cannot express as a command is a class you
 have not named yet: disclose the limit**, fix the members you can identify, and say what you
@@ -244,7 +239,7 @@ Run every check in the Preflight section and report pass/fail:
 - Tools installed and at compatible versions
 - Dependencies resolvable
 - APIs reachable, keys valid
-- Access / permissions verified
+- Access / permissions verified — a hardware or remote target is proven by an executed probe, never by an environment variable; see below
 - Baseline test suite passes
 - **Version control is live** — see below
 - **Decisions in force are current** — see below
@@ -451,17 +446,12 @@ write them.** The measured incident behind all three: `references/task-execution
    transcribed out of the fix afterwards; both are green. So before flipping Status, **revert the fix (not the test), re-run, confirm RED, and
    record the mutation and count in the commit** — *"reverting the `active` expression
    turns 3 checks red"*. That is verifiable later; "I wrote it first" is not.
-   Two corollaries, each from a green suite that shipped a defect: enumerate the
-   population **as a command, before patching** — a fix scoped from the one
-   counterexample that revealed it regenerates on the next sibling — and **build
-   fixtures from the requirement, never from observed behavior**, since a fixture
-   shaped by what the code does cannot falsify what the code does. Untiered (DEC-010's
-   cost line: a re-run, not an agent), so it runs at every scope including `none`.
-   **And before writing a CHECKER rather than a test, ask first whether the mechanism
-   can decide the property at all** — a pattern cannot decide what prose means, so make
-   the property structural or leave it to review and say so. Rationale, and the failures
-   behind each clause: `../honest-gates/SKILL.md` § *A test does not exist until its
-   mutant dies*.
+   Two corollaries: enumerate the population **as a command, before patching**, and
+   **build fixtures from the requirement, never from observed behavior**. Untiered
+   (DEC-010's cost line: a re-run, not an agent), so it runs at every scope including
+   `none`. **And before writing a CHECKER rather than a test, ask first whether the mechanism
+   can decide the property at all** — make the property structural or leave it to review.
+   Rationale: `../honest-gates/SKILL.md` § *A test does not exist until its mutant dies*.
 
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
@@ -686,12 +676,9 @@ Stop immediately and escalate to the user when:
 **Never guess through a stop condition.** Ask.
 
 **Equally: never ask through a dispatch the plan mandated.** These conditions fire when a
-mandated dispatch *cannot be performed*, never when you are merely unsure whether to perform
-one — that question is answered by the plan
-(§ The plan is the authorization — dispatch without a confirmation turn).
-
-Why an unperformable dispatch needs a rule rather than judgment, and why the choice is the
-user's: `references/dispatch-fidelity.md`.
+mandated dispatch *cannot be performed*, never when you are merely unsure — the plan answers
+that (§ The plan is the authorization — dispatch without a confirmation turn). Why the choice
+is the user's: `references/dispatch-fidelity.md`.
 
 ## When to revisit earlier steps
 
@@ -699,6 +686,9 @@ Return to Phase 1 (critique) when:
 
 - The user updates the plan after feedback — treat the new version as a fresh plan and re-critique
 - A stage gate failure reveals a fundamental gap in the plan (e.g., missing task, wrong dependency) — stop execution, return to `planning-projects` to revise
+- A mid-execution request for new work arrives ("what else can you implement?") — it goes
+  through `planning-projects` triage before any of it is implemented (Direct for a one-liner,
+  a Light plan otherwise), and such work does not share the plan's branch or its gate
 
 ## Phase Close-out — After the last stage
 
@@ -718,6 +708,11 @@ Ordered procedure, and what the report must contain: `references/close-out.md`.
 - **Destructive commands** (schema migrations, data deletes, force pushes, production deploys) — confirm before running, even if the plan says to.
 - **Secrets** — if a task would read or write credentials, stop and confirm the mechanism (env var, secrets manager) with the user before proceeding.
 - **Shared infrastructure** — staging/prod-adjacent changes get confirmation per stage, not per plan.
+- **The host's own footing** — never reconfigure the agent host's own network interfaces,
+  routes or DNS to reach a device under test; use a second interface, a spare client, or a
+  subagent on another machine, and if none is available the gate is BLOCKED. Generalizes to
+  anything the session depends on to keep running: an agent that severs its own control
+  link cannot report that it did.
 
 ---
 

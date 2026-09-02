@@ -82,11 +82,54 @@ distinguishing "the rules moved" from "the executor wanted a cheaper run". Amend
 to make a *failing* gate pass is not recalibration under any reading; that is the gate-
 failure procedure, and it is not this.
 
+**What never authorizes an amendment.** Cost, wall-clock and disk are real constraints and
+arguments for **re-scoping the plan** — never for re-scoping the evidence a written gate
+demands. A suite dropped from a gate command "for disk/time" does not make the gate cheaper;
+it is recorded `[~]` **BLOCKED on that suite**, not reported as a pass on the remainder
+(`../../honest-gates/SKILL.md`, the *Prohibited* section's excluding-the-failing-case bullet,
+which owns this rule).
+The tiering policy is not an exception to it: narrowing per `test-scope-tiers.md` drops only
+trees the stage's commits neither touched nor depend on, is declared as scope, and lands on
+the gate report's scope line — a suite a written check names, or a tree the stage touched,
+removed for cost, is an amendment whatever the report calls it, and cost is not among the
+rules that can authorize one.
+
 **Verify against committed state.** Recompute from the plan file as committed and confirm
 the working tree is clean before recording any Preflight result. A calibration re-check run
 over uncommitted edits certifies a plan nobody else can see — the same defect as a gate
 verified against a dirty working tree, one phase earlier
 (`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`).
+
+## Access probe (hardware and remote targets are proven by I/O, not by environment)
+
+"Access / permissions verified" used to say nothing about what verification is, and twice
+an executor read an unset `PI_MODEM_HIL_CM4` and concluded the hardware did not exist —
+while the repo's own deploy script named the host, and the same executor had edited that
+script. Its own admission: *"The CM4 was never missing. The gate never tried SSH."*
+
+So for every device, board, VM or remote host a task or gate depends on:
+
+1. **Resolve the target from the repo's own deploy, HIL or provisioning scripts** — the
+   address, port, user and serial the project already uses — before concluding anything
+   from an environment variable. An unset variable is **missing configuration**; only an
+   executed probe can report **missing hardware**, and the two have opposite consequences
+   for a gate.
+2. **Run a probe** (ssh, ping, a serial identity read — whatever the project's scripts do)
+   and **record what answered**, verbatim, in the Preflight report.
+3. **Nothing answered** → the target is unreachable: Preflight fails on that line, and every
+   gate needing it is **BLOCKED**, written `[~]`. **Something answered but was not what was
+   expected** (wrong serial, wrong identity, auth refused) → **investigate before excusing**:
+   in the incident the day's first probe found the device genuinely down, the second failed
+   on the probe's own `BatchMode=yes` against a password-only host, and a third defect sat
+   behind that in the serial comparison — two of three failures were the tool's, not the
+   device's, and an env-var check would have reported "no hardware" at every one of them.
+
+Position, per DEC-017: once at Preflight, like the gate-selector probe. A command,
+never a dispatch, so untiered. This plugin ships no probe script. The Cursor port in the
+engineering-skills repo does (a probe-device shell script under its executing-plans port's
+scripts, checked 2026-09-02): exit 78 when nothing answered, exit 1 when something
+answered but was not what was expected, exit 0 on a match — those exit codes encode
+exactly the split in step 3.
 
 ## Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure)
 

@@ -74,7 +74,11 @@ reader meets it as a decision rather than discovering it as a surprise.
 
 **A declared stage-scope command is subject to the same cost threshold as the full
 suite.** If the stage-scope command itself crosses ~5 minutes, narrow it: run the cheap
-trees the stage's commits *touched or depend on*, not every cheap tree the project owns.
+trees the stage's commits *touched or depend on*, not every cheap tree the project owns —
+and record the narrowed command on the gate report's scope line (guard rail 2). That is
+scope, never an amendment of a written check; a suite a written check names, or a tree the
+stage did touch, is not narrowed away for cost
+(`../../executing-plans/references/preflight-checks.md` § Amending authored ceremony).
 "Cheap host-side checks in full" is an economy when a project has three test trees and a
 tax when it has ten — the same sub-plan declared four whole trees as its stage-scope at
 every gate, for stages that touched one.
@@ -133,7 +137,9 @@ same guard rail 2 that governs a scoped gate report. "Ran the stage-scope suite 
    goes behind an opt-in filter (an `@LargeTest`-style annotation, a Gradle
    property, a pytest marker) and runs only at plan-scope. A slow test inside the
    default suite taxes every scoped run that touches its module; quarantined, it
-   costs exactly one run per plan.
+   costs exactly one run per plan. Quarantine is a plan-authoring act, declared in the
+   Preflight test-scope block — never something an executor applies at a gate to a suite a
+   written check names.
 
 4. **Overlap with reviews.** An expensive stage-scope suite and the Tier-2 stage
    review are independent — start the suite in the background, then dispatch the
