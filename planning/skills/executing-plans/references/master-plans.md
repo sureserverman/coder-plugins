@@ -76,7 +76,8 @@ gate and surfaces only at the master close-out — the most expensive place to f
 5. **Master close-out.** When every register entry is `[x]` and every gate passed: run
    the deferred version bumps once across everything the sub-plans touched (all mirrors),
    run the full suite, run the independent evaluator pass **that the master's tier calls
-   for** (below), reconcile the review ledger (below), then append to the master:
+   for** (*Which tier the master close-out runs at*), reconcile the review ledger (*The
+   master close-out reconciles the review ledger plan-wide*), then append to the master:
    `**Completed:** YYYY-MM-DD — sub-plans: <list>`.
 
    **"Every register entry is `[x]`" is re-derived from the sub-plan files, not read off the

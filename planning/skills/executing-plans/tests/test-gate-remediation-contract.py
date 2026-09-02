@@ -1344,6 +1344,9 @@ def main():
           affirms_claim(_revisit, _ws(r"mid-execution request for new work")) and re.search(_ws(r"triage"), _revisit) is not None
           and "planning-projects" in _revisit,
           "no sentence routes a mid-execution feature request through triage")
+    # Literal pin with a negation as its subject: catches deletion and rewording, not an
+    # outer inversion ("it is fine that such work does not share…") — the same stated
+    # limit as the honest-gates suite's pin_neg, and the reason the clause is kept short.
     check("revisit: such work does not share the plan's branch or its gate (negation-subject, literal)",
           re.search(_ws(r"does not share the plan's branch or its gate"), _revisit) is not None,
           "the branch/gate separation is not stated")

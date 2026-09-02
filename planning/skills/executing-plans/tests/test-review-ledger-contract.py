@@ -157,6 +157,8 @@ def main():
           "citation `../../honest-gates/SKILL.md` § Reporting absent")
     # Negative check — the requirement's subject is an absence: the BLOCKED rule is
     # cited, not restated, so a second copy here would be the drift this pins against.
+    # Negative literal pin: proves the BLOCKED rule is not RESTATED here, and nothing more —
+    # it would pass unchanged if the section quoted the phrase inside an outer negation.
     check("stage-gate: does NOT restate 'BLOCKED, not green'",
           re.search(ws(r"BLOCKED, not green"), review_line) is None,
           "the BLOCKED rule is restated here instead of cited")

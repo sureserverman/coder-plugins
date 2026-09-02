@@ -125,9 +125,11 @@ So for every device, board, VM or remote host a task or gate depends on:
    device's, and an env-var check would have reported "no hardware" at every one of them.
 
 Position, per DEC-017: once at Preflight, like the gate-selector probe. A command,
-never a dispatch, so untiered. This plugin ships no probe script; the Cursor port's
-`probe-device.sh` (exit 0 answered-and-matched, 1 answered-but-wrong, 78 nothing answered)
-is the shape worth copying, and its exit codes encode exactly the split in step 3.
+never a dispatch, so untiered. This plugin ships no probe script. The Cursor port in the
+engineering-skills repo does (a probe-device shell script under its executing-plans port's
+scripts, checked 2026-09-02): exit 78 when nothing answered, exit 1 when something
+answered but was not what was expected, exit 0 on a match — those exit codes encode
+exactly the split in step 3.
 
 ## Gate-selector probe (a gate that cannot pass is a plan defect, not a gate failure)
 
