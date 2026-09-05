@@ -74,6 +74,53 @@ Use it only when one artifact really is the set. It is not a waiver for a narrow
 wide claim — that is still INSTANCE-SHAPED, and the identical check without the marker still
 fails, which `tests/test-validate-gate-checks.py` group 2b pins in both directions.
 
+### The third error, orthogonal to both: the right set, swept in the wrong direction
+
+Scope is not the only way a set-valued check can be structurally unable to do its job. A check
+can sweep exactly the right set and still be blind for its whole life, because **it can only
+fail in one direction and the hazard runs the other way.**
+
+The common shape is an allow-list: *"X appears only at A, B and C."*
+
+```
+! grep -rn 'SessionService(' src/ | grep -v 'compose_backend\|application/services.py'
+```
+
+That fails when a **new** member appears — a second constructor call, an unauthorised caller, a
+leaked import. Where the hazard is an unwanted presence, it is exactly right, and most
+allow-list checks are.
+
+It is structurally blind when the hazard is an **absence** — a path that *should* do X and
+doesn't. No missing call ever adds a line for a grep to find, so the check is green on the day
+the defect ships and green every day after. Worse, it reads as rigorous: it names a set, it
+sweeps a tree, it passes the validator.
+
+**So name the hazard's direction before choosing the check's shape.** Ask what the defect
+would look like in the tree:
+
+| The hazard | Its shape in the tree | The check that can fail on it |
+|---|---|---|
+| an unwanted writer, caller, import, claim | a **new line** somewhere | an allow-list sweep (`! grep … \| grep -v …`) |
+| a required call, guard, publish, invalidate that is **missing** | **nothing at all** | an invariant asserted over every operation — a test, not a grep |
+
+Where they disagree, the check will be green for the entire life of the defect. This is the
+authoring-time face of the same fact `executing-plans` records for repair time
+(`../../executing-plans/references/bug-is-a-class.md` § *Two shapes*): an absence-shaped class
+has no searchable fingerprint, so it is asserted as a property and never enumerated.
+
+**The validator cannot help here, and the reason is worth stating.** Measured across one
+project's plan corpus: five gate checks share the allow-list shape to the character, and all
+five are correct, because each one's hazard is a new presence. A sixth with identical syntax
+was blind for its whole life because its hazard was a missing call. The syntax is the same; only
+the hazard differs, and the hazard is not in the text. A classifier would have to reject all
+six or accept all six. **This one is an authoring judgement, and the checklist item below is
+the only thing enforcing it.**
+
+A gate check whose claim is an absence — "every path that changes the cursor publishes it",
+"every writer takes the lock", "no request leaves without the header" — belongs in a task's
+`Test:` as an invariant test, with the gate check *running* that test. Writing it as a sweep of
+the sites the plan chose produces a check that verifies the design against itself.
+
 This is enforced mechanically rather than left to discipline. `../scripts/validate-gate-checks.py`
 classifies every check in a plan as EXECUTABLE / JUDGMENT / SCOPED / INSTANCE-SHAPED / PROSE, and
 `executing-plans` runs it at critique time (its Phase 1 step 4a). Run it on the plan before

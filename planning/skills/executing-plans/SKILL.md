@@ -190,13 +190,13 @@ When you find one:
 **The whole project is the search space, not the plan's blast radius** — "out of scope"
 describes a plan's *subject matter*, never a defect's *reach*. **Where the sweep stops:** it covers the defect's
 own predicate — whatever makes an instance an instance — and nothing wider; it is not a licence
-to refactor whatever lives nearby. **A class you cannot express as a command is a class you
-have not named yet: disclose the limit**, fix the members you can identify, and say what you
-were unable to sweep. **It costs a command, never a dispatch** (DEC-010), so it belongs with
-the untiered mandates and runs at **every** review tier, including `none`.
+to refactor whatever lives nearby. **A class you cannot express as a command is
+absence-shaped: assert the property rather than extend the list.** Disclose the limit.
+**It costs a command, never a dispatch** (DEC-010), so it belongs with the untiered
+mandates and runs at **every** review tier, including `none`.
 
-Where the sweep stops, and the one dispatch-shaped consequence when it widens the diff into a
-risk-listed area: `references/bug-is-a-class.md`.
+Both shapes, the repeat trigger, where the sweep stops, and the dispatch-shaped
+consequence when it widens the diff into a risk-listed area: `references/bug-is-a-class.md`.
 
 ---
 

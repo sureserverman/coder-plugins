@@ -20,6 +20,51 @@ wrong population and report green. **The step begins where the failure becomes *
 which is why the loop's second-cycle threshold for invoking `no-fafo-debugging` stands rather
 than being overridden here.
 
+## Two shapes, and only one of them can be enumerated
+
+Before reaching for a command, decide which shape the class has, because the two need
+opposite techniques and the wrong one cannot converge.
+
+**Presence-shaped** — every site that *does* X does it wrong. The members share a string, so
+`grep` finds them, and enumeration is both correct and cheap. This is the common case and the
+rest of this section is about it.
+
+**Absence-shaped** — some sites that *should* do X don't. The members share nothing, because
+what makes an instance an instance is a call that is missing. **No command can list them.**
+An enumeration here returns the members you happened to think of, which is why each round
+finds one more just outside the last boundary you drew.
+
+**The tell is the fix, and it is mechanical: a repair that *adds* a call means the class is
+absence-shaped.** Where the repair changes a call that already runs, the class is
+presence-shaped and a sweep will find its siblings. Symptoms are no help here — "it didn't
+publish", "it didn't lock", "it didn't invalidate" all read like ordinary bugs, and the shape
+only shows in what the fix has to do.
+
+For an absence-shaped class, assert the property instead of listing the members. Prefer, in
+this order — which is the reverse of the instinct:
+
+1. **An invariant test.** After every operation that can affect the property, assert it holds.
+   It names no members, so it has no boundary to get wrong, and it fails on the path nobody
+   thought of. This is the only one of the three that ends the class rather than bounding it.
+2. **A structural rule.** A check phrased so membership is decidable without listing members —
+   "only a screen fills itself", "no module outside X reaches Y". A wide boundary, but a
+   boundary.
+3. **A funnel.** Make one code path the only way to reach the effect. Cheapest, most tempting,
+   and weakest: its boundary is exactly the set of callers that route through it, which is the
+   set you already got wrong. A funnel is a good repair *after* an invariant pins the property,
+   and a trap when it is the whole repair.
+
+## A repeat finding is not a new bug
+
+**A second finding inside a class you have already remediated is evidence the set was misnamed,
+not evidence of another instance.** Do not fix it and re-sweep — that is the oscillation named
+below, and one more round of it buys exactly one more member.
+
+Stop, reclassify the class by shape, and replace the enumeration with an assertion of the
+property. Say in the gate report that you changed technique and why. A round spent changing
+method is worth more than a round spent extending a list, and the remediation budget is not
+large enough to discover a set one member at a time.
+
 ## Naming the set
 
 Enumerate it with a command — grep the defect's distinguishing string, list every sibling of
@@ -33,7 +78,8 @@ becomes gate-only again.
 
 Then fix **every member the sweep returns, in the same change** — not the instance that
 happened to surface. A class repaired one instance per round is the oscillation the gate's
-remediation budget exists to bound, and bounding it is not the same as converging. **Write the
+remediation budget exists to bound, and bounding it is not the same as converging; when you
+see it, the repair is a technique change, not another round (above). **Write the
 command down** — in the commit body, or in the gate report when a gate is what surfaced the
 bug. The next round then argues with a command rather than a recollection.
 
@@ -49,9 +95,11 @@ is already loaded.
 
 It covers the defect's own predicate — whatever makes an instance an instance — and nothing
 wider. It is not a licence to refactor, restyle, or repair unrelated things that merely live
-nearby. **A class you cannot express as a command is a class you have not named yet: disclose
-the limit**, fix the members you can identify, and state in the report what you were unable to
-sweep. Sweeping by feel produces a confident green over a population nobody defined.
+nearby. **A class you cannot express as a command is a class you have not named yet** — and the usual
+reason is that it is absence-shaped, in which case the answer is not a better command but the
+invariant above. Where it is genuinely neither, fix the members you can identify and state in
+the report what you were unable to sweep. Sweeping by feel produces a confident green over a
+population nobody defined.
 
 ## It costs a command, never a dispatch
 
