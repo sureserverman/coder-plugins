@@ -335,6 +335,7 @@ def main():
     # called from every site where a defect can surface, so the properties that belong to
     # the RULE are asserted here and the properties the GATE adds stay on gate_fail.
     # Splitting them this way is what lets either move again without unpinning the other.
+    REFS_EARLY = SKILL.parent / "references"
     class_rule = section(text, r"## A bug found during execution is a class",
                          r"## Phase 1 — Load and critique")
     check("class-repair rule stated as its own trunk section", bool(class_rule),
@@ -411,6 +412,35 @@ def main():
           affirms(class_rule, r"disclose the limit"),
           "no instruction for the case where the class cannot be expressed as a "
           "command — which is where a sweep silently becomes a guess")
+    # 0b-ii — the two obligations that turn "cannot be expressed as a command" from a
+    # disclosure into a repair. Measured live (remote-agents console-wide-session-chords,
+    # 2026-09-04): an absence-shaped class — code paths that should publish a value and do
+    # not — was enumerated by hand three times, each enumeration bounded by the mechanism
+    # just built, and each review round found one more member outside the last boundary.
+    # Both gate remediation rounds went on extending the list. Disclosure alone does not
+    # stop that; naming the shape and switching to an invariant does.
+    check("the un-nameable class is told what to do instead of enumerating",
+          affirms(class_rule, r"absence-shaped"),
+          "the trunk names the un-nameable class but not its shape or its remedy, so an "
+          "executor discloses an incomplete list and enumerates again next round")
+    shapes = (REFS_EARLY / "bug-is-a-class.md")
+    shapes_text = shapes.read_text(encoding="utf-8") if shapes.is_file() else ""
+    check("the reference distinguishes presence-shaped from absence-shaped classes",
+          affirms(shapes_text, r"presence-shaped") and affirms(shapes_text, r"absence-shaped"),
+          "bug-is-a-class.md offers only presence-based enumeration techniques (grep the "
+          "string, list the siblings, list the callers), none of which can find a call "
+          "that is missing")
+    check("the reference gives the tell for an absence-shaped class",
+          affirms_predicate(shapes_text, r"the tell is the fix",
+                            r"absence-shaped", window=200),
+          "no way to recognise an absence-shaped class before spending a round on it — "
+          "the discriminator is that the repair ADDS a call rather than changing one")
+    check("a repeat finding inside a swept class forces a technique change",
+          affirms_predicate(shapes_text, r"second finding inside a class",
+                            r"misnamed", window=200),
+          "a second finding in an already-swept class reads as another instance, so the "
+          "executor fixes it and re-sweeps — the oscillation the budget bounds but cannot "
+          "converge")
 
     # Anchored on the DEFINITION heading, not the bare phrase. A Tier-1 review caught
     # the bare anchor matching the Tier-2 paragraph's inline forward-reference ("per the

@@ -170,7 +170,7 @@
 #   names an executed probe. Within the 49016 origin.
 # Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
 #   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
-planning/skills/executing-plans/SKILL.md 48910
+planning/skills/executing-plans/SKILL.md 48899
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
