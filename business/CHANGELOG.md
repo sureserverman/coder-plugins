@@ -4,6 +4,16 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-09-08
+
+### Fixed
+- `business-scan.py` resolved the sibling `planning` plugin with a fixed
+  `parents[2]`, which reaches the marketplace root only in the unversioned
+  checkout. Under the versioned plugin cache it resolved to nothing, so
+  `portfolio-unify` never imported and every gtm-plan progress value degraded to
+  `portfolio-unify.py not found`. Replaced with a layout-tolerant lookup that
+  probes both shapes and prefers the highest installed version.
+
 ## [0.8.0] - 2026-09-08
 
 ### Added
