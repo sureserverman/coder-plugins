@@ -32,9 +32,41 @@ import yaml
 # alongside (business is a separately-versioned plugin), degrade to pu=None: the
 # sweep still runs and emits JSON for every project — only gtm-plan progress
 # becomes a per-project error, honoring "never fatal to the sweep".
-_UNIFY = (Path(__file__).resolve().parents[2]
-          / "planning" / "skills" / "portfolio" / "scripts" / "portfolio-unify.py")
+def _sibling_plugin_file(plugin, *relparts):
+    """`<marketplace root>/<plugin>/<relparts>`, across BOTH install layouts.
+
+    The marketplace checkout is unversioned (`<root>/business/scripts/x.py`);
+    the plugin cache inserts a per-plugin version directory
+    (`<root>/business/0.8.0/scripts/x.py`). No fixed `parents[N]` reaches a
+    sibling plugin in both -- the old `parents[4]`/`parents[2]` probes silently
+    resolved to nothing under the cache, so the layer they gate never ran. Walk
+    up instead, probe both shapes, and prefer the highest version. The
+    `.claude-plugin/plugin.json` check keeps an unrelated same-named directory
+    from matching. Returns None when the sibling plugin is not installed.
+    """
+    rel = Path(*relparts)
+    for root in Path(__file__).resolve().parents:
+        base = root / plugin
+        if not base.is_dir():
+            continue
+        if (base / rel).exists() and (base / ".claude-plugin" / "plugin.json").exists():
+            return base / rel
+        try:
+            vers = [d for d in base.iterdir()
+                    if d.is_dir() and (d / rel).exists()
+                    and (d / ".claude-plugin" / "plugin.json").exists()]
+        except OSError:
+            continue
+        if vers:
+            return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
+    return None
+
+
+_UNIFY = _sibling_plugin_file("planning", "skills", "portfolio", "scripts",
+                              "portfolio-unify.py")
 try:
+    if _UNIFY is None:
+        raise FileNotFoundError("planning plugin not installed alongside")
     _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
     pu = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(pu)

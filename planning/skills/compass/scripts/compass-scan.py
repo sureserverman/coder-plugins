@@ -365,6 +365,36 @@ def scan_project(proj, vault):
     return entry, None
 
 
+def _sibling_plugin_file(plugin, *relparts):
+    """`<marketplace root>/<plugin>/<relparts>`, across BOTH install layouts.
+
+    The marketplace checkout is unversioned (`<root>/business/scripts/x.py`);
+    the plugin cache inserts a per-plugin version directory
+    (`<root>/business/0.8.0/scripts/x.py`). No fixed `parents[N]` reaches a
+    sibling plugin in both -- the old `parents[4]`/`parents[2]` probes silently
+    resolved to nothing under the cache, so the layer they gate never ran. Walk
+    up instead, probe both shapes, and prefer the highest version. The
+    `.claude-plugin/plugin.json` check keeps an unrelated same-named directory
+    from matching. Returns None when the sibling plugin is not installed.
+    """
+    rel = Path(*relparts)
+    for root in Path(__file__).resolve().parents:
+        base = root / plugin
+        if not base.is_dir():
+            continue
+        if (base / rel).exists() and (base / ".claude-plugin" / "plugin.json").exists():
+            return base / rel
+        try:
+            vers = [d for d in base.iterdir()
+                    if d.is_dir() and (d / rel).exists()
+                    and (d / ".claude-plugin" / "plugin.json").exists()]
+        except OSError:
+            continue
+        if vers:
+            return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
+    return None
+
+
 def business_map():
     """Optional business-plugin state keyed by project name — {} when the plugin
     isn't installed alongside (additive: compass works identically without it).
@@ -381,10 +411,9 @@ def business_map():
     ANY failure (missing plugin, nonzero exit, timeout, malformed/unexpected-shape
     JSON) degrades to {} — a broken business scanner must not take down compass's
     plan/backlog/maturity evidence."""
-    root = Path(__file__).resolve().parents[4]          # marketplace root
-    scan = Path(os.environ.get("BUSINESS_SCAN_PATH")
-                or root / "business" / "scripts" / "business-scan.py")
-    if not scan.exists():
+    env = os.environ.get("BUSINESS_SCAN_PATH")
+    scan = Path(env) if env else _sibling_plugin_file("business", "scripts", "business-scan.py")
+    if not scan or not scan.exists():
         return {}
     try:
         r = subprocess.run([sys.executable, str(scan)], capture_output=True,

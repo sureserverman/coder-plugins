@@ -835,15 +835,46 @@ def write_if_changed(path, content):
     return True
 
 
+def _sibling_plugin_file(plugin, *relparts):
+    """`<marketplace root>/<plugin>/<relparts>`, across BOTH install layouts.
+
+    The marketplace checkout is unversioned (`<root>/business/scripts/x.py`);
+    the plugin cache inserts a per-plugin version directory
+    (`<root>/business/0.8.0/scripts/x.py`). No fixed `parents[N]` reaches a
+    sibling plugin in both -- the old `parents[4]`/`parents[2]` probes silently
+    resolved to nothing under the cache, so the layer they gate never ran. Walk
+    up instead, probe both shapes, and prefer the highest version. The
+    `.claude-plugin/plugin.json` check keeps an unrelated same-named directory
+    from matching. Returns None when the sibling plugin is not installed.
+    """
+    rel = Path(*relparts)
+    for root in Path(__file__).resolve().parents:
+        base = root / plugin
+        if not base.is_dir():
+            continue
+        if (base / rel).exists() and (base / ".claude-plugin" / "plugin.json").exists():
+            return base / rel
+        try:
+            vers = [d for d in base.iterdir()
+                    if d.is_dir() and (d / rel).exists()
+                    and (d / ".claude-plugin" / "plugin.json").exists()]
+        except OSError:
+            continue
+        if vers:
+            return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
+    return None
+
+
 def business_scripts():
     """(scan, rollup) paths for the OPTIONAL business plugin, or (None, None) if
     it isn't installed alongside. BUSINESS_SCAN_PATH overrides the scan path
     (used by the degradation test to force the layer off). Additive by design:
     the business layer never changes portfolio-rebuild's existing outputs."""
-    root = Path(__file__).resolve().parents[4]          # marketplace root (…/coder-plugins)
-    scan = Path(os.environ.get("BUSINESS_SCAN_PATH")
-                or root / "business" / "scripts" / "business-scan.py")
-    rollup = root / "business" / "scripts" / "business-rollup.py"
+    env = os.environ.get("BUSINESS_SCAN_PATH")
+    scan = Path(env) if env else _sibling_plugin_file("business", "scripts", "business-scan.py")
+    rollup = _sibling_plugin_file("business", "scripts", "business-rollup.py")
+    if not scan or not rollup:
+        return (None, None)
     return (scan, rollup) if scan.exists() and rollup.exists() else (None, None)
 
 
