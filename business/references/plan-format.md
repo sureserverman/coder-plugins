@@ -112,14 +112,20 @@ Mark any persona resting on an unconfirmed audience. `brief` may condense or omi
 <TAM/SAM/SOM and demand, sourced from market-research.md — or the UNRESEARCHED header if none>
 
 ## Competitive landscape
-<named competitors, their models/prices, and this project's positioning — cited from research>
+<named competitors by class (direct/indirect) and group, their models/prices, the chosen
+quadrant (axes, the empty zone, where the project sits — link the research's SVG) and, at
+`deep`, the trajectories; the durability-of-advantage read (benefit + barrier, incumbent
+reaction) — all cited from market-research.md's Competitors / Quadrants / Trajectories /
+Durability sections. Competitor count states the research's coverage (exhausted/open).>
 
 ## SWOT & positioning
 <schema 2, `standard`+. A SWOT grid (Strengths / Weaknesses / Opportunities / Threats)
 grounded in the competitive and market evidence above — not generic prose — and a
-**one-sentence positioning statement** ("For <persona>, <project> is the <category> that
-<key differentiator>, unlike <competitor>"). Strengths/Weaknesses come from the operator
-interview; Opportunities/Threats trace to the research's positioning gaps and trends.
+**one-sentence positioning statement** quoted from market-research.md's `## Positioning`
+(the five components in order: competitive alternatives → unique attributes → value with
+evidence → the customers for whom it is critical → market category). Strengths/Weaknesses
+come from the operator interview; Opportunities/Threats trace to the research's positioning
+gaps, trends, and — at `deep` — the zone its trajectories project to clear.
 `brief` may condense to a few lines or omit.>
 
 ## Product & roadmap

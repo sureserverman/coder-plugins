@@ -131,7 +131,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Gather cited market evidence for ONE project's viability assessment \u2014 competitors and pricing, market signals, distribution-channel norms. Trigger phrases include \"research the market for this\", \"who are the competitors and what do they charge\", \"is there a payable audience for this\".",
+      "description": "Gather cited competitive-analysis evidence for ONE project \u2014 who solves the same problem (three-pass list, coverage rate), pricing, channels, demand, a competitor table. Trigger phrases include \"research the market for this\", \"who are the competitors and what do they charge\".",
       "disable_model_invocation": false,
       "kind": "agent",
       "model": "sonnet",
@@ -181,7 +181,7 @@
       "requires_enablement": false
     },
     {
-      "description": "Produce a deep, cited market-research report for ONE portfolio project \u2014 competitors, pricing, TAM/SAM/SOM sizing, trends, channel norms \u2014 persisted to business/market-research.md. Triggers on \"market research for this project\", \"size the market\", \"TAM SAM SOM\", \"is there a payable audience\".",
+      "description": "Run a cited competitive analysis for ONE portfolio project \u2014 who solves the same problem, coverage, pricing, a competitor table with quadrant sweep, positioning \u2014 persisted to business/market-research.md. Triggers on \"market research for this project\", \"competitive analysis\", \"competitor table\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,

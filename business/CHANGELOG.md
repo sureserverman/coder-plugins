@@ -4,6 +4,49 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-08
+
+### Added
+- `references/competitive-analysis-method.md` — the working method behind
+  `market-research`, condensed in this plugin's own words from Denis Dovgopoliy's
+  *Competitive analysis for startups: methodology* (v3.2.6): competitor definition and
+  classes, three-pass list building with a rate-based coverage threshold, the source
+  catalogue, six collection blocks with the no-personal-data boundary, the table, quadrants
+  and trajectories, the durability-of-advantage test, five-component positioning, partner
+  candidates, battlecards, monitoring, no-data sizing, and the method's limits.
+- `business/competitor-table.yaml` (schema 1; `references/competitor-table-format.md`) and
+  its sole parser `scripts/competitor-table.py`: `validate` (types, the conversion rule,
+  categorical → one-hot flags, schema gate), `normalize` (−5…+5 around a median/mean centre,
+  linear or log by the ratio between extremes, `invert`), `quadrant` (assignment, empty
+  zones, nearest neighbour, SVG), `sweep` (every axis pair ranked by self-isolation, empty
+  quadrants, spread; per-group cohesion flags groups that scatter; degenerate single-row
+  binary axes excluded), `trajectory` (Y-2/Y-1/Y0 vectors, Y+1/Y+2 projection, clearing
+  quadrants, SVG). `scripts/tests/test-competitor-table.py` pins the arithmetic against
+  hand-computed values, every rejection class, SVG determinism, and the read-only guarantee.
+
+### Changed
+- `market-research.md` is at **schema 3**: frontmatter gains `competitors` (the table's row
+  count) and `coverage` (`exhausted` | `open`); the body follows the method's order
+  (Problem & customer job, Competitors with class/group/pass, Coverage, …, Competitor
+  table, Quadrants, Trajectories, Competitor profiles, Durability of advantage,
+  Positioning, Partner candidates, Battlecards, Monitoring indicators, Gaps). Schema 1 and
+  2 still parse; schema 4+ is the upgrade error.
+- `business-scan.py` validates the schema-3 fields and emits them (null on older files);
+  `business-rollup.py`'s Research column shows `· <n>c` and an `OPEN` marker, so a thin or
+  unfinished competitor list is visible next to a stale one.
+- `market-research` skill: the scope interview confirms the customer-job statement before
+  anything else (a wrong one invalidates the list and the positioning); at `standard`+ it
+  writes the table, runs the sweep, shows the operator the ranked pairs and the group
+  cohesion report, renders the chosen quadrant (and trajectories at `deep`), and records
+  `coverage: exhausted` only when the discovery rate had collapsed.
+- `market-researcher` agent rebuilt around the method: three passes with each row labelled
+  by the pass that found it, coverage tracking, the table as a fenced YAML block, six-block
+  profiles, durability and positioning; hard rules add no personal data, no product
+  recommendation, and analyst quadrants as facts rather than the picture.
+- `business-plan` and `plan-format.md`: Competitive landscape draws on the quadrant,
+  trajectories, and durability read; the SWOT positioning sentence is quoted from the
+  research's five-component `## Positioning`.
+
 ## [0.7.0] - 2026-08-28
 
 ### Changed

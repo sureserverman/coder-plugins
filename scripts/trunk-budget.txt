@@ -519,7 +519,12 @@ planning/skills/architecting-projects/SKILL.md 11832
 #   too. Two sentences that cannot both be true is the failure this trunk's own degrade-loudly
 #   rule exists to prevent, so both were corrected rather than one silenced.
 planning/skills/compass/SKILL.md 13046
-business/skills/business-plan/SKILL.md 11539
+business/skills/business-plan/SKILL.md 11538
+# Seeded 2026-09-08 at 11935 by the competitive-analysis rework (business 0.8.0): the
+#   trunk crossed the 10000 B floor when the scope interview gained the customer-job
+#   statement and the table/sweep/quadrant steps landed. The method itself lives in
+#   references/competitive-analysis-method.md, loaded on demand, not here.
+business/skills/market-research/SKILL.md 11935
 git-github/skills/code-comment-audit/SKILL.md 10838
 business/skills/track/SKILL.md 10750
 planning/skills/workflow-spec/SKILL.md 10580

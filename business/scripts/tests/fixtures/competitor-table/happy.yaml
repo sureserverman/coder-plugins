@@ -1,0 +1,88 @@
+schema: 1
+project: happy
+updated: 2026-09-08
+self: us
+center: median
+characteristics:
+  - id: revenue
+    label: Revenue (USD/yr)
+    category: company
+    type: number
+    scale: log
+  - id: customers
+    label: Customers
+    category: company
+    type: number
+  - id: headcount
+    label: Headcount
+    category: company
+    type: number
+  - id: self_service
+    label: Self-service signup
+    category: qualitative-product
+    type: flag
+  - id: color
+    label: Brand colour
+    category: qualitative-product
+    type: categorical
+  - id: growth
+    label: YoY growth
+    category: company
+    type: percentage
+  - id: rating
+    label: Review rating (1-5)
+    category: qualitative-product
+    type: score
+  - id: geo_difficulty
+    label: Geo difficulty (1-5)
+    category: company
+    type: score
+    invert: true
+competitors:
+  - id: c1
+    name: Alpha
+    class: direct
+    group: suites
+    found_by: category
+    values: {revenue: 2000000, customers: 12000, headcount: 120, self_service: yes, color: green, growth: "8%", rating: 4.5, geo_difficulty: 2}
+    history:
+      2024: {revenue: 900000, customers: 5000, headcount: 60}
+      2025: {revenue: 1400000, customers: 8000, headcount: 90}
+  - id: c2
+    name: Beta
+    class: direct
+    group: suites
+    found_by: category
+    values: {revenue: 1500000, customers: 15000, headcount: 150, self_service: yes, color: blue, growth: 4, rating: 3.6, geo_difficulty: 2}
+    history:
+      2024: {revenue: 1600000, customers: 15500, headcount: 160}
+      2025: {revenue: 1550000, customers: 15200, headcount: 155}
+  - id: c3
+    name: Gamma
+    class: indirect
+    found_by: customer-job
+    values: {revenue: 130000, customers: 900, headcount: 9, self_service: no, color: red, growth: 1, rating: 2.4, geo_difficulty: 4}
+  - id: c4
+    name: Delta
+    class: direct
+    group: point
+    found_by: customer-job
+    values: {revenue: 100000, customers: 800, headcount: 8, self_service: no, color: yellow, growth: 15, rating: 4.0, geo_difficulty: 3}
+  - id: c5
+    name: Epsilon
+    class: direct
+    group: point
+    found_by: alternatives
+    values: {revenue: 80000, customers: 500, headcount: 7, self_service: yes, color: blue, growth: 7, rating: 4.7, geo_difficulty: 1}
+  - id: c6
+    name: Zeta
+    class: indirect
+    found_by: alternatives
+    values: {revenue: 50000, customers: 500, headcount: 5, self_service: true, color: white, growth: 2, rating: 4.1}
+  - id: us
+    name: Us
+    class: direct
+    found_by: category
+    values: {revenue: 20000, customers: 300, headcount: 2, self_service: yes, color: multi, growth: 40, rating: 3.8, geo_difficulty: 3}
+    history:
+      2025: {revenue: 5000, customers: 60, headcount: 1}

@@ -43,17 +43,23 @@ except Exception:      # missing sibling, import-time error → degrade, don't c
 
 SUPPORTED_SCHEMA = 1                 # baseline: BUSINESS.md, metrics.md, gtm-plan.md
 SUPPORTED_GROUP_SCHEMA = 1           # business-groups/<slug>/group.md
-# Per-artifact schema ceilings. market-research.md and plan.md moved to schema 2
-# (tiered depth); BUSINESS.md stays at the baseline. The gate is parameterized by
-# the artifact's ceiling so each file degrades loudly only past its OWN max.
-MARKET_RESEARCH_MAX_SCHEMA = 2
+# Per-artifact schema ceilings. market-research.md is at schema 3 (tiered depth +
+# coverage fields), plan.md at schema 2 (tiered depth); BUSINESS.md stays at the
+# baseline. The gate is parameterized by the artifact's ceiling so each file
+# degrades loudly only past its OWN max.
+MARKET_RESEARCH_MAX_SCHEMA = 3
 PLAN_MAX_SCHEMA = 2
 VERDICTS = {"monetize", "free-for-reputation", "internal-only", "park"}
 EVIDENCE = {"local-only", "researched"}
-# Research depth is schema-dependent: schema 1 was the binary triage|full; schema 2
+# Research depth is schema-dependent: schema 1 was the binary triage|full; schema 2+
 # is the operator-selected brief|standard|deep tier. Validate a file's depth against
 # the set for that file's OWN schema, so legacy artifacts keep parsing clean.
-RESEARCH_DEPTHS_BY_SCHEMA = {1: {"triage", "full"}, 2: {"brief", "standard", "deep"}}
+RESEARCH_DEPTHS_BY_SCHEMA = {1: {"triage", "full"}, 2: {"brief", "standard", "deep"},
+                             3: {"brief", "standard", "deep"}}
+# Schema 3 adds the competitor-list coverage fields (competitive-analysis-method.md
+# §3): `competitors` is the ROW count of the competitor table (groups + standalones)
+# and `coverage` says whether the discovery rate had collapsed when the search stopped.
+RESEARCH_COVERAGE = {"exhausted", "open"}
 PLAN_DEPTHS = {"brief", "standard", "deep"}      # schema-2 plan depth tier
 CONFIDENCE = {"high", "medium", "low"}
 PLAN_STATUS = {"draft", "active"}
@@ -320,14 +326,16 @@ def _date_or_null(fm, key, fname):
 
 
 def parse_market_research(text, expected_project=None):
-    """Parse market-research.md frontmatter (schema 1 or 2) per
+    """Parse market-research.md frontmatter (schema 1, 2 or 3) per
     references/market-research-format.md. Returns (fields_dict, errors_list).
     fields_dict is None only on an extraction failure or a fatal schema problem
     with no schema value; otherwise a dict (emitted as the entry's `research`
     block) plus a possibly-empty list of per-field validation errors. The `depth`
     enum is validated against the file's OWN schema (schema 1 → triage|full, schema
-    2 → brief|standard|deep). Read-only, additive: absent fields null, never fatal
-    to the sweep."""
+    2+ → brief|standard|deep). Schema 3 additionally requires `competitors` (int ≥ 0,
+    the table's row count) and `coverage` (exhausted|open); on older schemas both are
+    emitted null rather than demanded. Read-only, additive: absent fields null, never
+    fatal to the sweep."""
     fm, errs = _extract_frontmatter(text, "market-research.md")
     if fm is None:
         return None, errs
@@ -348,9 +356,24 @@ def parse_market_research(text, expected_project=None):
     if confidence not in CONFIDENCE:
         errors.append(f"market-research.md: confidence {confidence!r} not one of {sorted(CONFIDENCE)}")
         confidence = None
-    # Emit exactly the design-contract keys (date/depth/confidence); scan_project
-    # adds age_days. No `schema` key — the block's shape is uniform across every branch.
-    fields = {"date": researched, "depth": depth, "confidence": confidence}
+    competitors, coverage = None, None
+    if schema >= 3:
+        competitors = fm.get("competitors")
+        if (not isinstance(competitors, int) or isinstance(competitors, bool)
+                or competitors < 0):
+            errors.append(f"market-research.md: competitors {competitors!r} must be an "
+                          f"integer >= 0 (required at schema {schema})")
+            competitors = None
+        coverage = fm.get("coverage")
+        if coverage not in RESEARCH_COVERAGE:
+            errors.append(f"market-research.md: coverage {coverage!r} not one of "
+                          f"{sorted(RESEARCH_COVERAGE)} (required at schema {schema})")
+            coverage = None
+    # Emit exactly the design-contract keys (date/depth/confidence/competitors/
+    # coverage); scan_project adds age_days. No `schema` key — the block's shape is
+    # uniform across every branch, with the schema-3 keys null on older files.
+    fields = {"date": researched, "depth": depth, "confidence": confidence,
+              "competitors": competitors, "coverage": coverage}
     return fields, errors
 
 
@@ -559,7 +582,7 @@ def _read_business_dir(bdir, expected_project, entry):
     entry["research"], rerrs = _scan_light_artifact(
         bdir, "market-research.md", parse_market_research, proj["name"],
         {"exists": False, "date": None, "age_days": None,
-         "depth": None, "confidence": None})
+         "depth": None, "confidence": None, "competitors": None, "coverage": None})
     entry["errors"].extend(rerrs)
 
     entry["plan"], perrs = _scan_light_artifact(
