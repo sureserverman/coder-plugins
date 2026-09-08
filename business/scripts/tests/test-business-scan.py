@@ -42,7 +42,9 @@ CASES = ["happy", "noassess", "malformed", "newschema", "partial", "gtmmixed",
          "planned", "plannew", "planbad",
          # schema-2 (tiered depth) coverage
          "research2deep", "research2brief", "research2baddepth",
-         "plan2", "plan2nodepth"]
+         "plan2", "plan2nodepth",
+         # schema-3 (coverage fields) coverage
+         "research3", "research3bad"]
 
 
 def tree_hash(root):
@@ -235,7 +237,7 @@ def test_contract(tmp):
     check(P.get("happy", {}).get("errors") == [],
           "happy: still no errors despite the new research probe")
 
-    # researchnew — market-research.md schema 3 (past its schema-2 ceiling) →
+    # researchnew — market-research.md schema 4 (past its schema-3 ceiling) →
     # explicit upgrade error, not misparse. (Schema 2 is now a SUPPORTED version;
     # the upgrade-boundary fixture moved to 3 in lockstep with the raised ceiling.)
     rn = P.get("researchnew", {})
@@ -323,6 +325,32 @@ def test_contract(tmp):
     check((r2b.get("research") or {}).get("depth") == "brief", "research2brief: depth brief (schema 2)")
     check((r2b.get("research") or {}).get("confidence") == "low", "research2brief: confidence low")
     check(r2b.get("errors") == [], f"research2brief: no errors (got {r2b.get('errors')})")
+    check((r2b.get("research") or {}).get("competitors") is None
+          and (r2b.get("research") or {}).get("coverage") is None
+          and "competitors" in (r2b.get("research") or {}),
+          "research2brief: schema-2 block carries competitors/coverage keys as null")
+
+    # research3 — schema-3 market-research with the coverage fields parses clean
+    r3 = P.get("research3", {})
+    check(r3.get("assessed") is True, "research3: assessed true")
+    check((r3.get("research") or {}).get("depth") == "standard", "research3: depth standard (schema 3)")
+    check((r3.get("research") or {}).get("competitors") == 23, "research3: competitors 23")
+    check((r3.get("research") or {}).get("coverage") == "exhausted", "research3: coverage exhausted")
+    check((r3.get("research") or {}).get("date") == "2026-07-01", "research3: research.date parsed")
+    check(r3.get("errors") == [], f"research3: no errors (got {r3.get('errors')})")
+
+    # research3bad — non-integer competitors + bad coverage enum each flagged; the
+    # rest of the block still parses and the project stays assessed
+    r3b = P.get("research3bad", {})
+    check(r3b.get("assessed") is True, "research3bad: assessed true")
+    check((r3b.get("research") or {}).get("depth") == "standard", "research3bad: depth still parses")
+    check((r3b.get("research") or {}).get("competitors") is None, "research3bad: bad competitors nulled")
+    check((r3b.get("research") or {}).get("coverage") is None, "research3bad: bad coverage nulled")
+    r3errs = " ".join(r3b.get("errors", []))
+    check("competitors 'many'" in r3errs, "research3bad: competitors error recorded")
+    check("coverage 'finished'" in r3errs, "research3bad: coverage error recorded")
+    # the happy schema-3 path also proves absence is not demanded on schema 2: the
+    # research2deep block above has no competitors/coverage and zero errors
 
     # research2baddepth — legacy `depth: full` at schema 2 → per-field depth error,
     # project still assessed (schema-1's triage|full is NOT valid at schema 2)

@@ -42,8 +42,10 @@ DOC = {
             "gtm": {"done": 1, "total": 4, "pct": 25},
             # alpha carries both new artifacts → Plan/Research columns populated
             "plan": {"exists": True, "date": "2026-07-06", "age_days": 5, "status": "active"},
+            # a schema-3 research block: row count and coverage render in the cell
             "research": {"exists": True, "date": "2026-07-06", "age_days": 5,
-                         "depth": "full", "confidence": "high"},
+                         "depth": "standard", "confidence": "high",
+                         "competitors": 23, "coverage": "exhausted"},
             "errors": [],
         },
         {   # launched: gtm but no metrics
@@ -95,7 +97,7 @@ DOC = {
             "last_reviewed_age_days": 120, "metrics": None, "gtm": None,
             "plan": {"exists": True, "date": "2026-01-01", "age_days": 200, "status": "draft"},
             "research": {"exists": True, "date": "2026-03-01", "age_days": 120,
-                         "depth": "standard", "confidence": "medium"},
+                         "depth": "standard", "confidence": "medium", "competitors": 4, "coverage": "open"},
             "errors": []},
         {   # plan status didn't parse (→ "yes") but its date is old → "yes STALE":
             # status and date validate independently, so an aging plan is flagged
@@ -137,8 +139,8 @@ def test_render():
     check("| Project | Verdict | Model | Stage | Reviewed | Actuals | Plan | Research |" in md,
           "assessed table header carries the two new columns")
     # stage derivation, now area-qualified wikilinks
-    check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) | active | 5d |" in md,
-          "alpha row: tracked + plan active + research 5d, area-qualified")
+    check("| ai-tools/[[alpha]] | monetize | paid | tracked | 0d | 2026-07-11 (2) | active | 5d · 23c |" in md,
+          "alpha row: tracked + plan active + research 5d · 23c (exhausted → no marker)")
     check("| ai-tools/[[bravo]] | free-for-reputation | oss-services | launched | 3d | — | — | yes |" in md,
           "bravo row: launched, no plan (—), research exists w/o date (yes)")
     check("| ai-tools/[[charlie]] | park | — | assessed | 40d | — | yes | — |" in md,
@@ -151,8 +153,8 @@ def test_render():
           "pipe in name/model escaped, row stays a single 8-cell line")
     # staleness markers: hotel (research 120d, plan 200d) both > 90d → STALE;
     # india (both exactly 90d) → NOT stale (strict >)
-    check("| ai-tools/[[hotel]] | monetize | paid | modeled | 120d | — | draft STALE | 120d STALE |" in md,
-          "hotel row: stale plan + stale research both marked")
+    check("| ai-tools/[[hotel]] | monetize | paid | modeled | 120d | — | draft STALE | 120d STALE · 4c OPEN |" in md,
+          "hotel row: stale plan + stale research + thin open competitor list all marked")
     check("| ai-tools/[[india]] | monetize | paid | modeled | 90d | — | active | 90d |" in md,
           "india row: exactly-90d artifacts NOT marked stale (strict > boundary)")
     check("| ai-tools/[[juliet]] | monetize | paid | modeled | 5d | — | yes STALE | — |" in md,

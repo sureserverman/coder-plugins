@@ -23,7 +23,7 @@ emit an uncited guess. `assess` expects the project to exist in `~/.claude/proje
 |-------|------|
 | `/business:assess` | Viability triage → `business/BUSINESS.md` verdict (monetize / free-for-reputation / internal-only / park). Opt-in `--research` (reuses a fresh `market-research.md`). |
 | `/business:revenue-model` | Monetization model, pricing, channels, numeric dated targets for an assess-passed project. |
-| `/business:market-research` | Tiered (`brief`/`standard`/`deep`), cited market pass — competitors, pricing, TAM/SAM/SOM, trends, positioning, plus competitor-marketing teardown and customer personas at `standard`/`deep` → `business/market-research.md`. Asks the tier + confirms scope up front. Writes nothing if WebSearch is unavailable. |
+| `/business:market-research` | Tiered (`brief`/`standard`/`deep`), cited competitive analysis following a working method — who solves the same problem (three-pass list, coverage rate), pricing, channels, demand; at `standard`+ a competitor table (`business/competitor-table.yaml`) with a quadrant sweep, six-block profiles, sizing, a durability test and a five-component positioning; at `deep` trajectories, battlecards, partner candidates, monitoring indicators → `business/market-research.md`. Confirms the customer-job statement and scope up front. Writes nothing if WebSearch is unavailable. |
 | `/business:business-plan` | Compose verdict + model + research + gtm + metrics into a tiered twelve-section `business/plan.md` (adds Customer personas and SWOT & positioning). Asks the depth tier and confirms gaps up front. |
 | `/business:launch` | Go-to-market plan → `business/gtm-plan.md`, guarded by `MATURITY.md` state. |
 | `/business:track` | Record actuals (incl. optional marketing funnel) → `business/metrics.md`, diff vs targets, bump Last reviewed. |
@@ -35,7 +35,7 @@ All seven are invocable as `/business:<skill>` and also fire on natural language
 
 ### `market-researcher`
 
-Gathers **cited** market evidence for one project: competitors and their pricing, market signals, distribution-channel norms. Dispatched by `market-research` (and by `assess --research`) — one agent per research axis, in parallel — rather than invoked directly.
+Gathers **cited** competitive-analysis evidence for one project by the method in `references/competitive-analysis-method.md`: a competitor is anyone who solves the same problem, listed in three passes (category, customer-job, alternatives) and classed direct/indirect, with the discovery rate tracked so "no competitors" reads as a failed search rather than a finding; pricing (unpublished prices traced to where a customer asked in public), channels, demand; at `standard`+ the competitor table as YAML plus six-block profiles (team — public professional history only, strategy, product with *measured* weaknesses, marketing, metrics with their estimation method, investment/organization). Dispatched by `market-research` (and by `assess --research` at `triage`) rather than invoked directly. It never writes files, never renders a verdict, and never makes a product recommendation.
 
 **Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`.
 
@@ -46,7 +46,8 @@ Gathers **cited** market evidence for one project: competitors and their pricing
 Per project, under `<vault_dir>/Portfolio/<area>/<project>/business/`:
 
 - `BUSINESS.md` — canonical, schema-versioned. Sole machine-readable index.
-- `market-research.md` — tiered, cited market evidence (schema 2; `research` block with `depth`).
+- `market-research.md` — tiered, cited competitive analysis (schema 3; `research` block with `depth`, `competitors` row count, `coverage` exhausted|open).
+- `competitor-table.yaml` — the competitor table (schema 1): rows × characteristics in four categories, every cell a quantity; parsed only by `scripts/competitor-table.py`, which normalizes it to −5…+5, sweeps axis pairs, and renders `quadrant-<x>-<y>.svg` / `trajectory-<x>-<y>.svg` beside it.
 - `plan.md` — tiered twelve-section business plan (schema 2; `plan` block with `depth`).
 - `gtm-plan.md` — dated go-to-market checklist (portfolio-unify-parseable).
 - `metrics.md` — append-only actuals log.
@@ -106,9 +107,22 @@ shouldn't be commercialized.
 /business:market-research
 ```
 
-Asks for a depth tier (`brief` / `standard` / `deep`) and confirms scope before doing anything.
-Fans out `market-researcher` agents and writes `business/market-research.md` — **cited**. If
-WebSearch is unavailable it writes nothing at all rather than producing a research-shaped file
+Asks for a depth tier (`brief` / `standard` / `deep`) and confirms scope — including the
+customer-job statement *"when [situation], I want to [action], so that [outcome]"* the whole
+list rests on — before doing anything. Dispatches `market-researcher`, writes
+`business/market-research.md` — **cited** — and at `standard`+ the competitor table, then runs
+the deterministic lane over it:
+
+```text
+python3 scripts/competitor-table.py validate   business/competitor-table.yaml
+python3 scripts/competitor-table.py sweep      business/competitor-table.yaml --size headcount
+python3 scripts/competitor-table.py quadrant   business/competitor-table.yaml --x price --y depth --size headcount --svg quadrant-price-depth.svg
+python3 scripts/competitor-table.py trajectory business/competitor-table.yaml --x price --y depth --size headcount --svg trajectory-price-depth.svg
+```
+
+The sweep ranks axis pairs by where the project stands furthest from everyone and how many
+quadrants are empty, and flags groups that scatter; the operator picks the map. If WebSearch
+is unavailable the skill writes nothing at all rather than producing a research-shaped file
 from training data.
 
 ```text

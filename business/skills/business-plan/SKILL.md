@@ -72,8 +72,8 @@ Read the project's `research` block from the scanner. Two things matter: **fresh
 (`research.age_days` ≤ **90**) and **effective depth**. Map the artifact's `research.depth`
 to an effective tier: schema-2 `brief`/`standard`/`deep` are themselves; legacy schema-1
 `full` ≈ `deep` and `triage` ≈ `brief`. A plan's Competitive landscape, SWOT, and Marketing
-& sales sections draw on the competitor-marketing and positioning evidence that only a
-**`standard`+** research pass produces.
+& sales sections draw on the quadrant, durability, positioning and marketing evidence only
+a **`standard`+** research pass produces.
 
 - **Fresh AND effective depth ≥ `standard`** → `Read` `business/market-research.md` and
   compose the Market analysis, Competitive landscape, SWOT & positioning, and Marketing &
@@ -134,9 +134,9 @@ sections deliberately:
 - **Customer personas** — from `market-research.md`'s `## Customer personas` (or the
   confirmed audience if research was skipped/brief), marking any assumption-based persona.
 - **SWOT & positioning** — Strengths/Weaknesses from the operator interview,
-  Opportunities/Threats from the research's positioning gaps and trends, plus a one-sentence
-  positioning statement ("For <persona>, <project> is the <category> that <differentiator>,
-  unlike <competitor>").
+  Opportunities/Threats from the research's positioning gaps and trends, plus the line
+  from the research's `## Positioning` (alternatives → unique attributes → value →
+  customers → category).
 - **Marketing & sales** — a channel playbook informed by `market-research.md`'s
   `## Competitor marketing`: which channels to work and why, the messaging angle from the
   positioning statement, and (at `deep`) what to imitate vs. counter per competitor. Links to

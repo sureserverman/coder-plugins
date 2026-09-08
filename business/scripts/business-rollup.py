@@ -103,12 +103,22 @@ def research_of(p):
     """Research column: the market-research.md age in days when one exists (so a
     stale artifact is visible at a glance), `yes` if it exists but its date didn't
     parse, else —. Same additive degradation as plan_of. An artifact older than the
-    staleness window gets a ` STALE` marker appended to its age."""
+    staleness window gets a ` STALE` marker appended to its age. A schema-3 artifact
+    also shows its competitor-table row count (`· 23c`) and an ` OPEN` marker when
+    the competitor search was not exhausted — a thin or unfinished list is as much
+    a research gap as a stale one (competitive-analysis-method.md §3). Older
+    artifacts carry neither field (null) and render as before."""
     r = p.get("research")
     if not r or not r.get("exists"):
         return "—"
     age = r.get("age_days")
-    return _cell(f"{age}d{_stale_suffix(age)}" if isinstance(age, int) else "yes")
+    cell = f"{age}d{_stale_suffix(age)}" if isinstance(age, int) else "yes"
+    n = r.get("competitors")
+    if isinstance(n, int) and not isinstance(n, bool):
+        cell += f" · {n}c"
+    if r.get("coverage") == "open":
+        cell += " OPEN"
+    return _cell(cell)
 
 
 def render(doc):
