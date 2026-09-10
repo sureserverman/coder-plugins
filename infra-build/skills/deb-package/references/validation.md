@@ -31,6 +31,7 @@ Consult this file during an audit, before building, or when troubleshooting a `d
 | `Architecture: all` for compiled binary | Use `amd64` or `arm64` |
 | Makefile at project root | Should be at `rust/Makefile` |
 | Modifying `mac/` directory during deb work | `mac/` is macOS .pkg — leave it alone |
+| `dpkg-sig --sign builder` in the pack workflow | Delete the step: not in Ubuntu since 23.04, and the signature apt checks is the repo's Release, signed by `infra/utils/publish` |
 
 ## GitHub Actions Pack Workflow Pattern
 
@@ -39,6 +40,23 @@ Consult this file during an audit, before building, or when troubleshooting a `d
   run: dpkg-deb --build deb/package <name>.deb
 - name: version
   run: echo "VERSION=$(grep Version deb/package/DEBIAN/control | cut -d ' ' -f 2)" >> $GITHUB_ENV
-- name: sign
-  run: dpkg-sig --sign builder <name>.deb
 ```
+
+**No per-package signing step, deliberately.** This pattern used to end with
+`dpkg-sig --sign builder <name>.deb`. That line is why the adminitools and
+ssh-menu pack jobs sat red from April to September 2026: Ubuntu last published
+`dpkg-sig` in lunar (23.04), so on `ubuntu-latest` (noble) the install ahead of
+it ends at `E: Unable to locate package dpkg-sig`, exit 100.
+
+Do not swap in `debsigs` either, even though it is still packaged. What apt
+verifies is the repository's Release signature, which `infra/utils/publish`
+produces: `reprepro includedeb` into every distribution in `distr.list`, signed
+with the repo key (`SignWith` in `/var/www/repository/conf/distributions`). A
+signature embedded in the `.deb` itself — `_gpgbuilder` from dpkg-sig,
+`_gpgorigin` from debsigs — is read by nothing here: no project in the portfolio
+runs `dpkg-sig --verify` or `debsig-verify`, and the newest pack workflow
+(usb-lock) attaches unsigned artefacts to a GitHub release.
+
+If a release artefact has to be verifiable outside apt, attach a detached
+`gpg --armor --detach-sign` signature beside it. An embedded one will not be
+checked by anything.
