@@ -134,6 +134,48 @@ python3 <planning-plugin>/skills/planning-projects/scripts/validate-gate-checks.
 the rule and are only *reported* by `executing-plans`, never retro-failed; that asymmetry is
 deliberate, because a check executors learn to route around protects nothing.
 
+### The fourth error: grep cannot read prose, so the check dies when you document the thing
+
+A sweep can have the right set, the right direction, and still be unable to go green — because
+**grep matches a paragraph about the code exactly as readily as the code.**
+
+```
+! grep -rn 'Yes, I trust this folder\|No, exit' src/ | grep -v 'adapters/agents/'
+```
+
+The property meant here is real: *only the agent verticals carry dialog wordings.* The
+instrument cannot measure it. The day someone writes a comment explaining why a bare Enter
+answers "No, exit", the check goes red — and nothing is wrong with the code. **The check fails
+precisely when the codebase is at its best-documented.**
+
+Measured, not supposed: one master plan ran four checks of this shape across three sub-plans and
+**all four failed on comments and docstrings, none on a defect**, holding two plans blocked for
+three days. One of them, `! grep -rn '"tmux"' src/…/application/`, was matching
+`REQUIRED_DEPENDENCIES = ("tmux", "git")` — the dependency's own name.
+
+**Write it as a test that reads values, not text.** The repair in that case was an architecture
+test that collects the wordings each vertical *declares* and asserts the set, which excludes
+docstrings by construction, is mutation-checked, and runs on every commit rather than on the day
+somebody runs the plan. It also found a real duplication on its first run, which the grep never
+could have.
+
+**The tell:** ask whether your pattern could appear in a sentence *about* the code. `resize-pane`,
+`No, exit` and `"tmux"` all can. `TRUST_ANSWERABLE = frozenset` mostly cannot — it carries syntax
+— which is why that sibling check passed in the same gate the other four failed.
+
+**The legitimate twin, so you can tell them apart.** The identical syntax is right when you mean
+*any occurrence at all*:
+
+```
+! grep -rn 'sk-ant-' .          # a committed secret is a secret in a comment too
+! grep -rn 'TODO' src/          # a TODO in a comment is the only kind there is
+```
+
+There the prose match is the point. `validate-gate-checks.py` flags this shape as a **note, never
+a failure**, because no rule can tell which one you meant — 203 instances across 110 of 682 vault
+plans when it was measured, and the most frequent were secret scans. The note is a question, not
+a verdict: *is this about what the code does, or about what the bytes say?*
+
 ## Worked example — a sweep is not licence to sweep twice
 
 The rules pull in opposite directions and both are right. This one says *widen the check to
