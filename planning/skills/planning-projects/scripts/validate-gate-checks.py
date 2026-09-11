@@ -41,6 +41,38 @@ impossible to run:
                         never a selector (a whole-file regression run is legitimate, and
                         syntax cannot tell it from the defect).
 
+A FOURTH axis — REPORTED, NEVER FAILED, and the reason why is the interesting part:
+
+    PROSE-BLIND-SWEEP   a negated recursive grep over a source tree, for a pattern of
+                        bare words. grep cannot tell a string the code *sends* from a
+                        paragraph *about* that string, so such a check fails the moment
+                        somebody documents the thing it forbids — which is exactly when
+                        the codebase is behaving well. Measured: remote-agents'
+                        2026-09-08 master ran four of these across three sub-plans and
+                        all four failed on comments and docstrings, none on a defect,
+                        holding two plans blocked for three days. The repair is an
+                        architecture test that reads VALUES rather than text.
+
+                        A NOTE rather than a failure, because the same syntax has a
+                        legitimate twin this script cannot distinguish from the defect.
+                        Measured over the vault corpus before choosing: 203 instances
+                        across 110 of 682 plans, and the most frequent patterns include
+                        `sk-ant-` (a committed-secret scan) and `TODO`. For those,
+                        matching a comment is the POINT — a secret in a comment is still
+                        a secret — and grep is exactly the right instrument. The defect
+                        and the correct use differ only in what the author meant by the
+                        pattern, which is not syntactic, so this follows PROSE and the
+                        `Scope:` advisory rather than INSTANCE-SHAPED. An advisory that
+                        is wrong on its own stated criteria teaches authors to route
+                        around it; failing 16% of the corpus on a judgment the script
+                        cannot make would be exactly that.
+
+                        Narrow anyway, so the note stays worth reading: negated AND
+                        recursive AND bare-word-patterned (`TRUST_ANSWERABLE = frozenset`
+                        carries an `=` and is left alone — it passed in the same gate the
+                        other four failed), with a comment-excluding pipeline exempt and
+                        `(judgment)`/`(scoped)` exempt as elsewhere.
+
 A THIRD axis, and the only one that leaves the gate section entirely — it reads the
 plan's TASK fields:
 
@@ -57,7 +89,7 @@ plan's TASK fields:
                         to bound. Master plans are skipped: they carry no tasks.
 
 Exit 0 when no INSTANCE-SHAPED, no SELECTOR-UNMATCHED and no TASK-TEST-UNSCOPED finding
-is present, 1 otherwise, 2 on bad usage. Always prints a per-class count and the total
+is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP never changes the exit code. Always prints a per-class count and the total
 examined: an empty sweep must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
@@ -540,6 +572,107 @@ def unswept_scopes(text):
     return out
 
 
+# --- PROSE-BLIND-SWEEP -------------------------------------------------------------
+#
+# A FOURTH axis, and the same kind of thing as SELECTOR-UNMATCHED: not "is this check
+# well shaped" but "can this check ever go green". A negated recursive grep over a
+# source tree asserts that a string appears NOWHERE in it — and grep cannot tell a
+# string the code *sends* from a paragraph *about* that string. So the check fails the
+# moment somebody documents the thing being forbidden, which is precisely when the
+# codebase is behaving well. The property is real; the instrument cannot measure it.
+#
+# Measured incident, which is why this is a failure and not a note: remote-agents'
+# 2026-09-08 master ran FOUR checks of this shape across three sub-plans and every one
+# of them failed on prose, holding two plans at `[~]` for three days. The surviving
+# matches were, in order: a docstring explaining why a bare Enter answers "No, exit";
+# two comments explaining why the right column is resized top-down; and a dependency's
+# own NAME plus its `--version` flag (`! grep -rn '"tmux"' src/…/application/` matched
+# `REQUIRED_DEPENDENCIES = ("tmux", "git")`). Not one was a defect. All four were
+# replaced by architecture tests that read VALUES rather than text, exclude docstrings,
+# are mutation-checked, and run on every commit rather than on the day somebody runs
+# the plan — which is the repair this rule points at.
+#
+# Deliberately narrow, because the shape is not always doomed. Three conditions, all
+# required, each one observed to matter:
+#
+#   NEGATED       `! grep …`. A positive grep asserting presence is a different and
+#                 weaker problem (prose can satisfy it spuriously); only the absence
+#                 assertion is *unpassable*, which is what this axis is for.
+#   RECURSIVE     `-r`/`-R`, or a directory target. The frozen corpus's one negated
+#                 grep reads a single `.md` file, which is a scoped fact about one
+#                 artifact and stays green; flagging it would be wrong.
+#   PROSE-ABLE    at least one alternative in the pattern is bare words — no regex or
+#                 code structure. `TRUST_ANSWERABLE = frozenset` carries an `=` and is
+#                 left alone (it passed, in the same gate the other four failed);
+#                 `^## BL-02[0-7] ` carries an anchor and a class and is left alone.
+#                 `resize-pane`, `"tmux"`, `No, exit` and `Trust this project` are all
+#                 bare words and are all flagged.
+#
+# A pipeline that already excludes comments is exempt — that author solved the problem
+# rather than walking into it. Excluding a *directory* is not excluding comments, which
+# is the distinction the incident turned on: three of the four checks carried a
+# `| grep -v '<dir>/'` and still matched four comments and a docstring.
+#
+# `(judgment)` and `(scoped)` are exempt, for consistency with SELECTOR-UNMATCHED
+# rather than because the grep would work: a marked check is already routed to a human.
+# None of the four incident checks carried a marker, so the exemption costs nothing
+# that has actually been observed.
+
+# A `grep -v` whose own pattern is comment syntax: the author is already stripping prose.
+_COMMENT_FILTER = re.compile(r"grep\s+-\w*v\w*\s+(['\"])[^'\"]*(?:#|//|\\\*|\"\"\")")
+
+_SWEEP = re.compile(
+    r"(?P<tool>grep|rg)\b(?P<flags>(?:\s+-{1,2}[\w-]+)*)\s+(?P<q>['\"])(?P<pat>.*?)(?P=q)")
+
+# Regex metacharacters and code punctuation. Either one means the pattern is anchored to
+# syntax rather than to words, and a comment is unlikely to reproduce it by accident.
+_STRUCTURE = re.compile(r"[=(){}\[\];:<>^$*+?\\]")
+# What is left must read as language: words, digits, spaces and the punctuation that
+# shows up inside a user-facing string or a hyphenated command verb.
+_WORDS = re.compile(r"[\w\s,.'\u2019\"\-\u2014\u2026!?]+")
+
+
+def _prose_able(alternative):
+    """Is this pattern alternative bare words that a comment could easily contain?"""
+    alt = alternative.strip()
+    if not alt:
+        return False
+    if _STRUCTURE.search(alt):
+        return False
+    return bool(_WORDS.fullmatch(alt))
+
+
+def prose_blind_sweeps(text):
+    """-> [(check, command, the prose-able alternative)] for unpassable absence greps."""
+    out = []
+    for check in gate_checks(text):
+        if re.search(r"\(judgment\)|\(scoped\)", check, re.I):
+            continue
+        for span in backticked(check):
+            cmd = span.strip()
+            if not cmd.startswith("!"):
+                continue
+            m = _SWEEP.search(cmd)
+            if not m:
+                continue
+            # `rg` recurses by default; `grep` must be told to. Asked of the tool rather
+            # than guessed from the target, because a path containing a slash is not a
+            # directory — `src/one.py` is one file, and reading it as a tree made this
+            # rule flag a scoped single-artifact check.
+            flags = m.group("flags") or ""
+            if m.group("tool") != "rg" and not re.search(r"-\w*[rR]", flags):
+                continue
+            if _COMMENT_FILTER.search(cmd):
+                continue
+            # BRE `\|` and ERE `|` both separate alternatives; one bare-word alternative
+            # is enough to doom the check, so the first is reported rather than all.
+            hits = [a for a in re.split(r"\\\||\|", m.group("pat")) if _prose_able(a)]
+            if hits:
+                out.append((check, cmd, hits[0].strip()))
+                break
+    return out
+
+
 # --- TASK-TEST-UNSCOPED ------------------------------------------------------------
 #
 # A THIRD axis, separate from shape and from selector-matchability: not "is this gate
@@ -847,6 +980,7 @@ def main(argv=None):
     failures = []
     selector_failures = []
     task_test_failures = []
+    prose_blind_failures = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -864,6 +998,8 @@ def main(argv=None):
             selector_failures.append((path, c, sel_path, expr, why))
         for task, cmd, why in unscoped_task_tests(raw, path):
             task_test_failures.append((path, task, cmd, why))
+        for c, cmd, word in prose_blind_sweeps(raw):
+            prose_blind_failures.append((path, c, cmd, word))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -909,6 +1045,18 @@ def main(argv=None):
             print(f"  {path.name}: {task[:80]}\n      → `{cmd[:96]}` — {why}",
                   file=sys.stderr)
 
+    # Advisory, never a failure: it changes no exit code. See the docstring for the
+    # measurement that settled that — the identical syntax is correct for a secret or
+    # TODO scan, where matching a comment is the point, and no rule here can tell which
+    # one the author meant. Kept out of the shape totals so the frozen-corpus
+    # calibration stays comparable.
+    for path, c, cmd, word in prose_blind_failures:
+        print(f"\nnote: {path.name}: `{cmd[:72]}` sweeps a source tree for {word!r}, "
+              f"which grep will also match in a comment or docstring about it — so the "
+              f"check goes red the day somebody documents it. If the property is about "
+              f"what the code DOES, assert it as values in a test; if you do mean any "
+              f"occurrence at all (a secret or TODO scan), this note is not for you.")
+
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
     # while the aggregate looked healthy.
@@ -928,6 +1076,8 @@ def main(argv=None):
         print(f"selector-unmatched {len(selector_failures)} (separate axis — see above)")
     if task_test_failures:
         print(f"task-test-unscoped {len(task_test_failures)} (separate axis — see above)")
+    if prose_blind_failures:
+        print(f"prose-blind-sweep {len(prose_blind_failures)} (advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 

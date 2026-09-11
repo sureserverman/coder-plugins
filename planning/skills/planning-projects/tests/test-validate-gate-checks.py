@@ -165,7 +165,7 @@ check(len(vgc.gate_checks("### Stage 2 Gate\n- [ ] a\n")) == 1, "Stage N Gate ma
 check(len(vgc.gate_checks("#### Gate\n- [ ] a\n")) == 1, "a bare Gate heading matches")
 
 print("group 5 — exit codes and the empty-sweep refusal")
-rc, out = run(plan("`! grep -rl 'x' plugins/`"))
+rc, out = run(plan("`! grep -rl 'console.log(' plugins/`"))
 check(rc == 0 and "instance-shaped 0" in out, "a clean plan exits 0 and reports counts")
 rc, out = run(plan("the README no longer claims X"))
 check(rc == 1 and "instance-shaped 1" in out, "an instance-shaped check exits 1")
@@ -173,7 +173,7 @@ check("names one artifact" in out, "the failure names why, not just that")
 rc, out = run("# Project Plan: x\n\n## Stage 1: x\n\nNo gate here at all.\n")
 check(rc == 2 and "0 gate checks" in out,
       "a plan with no gate checks exits 2 — an empty sweep must not read as a pass")
-rc, out = run(plan("`! grep -rl 'x' p/`"), extra=("--quiet",))
+rc, out = run(plan("`! grep -rl 'console.log(' p/`"), extra=("--quiet",))
 check(rc == 0 and "gate check(s) across" in out, "--quiet still reports the totals")
 r = subprocess.run([sys.executable, SCRIPT, "/nonexistent/nope.md"],
                    capture_output=True, text=True)
@@ -581,6 +581,63 @@ check(run(tiered_plan("`pytest tests/unit/test_x.py`"))[0] == 0, "a scoped task 
 _flag = vgc.unscoped_task_tests(tiered_plan("`make lint && pytest -q && make docs`"))
 check(len(_flag) == 1 and _flag[0][1] == "pytest -q",
       "the message names the offending invocation, not the line it sits in")
+
+print("group 10 — PROSE-BLIND-SWEEP: a negated recursive grep that cannot go green")
+
+def gated(check):
+    return "## Stage 1\n\n### Stage 1 Gate\n" + check + "\n"
+
+# The four real checks from the remote-agents 2026-09-08 master, verbatim in shape. Every
+# one failed on a comment or a docstring, none on a defect.
+for pat, target in [
+        ("Yes, I trust this folder\\|No, exit", "src/remote_agents | grep -v 'adapters/agents/'"),
+        ("resize-pane\\|select-pane", "src/remote_agents | grep -v codec.py"),
+        ('"tmux"', "src/remote_agents/application/"),
+        ("Trust this project\\|Don.t trust", "src/remote_agents/application/")]:
+    c = f"- [ ] `! grep -rn '{pat}' {target}`"
+    check(len(vgc.prose_blind_sweeps(gated(c))) == 1,
+          f"flagged: bare-word absence sweep for {pat[:28]!r}")
+
+# The sibling in the SAME gate that passed. Carrying `=` it is anchored to syntax, so a
+# comment is unlikely to reproduce it — flagging it would be a false positive on a check
+# that genuinely went green.
+check(not vgc.prose_blind_sweeps(gated("- [ ] `! grep -rn 'TRUST_ANSWERABLE = frozenset' src/`")),
+      "not flagged: pattern carries code structure (`=`)")
+
+# The frozen corpus's only negated grep: one .md file, a regex class and an anchor.
+check(not vgc.prose_blind_sweeps(gated(
+          "- [ ] `! grep -qE '^## BL-02[0-7] ' /mnt/vault/Portfolio/x/backlog.md`")),
+      "not flagged: non-recursive, single artifact, anchored regex (the corpus entry)")
+
+check(not vgc.prose_blind_sweeps(gated("- [ ] `! grep -rn 'No, exit' src/ | grep -v '^\\s*#'`")),
+      "not flagged: the pipeline already excludes comments")
+check(not vgc.prose_blind_sweeps(gated("- [ ] **(judgment)** `! grep -rn 'No, exit' src/`")),
+      "not flagged: (judgment) exempt, as on the selector axis")
+check(not vgc.prose_blind_sweeps(gated("- [ ] **(scoped)** `! grep -rn 'No, exit' src/`")),
+      "not flagged: (scoped) exempt, as on the selector axis")
+check(not vgc.prose_blind_sweeps(gated("- [ ] `grep -rn 'No, exit' src/` returns 3")),
+      "not flagged: a positive grep is a different and weaker problem")
+check(not vgc.prose_blind_sweeps(gated("- [ ] `! grep -n 'No, exit' src/one.py`")),
+      "not flagged: not recursive and names one file")
+
+# Excluding a DIRECTORY is not excluding comments — the distinction the incident turned on.
+check(len(vgc.prose_blind_sweeps(gated(
+          "- [ ] `! grep -rn 'No, exit' src/ | grep -v 'adapters/'`"))) == 1,
+      "still flagged: a directory exclusion does not make grep prose-aware")
+
+_rc, _out = run(gated("- [ ] `! grep -rn 'No, exit' src/remote_agents/`"))
+# ADVISORY, and this is the assertion that pins it. The identical syntax is correct for a
+# secret or TODO scan (`! grep -rn 'sk-ant-' .`), where matching a comment is the point,
+# and nothing syntactic separates that from the defect — so this must never move an exit
+# code. Measured before choosing: 203 instances across 110 of 682 vault plans.
+check(_rc == 0, "a plan carrying one still exits 0 — advisory, never a failure")
+check("prose-blind-sweep" in _out.lower(), "reported under its own name, on its own axis")
+check("assert it as values in a test" in _out, "the message names the repair, not just the defect")
+check("not for you" in _out, "the message concedes the legitimate twin rather than assuming the defect")
+check(not vgc.prose_blind_sweeps(gated("- [ ] `! grep -rn 'sk-ant-' src/ | grep -v '^\\s*#'`")),
+      "a secret scan that already strips comments is not flagged")
+_n = vgc.prose_blind_sweeps(gated("- [ ] `! grep -rn 'No, exit' src/`"))
+check(_n and _n[0][2] == "No, exit", "the message names the offending alternative")
 
 print("group 9 — the docstring's calibration numbers match the frozen corpus")
 # Unconditional: the corpus is in the repo, so this runs everywhere the suite runs —
