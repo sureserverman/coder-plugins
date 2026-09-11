@@ -61,7 +61,10 @@ news. Triage before repairing, and bound the loop.
 
 **Remediation budget — default 2 rounds per gate.** One round is classify →
 repair → re-verify — and **a re-dispatched review or evaluator is itself a round**
-(trunk, § Remediation budget), never a free confirmation of a round already spent.
+(trunk, § Remediation budget), never a free confirmation of a round already spent — and one
+owed only to a Critical / Blocking fix: a round spent on Important / Material findings
+closes on its fix-scope re-run with no re-dispatch (`stage-gate.md` § Independent evaluator
+for non-command checks).
 
 **What a round now costs, stated because the default was chosen before it grew.**
 Step 2 above absorbed evidence-first root-cause diagnosis, three-way set derivation

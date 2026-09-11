@@ -173,6 +173,20 @@ resolve to the one exit criterion in this file. An evaluator FAIL carrying no Bl
 is a **pass with recorded residuals**, not a failure — tell the evaluator so explicitly, or
 it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition.
 
+**One dispatch per role per gate unless something Blocking was fixed.** A Material finding
+is fixed and its fix proven at fix-scope by the executor; it does **not** re-dispatch the
+evaluator, and an Important finding does not re-dispatch the reviewer. Re-dispatch is owed
+only to a Blocking / Critical fix, because only there is the verdict itself in question.
+Measured 2026-09-10/11 (multitor, one master, three sub-plans): 13 of 13 gate evaluators
+returned Material findings, every one fed a remediation commit, and the re-dispatches after
+Material-only rounds cost 28 minutes for no changed verdict.
+
+**Never brief it with a command check.** The suite is the executor's to run; an evaluator
+handed *"the stage-scope suite passes over the committed tree"* as a criterion re-runs the
+suite itself. Measured (remote-agents, 2026-09-11): a gate evaluator ran the 11-minute
+suite and took 16.6 minutes, the close-out evaluator ran `tests/unit` and took 20. Brief it
+with the goal and the `(judgment)` lines only.
+
 ## Deep code review (Tier 2)
 
 Whether it runs, and at what shape, comes from `../references/review-scope.md`. The evaluator
@@ -349,9 +363,11 @@ like fresh news.
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
-**A re-dispatched review or evaluator is a round.** Fixing a finding and asking the same
-reviewer again is the loop the budget exists to bound, so it is counted like any other round
-rather than treated as verification of a round already spent. Without this the gate has two
+**A re-dispatched review or evaluator is a round** — and one owed only to a Critical /
+Blocking fix; a round spent on Important / Material findings closes on its fix-scope re-run
+with no re-dispatch (§ Independent evaluator for non-command checks). Fixing a finding and
+asking the same reviewer again is the loop the budget exists to bound, so it is counted like
+any other round rather than treated as verification of a round already spent. Without this the gate has two
 counters and only one limit: repairs are bounded at 2, while fix → re-review → new findings →
 fix can run indefinitely because each pass is "just confirming the fix". The failure mode is
 not hypothetical — a fresh judgment agent reading a real artifact essentially always returns
@@ -392,6 +408,22 @@ few lines — a briefing, not a log.
 Red-Green loops, big tool outputs — is one to suggest restarting in a fresh session pointed at
 the plan path. The handoff note is what makes that safe; if you could not continue from it
 without the old transcript, the note was too thin, and that is the bug to fix.
+
+## The plan file is read whole
+
+Every session that resumes a plan reads the plan file in full before doing anything, so
+every byte written into it is paid at every resume and on every turn after. **The plan file
+receives the handoff note only — the shape above, about 15 lines per gate.** The gate report
+itself (each check with its evidence, the finding list, dispositions, the remediation
+narrative) goes in the `"Stage N green"` commit body; the Preflight report goes in the
+branch's first commit; an `ACTION NEEDED:` block and its resolution live in the transcript
+and the commit that resolved it. None of them is written under the stage.
+
+Measured (writer-pad sub-01, 2026-09-11): a 100 KB sub-plan whose largest sections were
+*Stage 2 Gate Report* (8.8 KB), *Stage 3 Gate — plan-scope re-run* (6.8 KB), *Execution
+Preflight record* (4.9 KB) and *ACTION NEEDED — updated* (4.9 KB); every session on it
+opened at 37–66k tokens of context before the first tool call, and the four sessions billed
+1.9 billion context tokens between them. The note is a briefing; the log is git's.
 
 ## The dispatched-vs-inline review ledger
 
@@ -461,6 +493,13 @@ Two things follow, and the second is the one that generalises:
    work so the expensive pass happens once, after every review round has landed — which is
    also what makes the light-plan close-out exemption reachable
    (`light-plans.md` item 5) rather than a clause that merely describes what did not happen.
+3. **The gate's evidence is two shas, and the report names both.** The stage- or plan-scope
+   pass stands at the sha it ran over; each commit landed after it by a review or evaluator
+   fix is proven by its fix-scope run. *"The tree moved"* is never, by itself, the reason
+   for another full pass — honest-gates' *commit first, then run it* rule governs the pass
+   you are about to record, not passes already recorded over a sha the log still names.
+   Measured (writer-pad sub-01, 2026-09-09..11): the `clean` device suite ran five times,
+   about six hours, each time because a remediation commit had landed after the last one.
 
 ## Same-diff reviews go out together
 

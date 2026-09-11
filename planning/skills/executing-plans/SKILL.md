@@ -22,22 +22,17 @@ The plan file was produced by `planning-projects`. It contains:
 
 If the plan doesn't have these fields, stop — it wasn't produced by `planning-projects` and must be either rewritten through that skill or executed manually.
 
-**Exception — master plans.** A `*-master-plan.md`, or a first heading of `# Master Plan:`
-(format: `../planning-projects/references/master-plan-format.md`). It deliberately has no
-Preflight, Stages, or Tasks — do NOT reject it; execute it per **Master plans** below.
-
-**Exception — light plans.** A `*-light-plan.md`, or `# Light Plan:` (format:
-`../planning-projects/references/light-plan-format.md`). It deliberately has no Research
-Summary, no Preflight, and no Risk / Rollback / Blocks / Parallel fields — a single stage of
-2–5 Status-carrying tasks and one gate. Do NOT reject it for those; execute it per **Light
-plans** below.
+**Exceptions.** A `*-master-plan.md` (`# Master Plan:`) or a `*-light-plan.md` (`# Light
+Plan:`). It deliberately has no Preflight, Stages or Tasks (master), or no Research Summary,
+Preflight, Risk / Rollback / Blocks / Parallel fields (light). Do NOT reject either — execute
+them per **Master plans** and **Light plans** below.
 
 ---
 
 ## Reference map
 
-The trunk carries what fires on every run — every rule that must bind, whole. These load when
-their condition is met: read the one you need rather than working from memory.
+The trunk carries what fires on every run; these load when their condition is met — read
+the one you need rather than working from memory.
 
 | Read this | When |
 |---|---|
@@ -125,11 +120,9 @@ with evidence, and what you need to resume. The context-reset guidance is an eff
 tactic for very large plans, **not** a licence to stop early: prefer a fresh session over a
 *degraded* one, never over *finishing the work*.
 
-**Never end a turn on an announcement.** *"Starting Stage 3."* as a turn's last words has not
-started Stage 3. The tool call opening the announced work — a stage, a task, or anything
-else this skill has you announce — goes in the **same turn** as the sentence announcing it,
-or instead of it where the sentence was yours to choose — never in place of it
-(`references/stage-gate.md` § If the gate passes).
+**Never end a turn on an announcement.** *"Starting Stage 3."* as last words has started
+nothing: the tool call opening the announced work goes in the **same turn** as the sentence,
+or instead of it — never in place of it (`references/stage-gate.md` § If the gate passes).
 
 ---
 
@@ -152,10 +145,9 @@ condition being met: **approving the plan WAS the request.**
 caution stands and you ask. This rule deletes a confirmation turn where a plan already
 authorized the work; it does not authorize dispatch in general, and it never makes a dispatch
 the *tier* did not fund (`references/review-scope.md`) suddenly due. A rule stated without its
-bound gets over-corrected into its own inverse, which is not hypothetical: the recorded
-response to this failure was *"standing rule, no exceptions: I won't dispatch unless you
-explicitly ask"* — inverting the rule rather than scoping it, and stripping the same reviews
-for the opposite reason.
+bound gets over-corrected into its own inverse — the recorded response to this incident was
+*"I won't dispatch unless you explicitly ask"*, stripping the same reviews for the opposite
+reason.
 
 **What still halts a dispatch**, unchanged: the probe fails or dispatch is unavailable (a
 Preflight failure and a documented Stop condition — the user chooses, and inline substitution
@@ -218,10 +210,8 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
    the defect class — each survivor costs another remediation round, and catching it here is
    the cheapest it will ever be.
 
-   **Advisory on an existing plan, mandatory on a new one** — note a flagged existing plan
-   and execute it anyway; `planning-projects` may not present a *newly authored* plan that
-   fails. Say which case you are in. The `(judgment)` marker is the sanctioned escape hatch:
-   a check that genuinely needs a reader carries it and routes to the evaluator at the gate.
+   **Advisory on an existing plan, mandatory on a new one** — say which case you are in.
+   `(judgment)` is the sanctioned escape hatch for a check that genuinely needs a reader.
 
 5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
    carried into the file so a session that never reads the register still implements under
@@ -258,30 +248,22 @@ The procedure for each — the steps, the worked examples, the incidents behind 
 
 ### Decisions re-check (the plan's snapshot can be stale)
 
-The register **accretes between planning and execution**, so Preflight does not trust the
-plan's recorded section: re-run the `decisions` skill's `relevant` operation for this project
-and its stacks, and diff it against the plan's `## Decisions in force`. A **new entry in
-scope** or **an entry the plan honors that is now superseded** is surfaced before Stage 1 — it
-may invalidate a task. **Unchanged** → say so in one line. A plan with no section gets the
-scan result as its working set: absence is not exemption.
-
-A report, not a stop condition — unless the diff invalidates a task outright, in which case it
-is a plan defect and returns to `planning-projects` (§ When to revisit earlier steps).
+The register **accretes between planning and execution**, so re-run the `decisions` skill's
+`relevant` operation and diff it against the plan's `## Decisions in force`: a new entry in
+scope, or a superseded one the plan honors, is surfaced before Stage 1; unchanged → one line;
+no section → the scan result is the working set. A report, not a stop — unless it
+invalidates a task, which returns the plan to `planning-projects`.
 
 ### Calibration re-check (the plan's ceremony can be stale)
 
-A plan's Preflight froze its review-scope tier, its test-scope commands and its roster at
-authoring time, and **the calibration references accrete too**. Recompute all three from
-today's rules (`references/review-scope.md`,
-`../planning-projects/references/test-scope-tiers.md`, and the plan's own `Parallel:` fields)
-and diff. **Unchanged** → one line. **Changed** → amend under the protocol, stating both
-values (`review-scope: high — recalibrated to bind tasks 1.1, 1.3; as authored, bound all
-12`). No declaration at all → recompute and record.
-
-**What is never recomputed: the plan's facts.** Tasks, their `Test:` fields, gate checks'
-substance, invariants, `Scope:` sets. Recalibration changes only what the run *costs*; a rule
-that let Preflight rewrite what a task must prove would be re-planning without the user in the
-room.
+Recompute the review-scope tier, the test-scope commands and the roster from today's rules
+(`references/review-scope.md`, `../planning-projects/references/test-scope-tiers.md`, the
+plan's `Parallel:` fields), **time the stage-scope command at the baseline run**, and diff
+against the plan's declarations. Unchanged → one line. Changed, or a stage-scope command over
+~5 minutes → amend under the protocol, stating both values.
+**What is never recomputed: the plan's facts** — tasks, `Test:` fields, gate checks'
+substance, `Scope:` sets; recalibration changes only what the run *costs*. Procedure:
+`references/preflight-checks.md`.
 
 ### Amending authored ceremony
 
@@ -363,7 +345,10 @@ agent dispatch is tiered, a mandate costing a line of text is not.
 
 **The format decides the review's SHAPE. The tier decides its DEPTH.** **Resolve a
 disagreement by the risk floor**, not by taking the lighter or the heavier option: touching a
-risk-listed area sets `high` whatever the size, and **size alone never escalates**. A tier is
+risk-listed area sets `high` whatever the size, and **size alone never escalates**.
+**Risk-listed names a path a task's diff touches, never a project's subject matter**: a
+`high` declaration that would bind more than a third of the plan's tasks is re-derived per
+task (`references/review-scope.md` § Risk-listed names a path, not a project). A tier is
 a floor, not a ceiling — escalate mid-plan when the diff turns out riskier than it looked and
 say so in the gate report; never quietly de-escalate.
 
@@ -400,8 +385,7 @@ unavailable dispatch *raises* the Stop condition, it does not resolve it — the
 follows is the user's. *"It seemed easier inline"* and *"I judged it unnecessary"* are not on
 that list. Run it, say so in the gate report's dispatch line with the reason, and let
 the trailer record `Executor: inline (dispatch failed)` or `Executor: inline (user
-authorised)` — a bare `Executor: inline` on a task the plan marked `YES` is the shape that
-hides a silent downgrade.
+authorised)` — a bare `Executor: inline` on a `YES` task hides a silent downgrade.
 
 **If the matched capability's plugin isn't enabled**, don't fall through to `general-purpose`
 with no domain knowledge — resolve it from disk per that same routing reference. A component
@@ -441,28 +425,30 @@ write them.** The measured incident behind all three: `references/task-execution
 2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
-4a. **Prove it — Step 3.3's test-first rule cannot be checked after the fact.**
-   Nothing in a finished artifact distinguishes a test written first from one
-   transcribed out of the fix afterwards; both are green. So before flipping Status, **revert the fix (not the test), re-run, confirm RED, and
-   record the mutation and count in the commit** — *"reverting the `active` expression
-   turns 3 checks red"*. That is verifiable later; "I wrote it first" is not.
-   Two corollaries: enumerate the population **as a command, before patching**, and
-   **build fixtures from the requirement, never from observed behavior**. Untiered
-   (DEC-010's cost line: a re-run, not an agent), so it runs at every scope including
-   `none`. **And before writing a CHECKER rather than a test, ask first whether the mechanism
-   can decide the property at all** — make the property structural or leave it to review.
-   Rationale: `../honest-gates/SKILL.md` § *A test does not exist until its mutant dies*.
+4a. **Prove it — one mutant per task, on the host.** Nothing in a finished artifact
+   distinguishes a test written first from one transcribed out of the fix; both are green.
+   So before flipping Status, **revert the fix (not the test), re-run the task's own
+   `Test:`, confirm RED, and record the mutation and count in the commit** — *"reverting
+   the `active` expression turns 3 checks red"*. Untiered (a re-run, not an agent), so it
+   runs at every scope including `none` — **but never on a device, VM or instrumented
+   suite**: on an expensive-suite project the mutant is proved against the host-side test
+   guarding the same line, or the commit records `mutation: not proved — device-only test`.
+   The per-guard *battery* belongs to verdict-producing checker scripts, not product tests.
+   Corollaries: enumerate the population **as a command, before patching**; **build
+   fixtures from the requirement, never from observed behavior**; and before writing a
+   CHECKER rather than a test, ask whether the mechanism can decide the property at all.
+   Rationale and the measured cost: `../honest-gates/SKILL.md` § *A test does not exist
+   until its mutant dies*.
 
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
 7. **Commit after each green task** (`"Stage 2 Task 2.3: parse config entries"`), including the work, any Tier-1 fixes, and — where this repo contains the plan — the flipped `Status: [x]`. The per-task commit is the unit of record and what makes a mid-plan stop recoverable. A passed gate adds its own `"Stage N green"` commit: keep **both** granularities, never collapse to one.
 
-   **The plan file may not live in the repo you are committing to.** A plan can sit outside
-   the repo it plans — the portfolio convention keeps it in the vault — so **edit the plan at
-   its absolute path and run every git command from the repo root**. Never `cd` to the plan's
-   directory first: the vault is not a git repository, so a directory change chained ahead of
-   `git add`/`git commit` dies on `fatal: not a git repository`, the plan edit already
-   landed. A vault-resident plan's `Status: [x]` flip therefore rides no commit
+   **The plan file may sit outside the repo it plans** — the portfolio convention
+   keeps it in the vault, which is not a git repository: edit the plan at its
+   absolute path and run every git command from the repo root, never `cd` to the plan's
+   directory first (a chained `git add` there dies on `fatal: not a git repository` after the
+   plan edit landed). A vault-resident plan's `Status: [x]` flip therefore rides no commit
    (`references/task-execution.md`).
 
    **Every per-task commit ends with an executor trailer** — the last line of the message, taking one of these shapes:
@@ -535,13 +521,11 @@ on the real artifact, not just the test suite, and a failure there is a gate fai
 (a `settings.gradle{,.kts}` / `app/build.gradle{,.kts}` present) → `android-stage-verify`.
 Brief it with the gate's tier: stage-scope at an intermediate gate, the full device suite at
 the final one — and that run **is** the plan-scope pass's device portion, not an addition to
-it. If no matching skill is installed, note it and rely on the regular gate checks; the
-absence of a platform verifier is not itself a gate failure.
+it. No matching skill installed → note it; that is not itself a gate failure.
 
 **A redesign stage carries the design-fidelity hook** in the same position — the
-`applying-design-handoff` fidelity verify loop, graded by a separate evaluator. If the tier
-does not fund that evaluator, **the hook does not run and the gate report says so**: a
-fidelity loop the executor scores itself is worse than none.
+`applying-design-handoff` fidelity verify loop, graded by a separate evaluator; if the tier
+does not fund that evaluator, **the hook does not run and the gate report says so**.
 
 Exact report shapes, both hooks' full procedure, the evaluator's briefing, and the Tier-2
 pass: `references/stage-gate.md`.
@@ -568,7 +552,9 @@ class swept), **Minor** (nit; recorded in the gate report and the handoff note, 
 blocking). **Tell it explicitly that a FAIL carrying no Blocking finding is a pass with
 recorded residuals**, or it will withhold PASS to seem rigorous and hand the loop an
 unsatisfiable condition: a fresh judgment agent reading a real artifact essentially always
-finds *something*, so "no adverse findings" is not a reachable state to wait for.
+finds *something*, so "no adverse findings" is not a reachable state to wait for. **A
+Material fix is proven at fix-scope without re-dispatching the evaluator; re-dispatch is
+owed only to a Blocking fix** (`references/stage-gate.md` § Independent evaluator for non-command checks).
 
 **Deep code review (Tier 2).** Whether it runs, and at what shape, comes from
 `references/review-scope.md`. It is a gate criterion, not advisory — a **Critical** here is a
@@ -638,9 +624,8 @@ fixed, so "green" never reads as "nothing was found".
 
 ## Context resets at stage boundaries
 
-Long executions degrade: a context window filled with stage-1 diagnostics is worse at stage 4
-than a fresh one, and automatic compaction loses unpredictable detail. Structured resets beat
-degraded context — and the plan file is already the handoff artifact.
+Long executions degrade and compaction loses unpredictable detail; structured resets beat
+degraded context, and the plan file is already the handoff artifact.
 
 - **Stage gates are the reset points.** After each gate passes, append a handoff note to the
   plan file under the stage: the deviations, surprises and decisions a fresh context needs
@@ -650,11 +635,12 @@ degraded context — and the plan file is already the handoff artifact.
   reason**, and they earn the space: the dispatch counts can be rebuilt from the trailers, but
   **the review ledger cannot** — which agent saw which diff exists only in the gate report.
   Committed with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a
-  log. Exact shape: `references/stage-gate.md`.
+  log. **The plan file gets the handoff note only (~15 lines); the gate report itself goes
+  in the `"Stage N green"` commit body, never into the plan**
+  (`references/stage-gate.md` § The plan file is read whole; exact shape there too).
 - **Resuming fresh:** a new session (or a post-compaction continuation) picks up the plan by
   reading the Research Summary, the `Status:` flips, and the handoff notes — never by needing
-  the prior transcript. If you find yourself unable to continue without the old transcript,
-  the handoff notes were too thin; that's the bug to fix.
+  the prior transcript; a note too thin to resume from is the bug to fix.
 
 ---
 
@@ -730,8 +716,7 @@ Ordered procedure, and what the report must contain: `references/close-out.md`.
 
 ## Sources and rationale
 
-Beck, Cooper, Gawande, Torvalds, *The Pragmatic Programmer*, Anthropic's harness-design work,
-Deming and Toyota's jidoka. What each one is load-bearing for: `references/sources.md`.
+What each source is load-bearing for: `references/sources.md`.
 
 ## Integration
 

@@ -76,7 +76,11 @@ fix that happens to make the check pass.
   the next stage, and CI all see the committed state, not yours. Commit first, then
   run the gate — and if a gate was run early to save time, re-run it after the commit
   rather than reporting the earlier result
-  (`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`).
+  (`/mnt/vault/Gotchas/Gate Verified Against Uncommitted Working Tree.md`). The re-run is
+  at the scope the change warrants: a pass recorded at sha A stands, and commits landed
+  after it by a review or evaluator fix are proven at fix-scope, the report naming both
+  shas — *"the tree moved"* alone never re-buys a full pass
+  (`../executing-plans/references/stage-gate.md` § A review fix does not re-earn the full pass).
 
 ## When a gate is BLOCKED
 
@@ -166,14 +170,9 @@ block, a required literal, a machine-readable marker — so the question becomes
 and text outside the structure cannot satisfy it. Or **leave it to review and say so in
 the checker**, which is what `check-behavioral-claims.py` not existing means.
 
-Written from a checker that cost five Criticals to learn this; the position — first — is
-the fix (`references/incidents.md`). The test-first rule in `executing-plans` Step 3.3 is
-correct and unenforceable after the fact; what follows is the part that leaves evidence.
-
 Three rules, in the order they have to happen. They cost a command each and no
 agent dispatch, so they are **untiered — they run at every review scope including
-`none`** (DEC-010's cost line as DEC-017 corrected it for commands: a mandate costing a line of text or a local
-re-run is not tiered; a mandate costing an agent is).
+`none`**.
 
 1. **Write the set down before the fix.** Before patching, enumerate the
    population the defect belongs to — as a *command*, in the commit: `grep -rl`,
@@ -193,6 +192,13 @@ re-run is not tiered; a mandate costing an agent is).
    battery, one mutation per guard**; a survivor is a guard with no test, and a masking
    pair is its common shape (`references/incidents.md`).
 
+   **Cost bound: one mutant per task, on the host, at the task's own `Test:`.** A device,
+   VM or instrumented run is never the mutant's proof — on an expensive-suite project prove
+   it against the host-side test guarding the same line, or record `mutation: not proved —
+   device-only test` in the commit. The battery is for verdict-producing checkers; a product
+   test gets one mutant. Measured 2026-09-09..11: about 56 labelled mutants in one Android
+   sub-plan, four of them full connected-device runs.
+
 3. **Build fixtures from the requirement, never from observed behavior.** The
    moment a fixture is shaped by what the code currently does, it can no longer
    falsify what the code currently does (a 41-test suite green over its own defect:
@@ -203,10 +209,6 @@ an argparse error, an ImportError, and the guard under test; `refused with the
 guard's own wording` is satisfied by one of them. Whenever an assertion can be
 made true by something other than the mechanism you are testing, it will
 eventually be made true that way, and the suite will report it as a pass.
-
-Unlike the two sections before it, this one catches a *true* sentence —
-"the suite passes" — that means less than the reader takes it to mean
-(`references/incidents.md`).
 
 ## Changing a contract reclassifies everything already written
 
@@ -221,16 +223,13 @@ partial fix — it is a new classification asserted over documents nobody opened
 **The inventory is a command and its output, never an estimate.** An uncounted set cannot
 be backfilled, checked off, or declared done.
 
-Worked example: `4bb486e` flipped 19 closed plans across 9 projects to `blocked`
+Worked example: `4bb486e` flipped 19 closed plans to `blocked`
 (`references/incidents.md`).
 
-**Tier: untiered.** One enumeration command and at most one backlog entry, never a
-dispatch, so per DEC-010's cost line as DEC-017 extends it to commands, it runs at every
-review scope including `none`. Named because DEC-017 requires a mandate to state the rule
-that gates it.
+**Tier: untiered.** One enumeration command, never a dispatch, so it runs at every review
+scope including `none`.
 
-**Adds, net.** It removes nothing, costs one sweep per contract change, and catches the
-change that is right in the diff and wrong in the corpus (`references/incidents.md`).
+**Adds, net** — one sweep per contract change (`references/incidents.md`).
 
 ## Reporting
 

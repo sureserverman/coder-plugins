@@ -170,7 +170,7 @@
 #   names an executed probe. Within the 49016 origin.
 # Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
 #   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
-planning/skills/executing-plans/SKILL.md 48899
+planning/skills/executing-plans/SKILL.md 48871
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -252,7 +252,7 @@ planning/skills/executing-plans/SKILL.md 48899
 # Raised 37456 -> 37502 (+46 B) settling BL-106, the no-vault_dir fallback: three
 #   sites stated one rule and two of them contradicted each other. Decided by the user
 #   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
-planning/skills/planning-projects/SKILL.md 37502
+planning/skills/planning-projects/SKILL.md 37489
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -422,7 +422,7 @@ planning/skills/portfolio/SKILL.md 13718
 #   discriminator (narrowing drops only trees the stage neither touched nor depends on), the
 #   substrate rule became an application of Proxy data, two cross-references and one
 #   overclaim fix. Still under the 15802 origin.
-planning/skills/honest-gates/SKILL.md 15434
+planning/skills/honest-gates/SKILL.md 15417
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section

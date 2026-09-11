@@ -151,7 +151,8 @@ Include any decision in force that bears on the change, inline:
 - [ ] [Integration check — the plan's goal proven end-to-end]
 - [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<claim>' <scope>`]
 - [ ] Full existing test suite passes (regressions check)
-- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it]
+<!-- (judgment) only where a reader decides what no command can — it buys an evaluator; most
+     light plans carry none -->
 ```
 
 **The class-predicate rule applies at Light too.** A gate check asserting a property of a

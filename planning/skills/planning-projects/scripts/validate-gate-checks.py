@@ -88,8 +88,17 @@ plan's TASK fields:
                         commands — below guard rail 1's ~5 min threshold there is nothing
                         to bound. Master plans are skipped: they carry no tasks.
 
+    STAGE-SCOPE-WIDE    a declared `stage-scope:` command naming four or more test trees or
+                        modules. A NOTE, never a failure: cost is not decidable from text,
+                        but a stage-scope that lists most of the project is the full suite
+                        under another name and pays plan-scope cost at every gate. Measured
+                        (remote-agents, 2026-09-09..11): a seven-tree declaration at 10.5 min
+                        ran 40 times in four sessions. test-scope-tiers.md says narrow it
+                        to the trees the stages touch or depend on when it crosses ~5 min.
+
 Exit 0 when no INSTANCE-SHAPED, no SELECTOR-UNMATCHED and no TASK-TEST-UNSCOPED finding
-is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP never changes the exit code. Always prints a per-class count and the total
+is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP and STAGE-SCOPE-WIDE never
+change the exit code. Always prints a per-class count and the total
 examined: an empty sweep must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
@@ -705,6 +714,37 @@ def declares_tiering(text):
     return bool(TIERS_STAGE.search(text) and TIERS_PLAN.search(text))
 
 
+# --- STAGE-SCOPE-WIDE ----------------------------------------------------------------
+# A test TREE or MODULE token in a command: a path with `test` in it, a gradle `:module:`
+# task, or a bare `tests`/`test` directory. Counting tokens is decidable from text; cost
+# is not, which is why this is a note and the ~5 min rule lives in test-scope-tiers.md.
+TREE_TOKEN = re.compile(r"(?<![\w./-])(?:[\w.-]*/)?tests?(?:/[\w.-]+)*(?![\w-])|"
+                        r"(?<![\w])(?:tests?_[\w]+)(?![\w-])|"
+                        r"(?<![\w])(?::[\w-]+)+:[\w]+")
+STAGE_SCOPE_WIDE_MIN = 4
+
+
+def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
+    """-> [(command, tree_count)] for every `stage-scope:` declaration naming
+    `min_trees` or more test trees/modules. Reads the declaration line plus any wrapped
+    continuation lines (indented, not a new bullet). Advisory only."""
+    out = []
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not TIERS_STAGE.match(line):
+            continue
+        cmd = line.split(":", 1)[1]
+        j = i + 1
+        while j < len(lines) and lines[j].strip() and re.match(r"\s{2,}", lines[j]) \
+                and not re.match(r"\s*[-*]\s", lines[j]):
+            cmd += " " + lines[j]
+            j += 1
+        trees = set(t for t in TREE_TOKEN.findall(cmd))
+        if len(trees) >= min_trees:
+            out.append((cmd.strip().strip("`").strip(), len(trees)))
+    return out
+
+
 TASK_HEADING = re.compile(r"^#{2,6}\s+(?:\*\*)?Task\b", re.MULTILINE)
 ANY_HEADING = re.compile(r"^#{1,6}\s", re.MULTILINE)
 
@@ -981,6 +1021,7 @@ def main(argv=None):
     selector_failures = []
     task_test_failures = []
     prose_blind_failures = []
+    wide_stage_notes = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -998,6 +1039,8 @@ def main(argv=None):
             selector_failures.append((path, c, sel_path, expr, why))
         for task, cmd, why in unscoped_task_tests(raw, path):
             task_test_failures.append((path, task, cmd, why))
+        for cmd, n in wide_stage_scopes(raw):
+            wide_stage_notes.append((path, cmd, n))
         for c, cmd, word in prose_blind_sweeps(raw):
             prose_blind_failures.append((path, c, cmd, word))
         examined_files += 1
@@ -1057,6 +1100,16 @@ def main(argv=None):
               f"what the code DOES, assert it as values in a test; if you do mean any "
               f"occurrence at all (a secret or TODO scan), this note is not for you.")
 
+    # Advisory, never a failure: cost is not decidable from text, so this names the shape
+    # and leaves the ~5 min judgment to the author and to Preflight's timing step.
+    for path, cmd, n in wide_stage_notes:
+        print(f"\nnote: {path.name}: stage-scope names {n} test trees/modules "
+              f"(`{cmd[:72]}`) — a stage-scope that lists most of the project is the "
+              f"full suite under another name and pays plan-scope cost at every gate; "
+              f"narrow it to the trees the stages touch or depend on if it crosses ~5 min "
+              f"(test-scope-tiers.md § A declared stage-scope command is subject to the "
+              f"same cost threshold).")
+
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
     # while the aggregate looked healthy.
@@ -1078,6 +1131,8 @@ def main(argv=None):
         print(f"task-test-unscoped {len(task_test_failures)} (separate axis — see above)")
     if prose_blind_failures:
         print(f"prose-blind-sweep {len(prose_blind_failures)} (advisory — see notes above)")
+    if wide_stage_notes:
+        print(f"stage-scope-wide {len(wide_stage_notes)} (advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 

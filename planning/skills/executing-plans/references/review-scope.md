@@ -19,7 +19,7 @@ running unconditionally underneath.
 | **none** | Docs-only, config-only, version-bump-only, comment-only across the whole plan — **and none of that prose asserting executable behavior** (see below) | skip | skip | skip | skip |
 | **light** | No new executable behavior, **or** a diff under roughly 200 changed lines across ≤ ~5 files — and no risk-listed area touched | skip | **one**, over the whole plan diff, before close-out | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
 | **standard** | Multi-file code with new behavior — the default when unsure, and what an undeclared run gets | skip | at the shape the format sets | only at a gate carrying a `(judgment)` check | only if the final gate carries `(judgment)` |
-| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration | per **risk-listed task** (see below) | that, **plus** a second independent pass | **every gate, always** | **always** |
+| **high** | **Risk-listed:** security-sensitive, auth, data-destructive, public API, schema/migration — **paths a task's diff touches, never a project's subject matter** (`review-scope.md` § Risk-listed names a path, not a project) | per **risk-listed task** (see below) | that, **plus** a second independent pass | **every gate, always** | **always** |
 
 **`none` excludes prose that asserts executable behavior.** A docs-only diff qualifies for
 `none` only when its prose *mentions* things; the moment it **asserts** a fact about a
@@ -41,6 +41,36 @@ does**, which overrides the row order in the one direction that matters.
 Pick the tier from the **plan's cumulative diff**, not per task, and pick it once. A plan
 that edits three markdown files is `light` even if it has four stages; a plan touching an
 auth path is `high` even if it is small.
+
+### Risk-listed names a path, not a project
+
+The `high` row's list names **code paths a task's diff touches**: the function that checks a
+credential, the statement that drops or migrates a table, the signature a downstream caller
+binds to, the rule that decides where a packet goes. It does not name a project's subject
+matter. A Tor firewall, a trust-gating bot and an app with a Room schema are *about*
+risk-listed things, and reading the list that way puts every task in every such project on
+it. Measured 2026-09-09..11 across three projects and 15 sessions: five consecutive plans
+declared `high`, binding Tier-1 to 7 of 8, 5 of 9 and 6 of 9 tasks, and the runs bought 65
+verification dispatches for 12 execution ones. The `light` and `standard` rows never engaged
+once.
+
+Two bounds, checked at authoring and re-checked at Preflight's calibration step:
+
+- **A `high` declaration names, per bound task, the risk-listed path its diff touches** —
+  `high — 1.3 (drops the legacy column), 2.1 (rewrites the DNS redirect rule)`. A
+  declaration that cannot say which path a task touches has no ground to bind it.
+- **A declaration that would bind more than a third of the plan's tasks is describing the
+  project, not the diff.** Re-derive per task. The usual correct result is `standard` with
+  `Review: required` on the tasks that genuinely touch a risk-listed path: those get
+  Tier-1, and the plan pays one Tier-2 per stage rather than two passes plus an evaluator
+  at every gate. Where more than a third genuinely do touch such paths, say so on each and
+  keep `high` — the bound exists to force the sentence, not to forbid the tier.
+
+**Conformance lines do not fund an evaluator.** The decisions-conformance and
+architecture-conformance checks carry `(judgment)` because a reader decides them, but that
+reader is the **executor** (`stage-gate.md` § Decisions-conformance check). A gate whose
+only `(judgment)` lines are those two is, for the tier table's evaluator column, a gate
+carrying none.
 
 **What the tier gates.** Everything in the row: the two review tiers, the gate evaluator, the
 close-out evaluator, and the second independent pass. Two more agent-dispatching mandates are

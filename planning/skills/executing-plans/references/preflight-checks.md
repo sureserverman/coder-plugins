@@ -37,11 +37,23 @@ executes at older ceremony forever, however much the rules have since improved. 
 same staleness the decisions re-check exists for, applied to the second thing a plan
 records about how it will be run.
 
-So Preflight does not trust the recorded declarations either: recompute and diff them.
+So Preflight does not trust the recorded declarations either: recompute and diff them. The
+Preflight report itself goes in the branch's first commit, not into the plan file
+(`stage-gate.md` § The plan file is read whole); the plan receives only the amended
+declarations.
 
 1. Recompute from the current rules — `../references/review-scope.md` for the tier (including
-   **which tasks** a `high` declaration binds), `../../planning-projects/references/test-scope-tiers.md`
+   **which tasks** a `high` declaration binds, and that it binds no more than a third of them
+   without naming the path each touches — `review-scope.md` § *Risk-listed names a path, not a project*),
+   `../../planning-projects/references/test-scope-tiers.md`
    for the scoped commands, and the roster from the plan's own `Parallel:` fields.
+   **Time the stage-scope command at the baseline run.** Over ~5 minutes it is narrowed to
+   the trees the stage's commits touch or depend on (`test-scope-tiers.md` § *A declared
+   stage-scope command is subject to the same cost threshold*), amended under the protocol
+   below with the measured time recorded. A stage-scope command that is the full suite under
+   another name buys the plan-scope cost at every gate: measured (remote-agents,
+   2026-09-09..11) a seven-tree declaration at 10.5 minutes ran 40 times across four
+   sessions, about 310 minutes.
 2. Diff against what the plan's Preflight declares:
    - **Unchanged** → say so in one line and proceed.
    - **Changed** → **amend** under the protocol in this file, and state both values in the

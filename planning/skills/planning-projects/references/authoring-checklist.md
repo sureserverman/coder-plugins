@@ -32,7 +32,9 @@ Run every item before showing the plan to the user.
 
 **Gate checks**
 
-- [ ] Every user-facing stage has at least one gate check that exercises the running artifact, not only static tests (`../SKILL.md` § What a stage gate checks)
+- [ ] The final gate of the last user-facing stage has one gate check that exercises the running artifact, driveable by the session itself; no intermediate gate repeats it, and no gate check depends on a person outside the session (`../SKILL.md` § What a stage gate checks)
+- [ ] Every `(judgment)` line names what a reader decides that no command can; the plan carries as few as that allows — each buys an evaluator dispatch (`../SKILL.md` § Write a set-valued check as the sweep that proves it)
+- [ ] A `review-scope: high` declaration names, per bound task, the risk-listed path its diff touches, and binds no more than a third of the plan's tasks — otherwise it is `standard` with `Review: required` on the tasks that genuinely qualify (`../../executing-plans/references/review-scope.md` § Risk-listed names a path, not a project)
 - [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it, or — where one artifact genuinely *is* the whole set — the `(scoped)` marker saying why. No check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`../scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED; `set-valued-checks.md`)
 - [ ] **One owner per fact**: no gate check re-proves what a task's `Test:` already decides, unless it sweeps a strictly wider, nameable set; and no `(judgment)` line restates a fact an executable check in this plan already answers (`../SKILL.md` § Every fact has one owner)
 - [ ] **Every gate check can fail in the direction its hazard runs.** For each set-valued check, name what the defect would look like in the tree: an unwanted presence is a new line and an allow-list sweep catches it; a *missing* call adds nothing for a grep to find, so it needs an invariant asserted over every operation — a test the gate runs, not a sweep of the sites the plan chose. No validator can tell these apart, because the syntax is identical and only the hazard differs (`set-valued-checks.md` § The third error)
@@ -43,6 +45,7 @@ Run every item before showing the plan to the user.
 - [ ] The research summary has actual findings, not placeholders (`../SKILL.md` § Research summary)
 - [ ] Preflight checks cover all tools, deps, and access needed by the plan (`../SKILL.md` § Preflight checklist)
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (`test-scope-tiers.md`)
+- [ ] The declared stage-scope command runs in under ~5 min — the trees the stages touch or depend on, not every tree the project owns; a stage-scope that is the full suite renamed pays plan-scope cost at every gate (`test-scope-tiers.md` § A declared stage-scope command is subject to the same cost threshold)
 
 **Task fields**
 
