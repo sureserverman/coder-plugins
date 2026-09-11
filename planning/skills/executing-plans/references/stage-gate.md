@@ -437,3 +437,41 @@ then is there a substitution to record, quoting them. An executor that goes stra
 failed probe to an inline review and a ledger line has recorded the deviation and skipped the
 decision, which is the half that was never the executor's. *"I judged it unnecessary"* and
 *"the diff looked small"* are the same move with less paperwork.
+
+## A review fix does not re-earn the full pass
+
+`../../planning-projects/references/test-scope-tiers.md` has said this since it was written:
+a fix made for a Tier-1/Tier-2 finding, a gate triage, or any re-verification inside a
+remediation loop runs at **fix-scope** — the classes the fix touched, plus the originating
+task's `Test:` and the gate check that failed. **Never the full suite, and never a repeat of
+the gate's stage-scope command.** The gate goes green on the fix-scope result *plus* the
+stage-scope result already recorded.
+
+**It is restated in the trunk because the pointer was measured unread.** remote-agents light
+plan, 2026-09-11: the executor ran four review rounds one at a time and re-ran the **full**
+11-minute suite after each, reasoning that each round's fixes had invalidated the previous
+run. Six full passes where the policy allows about two — roughly 45 minutes, on work whose
+own tasks took seconds to verify. The user's word for it was *"unacceptable"*. Every one of
+those extra runs was already forbidden, in those words, in a file the executor never opened.
+
+Two things follow, and the second is the one that generalises:
+
+1. **The re-run after a fix is fix-scope.** That is the letter of the policy.
+2. **A full run that a later fix invalidates was the wrong run to have started.** Order the
+   work so the expensive pass happens once, after every review round has landed — which is
+   also what makes the light-plan close-out exemption reachable
+   (`light-plans.md` item 5) rather than a clause that merely describes what did not happen.
+
+## Same-diff reviews go out together
+
+A gate's Tier-2 pass, `high`'s second independent pass and the gate evaluator all read the
+**same committed diff**, and none of them consumes another's findings. Dispatch them as one
+batch, triage the findings as one set, and land the fixes in one pass. Serialising them buys
+nothing and costs a full agent round-trip each time.
+
+What stays sequential is only what reads a *different* artifact: **Tier-1** sees one task's
+diff before its commit, and the **close-out evaluator** sees the finished plan.
+
+Measured in the same run: the gate evaluator and the close-out evaluator took **16 and 20
+minutes**, run back to back, because they were dispatched in the order this document lists
+them rather than in the order their inputs allow. Nothing about the second needed the first.

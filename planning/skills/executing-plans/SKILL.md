@@ -513,6 +513,11 @@ When every task in the stage is green, run the stage gate:
 - Run them in order; stop at the first failure
 - **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
 - **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass.
+- **A review or remediation fix re-runs at `fix-scope` — never the full suite, and never a
+  repeat of the gate's stage-scope command.** The gate stands on that fix-scope result *plus*
+  the stage-scope result already recorded; a full pass is not re-earned per fix. Stated here
+  because the pointer alone was measured unread: it cost six full passes where the policy
+  allows two (`references/stage-gate.md` § *A review fix does not re-earn the full pass*).
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`."
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
@@ -540,6 +545,13 @@ fidelity loop the executor scores itself is worse than none.
 
 Exact report shapes, both hooks' full procedure, the evaluator's briefing, and the Tier-2
 pass: `references/stage-gate.md`.
+
+**Reviews reading the same diff are dispatched together, not in sequence.** A gate's Tier-2
+pass, `high`'s second pass and the gate evaluator all read the same committed diff and none
+depends on another's findings — one batch, one triage, one round of fixes. Only what reads a
+*different* artifact stays sequential: Tier-1 (one task's diff, pre-commit) and the close-out
+evaluator (the finished plan). Why, and what serialising cost:
+`references/stage-gate.md` § *Same-diff reviews go out together*.
 
 **Independent evaluator for non-command checks.** **Whether it runs comes from
 `references/review-scope.md` — do not re-derive it**: never at `none`, at `light` and

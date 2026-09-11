@@ -59,7 +59,13 @@ running at full weight:
 5. **Close-out is one stated bump.** Run the full suite one final time — unless the
    single gate's full-suite run was the last thing to execute with no commits landed
    after it, in which case that run counts as the close-out run (one full pass, not
-   two) — reconcile the backlog (`Closes BL-NNN`), and append the `**Completed:**`
+   two). **Order the run so that exemption applies**: finish every review round and land
+   every fix *before* the full pass, rather than running it and then invalidating it. A
+   full run that a later fix invalidates was the wrong run to have started, and the
+   repair is not another full run — a review fix re-verifies at **fix-scope**
+   (`../../planning-projects/references/test-scope-tiers.md`), and the gate stands on that
+   plus the full result already recorded. Measured 2026-09-11: reading this clause as a
+   description rather than an instruction turned one required full pass into four. — reconcile the backlog (`Closes BL-NNN`), and append the `**Completed:**`
    line. For version bumps,
    apply a **single stated SemVer bump** to what changed and its mirror — in this repo,
    name the plugin's `.claude-plugin/plugin.json` **and** the root marketplace entry
