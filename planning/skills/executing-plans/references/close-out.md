@@ -11,7 +11,10 @@ procedure. Work the steps in order.
    expensive-suite run in the whole execution (intermediate gates ran stage-scope), including
    any quarantined slow tests. Use the plan's declared `plan-scope:` command when present. If
    the final stage gate already ran this exact plan-scope pass and no commits landed after it,
-   that pass counts — don't run it twice.
+   that pass counts — don't run it twice. **Run it last**: steps 2a and 3 read the committed
+   diff and land their fixes first, so the tree the pass proves is the tree that merges. A
+   commit a Material fix lands after it is proven at fix-scope, never by another plan-scope
+   pass (`stage-gate.md` § A review fix does not re-earn the full pass, item 3).
 2. Run any integration / e2e tests the plan flagged.
 
 2a. **The tier's Tier-2 pass, if it lands here rather than at a gate.** At `light` the deep
@@ -43,8 +46,11 @@ procedure. Work the steps in order.
    (`../references/stage-gate.md` § Exit criterion — the dispositions behind it). The
    distinction matters because "the evaluator returned no adverse findings" is not a reachable
    state for a fresh reader of a real artifact; treating any FAIL as blocking is what makes the
-   final gate oscillate. Where the tier mandates it, skip only on an **evidenced** user
-   opt-out; where the tier does not, report it as scope rather than as an opt-out.
+   final gate oscillate. The evaluator is dispatched **once**: a Material fix is proven at
+   fix-scope by the executor, not by re-dispatching it (`stage-gate.md` § Independent
+   evaluator for non-command checks). Where the tier mandates it, skip only on an
+   **evidenced** user opt-out; where the tier does not, report it as scope rather than as an
+   opt-out.
 4. **Bump versions for what changed**, as part of close-out rather than a follow-up.
    Breaking/removed → major; new capability → minor; fix/docs/internal → patch. Bump it
    wherever the project records it **and every place that mirrors it** — grep the old version

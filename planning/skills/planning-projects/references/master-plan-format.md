@@ -82,7 +82,8 @@ outside a `**Gate:**` block would become a false backlog candidate.]
 - [ ] [Integration check runnable once this sub-plan completes]
 - [ ] [Cross-plan class predicate — the sweep proving the property holds across both plans' outputs]
 - [ ] [Cross-plan regression check]
-- [ ] **(judgment)** [what needs a reader across the sub-plan boundary]
+<!-- (judgment) only where a reader decides what no command can across the boundary — it buys
+     an evaluator per entry; most entries carry none -->
 
 ### Sub-plan 2: [Name]
 - **Status:** [ ]

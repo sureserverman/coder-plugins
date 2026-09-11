@@ -205,7 +205,8 @@ writing any task:
 - **Emit the conformance gate:** the plan's final stage gate includes the check
   `- [ ] **(judgment)** Built structure conforms to the architecture doc (ARCH-NN tree
   matches, ARCH-NN boundaries respected — list the IDs actually in scope)`. The marker is
-  required, not optional.
+  required, not optional — it marks a reading the **executor** performs; it does not by
+  itself fund an evaluator (`../executing-plans/references/review-scope.md`).
 - **Decomposed projects (Phase 2.5):** each *sub-plan* that creates structure carries its own
   ARCH-ID citations and its own conformance check in its own final stage gate
   (`references/research-scans.md`).
@@ -232,7 +233,8 @@ Decisions use the **same citation mechanism as `ARCH-NN`** — deliberately, so
 - **Emit the conformance gate:** the plan's final stage gate carries
   `- [ ] **(judgment)** No change contradicts a decision in force (DEC-NNN / GDEC-… — list
   the IDs actually in scope); any Supersedes citation has been recorded via decisions
-  supersede`. The marker is **required**, not optional.
+  supersede`. The marker is **required**, not optional — and, like the architecture
+  conformance line, it does not by itself fund an evaluator.
 - **Per DEC-001**, a citation restates the constraint in the entry's own words. A decision
   sourced from a sec-audit never brings the report body into the plan.
 
@@ -314,14 +316,14 @@ Stage N: [Name]
     - [ ] Integration check 1
     - [ ] Class predicate: the command that sweeps the set the claim is over
     - [ ] No regressions in existing tests
-    - [ ] (judgment) [what needs a reader, and why a sweep cannot prove it]
+    - [ ] (judgment) [only where a reader decides what no command can — most gates: none]
 ```
 
 ### Status marking (per-task done-state)
 
 Every task carries a **Status** checkbox as its first field: `- **Status:** [ ]` when planned, flipped to `- **Status:** [x]` by `executing-plans` the moment the task's test goes green (and committed in the same commit). This is the **single source of truth for task completion**, read by downstream tools (e.g. `portfolio unify`) rather than inferred from stage gates or git archaeology.
 
-When the whole plan is finished, `executing-plans` appends a close-out line at the end of the plan: `**Completed:** YYYY-MM-DD — commits: <list>`. A plan with that line and all `Status: [x]` is unambiguously done; absent the line, any `Status: [ ]` task is genuinely unexecuted.
+At the end `executing-plans` appends `**Completed:** YYYY-MM-DD — commits: <list>`; that line plus all `Status: [x]` is unambiguously done.
 
 ### Task and stage fields
 
@@ -462,7 +464,7 @@ After all tasks in a stage pass their individual tests, run a stage-level integr
 - **Integration**: The tasks in this stage interact correctly (e.g., the API endpoint serves data from the database schema that was just created)
 - **Regressions**: Scoped to the gate's position in the plan. Intermediate gates check at **stage-scope** — cheap host-side checks in full, any expensive suite restricted to the modules the stage touched, never `clean`. The final gate (and close-out) runs **plan-scope** — one full clean pass. A cheap full suite (well under ~5 min) skips the tiering. Scope policy: `references/test-scope-tiers.md`.
 - **Goal verification**: The stage's stated goal is actually met end-to-end, not just task-by-task
-- **Live artifact over static checks**: Where the stage produces something runnable, at least one gate check launches it and drives the user-visible flow (run the app, hit the endpoint, click the screen). Unit tests pass on stubbed features; only live interaction catches them
+- **Live artifact over static checks** — **once per plan**, at the final gate of the last stage shipping user-visible behaviour, and only what this session can drive itself (adb, a probed VM, an endpoint). Unit tests pass on stubbed features; only live interaction catches them. A check needing a person the session cannot reach — a fluent reviewer, an accessibility tester, the owner's phone — is not a gate check but a close-out `ACTION NEEDED:` item. Measured: 167 VM calls in one master; one gate waiting 28 hours on human testers
 
 ### Every fact has one owner
 
@@ -491,7 +493,10 @@ So a check whose goal quantifies over a set is written as the command that sweep
 `! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y".
 
 A check that genuinely needs a reader carries the **(judgment)** marker and routes to the
-gate's evaluator — the sanctioned escape hatch, not a loophole.
+gate's evaluator — the sanctioned escape hatch, not a loophole. **Most gates carry none:**
+each buys an evaluator dispatch at every tier above `none`, and a fresh evaluator never
+returns empty-handed (measured: 21 lines across three sub-plans, 13 of 13 evaluators
+returning fixes). Write one only where a reader decides what no command can.
 
 Verify before presenting: `python3 scripts/validate-gate-checks.py <plan>` (in this skill's
 directory). **A newly authored plan may not be presented while it reports INSTANCE-SHAPED.**
@@ -507,23 +512,19 @@ otherwise the siblings survive and each costs another round. That rule is not ga
 `executing-plans` — it fires wherever a defect surfaces, and a gate is simply its sharpest
 caller.
 
-`executing-plans` owns the operative procedure and is the single source of truth for it —
-severity classification, the remediation budget, the exit criterion, and escalation with a
-residual list on exhaustion. Do not restate those rules here; a second copy is how the two
-drift apart. What matters at *authoring* time is that the plan's gate checks are shaped so a
-class can fail them at all — the class-predicate rule in this trunk
-(§ Write a set-valued check as the sweep that proves it).
+`executing-plans` owns the operative procedure (severity, budget, exit criterion,
+escalation). Do not restate those rules here. What matters at *authoring* time is that gate
+checks are shaped so a class can fail them (this trunk's § Write a set-valued check as the
+sweep that proves it).
 
 ---
 
 ## Phase 5 — Parallel Execution
 
 Mark a task `Parallel: YES` when its `Depends on` are satisfiable independently and it
-shares no file with a sibling. The dispatch procedure itself — how tasks are selected,
-briefed, routed to a stack-matched subagent, and integrated — belongs to
-`../dispatching-parallel-agents/SKILL.md` and `executing-plans` Step 3.2, and is deliberately
-not restated here. What the *plan* owes them is accurate `Depends on` / `Blocks` / `Parallel`
-fields and a file-conflict-free set — the fields' meaning is § Stage structure's to state.
+shares no file with a sibling. The dispatch procedure belongs to
+`../dispatching-parallel-agents/SKILL.md` and `executing-plans` Step 3.2; what the *plan*
+owes them is accurate `Depends on` / `Blocks` / `Parallel` fields and a file-conflict-free set.
 ## Checklist — Before Presenting the Plan
 
 **Light plans use § Checklist — Light plans instead of this one.** This full checklist
@@ -531,13 +532,12 @@ applies to Standard plans (and, with the decomposition addendum, Master plans).
 
 Before showing the plan to the user, verify **every** item in
 `references/authoring-checklist.md` — that file is the full list, and most items name the
-section that owns the rule they enforce. **It is a mandatory read on the Standard path, not
-a conditional one.** Four items are restated here, because they are the ones a command
-decides rather than a reading:
+section that owns the rule they enforce. **It is a mandatory read on the Standard path.**
+Four command-decided items are restated here:
 
 - [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
-- [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
-- [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted`. A task field is the one place the tier policy never reached, and an unbounded one has cost 3.5 h in a single Red-Green loop (`references/test-scope-tiers.md`)
+- [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (`executing-plans` re-checks it at Preflight with `--collect-only`)
+- [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted` (`references/test-scope-tiers.md`)
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 
 **Additionally, for a decomposed project (master plan + sub-plans):**

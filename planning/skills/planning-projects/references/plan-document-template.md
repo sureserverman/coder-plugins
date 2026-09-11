@@ -85,7 +85,10 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
 - [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
 - [ ] [Stage goal verified end-to-end]
-- [ ] **(judgment)** [what needs a reader, and why a sweep cannot prove it — the evaluator verifies this one]
+<!-- A `(judgment)` line buys an evaluator dispatch at every tier above `none`, and a fresh
+     evaluator never returns empty-handed. Most gates carry none. Add one only where a reader
+     decides what no command can, and say what:
+- [ ] **(judgment)** [what a reader decides here that no command can] -->
 
 ---
 

@@ -582,6 +582,30 @@ _flag = vgc.unscoped_task_tests(tiered_plan("`make lint && pytest -q && make doc
 check(len(_flag) == 1 and _flag[0][1] == "pytest -q",
       "the message names the offending invocation, not the line it sits in")
 
+print("group 9b — STAGE-SCOPE-WIDE: a stage-scope that is the full suite under another name")
+
+
+def tiered_plan(stage_cmd):
+    return ("# Project Plan: x\n\n## Preflight\n\n**Test-scope commands:**\n"
+            f"- stage-scope: `{stage_cmd}`\n"
+            "- plan-scope: `uv run pytest`\n\n## Stage 1: x\n\n### Stage 1 Gate\n"
+            "- [ ] `! grep -rl 'X' commands/`\n")
+
+
+rc_w, out_w = run(tiered_plan("uv run pytest tests/unit tests/integration tests/contract "
+                              "tests/architecture tests/security -q"))
+check("stage-scope names 5 test trees" in out_w,
+      "a five-tree stage-scope declaration is noted, with its tree count")
+check(rc_w == 0, "the note is advisory — it never changes the exit code")
+rc_n, out_n = run(tiered_plan("uv run pytest tests/unit tests/contract -q"))
+check("stage-scope names" not in out_n, "a two-tree stage-scope is not noted")
+rc_g, out_g = run(tiered_plan("./gradlew :app:testDebugUnitTest :core:test :storage:test "
+                              ":speech:test verifyArchitecture"))
+check("stage-scope names 4 test trees" in out_g,
+      "gradle `:module:test` tasks count as trees, so an Android declaration is covered")
+check(len(vgc.wide_stage_scopes("- stage-scope: `cargo test --lib`\n- plan-scope: `x`\n")) == 0,
+      "a single-runner stage-scope with no tree list is not noted")
+
 print("group 10 — PROSE-BLIND-SWEEP: a negated recursive grep that cannot go green")
 
 def gated(check):
