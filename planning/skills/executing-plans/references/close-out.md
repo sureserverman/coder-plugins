@@ -70,6 +70,8 @@ procedure. Work the steps in order.
    step is where it gets written. Also confirm every task's `- **Status:**` is `[x]` (any remaining `[ ]`
    task was not executed — either finish it or note it as deferred). The close-out line +
    all-`[x]` statuses make the plan's done-state unambiguous for any downstream reader.
+   Close-out writes no `RESUME HERE` block and runs no `context-usage.py` stop rule — there is
+   no next task to hand off to (`session-handoff.md`).
 6. **Reconcile the backlog.** Scan the plan for `Closes BL-NNN` references and any tasks that
    implemented an open backlog item. Call the `backlog` skill (`remove`) with that ID list.
    Reference each removed ID in the close-out commit message.

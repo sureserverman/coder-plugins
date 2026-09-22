@@ -174,7 +174,10 @@
 #   context-reset section gains the measured stop rule (four rule names, the DEC-014 bounds
 #   and a pointer) plus one Checklist step and one Reference-map row; the procedure lives in
 #   references/session-handoff.md. The plan bounds Stage 2's trunk growth at 1,500 B (DEC-018).
-planning/skills/executing-plans/SKILL.md 49433
+# Raised 49433 -> 49467 (+34 B) 2026-09-22, same plan, Task 2.2: the Master plans
+#   paragraph's "one per fresh session where practical" becomes the measured sub-plan
+#   boundary rule. Stage 2 total +596 B, within its 1,500 B bound.
+planning/skills/executing-plans/SKILL.md 49467
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

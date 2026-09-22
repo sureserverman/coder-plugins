@@ -60,9 +60,10 @@ Paths are relative to this skill's directory; from a dispatch use
 
 A `*-master-plan.md` (or `# Master Plan:` heading) links 2–7 sub-plans through a
 `## Sub-plans` register. It deliberately has no Preflight, Stages or Tasks — do not reject
-it. Execute sub-plans in register dependency order, one per fresh session where practical;
-on each sub-plan's close-out flip its register `Status`, run that entry's `**Gate:**` checks,
-append a handoff note, and commit `"Sub-plan N green"`. **Version bumps defer to the master
+it. Execute sub-plans in register dependency order; on each sub-plan's close-out flip its
+register `Status`, run that entry's `**Gate:**` checks, append a handoff note, commit
+`"Sub-plan N green"`, then hand off unless `context-usage.py --sub-plan-boundary` says
+`continue`. **Version bumps defer to the master
 close-out** — one feature landing across five sub-plans is one release event, not five.
 
 Run `validate-gate-checks.py` on the master itself, not only on each sub-plan: a master's

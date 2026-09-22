@@ -4,7 +4,8 @@ The executor decides when a plan continues in a fresh session, and it decides by
 measurement. Before this rule, every mid-plan stop in five audited executions was the user's
 call on context (*"context is pretty full…"*, *"581k out of 1m…"*), and the executor proposed
 a handoff zero times. The trunk used to advise a reset on large plans with nothing to
-measure against, so the reset was never taken on purpose.
+measure against, so the reset was never taken on purpose. Every executing-plans file that
+mentions a fresh session cites this one, `session-handoff.md`, as the rule that decides it.
 
 ## The measurement
 
