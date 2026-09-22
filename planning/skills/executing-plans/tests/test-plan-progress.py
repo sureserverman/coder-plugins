@@ -2136,6 +2136,148 @@ def case_budget_check():
     check("Traceback" not in r.stderr, f"no traceback ({r.stderr!r})")
 
 
+DISPATCH_PLAN = """# Plan: dispatch demo
+
+## Preflight
+
+- [x] Tier declared
+- [x] Dispatch roster — `{roster}`: Task 1.1 → `rust-dev:rust-expert`, Task 2.1 →
+  `general-purpose`, Task 3.1 → `rust-dev:rust-expert`, Task 4.1 → `general-purpose`,
+  Task 5.1 → `general-purpose`.
+- [x] Baseline green
+
+## Stage 1 — groundwork
+
+### Task 1.1: scaffold
+- **Status:** [x]
+"""
+
+
+def case_dispatch_check():
+    """Task 4.1 — close-out's roster reconciliation becomes an exit status.
+
+    The multitor 5.1 shape: a roster of 5 `Dispatch: YES` tasks, four commits
+    trailered `dispatched — …` and one bare `Executor: inline`, and a close-out
+    that reported the plan done anyway. A bare `inline` on a rostered task is the
+    unauthorised downgrade, and only a non-zero exit stops a close-out.
+    """
+    print("Task 4.1 — --dispatch-check reconciles the roster against the ledger:")
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-dispatch-"))
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+
+    def git(repo, *args):
+        return subprocess.run(["git", "-C", str(repo), *args], env=env,
+                              capture_output=True, text=True, check=True).stdout
+
+    def make_repo(name, roster, commits):
+        # --template= keeps the user's global init template (and its hooks) out
+        # of the fixture; the fixture must measure the script, not a hook.
+        repo = tmp / name
+        repo.mkdir()
+        git(repo, "init", "-q", "--template=")
+        plan = repo / "plan.md"
+        if roster is None:
+            plan.write_text(DISPATCH_PLAN.split("- [x] Dispatch roster")[0]
+                            + "- [x] Baseline green\n")
+        else:
+            plan.write_text(DISPATCH_PLAN.format(roster=roster))
+        git(repo, "add", "plan.md")
+        git(repo, "commit", "-q", "--no-verify", "-m", "plan base")
+        for subject, executor in commits:
+            msg = subject + ("\n\nExecutor: " + executor if executor is not None else "")
+            git(repo, "commit", "-q", "--no-verify", "--allow-empty", "-m", msg)
+        return repo, plan
+
+    def dcheck(repo, plan, *extra):
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--dispatch-check", str(plan), *extra],
+            cwd=repo, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+
+    four = [("Stage 1 Task 1.1: scaffold", "dispatched — rust-dev:rust-expert"),
+            ("Stage 2 Task 2.1: parse", "dispatched — general-purpose"),
+            ("Stage 3 Task 3.1: render", "dispatched — rust-dev:rust-expert"),
+            ("Stage 4 Task 4.1: wire", "dispatched — general-purpose")]
+
+    repo, plan = make_repo("inlined", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline")])
+    r = dcheck(repo, plan)
+    out = r.stdout + r.stderr
+    check(r.returncode == 2, f"4 dispatched + 1 bare inline exits 2 (got {r.returncode}: {out!r})")
+    check("Task 5.1" in r.stderr and "FAIL" in r.stderr,
+          f"and a FAIL: line names the inlined Task 5.1 ({r.stderr!r})")
+    check("Task 4.1" not in r.stderr, "and does not name a dispatched task")
+    check("dispatch: 4 of 5" in out, f"with the 4-of-5 summary ({out!r})")
+
+    repo, plan = make_repo("authorised", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline (user authorised)")])
+    r = dcheck(repo, plan)
+    check(r.returncode == 0,
+          f"4 dispatched + 1 inline (user authorised) exits 0 (got {r.returncode}: {r.stderr!r})")
+    check("dispatch: 4 of 5 rostered tasks dispatched" in r.stdout,
+          f"and prints the summary line ({r.stdout!r})")
+
+    repo, plan = make_repo("zero", "0 tasks", [("Stage 1 Task 1.1: scaffold", "inline")])
+    r = dcheck(repo, plan)
+    check(r.returncode == 0, f"a `0 tasks` roster exits 0 (got {r.returncode}: {r.stderr!r})")
+
+    repo, plan = make_repo("noroster", None, four)
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and "roster missing" in r.stderr,
+          f"no roster item exits 2 with `roster missing` ({r.returncode}, {r.stderr!r})")
+
+    print("  reasons, follow-ups, ranges and broken inputs:")
+    repo, plan = make_repo("reasons", "5 of 17 tasks", [
+        ("Stage 1 Task 1.1: scaffold", "dispatched — rust-dev:rust-expert"),
+        ("Stage 1 Task 1.1: review fix", "inline"),
+        ("Stage 2 Task 2.1: parse", None),
+        ("Stage 3 Task 3.1: render", "inline (dispatch failed)"),
+        ("Stage 4 Task 4.1: wire", "dispatched — general-purpose"),
+    ])
+    r = dcheck(repo, plan)
+    lines = {ln for ln in r.stderr.splitlines() if ln.startswith("FAIL")}
+    check(r.returncode == 2, f"unreconciled tasks exit 2 (got {r.returncode})")
+    check(not any("Task 1.1" in ln for ln in lines),
+          "a dispatched commit plus an inline follow-up fix is reconciled")
+    check(any("Task 2.1" in ln and "unknown" in ln for ln in lines),
+          f"an empty trailer reads `unknown`, never `inline` ({r.stderr!r})")
+    check(any("Task 3.1" in ln and "inline (dispatch failed)" in ln for ln in lines),
+          "a dispatch-failed inline is named with its trailer")
+    check(any("Task 5.1" in ln and "no commit" in ln for ln in lines),
+          "a rostered task with no commit in range reads `no commit`")
+    check(len(lines) == 3, f"one FAIL: line per unreconciled task ({len(lines)})")
+
+    base = git(repo, "rev-parse", "HEAD~1").strip()
+    r = dcheck(repo, plan, "--since", base)
+    check(r.returncode == 2 and any("Task 1.1" in ln and "no commit" in ln
+                                   for ln in r.stderr.splitlines()),
+          f"--since bounds the ledger: Task 1.1 is out of range ({r.stderr!r})")
+
+    repo, plan = make_repo("mismatch", "4 of 17 tasks", four)
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and "4" in r.stderr and "5" in r.stderr,
+          f"a roster count that disagrees with its ids exits 2 naming both ({r.stderr!r})")
+
+    # Broken inputs run against a plan that is GREEN on its own, so each exit 2
+    # can only come from the broken input — not from a roster problem.
+    repo, plan = make_repo("broken", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline (user authorised)")])
+    check(dcheck(repo, plan).returncode == 0, "control: the broken-input fixture is green")
+    r = dcheck(repo, plan, "--since", "no-such-ref")
+    check(r.returncode == 2 and "no-such-ref" in r.stderr and "Traceback" not in r.stderr,
+          f"a bad --since ref exits 2 naming it, no traceback ({r.returncode}, {r.stderr!r})")
+    r = dcheck(repo, repo / "missing.md")
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"an unreadable plan exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    notgit = tmp / "notgit"
+    notgit.mkdir()
+    shutil.copy(plan, notgit / "plan.md")
+    r = dcheck(notgit, notgit / "plan.md")
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"not a git repo exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_palette_contrast():
     """Every palette colour is legible on a light terminal as well as a dark one.
 
@@ -2324,6 +2466,7 @@ def main():
     case_blocked_gate_renders()
     case_status_lag_warns()
     case_budget_check()
+    case_dispatch_check()
     case_palette_contrast()
 
     print()

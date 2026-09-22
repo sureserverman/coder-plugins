@@ -117,12 +117,13 @@ procedure. Work the steps in order.
      stop being unfalsifiable. For a master plan this bullet is the per-sub-plan reconciliation
      `master-plans.md` step 5 defines, in the `reviews: <n> of <owed>` form — one line per
      sub-plan, then the total.
-   - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across
-     the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)'
-     <plan-base>..HEAD`) and state `dispatch: <n> of <total> rostered tasks dispatched`, naming
-     every inlined `Dispatch: YES` task with its reason. Per-stage gates each reconcile their
-     own slice, so aggregate coverage holds **only if every stage gate ran and reported**. The
-     roster is declared once for the whole plan; this is where it is answered.
+   - **Dispatch reconciled against Preflight's roster, plan-wide.** This is a gate. From the
+     repo root run `python3 <planning-plugin>/skills/executing-plans/scripts/plan-progress.py
+     --dispatch-check <plan> --since <plan-base>`. Exit 0 → state its `dispatch:` line. Exit 2
+     → an `ACTION NEEDED:` block naming each inlined `Dispatch: YES` task it lists, with its
+     reason. Close-out does not finish until, per listed task, the user authorises the inline
+     run (its trailer is amended to `inline (user authorised)`) or the task is re-dispatched.
+     The roster is declared once for the whole plan; this is where it is answered.
    - Backlog items closed (by ID) and any new ones opened during execution
    - Decisions recorded or superseded during close-out (by ID)
    - Workflow audit triage: blocks updated, blocks removed, undeclared changes (if any

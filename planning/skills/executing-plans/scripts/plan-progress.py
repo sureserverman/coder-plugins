@@ -35,6 +35,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -1493,9 +1494,131 @@ def budget_check(cwd):
     return 2
 
 
+ROSTER_ITEM_RE = re.compile(r"^\s*- \[.\] .*Dispatch roster")
+ROSTER_END_RE = re.compile(r"^\s*(- \[|#)")
+ROSTER_COUNT_RE = re.compile(r"\b(\d+)\s+of\s+\d+\s+tasks\b|\b(0)\s+tasks\b")
+TASK_REF_RE = re.compile(r"\bTask\s+(\d+\.\d+)\b")
+AUTHORISED_INLINE = "inline (user authorised)"
+
+
+def parse_roster(text):
+    """(count, [task ids]) from Preflight's `Dispatch roster` item, or None.
+
+    The item wraps across continuation lines, so it runs until the next
+    checklist item, a heading, or a blank line."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not ROSTER_ITEM_RE.match(line):
+            continue
+        item = [line]
+        for nxt in lines[i + 1:]:
+            if not nxt.strip() or ROSTER_END_RE.match(nxt):
+                break
+            item.append(nxt)
+        body = " ".join(item)
+        m = ROSTER_COUNT_RE.search(body)
+        count = int(m.group(1) or m.group(2)) if m else None
+        return count, list(dict.fromkeys(TASK_REF_RE.findall(body)))
+    return None
+
+
+def dispatch_check(args):
+    """Exit status for `--dispatch-check <plan> [--since <ref>]`: 0 when every
+    rostered task is reconciled, 2 otherwise.
+
+    Close-out used to reconcile Preflight's roster by reading trailers and
+    writing prose, and the measured failure is the one prose permits: a rostered
+    task run inline under a bare `Executor: inline`, and a close-out that
+    reported the plan done. Reconciled means ANY of the task's commits carries a
+    `dispatched …` trailer or the explicit `inline (user authorised)`; an empty
+    trailer is `unknown`, never `inline`. Every failure path — unreadable plan,
+    not a git repo, bad ref — is a FAIL: line and exit 2, never a silent 0.
+    """
+    def fail(msg):
+        print(f"FAIL: {msg}", file=sys.stderr)
+        return 2
+
+    rest = args[args.index("--dispatch-check") + 1:]
+    since = None
+    if "--since" in rest:
+        j = rest.index("--since")
+        if j + 1 >= len(rest):
+            return fail("--since needs a ref")
+        since = rest[j + 1]
+        del rest[j:j + 2]
+        if since.startswith("-"):
+            return fail(f"bad --since ref: {since}")
+    if not rest:
+        return fail("usage: plan-progress.py --dispatch-check <plan> [--since <ref>]")
+    plan = rest[0]
+    try:
+        text = Path(plan).read_text()
+    except BAD_PATH as e:
+        return fail(f"cannot read plan {plan}: {e}")
+
+    roster = parse_roster(text)
+    if roster is None:
+        return fail(f"roster missing — no `Dispatch roster` item in {plan}")
+    count, ids = roster
+    if count is None:
+        return fail("roster count unreadable — expected `<n> of <m> tasks` or `0 tasks`")
+    if count == 0:
+        print("dispatch: 0 of 0 rostered tasks dispatched")
+        return 0
+    if count != len(ids):
+        return fail(f"roster says {count} tasks but lists {len(ids)} task ids")
+
+    rng = f"{since}..HEAD" if since else "HEAD"
+    try:
+        r = subprocess.run(
+            ["git", "log", "--format=%s%x1f%(trailers:key=Executor,valueonly,unfold)%x1e", rng],
+            capture_output=True, text=True)
+    except OSError as e:
+        return fail(f"cannot run git: {e}")
+    if r.returncode != 0:
+        why = (r.stderr.strip().splitlines() or ["git log failed"])[0]
+        return fail(f"git log {rng}: {why}")
+
+    seen = {}  # task id -> list of Executor values across its commits
+    for rec in r.stdout.split("\x1e"):
+        if "\x1f" not in rec:
+            continue
+        subject, trailer = rec.split("\x1f", 1)
+        values = [v.strip() for v in trailer.splitlines() if v.strip()] or ["unknown"]
+        for tid in TASK_REF_RE.findall(subject):
+            seen.setdefault(tid, []).extend(values)
+
+    dispatched = 0
+    unreconciled = []
+    for tid in ids:
+        values = seen.get(tid)
+        if not values:
+            unreconciled.append((tid, f"no commit in {rng}"))
+            continue
+        if any(v.startswith("dispatched") for v in values):
+            dispatched += 1
+        elif AUTHORISED_INLINE not in values:
+            unreconciled.append(
+                (tid, "Executor: " + ", ".join(dict.fromkeys(values))))
+    for tid, why in unreconciled:
+        print(f"FAIL: Task {tid} — rostered Dispatch: YES, not reconciled ({why})",
+              file=sys.stderr)
+    print(f"dispatch: {dispatched} of {count} rostered tasks dispatched")
+    return 2 if unreconciled else 0
+
+
 def main():
     if "--budget-check" in sys.argv[1:]:
         sys.exit(budget_check(os.getcwd()))
+    if "--dispatch-check" in sys.argv[1:]:
+        # Its own handler: the bottom-of-file one exits 0, and a gate that
+        # crashes must never read as a gate that passed.
+        try:
+            status = dispatch_check(sys.argv[1:])
+        except Exception as e:
+            print(f"FAIL: --dispatch-check crashed: {e!r}", file=sys.stderr)
+            status = 2
+        sys.exit(status)
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."
