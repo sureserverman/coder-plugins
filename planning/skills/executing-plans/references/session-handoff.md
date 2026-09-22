@@ -85,8 +85,10 @@ next stage's first tool call in the same turn (`stage-gate.md` § If the gate pa
    **Decisions in force:** <IDs>
    ```
 
-2. Commit it with the gate — or, when the plan lives outside the repo, write it at the plan's
-   absolute path; the `Stage N green` commit body carries the same `reason:` line.
+2. Commit it as its own `"Stage N handoff"` commit, whose body carries the same `reason:`
+   line — the gate commit is already made, since the script runs after it. When the plan
+   lives outside the repo, write the block at the plan's absolute path and make the same
+   commit empty (`--allow-empty`), so the repo records why the run stopped.
 3. Write the progress state file with `phase: "handoff"` and `reason` set to the script's
    reason (`progress-state-file.md`).
 4. End the turn with the reason and one line telling the user to resume in a fresh session
