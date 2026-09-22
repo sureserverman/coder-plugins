@@ -302,7 +302,8 @@ Stage N: [Name]
       Blocks:     [task(s) that wait on this one, or "none"]
       Dispatch:   YES | NO  (an instruction to the executor — YES obligates dispatch to a
                   subagent; it is not a note about whether a sibling task runs alongside it)
-      Scope:      [the SET this task changes — omit when it changes exactly one thing]
+      Scope:      [the SET this task changes — omit when it changes exactly one thing,
+                  unless Dispatch is YES]
       Test:       [concrete pass/fail criterion]
       Review:     skip   (OPTIONAL, and only on the user's say-so — see below)
 
@@ -525,6 +526,9 @@ Mark a task `Dispatch: YES` when its `Depends on` are satisfiable independently 
 shares no file with a sibling. The dispatch procedure belongs to
 `../dispatching-parallel-agents/SKILL.md` and `executing-plans` Step 3.2; what the *plan*
 owes them is accurate `Depends on` / `Blocks` / `Dispatch` fields and a file-conflict-free set.
+`python3 scripts/validate-dispatch.py <plan>` checks exactly that before presenting: it fails a
+YES task that depends on a same-stage sibling, two YES siblings sharing a `Scope` path, a YES
+task with no `Scope`, a stage-dependency cycle, and a master's YES sub-plan that reads a sibling.
 ## Checklist — Before Presenting the Plan
 
 **Light plans use § Checklist — Light plans instead of this one.** This full checklist
@@ -533,11 +537,12 @@ applies to Standard plans (and, with the decomposition addendum, Master plans).
 Before showing the plan to the user, verify **every** item in
 `references/authoring-checklist.md` — that file is the full list, and most items name the
 section that owns the rule they enforce. **It is a mandatory read on the Standard path.**
-Four command-decided items are restated here:
+Five command-decided items are restated here:
 
 - [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
 - [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (`executing-plans` re-checks it at Preflight with `--collect-only`)
 - [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted` (`references/test-scope-tiers.md`)
+- [ ] `python3 scripts/validate-dispatch.py <plan>` exits 0 (§ Phase 5 — Dispatch)
 - [ ] The plan is saved to the project's `<portfolio_home>/plans/` in the vault (project auto-registered + sidecar carries the `PORTFOLIO-STATUS` block whose **Plans:** pointer reaches the new plan); or `docs/plans/` only in the no-`vault_dir` fallback
 
 **Additionally, for a decomposed project (master plan + sub-plans):**

@@ -49,9 +49,9 @@ Run every item before showing the plan to the user.
 
 **Task fields**
 
-- [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it (`../SKILL.md` § Task and stage fields)
+- [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it, except a `Dispatch: YES` task, which always carries one (`../SKILL.md` § Task and stage fields)
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
-- [ ] Every task has a `Dispatch` field (YES/NO) consistent with its dependencies
+- [ ] Every task has a `Dispatch` field (YES/NO) consistent with its dependencies — `../scripts/validate-dispatch.py <plan>` exits 0
 - [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Dispatch)
 - [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it; `../scripts/validate-gate-checks.py` reports zero TASK-TEST-UNSCOPED)
 

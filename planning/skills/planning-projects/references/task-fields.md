@@ -52,7 +52,8 @@ surfaces are enumerated once rather than discovered one gate round at a time.
 **Conditional, not universal.** Declare it only when the task changes more than one
 artifact. A task editing exactly one file has no set, and writing `Scope: this file`
 everywhere is noise that trains readers to skip the field. No `Scope:` on a
-single-artifact task is correct, not missing.
+single-artifact task is correct, not missing — except on a `Dispatch: YES` task, which always
+carries one: it is how `validate-dispatch.py` proves no YES sibling edits the same file.
 
 **Derive the set with a command; do not type it from memory.** This is the failure mode
 worth naming, because it is not carelessness and it survives careful authors:

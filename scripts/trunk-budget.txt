@@ -180,7 +180,10 @@
 # Raised 49467 -> 49494 (+27 B) 2026-09-22, Stage 2 gate (Tier-2 Important): the Run to
 #   completion paragraph's "prefer a fresh session over a degraded one" judgment becomes the
 #   measured rule. Stage 2 total +623 B, within its 1,500 B bound.
-planning/skills/executing-plans/SKILL.md 49494
+# Raised 49494 -> 49673 (+179 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 1 step 4a
+#   and the Master plans paragraph run validate-dispatch.py beside validate-gate-checks.py, so
+#   a wrong Dispatch: field is caught before Preflight builds a roster from it.
+planning/skills/executing-plans/SKILL.md 49673
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -264,7 +267,10 @@ planning/skills/executing-plans/SKILL.md 49494
 #   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
 # Lowered 37489 -> 37479 (-10 B) 2026-09-22, executor-handoff plan Task 3.2: the rename to
 #   `Dispatch:` and its "Phase 5 — Dispatch" heading came out 10 B shorter.
-planning/skills/planning-projects/SKILL.md 37479
+# Raised 37479 -> 37895 (+416 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 5 names
+#   validate-dispatch.py and the five things it fails; the checklist gains it as a fifth
+#   command-decided item; the Scope field line says a Dispatch: YES task always carries one.
+planning/skills/planning-projects/SKILL.md 37895
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.

@@ -66,7 +66,7 @@ register `Status`, run that entry's `**Gate:**` checks, append a handoff note, c
 `continue`. **Version bumps defer to the master
 close-out** — one feature landing across five sub-plans is one release event, not five.
 
-Run `validate-gate-checks.py` on the master itself, not only on each sub-plan: a master's
+Run `validate-gate-checks.py` and `validate-dispatch.py` on the master itself, not only on each sub-plan: a master's
 cross-plan checks are exactly the ones that prove integration *between* sub-plans, so an
 instance-shaped one there survives every sub-plan gate.
 
@@ -215,6 +215,8 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
 
    **Advisory on an existing plan, mandatory on a new one** — say which case you are in.
    `(judgment)` is the sanctioned escape hatch for a check that genuinely needs a reader.
+   Beside it run `validate-dispatch.py <plan>`: a FAIL is a wrong `Dispatch:` field, surfaced
+   the same way before Preflight builds a roster from it.
 
 5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
    carried into the file so a session that never reads the register still implements under
