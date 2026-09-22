@@ -15,6 +15,7 @@ Write the full file (overwrite, don't patch) at each transition:
 | A stage gate runs | `phase: "gate"`, `stage`, and on a re-run `remediation_round` (+ `remediation_budget` if the plan overrode the default 2) |
 | Close-out starts | `phase: "closeout"` |
 | A Stop condition halts execution | `phase: "blocked"`, `stage`/`task` if known, `note` (one line, e.g. "cycle budget exhausted") |
+| The executor stops at a stage gate on a `handoff` verdict from `context-usage.py` | `phase: "handoff"`, `stage`, `reason` (that script's `reason:` text verbatim, e.g. "context 52% > 50%") |
 | Close-out finishes (last step) | **delete the file** |
 
 Schema (all on one line is fine):
@@ -34,6 +35,11 @@ when a gate is being re-run after a failure, so the bar reads
 than inferred. Omit it on a gate's first run. `remediation_budget` is likewise
 optional and only changes the denominator; with neither field the gate renders
 exactly as before.
+
+`reason` is only meaningful with `phase: "handoff"`. Copy it verbatim from the
+`reason:` line `context-usage.py` printed with its `handoff` verdict — do not
+paraphrase it, because it is the one record of which measured rule fired. The
+bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` note.
 **Markers the bar can append**, so an operator who sees one has somewhere to read:
 
 | Marker | Means |
@@ -42,6 +48,7 @@ exactly as before.
 | `⚠ status lag N` | the plan file's `Status:` markers trail the task this state file names by N sequential tasks. `Parallel: YES` siblings are excluded — they are dispatched together and do not finish in document order. `[~]` counts as a marker that moved. |
 | `⚠ not in plan` | this file names a task the plan does not contain. A worse divergence than a lag: the plan was edited under a run whose markers had already stopped. |
 | `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
+| `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured context rule fired. Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block. |
 
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
 — the optional `Stop`-hook backstop, off unless the user sets `PLAN_CONTINUE=1` — reads

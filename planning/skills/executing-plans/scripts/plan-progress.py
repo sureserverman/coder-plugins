@@ -953,7 +953,7 @@ def bar(done, total):
 
 
 # The state file has TWO dialects in the wild, and the renderer only knew one.
-# references/progress-state-file.md specifies `phase` as one of five keywords,
+# references/progress-state-file.md specifies `phase` as one of six keywords,
 # `stage` as an integer and `task` as "N.M". Real executions also write prose
 # into those same keys and put the integers in `stage_index`/`stage_total`
 # beside them -- android/writer-pad's live file carries
@@ -965,7 +965,7 @@ def bar(done, total):
 # are the shape the schema promises, and otherwise says NOTHING -- a status line
 # has one line's worth of room, so a paragraph pasted into it is worse than a
 # missing field. Verified against the live file, not a fixture.
-KNOWN_PHASES = ("preflight", "task", "gate", "closeout", "blocked")
+KNOWN_PHASES = ("preflight", "task", "gate", "closeout", "blocked", "handoff")
 TASK_ID_RE = re.compile(r"^\d+\.\d+$")
 
 
@@ -1048,6 +1048,12 @@ def phase_part(state):
         note = state.get("note") or state.get("task_desc") or ""
         note = clip(plain(note), NOTE_WIDTH)
         return f"{RED}✘ blocked{RESET}" + (f" {DIM}{note}{RESET}" if note else "")
+    if phase == "handoff":
+        # A deliberate stop at a gate on a context-usage.py `handoff` verdict, not
+        # a failure -- hence YELLOW, not blocked's RED. `reason` is that script's
+        # `reason:` text verbatim, bounded exactly like the blocked note.
+        reason = clip(plain(state.get("reason") or ""), NOTE_WIDTH)
+        return f"{YELLOW}⏸ HANDOFF{RESET}" + (f" {DIM}{reason}{RESET}" if reason else "")
     task = state.get("task")
     desc = state.get("task_desc")
     desc = clip(plain(desc), NOTE_WIDTH)

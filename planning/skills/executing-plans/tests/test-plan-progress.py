@@ -1285,7 +1285,34 @@ Date: 2026-08-01
 PHASE_FILES = {"2026-09-01-newest-plan.md": PHASE_PLAN,
                "2026-08-15-middle-plan.md": PHASE_PLAN,
                "2026-07-01-oldest-plan.md": PHASE_PLAN}
-GLYPHS = ("▶", "◆", "⚑", "✔", "✘")
+GLYPHS = ("▶", "◆", "⚑", "✔", "✘", "⏸")
+
+
+def case_handoff_phase():
+    """`handoff` is a deliberate stop at a gate on a context-usage.py verdict.
+
+    Asserted on phase_part() directly, not only through render(): a phase that
+    is missing from KNOWN_PHASES renders "" -- exactly what an unknown phase is
+    SUPPOSED to render -- so the full bar would still draw and only the reason
+    would be absent. The exact string pins both halves.
+    """
+    print("handoff phase (deliberate stop on a context verdict):")
+    mod = load_module()
+    check("handoff" in mod.KNOWN_PHASES, "KNOWN_PHASES contains `handoff`")
+    out = ANSI_RE.sub("", mod.phase_part(
+        {"phase": "handoff", "reason": "context 52% > 50%"}))
+    check(out == "⏸ HANDOFF context 52% > 50%",
+          f"renders `⏸ HANDOFF` followed by the reason verbatim ({out!r})")
+    out = ANSI_RE.sub("", mod.phase_part({"phase": "handoff"}))
+    check(out == "⏸ HANDOFF", f"no reason -> the marker alone, no trailing space ({out!r})")
+    long_reason = "sub-plan boundary: " + "x" * 200
+    out = ANSI_RE.sub("", mod.phase_part({"phase": "handoff", "reason": long_reason}))
+    check(mod.ELLIPSIS in out and len(out) <= len("⏸ HANDOFF ") + mod.NOTE_WIDTH,
+          f"a long reason is clipped like a blocked note ({len(out)} chars)")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\x1b[31mb"})
+    check("\x1b[31m" not in out, "an ESC in the reason is stripped, not passed to the terminal")
+    out = mod.phase_part({"phase": "HANDOFF-ish", "reason": "context 52% > 50%"})
+    check(out == "", f"an unknown phase still renders \"\" ({out!r})")
 
 
 def case_phase_indicator():
@@ -2197,6 +2224,10 @@ def main():
                 note="cycle budget exhausted")
     _, out = run(repo)
     check("✘ blocked" in out and "cycle budget exhausted" in out, "blocked glyph + note")
+    write_state(repo, plan=str(plan), phase="handoff", stage=2,
+                reason="context 52% > 50%")
+    _, out = run(repo)
+    check("⏸ HANDOFF context 52% > 50%" in out, f"handoff glyph + reason ({out.strip()!r})")
 
     print("staleness:")
     write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2")
@@ -2255,6 +2286,7 @@ def main():
     case_master_plans_are_countable()
     case_master_grouping()
     case_phase_indicator()
+    case_handoff_phase()
     case_alignment_and_composition()
     case_blocked_gate_renders()
     case_status_lag_warns()
