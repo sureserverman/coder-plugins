@@ -134,7 +134,7 @@ Task 3.1 is measured against.
 |---|---|---|---|
 | 1311 | 1311 | Stage structure | the literal task/stage field template every plan is built from |
 | 977 | 977 | Write a set-valued check as the sweep that proves it | DEC-005; binds every gate check an author writes |
-| 758 | 758 | Task and stage fields | already a pointer at task-fields.md plus load-bearing rules — AMENDED at the Stage 3 gate: two when written, FIVE now. Three task-field obligations (`Depends on`/`Blocks` required and symmetric, intra-stage dependency order with no forward reference, a consistent `Parallel`) left the trunk with the checklist and survived only as nouns in this section's pointer sentence; they were promoted back to rules, +586 B. The `bytes`/`retained` columns are Task 3.0 estimates and are left as authored |
+| 758 | 758 | Task and stage fields | already a pointer at task-fields.md plus load-bearing rules — AMENDED at the Stage 3 gate: two when written, FIVE now. Three task-field obligations (`Depends on`/`Blocks` required and symmetric, intra-stage dependency order with no forward reference, a consistent `Dispatch`) left the trunk with the checklist and survived only as nouns in this section's pointer sentence; they were promoted back to rules, +586 B. The `bytes`/`retained` columns are Task 3.0 estimates and are left as authored |
 | 627 | 800 | Reference map | the index — without it no reference is reachable |
 | 470 | 470 | Plan Document Format | already a pointer at the template fixture |
 | 402 | 402 | Phase 3 — The Red-Green Loop | already compressed to a pointer plus its two obligations |
@@ -166,7 +166,7 @@ Task 3.1 is measured against.
 | 1327 | 700 | When a stage gate fails | class-sampled-once and the do-not-restate deferral to executing-plans stay; the rest is elaboration |
 | 1135 | 800 | What a stage gate checks | the four check kinds stay; the regressions bullet's scope policy is already owned by test-scope-tiers.md |
 | 843 | 500 | Status marking (per-task done-state) | the exact `- **Status:** [ ]` form and the close-out line stay; the rationale is elaboration |
-| 692 | 350 | Phase 5 — Parallel Execution | the mark-YES-when rule stays once; the section currently states what-the-plan-owes twice and the duplicate goes |
+| 692 | 350 | Phase 5 — Dispatch | the mark-YES-when rule stays once; the section currently states what-the-plan-owes twice and the duplicate goes |
 | 615 | 420 | When to ask | the six ambiguity axes are the rule and stay; the framing is elaboration |
 | 566 | 400 | Backlog scan | fold-in-with-`Closes BL-NNN` and duplicate-is-a-planning-bug stay |
 | 534 | 350 | Online sources | check version-specific behavior and use context7 stay; the category list compresses |
@@ -278,7 +278,7 @@ from the current trunk.
 | Write a set-valued check as the sweep that proves it | **(judgment)** |
 | When a stage gate fails | defect class sampled once |
 | When a stage gate fails | Do not restate those rules here |
-| Phase 5 — Parallel Execution | shares no file with a sibling |
+| Phase 5 — Dispatch | shares no file with a sibling |
 | Checklist — Before Presenting the Plan | Before showing the plan to the user, verify |
 | Checklist — Before Presenting the Plan | zero SELECTOR-UNMATCHED |
 

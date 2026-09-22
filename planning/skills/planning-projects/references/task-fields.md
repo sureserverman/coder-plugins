@@ -84,11 +84,13 @@ Every task and stage carries two dependency fields — this makes the graph navi
 
 These fields are symmetric: if Task 2.1 depends on Task 1.3, then Task 1.3 must list Task 2.1 in its Blocks field. This redundancy is intentional — when a task finishes, you can immediately see what it unblocks without scanning the entire plan.
 
-Mark each task's **Parallel** field. It is a directive to the executor, not a description
-of the task: `executing-plans` dispatches every `Parallel: YES` task to a subagent (its
+Mark each task's **Dispatch** field. It is a directive to the executor, not a description
+of the task: `executing-plans` dispatches every `Dispatch: YES` task to a subagent (its
 Step 3.2), it does not merely note that a subagent *could* handle it. The authority for
 what the field MEANS is `../SKILL.md` § Stage structure, where it is defined; this section
 is the authoring rule built on it.
+
+Plans authored before planning 0.51.0 spell this field `Parallel:`; parsers accept both.
 
 > **Where else this rule is stated, and why that is not duplication.** The
 > directive-not-description distinction reads as repeated prose across the repo, and a
@@ -114,25 +116,24 @@ is the authoring rule built on it.
   or "none") — it is dispatched, whether or not another ready task exists to run alongside
   it. A lone ready task with no concurrent sibling is still dispatched, not inlined for
   lack of one.
-**A file conflict is expressed as a dependency, never as a downgraded `Parallel` field.**
+**A file conflict is expressed as a dependency, never as a downgraded `Dispatch` field.**
 Two dependency-free tasks that touch the same file cannot both be `YES` (the checklist
 forbids two parallel tasks modifying one file), but neither is `NO` in the field's own
 terms, because `NO` means *blocked by a dependency* and there is none. Resolve it where it
 belongs: add an explicit `Depends on` edge serialising the two at authoring time, then the
 second task is `NO` for the ordinary reason. Downgrading the field instead would reintroduce
-exactly the reading this section removes — that `Parallel` describes whether things happen
+exactly the reading this section removes — that `Dispatch` describes whether things happen
 to run side by side, rather than instructing the executor to dispatch.
 
 - **NO** if it's blocked — list which dependency is blocking it. (Once unblocked, `NO`
-  defaults to the main session, but `executing-plans` may still delegate it to a subagent
-  on its own context-hygiene criteria — that decision doesn't depend on having a
-  concurrent sibling either.)
+  runs in the main session — there is no executor discretion to delegate it — that
+  outcome doesn't depend on having a concurrent sibling either.)
 
 ### Ordering rules
 
 1. **Stages are sequential.** Stage 2 does not start until Stage 1's gate passes
 2. **Tasks within a stage follow their dependency graph.** If Task B needs output from Task A, Task A comes first — this isn't optional, it's structural
-3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously — and if only Task 2.3 is ready, it is dispatched by itself. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Parallel: YES` carries
+3. **Independent tasks are dispatched, and run in parallel.** If Tasks 2.3 and 2.4 have no dependency on each other and touch no common file, both are dispatched and run simultaneously — and if only Task 2.3 is ready, it is dispatched by itself. "Can" describes the schedule, not the obligation: whether they overlap in time is a scheduling consequence, whereas dispatching each to a subagent is the instruction their `Dispatch: YES` carries
 4. A task cannot enter its Red-Green loop until every task it depends on is green
 
 ### Risk flags

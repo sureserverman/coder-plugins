@@ -120,7 +120,7 @@ this compressed path. The deltas from the Standard flow:
   contracts don't get a size exemption.
 - **Preflight collapses into the gate.** There is no Preflight section; "baseline tests pass"
   lives as a bullet inside the single `### Stage 1 Gate`.
-- **No Risk / Rollback / Blocks / Parallel fields.** Keep `Depends on` only where a task
+- **No Risk / Rollback / Blocks / Dispatch fields.** Keep `Depends on` only where a task
   genuinely consumes a prior task's output.
 - **Output location is unchanged.** Same `<portfolio_home>/plans/` resolution and sidecar
   rules as any plan. Filename ends in `-light-plan.md` (and its first heading is
@@ -273,7 +273,7 @@ Verify each of these and report the result:
 - [ ] **Baseline**: Existing tests pass before any changes begin (don't build on a broken foundation)
 - [ ] **Review scope**: the tier this plan's cumulative diff warrants — `none` / `light` / `standard` / `high` — stated with its reason, and declared once from the plan's **cumulative** diff rather than per task. Undeclared means `standard`; touching a risk-listed area sets `high` regardless of size. **A `high` declaration names the risk-listed tasks it binds** (`review-scope: high — tasks 1.1, 1.3 (schema migration)`), because Tier-1 attaches to the **risk-listed task**, not the plan — an unnamed `high` conservatively binds every task (`../executing-plans/references/review-scope.md`)
 - [ ] **Dispatch probe**: A throwaway subagent returns a fixed string — dispatch works in this session (skipped on an empty roster, or below tier `standard`)
-- [ ] **Dispatch roster**: Every `Parallel: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none. It must cover **every stage, not the first** — a partial roster is the instance-shaped check this skill rejects everywhere else
+- [ ] **Dispatch roster**: Every `Dispatch: YES` task in the plan is listed with the subagent type it routes to (`../dispatching-parallel-agents/references/stack-routing.md`), or `0 tasks` when there are none. It must cover **every stage, not the first** — a partial roster is the instance-shaped check this skill rejects everywhere else
 - [ ] **Test-scope commands**: for a project whose full test suite is expensive (`references/test-scope-tiers.md`), the plan's stage-scope and plan-scope commands are declared here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding.
@@ -300,7 +300,7 @@ Stage N: [Name]
     Task N.1: [description]
       Depends on: [prior task(s) or "none"]
       Blocks:     [task(s) that wait on this one, or "none"]
-      Parallel:   YES | NO  (an instruction to the executor — YES obligates dispatch to a
+      Dispatch:   YES | NO  (an instruction to the executor — YES obligates dispatch to a
                   subagent; it is not a note about whether a sibling task runs alongside it)
       Scope:      [the SET this task changes — omit when it changes exactly one thing]
       Test:       [concrete pass/fail criterion]
@@ -309,7 +309,7 @@ Stage N: [Name]
     Task N.2: [description]
       Depends on: Task N.1
       Blocks:     Task N.3, Task N.4
-      Parallel:   NO  (blocked by N.1)
+      Dispatch:   NO  (blocked by N.1)
       Test:       [concrete pass/fail criterion]
 
   Stage gate:
@@ -327,11 +327,11 @@ At the end `executing-plans` appends `**Completed:** YYYY-MM-DD — commits: <li
 
 ### Task and stage fields
 
-Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
+Each task carries `Status`, `Depends on`, `Blocks`, `Dispatch`, `Test:` and
 `Red-Green max cycles:`; a task sweeping a set also carries `Scope:`, and each stage carries
 `Risk:` and `Rollback:`. These rules are load-bearing enough to state here rather than defer:
 
-- **`Parallel: YES` is a directive to dispatch**, not a description of what happened.
+- **`Dispatch: YES` is a directive to dispatch**, not a description of what happened.
 - **`Scope:` is only as good as the sweep behind it** — a truncated authoring command is a
   documented way for one to arrive short, and a gate failure then repairs an instance while
   its siblings survive.
@@ -341,8 +341,8 @@ Each task carries `Status`, `Depends on`, `Blocks`, `Parallel`, `Test:` and
 - **Tasks are in dependency order within their stage, and no task depends on a later
   stage's** — a backward-pointing dependency across a stage gate cannot be satisfied without
   reordering the plan.
-- **Every task carries `Parallel` (YES/NO), consistent with its dependencies** — a task with
-  an unsatisfied `Depends on` is not `Parallel: YES` however independent it looks.
+- **Every task carries `Dispatch` (YES/NO), consistent with its dependencies** — a task with
+  an unsatisfied `Depends on` is not `Dispatch: YES` however independent it looks.
 
 Exact semantics for every field — including `Review: skip`, risk flags and rollback
 notes: `references/task-fields.md`. (Stage sizing is not there; it is § Stage sizing,
@@ -519,12 +519,12 @@ sweep that proves it).
 
 ---
 
-## Phase 5 — Parallel Execution
+## Phase 5 — Dispatch
 
-Mark a task `Parallel: YES` when its `Depends on` are satisfiable independently and it
+Mark a task `Dispatch: YES` when its `Depends on` are satisfiable independently and it
 shares no file with a sibling. The dispatch procedure belongs to
 `../dispatching-parallel-agents/SKILL.md` and `executing-plans` Step 3.2; what the *plan*
-owes them is accurate `Depends on` / `Blocks` / `Parallel` fields and a file-conflict-free set.
+owes them is accurate `Depends on` / `Blocks` / `Dispatch` fields and a file-conflict-free set.
 ## Checklist — Before Presenting the Plan
 
 **Light plans use § Checklist — Light plans instead of this one.** This full checklist
