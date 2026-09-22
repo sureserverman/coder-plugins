@@ -1381,6 +1381,66 @@ def main():
           re.search(_ws(r"does not share the plan's branch or its gate"), _revisit) is not None,
           "the branch/gate separation is not stated")
 
+    # 12. (executor-handoff plan, Task 2.5) The executor hands off on a measured reason.
+    #     Read from the reference directly: the rule lives there, and the trunk carries its
+    #     four names and bounds. Every pin below was the answer to "what would a rewrite
+    #     that quietly brought back the eyeball stop have to delete?"
+    _ho_path = SKILL.parent / "references" / "session-handoff.md"
+    _ho = flat(_ho_path.read_text(encoding="utf-8")) if _ho_path.is_file() else ""
+    _rules = section(_ho, r"## The four stop rules", r"## The bounds")
+    check("session-handoff: the four stop rules are named",
+          all(re.search(_ws(r"\*\*" + n + r"\*\*"), _rules) for n in
+              (r"Sub-plan boundary", r"Context", r"Dead weight", r"Dated external wait")),
+          "a stop rule is missing from session-handoff.md § The four stop rules")
+    check("session-handoff: the context rule is `now > 50`, or now plus last_stage_cost past 50%",
+          affirms_claim(_rules, r"handoff when `now > 50`")
+          and re.search(_ws(r"`last_stage_cost` would pass 50%"), _rules) is not None,
+          "the context threshold is not stated as a handoff rule")
+    check("session-handoff: the first stage of a session always runs",
+          re.search(_ws(r"first stage of a session always runs"), _rules) is not None,
+          "the first-stage bound is gone — a fresh session could hand off before doing work")
+    check("session-handoff: dead weight needs disjoint AND the 25% floor",
+          re.search(_ws(r"`disjoint`.{0,120}above 25%"), _rules, re.S) is not None,
+          "the dead-weight rule lost its disjointness test or its floor")
+    check("session-handoff: a sub-plan boundary hands off unless under 25%",
+          re.search(_ws(r"handoff, unless the context is under 25%"), _rules) is not None,
+          "the sub-plan-boundary floor is not stated")
+    _bounds = section(_ho, r"## The bounds", r"## On `continue`")
+    # Negation-subject literals: the rule IS a "never"; screening the clause would reject it.
+    check("session-handoff: `unknown` never stops (DEC-014 bound)",
+          re.search(_ws(r"`unknown` never stops"), _bounds) is not None,
+          "the unknown-never-stops bound is gone")
+    check("session-handoff: a stop without the script's reason: line is not a legal stop",
+          re.search(_ws(r"stop without the script's `reason:` line is not a legal stop"),
+                    _bounds) is not None,
+          "a bare stop is no longer called illegal")
+    _on_ho = section(_ho, r"## On `handoff`", r"\Z")
+    check("session-handoff: the RESUME HERE block carries reason: verbatim",
+          "RESUME HERE" in _on_ho
+          and re.search(_ws(r"reason: <the script's reason: line, verbatim>"), _on_ho) is not None,
+          "the handoff block no longer carries the script's reason verbatim")
+    check('session-handoff: a handoff writes phase: "handoff"',
+          'phase: "handoff"' in _on_ho, "the state-file phase is not named")
+    _resets = section(text, r"## Context resets at stage boundaries", r"## Progress state file")
+    check("trunk: the context-reset section points at session-handoff.md and names the rules",
+          "session-handoff.md" in _resets and "context-usage.py" in _resets
+          and all(n in _resets for n in ("context", "dead weight", "sub-plan", "dated wait")),
+          "the trunk no longer carries the measured stop rule's names and pointer")
+    # Retired advice: an unmeasured reset suggestion. Swept across every markdown file in
+    # the plugin, because the second copy (the trunk's master-plans paragraph) was found
+    # outside the reference the plan named.
+    _retired = ("prefer the reset", "per session, ideally")
+    _ret_off = []
+    for _p in sorted((SKILLS_ROOT.parent).rglob("*.md")):
+        if "fixtures" in _p.parts:
+            continue
+        for _i, _line in enumerate(_p.read_text(encoding="utf-8", errors="replace")
+                                   .splitlines(), 1):
+            if any(r in _line for r in _retired):
+                _ret_off.append(f"{_p.relative_to(SKILLS_ROOT.parent.parent)}:{_i}")
+    check("retired: no 'prefer the reset' / 'per session, ideally' under planning/**/*.md",
+          not _ret_off, "the unmeasured reset advice survives at: " + ", ".join(_ret_off))
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")
