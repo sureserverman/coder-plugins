@@ -405,6 +405,13 @@ def _is_continuation(accumulated, line):
         r"(Note|NOTE|TODO|Why|See|Rationale|Evidence)\b", stripped)
 
 
+# `*(amended … — was: …)*` — the annotation preflight-checks.md § Amending authored
+# ceremony REQUIRES on an amended check: it cites the rule (naming a reference file) and
+# keeps the was-value (often the old command). Both are history, not the check, and read
+# as the check they made every properly amended sweep INSTANCE-SHAPED.
+AMENDMENT = re.compile(r"\s*\*\(amended\b.*?\)\*", re.I | re.S)
+
+
 def gate_checks(text):
     """Extract gate checks, joining wrapped continuation lines.
 
@@ -437,7 +444,7 @@ def gate_checks(text):
                     current = None
         if current:
             out.append(current)
-    return out
+    return [AMENDMENT.sub("", c).strip() for c in out]
 
 
 SCOPE_FIELD = re.compile(r"^\s*[-*]\s+\*\*Scope:\*\*\s*(.+)$", re.MULTILINE)

@@ -249,6 +249,25 @@ with tempfile.TemporaryDirectory() as d:
     check(rc == 2 and "absent-plan.md" in err, f"an unreadable file exits 2 naming it (rc {rc})")
 
 
+print("group 5b — an amendment note is history, not a gate reading a sibling")
+# preflight-checks.md § Amending authored ceremony REQUIRES the `*(amended … was: …)*`
+# note to cite its rule and keep the was-value, and that prose names sub-plans as
+# narrative ("the live drive at the final gate (Sub-plan 3 below)"). Read as gate text,
+# it failed writer-pad's 2026-09-08 master with an undeclared dependency it never had.
+with tempfile.TemporaryDirectory() as d:
+    for f in CORPUS.glob("ok-master*"):
+        shutil.copy(f, d)
+    m = pathlib.Path(d) / "ok-master-plan.md"
+    m.write_text(m.read_text(encoding="utf-8").replace(
+        "- [ ] `pytest alpha/tests/` exits 0 — Sub-plan 1's module imports cleanly",
+        "- [ ] `pytest alpha/tests/` exits 0 — Sub-plan 1's module imports cleanly"
+        " *(amended 2026-09-12 per `master-plan-format.md` § sub-plan gate, which puts the"
+        " live drive at the final gate (Sub-plan 2 below). Was: `pytest alpha/`)*", 1),
+        encoding="utf-8")
+    rc, out, err = run(m)
+    check(rc == 0 and not fail_lines(err, "MASTER-YES-SIBLING-DEP"),
+          f"a sibling named only inside an amendment note is not a dependency (rc {rc}; {err.strip()[:200]})")
+
 print("group 6 — every gate-check-corpus plan exits 0")
 corpus = sorted(GATE_CORPUS.glob("*-plan.md"))
 check(len(corpus) >= 3, f"gate-check corpus present ({len(corpus)} plan(s))")
