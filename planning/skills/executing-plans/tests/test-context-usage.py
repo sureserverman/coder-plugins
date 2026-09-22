@@ -343,6 +343,44 @@ try:
           "a compaction after the last commit keeps last_stage_cost and is counted")
     check(j.get("now") == 3500, "now is still the last row after a compaction")
 
+    # Measured in the executing session itself: three false boundaries came from Bash
+    # commands that WROTE this test file — the commit string sat inside Python source,
+    # not in command position. And a gate-fix commit whose BODY mentions the phrase is
+    # not a gate commit either. Only the subject of a real `git commit` counts.
+    NL = "\n"
+    shapes = [
+        ("C1 = 'git commit -m " + '"Stage 1 green"' + "'", None),
+        ("python3 - <<'PY'" + NL + "turn(4000, 'git commit -m " + '"Stage 2 green"' + "')"
+         + NL + "PY", None),
+        ("git commit -q -F - <<'EOF'" + NL + "Stage 1 gate fix: x" + NL + NL
+         + "after Stage 1 green the suite ran" + NL + "EOF", None),
+        ('git -C /repo commit --allow-empty -m "Stage 4 green"', 4),
+        ("git commit -m \"$(cat <<'EOF'" + NL + "Stage 5 green" + NL + NL + "body" + NL
+         + "EOF" + NL + ")\"", 5),
+        ("git commit -q -m \"$(printf 'Stage 6 green\\n\\nbody')\"", 6),
+        ('cd /x && git add -A && git commit -q -m "Stage 7 green — gate report"', 7),
+        ("git add -A && git commit -q --allow-empty -F - <<'MSG'" + NL + "Stage 8 green" + NL
+         + "MSG", 8),
+        ("echo x > seed.txt; git add -A; git commit -qm " + '"Stage 11 green"', 11),
+        # The subject ends at its closing quote; what follows on the line is not the message.
+        ('git commit -m "Fix X" && echo "Stage 12 green"', None),
+        ("git commit --allow-empty -q -m 'Stage 13 green'", 13),
+        # A heredoc body that is not a commit message is data, whatever it contains.
+        ("python3 - <<'PY'" + NL + "x = 1" + NL + "git commit -m " + '"Stage 9 green"' + NL
+         + "PY", None),
+        # `git` after && but inside an open quote on its line is a string, not a command.
+        ("python3 -c \"print('a && git commit -m Stage 9 green')\"", None),
+        # ...and a real commit after such a heredoc still counts.
+        ("python3 - <<'PY'" + NL + "print(1)" + NL + "PY" + NL
+         + 'git commit -q -m "Stage 10 green"', 10),
+    ]
+    for cmd, want in shapes:
+        t = rows_transcript(tmp, "shape.jsonl", [turn(1000), turn(2000, cmd)])
+        rc, j, err = run_json(["--transcript", str(t)], home, work)
+        got = [c.get("stage") for c in (j or {}).get("stage_costs") or []]
+        check(got == ([] if want is None else [want]),
+              f"boundary only on a commit whose subject is Stage N green: {cmd[:60]!r} -> {got}")
+
     print("group 12 — verdict rules: context threshold, first stage, projection")
     W = ["--window", "100000"]
 

@@ -79,10 +79,55 @@ FIELD = re.compile(r"^\s*- \*\*(Scope|Test):\*\*(.*)$", re.M)
 PATH_TOKEN = re.compile(r"[\w.\-]*[A-Za-z_][\w\-]*\.[A-Za-z][A-Za-z0-9]{0,6}\b|[\w.\-]+/[\w.\-/]+")
 
 DATED = re.compile(r"-\d{8}$")
-# A stage boundary is the assistant turn whose Bash call commits `Stage N green`.
-# Both halves are required: a `git log --grep "Stage 1 green"` mentions it, commits nothing.
-GIT_COMMIT = re.compile(r"\bgit\b[^\n]*\bcommit\b")
+# A stage boundary is the assistant turn whose Bash call runs `git ... commit` in command
+# position (line start, or after ; & | or a paren) with `Stage N green` in the message's
+# SUBJECT. Both halves are load-bearing, measured: a `git log --grep "Stage 1 green"`
+# commits nothing; a command that writes test source containing the commit string puts
+# `git` inside a quoted literal; a gate-fix commit may mention the phrase in its body.
+GIT_COMMIT = re.compile(r"(?:^|[;&|(])[ \t]*(?P<git>git)\b[^;&|]*?\bcommit\b(?P<rest>.*)")
+HEREDOC = re.compile(r"""<<(-?)[ \t]*['"]?(\w+)['"]?""")
+MSG_ARG = re.compile(r"""(?<!\S)(?:-[A-Za-z]*m|--message)(?:[ \t]+|=)?(?P<q>["']?)"""
+                     r"""(?P<pf>\$\((?:printf[ \t]*["'])?)?(?P<s>.*)""")
 STAGE_GREEN = re.compile(r"\bStage (\d+) green\b")
+
+
+def _unquoted(prefix):
+    """True when `prefix` leaves no single or double quote open."""
+    return prefix.count("'") % 2 == 0 and prefix.replace('\\"', "").count('"') % 2 == 0
+
+
+def commit_subject(cmd):
+    """Yield the subject line of every `git commit` the command runs.
+
+    Line by line: a heredoc body is skipped whole (it is data — Python source, a message),
+    except that a commit's own heredoc yields its first line as the subject; a `git` token
+    inside a quote still open on its line is a string, not a command.
+    """
+    lines = cmd.split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        for m in GIT_COMMIT.finditer(line):
+            if not _unquoted(line[:m.start("git")]):
+                continue
+            rest = m.group("rest")
+            if HEREDOC.search(rest):
+                if i + 1 < len(lines):
+                    yield lines[i + 1]
+            else:
+                a = MSG_ARG.search(rest)
+                if a:
+                    subject = a.group("s")
+                    if a.group("q") and not a.group("pf"):
+                        subject = re.split(r'(?<!\\)' + a.group("q"), subject, 1)[0]
+                    yield subject.split("\\n", 1)[0]
+        h = HEREDOC.search(line)
+        i += 1
+        if h:
+            tag, dash = h.group(2), h.group(1)
+            while i < len(lines) and (lines[i].lstrip("\t") if dash else lines[i]) != tag:
+                i += 1
+            i += 1
 
 
 def stage_committed(msg):
@@ -96,11 +141,12 @@ def stage_committed(msg):
         if block.get("name") != "Bash" or not isinstance(block.get("input"), dict):
             continue
         cmd = block["input"].get("command")
-        if not isinstance(cmd, str) or not GIT_COMMIT.search(cmd):
+        if not isinstance(cmd, str):
             continue
-        m = STAGE_GREEN.search(cmd)
-        if m:
-            return int(m.group(1))
+        for subject in commit_subject(cmd):
+            m = STAGE_GREEN.search(subject)
+            if m:
+                return int(m.group(1))
     return None
 
 
