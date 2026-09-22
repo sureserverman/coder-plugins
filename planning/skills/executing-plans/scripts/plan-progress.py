@@ -1291,7 +1291,25 @@ def blocked_gate_marker(text, plan_path=None):
 
 
 STAGE_DEPS_RE = re.compile(r"^\*\*Depends on:\*\*\s*(.*)$")
-STAGE_REF_RE = re.compile(r"\bStage\s+(\d+)\b", re.I)
+_VD = None
+
+
+def _stage_refs(value):
+    """validate-dispatch.py's `stage_refs()`, loaded on first use.
+
+    One parser for a stage's `Depends on:` value, not two: the vault writes
+    `Stages 1–3`, `Stages 2 and 3`, parentheticals and a `**Blocks:**` on the
+    same line, and that function already reads all of them. Loaded lazily so a
+    redraw with no stage in the state file never pays for it.
+    """
+    global _VD
+    if _VD is None:
+        path = Path(__file__).resolve().parents[2] / "planning-projects" / "scripts" / "validate-dispatch.py"
+        spec = importlib.util.spec_from_file_location("validate_dispatch", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _VD = mod
+    return _VD.stage_refs(value)
 
 
 def unpassed_dependencies(text, stage):
@@ -1324,7 +1342,7 @@ def unpassed_dependencies(text, stage):
         if in_head and cur == stage:
             d = STAGE_DEPS_RE.match(line.strip())
             if d:
-                deps.update(int(n) for n in STAGE_REF_RE.findall(d.group(1)))
+                deps.update(_stage_refs(d.group(1)))
         if gate is not None:
             item = pu.GATE_ITEM_RE.match(line)
             if item:
@@ -1335,11 +1353,19 @@ def unpassed_dependencies(text, stage):
 
 
 def stage_order_marker(state, text):
-    """` ⊘ STAGE ORDER` when the state file's stage depends on an unpassed gate."""
+    """` ⊘ STAGE ORDER` when the state file's stage depends on an unpassed gate.
+
+    Blank if the parser cannot load: a redraw must never fail, and
+    `--stage-order-check` — the gate — exits 2 on the same failure.
+    """
     stage = state.get("stage")
     if not isinstance(stage, int) or isinstance(stage, bool):
         return ""
-    return f" {RED}⊘ STAGE ORDER{RESET}" if unpassed_dependencies(text, stage) else ""
+    try:
+        bad = unpassed_dependencies(text, stage)
+    except Exception:
+        return ""
+    return f" {RED}⊘ STAGE ORDER{RESET}" if bad else ""
 
 
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
@@ -1551,6 +1577,10 @@ ROSTER_ITEM_RE = re.compile(r"^\s*- \[.\] .*Dispatch roster")
 ROSTER_END_RE = re.compile(r"^\s*(- \[|#)")
 ROSTER_COUNT_RE = re.compile(r"\b(\d+)\s+of\s+\d+\s+tasks\b|\b(0)\s+tasks\b")
 TASK_REF_RE = re.compile(r"\bTask\s+(\d+\.\d+)\b")
+# A commit belongs to the task its subject OPENS with (`Stage 4 Task 4.1: …`).
+# A task named later in the subject is a cross-reference, and counting it let
+# one task's `dispatched` trailer reconcile another it merely mentioned.
+COMMIT_TASK_RE = re.compile(r"^(?:Stage\s+\d+\s+)?Task\s+(\d+\.\d+)\b")
 AUTHORISED_INLINE = "inline (user authorised)"
 
 
@@ -1638,8 +1668,9 @@ def dispatch_check(args):
             continue
         subject, trailer = rec.split("\x1f", 1)
         values = [v.strip() for v in trailer.splitlines() if v.strip()] or ["unknown"]
-        for tid in TASK_REF_RE.findall(subject):
-            seen.setdefault(tid, []).extend(values)
+        m = COMMIT_TASK_RE.match(subject.strip())
+        if m:
+            seen.setdefault(m.group(1), []).extend(values)
 
     dispatched = 0
     unreconciled = []

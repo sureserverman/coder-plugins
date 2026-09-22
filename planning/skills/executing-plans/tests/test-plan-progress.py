@@ -2253,6 +2253,17 @@ def case_dispatch_check():
                                    for ln in r.stderr.splitlines()),
           f"--since bounds the ledger: Task 1.1 is out of range ({r.stderr!r})")
 
+    # Tier-2 review: a subject that NAMES another task is not that task's commit.
+    # `findall` over the whole subject let a dispatched 4.3 reconcile a 4.1 it
+    # only mentioned — a false pass on the gate this exists to make honest.
+    repo, plan = make_repo("crossref", "5 of 17 tasks", four[:3] + [
+        ("Stage 4 Task 4.1: wire", "inline"),
+        ("Stage 5 Task 5.1: fix the bug Task 4.1 left", "dispatched — general-purpose"),
+    ])
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and any("Task 4.1" in ln for ln in r.stderr.splitlines()),
+          f"a task merely named in another commit's subject is not reconciled by it ({r.stderr!r})")
+
     repo, plan = make_repo("mismatch", "4 of 17 tasks", four)
     r = dcheck(repo, plan)
     check(r.returncode == 2 and "4" in r.stderr and "5" in r.stderr,
@@ -2354,6 +2365,20 @@ def case_stage_order():
     check(r.returncode == 0,
           f"`Depends on: none` exits 0 whatever other gates say (got {r.returncode})")
     check("STAGE ORDER" not in line, f"and no marker renders (got {line!r})")
+
+    # Tier-2 review + class sweep: the vault writes plural, range and inline forms.
+    r, line = setup(second="[ ]", deps="Stages 1–3 gates passing")
+    check(r.returncode == 2,
+          f"`Stages 1–3` includes Stage 3 and exits 2 (got {r.returncode})")
+    r, line = setup(second="[ ]", deps="Stages 2 and 3")
+    check(r.returncode == 2,
+          f"`Stages 2 and 3` includes Stage 3 and exits 2 (got {r.returncode})")
+    r, line = setup(second="[ ]", deps="Stage 2 gate.  **Blocks:** Stage 3.")
+    check("Stage 3" not in r.stderr,
+          f"a `**Blocks:**` on the same line is not a dependency ({r.stderr!r})")
+    r, line = setup(second="[ ]", deps="Stage 2 (policy shared with Stage 3)")
+    check("Stage 3" not in r.stderr,
+          f"a parenthetical is prose, not an edge ({r.stderr!r})")
 
     r, line = setup(second="[ ]", stage=3)
     check(r.returncode == 0,
