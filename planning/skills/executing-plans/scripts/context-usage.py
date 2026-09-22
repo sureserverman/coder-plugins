@@ -245,11 +245,13 @@ def disjointness(plan_path, next_stage, done):
 
     Paths are compared by basename, so a file named once in full and once bare still
     overlaps; a stage without any Scope: field cannot be judged and yields "unknown".
+    Known false overlap: a prose abbreviation shaped like name.ext ("e.g.", "Node.js")
+    recurring in two stages' fields counts as a shared path — it errs toward continue.
     """
     try:
-        with open(plan_path, encoding="utf-8") as fh:
+        with open(plan_path, encoding="utf-8", errors="replace") as fh:
             stages = stage_paths(fh.read())
-    except OSError:
+    except (OSError, ValueError):
         return "unknown", f"plan {plan_path} cannot be read"
     done = sorted(set(done) - {next_stage})
     if not done:

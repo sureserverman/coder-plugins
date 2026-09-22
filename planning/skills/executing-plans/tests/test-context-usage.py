@@ -391,6 +391,15 @@ try:
           f"--next-stage defaults to the last green stage + 1 ({j.get('disjoint')})")
     rc, j = verdict_for("dwnone.jsonl", low)
     check(j.get("disjoint") is None, "no --plan -> disjoint null")
+    bad = pathlib.Path(tmp) / "badplan.md"
+    bad.write_bytes(b"## Stage 1: Bad\n- **Scope:** foo\xff.py\n## Stage 2: Next\n"
+                    b"- **Scope:** `docs/x.md`\n")
+    rc, j = verdict_for("dwbad.jsonl", low, "--plan", str(bad), "--next-stage", "2")
+    check(rc == 0 and j.get("verdict") in ("continue", "handoff", "unknown")
+          and j.get("disjoint") is not None,
+          f"a plan that is not valid UTF-8 yields a verdict, exit 0 — never a crash (rc={rc})")
+    rc, j = verdict_for("dwmissing.jsonl", low, "--plan", str(pathlib.Path(tmp) / "nope.md"))
+    check(rc == 0 and j.get("disjoint") == "unknown", "a missing plan -> disjoint unknown, exit 0")
 
     print("group 14 — sub-plan boundary and reasons")
     rc, j = verdict_for("sp30.jsonl", low, "--sub-plan-boundary")
