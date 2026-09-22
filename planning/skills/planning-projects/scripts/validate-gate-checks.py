@@ -408,8 +408,10 @@ def _is_continuation(accumulated, line):
 # `*(amended … — was: …)*` — the annotation preflight-checks.md § Amending authored
 # ceremony REQUIRES on an amended check: it cites the rule (naming a reference file) and
 # keeps the was-value (often the old command). Both are history, not the check, and read
-# as the check they made every properly amended sweep INSTANCE-SHAPED.
-AMENDMENT = re.compile(r"\s*\*\(amended\b.*?\)\*", re.I | re.S)
+# as the check they made every properly amended sweep INSTANCE-SHAPED. A backticked span
+# is consumed whole, so a `)*` inside the was-value's command (a regex quantifier) cannot
+# close the note early and splice its remainder onto the check.
+AMENDMENT = re.compile(r"\s*\*\(amended\b(?:`[^`]*`|[^`])*?\)\*", re.I | re.S)
 
 
 def gate_checks(text):

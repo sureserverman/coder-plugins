@@ -470,7 +470,8 @@ def check_master(path, lines, fails):
             # So is the `*(amended … was: …)*` note preflight-checks.md requires — its
             # narrative ("the final gate (Sub-plan 3 below)") is history, not a wait-on.
             gate = re.sub(r"<!--.*?-->", " ", e["gate"], flags=re.S)
-            gate = re.sub(r"\*\(amended\b.*?\)\*", " ", gate, flags=re.S | re.I)
+            # Backticked spans are consumed whole, as in validate-gate-checks.py.
+            gate = re.sub(r"\*\(amended\b(?:`[^`]*`|[^`])*?\)\*", " ", gate, flags=re.S | re.I)
             # A descendant (a sibling whose chain reaches n) named in a HEDGED line is a
             # forward reference ("Sub-plan 3 can consume …"). Named unhedged ("Sub-plan 3's
             # suite has passed") it is a wait-on — a cycle — and stays a FAIL.

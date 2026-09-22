@@ -262,7 +262,8 @@ with tempfile.TemporaryDirectory() as d:
         "- [ ] `pytest alpha/tests/` exits 0 — Sub-plan 1's module imports cleanly",
         "- [ ] `pytest alpha/tests/` exits 0 — Sub-plan 1's module imports cleanly"
         " *(amended 2026-09-12 per `master-plan-format.md` § sub-plan gate, which puts the"
-        " live drive at the final gate (Sub-plan 2 below). Was: `pytest alpha/`)*", 1),
+        " live drive at the final gate (Sub-plan 2 below). Was: `grep -E '(a)*' x`, then"
+        " Sub-plan 2 again)*", 1),
         encoding="utf-8")
     rc, out, err = run(m)
     check(rc == 0 and not fail_lines(err, "MASTER-YES-SIBLING-DEP"),

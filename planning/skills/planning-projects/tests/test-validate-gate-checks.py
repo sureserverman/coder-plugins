@@ -265,6 +265,14 @@ check(len(got_am) == 1 and "amended" not in got_am[0] and "one/file.md" not in g
       f"an amendment annotation is stripped, the check around it kept ({got_am!r})")
 check(kind(got_am[0]) == "EXECUTABLE",
       "an amended sweep still classifies EXECUTABLE, not INSTANCE-SHAPED")
+# Tier-2 review: a `)*` inside the backticked was-value (a regex quantifier) must not
+# close the note early and splice its remainder onto the check.
+quant = ("### Stage 1 Gate\n"
+         "- [ ] `grep -rE '(foo)*' planning/skills` prints nothing"
+         " *(amended per preflight-checks.md — was: `grep -E '(bar)*' one/file.md`)* tail\n")
+got_q = vgc.gate_checks(quant)
+check(got_q == ["`grep -rE '(foo)*' planning/skills` prints nothing tail"],
+      f"a `)*` inside the was-value's backticks does not end the note ({got_q!r})")
 
 print("group 8b — a declared Scope: must be swept, not merely named")
 
