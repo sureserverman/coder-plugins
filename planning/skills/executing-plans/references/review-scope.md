@@ -101,7 +101,7 @@ often the sweep is repeated over a diff that is still growing, and the one readi
 complete is the one over the finished diff.
 
 What the tier does **not** gate — because each costs a line of text and its absence is
-invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
+invisible — is the dispatch roster, the executor trailer, the dispatch
 reconciliation, honest-gates disclosure, the class sweep of `../SKILL.md` § *A bug found
 during execution is a class*, and the plan's own tests and gate checks. Those run
 at every tier including `none`. The distinction is cost: **a *verification* mandate that costs
