@@ -26,9 +26,11 @@ FAIL classes (stderr `FAIL: <file>: <CLASS>: <detail>`, exit 1):
                             reaches — an undeclared dependency. Depending on a sibling is
                             not one: `Depends on` orders the register, and fan-out after a
                             shared prerequisite is the legal shape (master-plans.md). Nor
-                            is naming a descendant (a forward reference), or text inside
+                            is naming a descendant in a hedged line ("can consume" — a
+                            forward reference; unhedged it is a cycle), or text inside
                             an HTML comment (an amendment annotation). A heuristic over
                             prose: a gate narrating an earlier sibling can still trip it
+                            (seen: backlog-sweep 08-03, bot-live-view 08-10)
 
 Notes (stdout `note: <file>: …`, never change the exit code):
 
@@ -60,6 +62,7 @@ import sys
 DEFAULT_CUTOVER = "2026-09-23"
 
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
+HEDGE_RE = re.compile(r"\b(can|could|will|may|might|would|able to)\b", re.I)
 HEADING_RE = re.compile(r"^(#{1,6})\s")
 STAGE_RE = re.compile(r"^##\s+Stage\s+(\d+)\b")
 TASK_RE = re.compile(r"^###\s+Task\s+(\d+)\.(\d+)\b")
@@ -465,11 +468,16 @@ def check_master(path, lines, fails):
             # An HTML comment in a gate block is an amendment annotation, not a check:
             # "AMENDED at Sub-plan 1's close-out" names when, not what the gate reads.
             gate = re.sub(r"<!--.*?-->", " ", e["gate"], flags=re.S)
-            # A descendant (a sibling whose chain reaches n) cannot be a dependency of n —
-            # naming it is a forward reference ("Sub-plan 3 can consume …").
+            # A descendant (a sibling whose chain reaches n) named in a HEDGED line is a
+            # forward reference ("Sub-plan 3 can consume …"). Named unhedged ("Sub-plan 3's
+            # suite has passed") it is a wait-on — a cycle — and stays a FAIL.
             descendants = {k for k in deps if n in ancestors(k)}
+            forward = set()
+            for gline in gate.splitlines():
+                if HEDGE_RE.search(gline):
+                    forward |= set(subplan_refs(gline)) & descendants
             undeclared = sorted({k for k in subplan_refs(gate) if k != n}
-                                - ancestors(n) - descendants)
+                                - ancestors(n) - forward)
             if undeclared:
                 fails.append((name, "MASTER-YES-SIBLING-DEP",
                               f"Sub-plan {n} is Parallel: YES but its Gate: reads "

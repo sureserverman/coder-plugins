@@ -181,6 +181,39 @@ with tempfile.TemporaryDirectory() as d:
           f"a register link that does not resolve exits 2 naming it (rc {rc})")
 
 
+print("group 4b — a descendant is exempt only as a hedged forward reference")
+# Stage 3 round-1 Important: exempting every descendant hid a gate that REQUIRES a later
+# sibling's output — a cycle (1 waits on 3, 3 depends on 1) the pre-fix code caught. A
+# hedged mention ("can consume") stays a forward reference; an unhedged one is a wait-on.
+with tempfile.TemporaryDirectory() as d:
+    dd = pathlib.Path(d)
+    sub = ("# Project Plan: sub\nDate: 2026-09-23\n\n## Stage 1: Only\n\n"
+           "### Task 1.1: One\n- **Status:** [ ]\n- **Depends on:** none\n"
+           "- **Blocks:** none\n- **Dispatch:** NO\n- **Test:** `true` exits 0\n")
+    for i in (1, 3):
+        (dd / f"s{i}-plan.md").write_text(sub, encoding="utf-8")
+
+    def master(gate_line):
+        return ("# Master Plan: descendant cases\nDate: 2026-09-23\n\n## Sub-plans\n\n"
+                "### Sub-plan 1: One\n- **Status:** [ ]\n- **Plan:** ./s1-plan.md\n"
+                "- **Depends on:** none\n- **Blocks:** Sub-plan 3\n- **Parallel:** YES\n\n"
+                f"**Gate:**\n- [ ] {gate_line}\n\n"
+                "### Sub-plan 3: Three\n- **Status:** [ ]\n- **Plan:** ./s3-plan.md\n"
+                "- **Depends on:** Sub-plan 1\n- **Blocks:** none\n- **Parallel:** YES\n\n"
+                "**Gate:**\n- [ ] `true` exits 0\n")
+    hard = dd / "hard-master-plan.md"
+    hard.write_text(master("Sub-plan 3's test suite has already passed against this "
+                           "module's real output"), encoding="utf-8")
+    rc, out, err = run(hard)
+    check(rc == 1 and any("Sub-plan 1 " in ln for ln in fail_lines(err, "MASTER-YES-SIBLING-DEP")),
+          f"a gate requiring a descendant's output fails (a cycle, not a forward reference) (rc {rc})")
+    soft = dd / "soft-master-plan.md"
+    soft.write_text(master("Sub-plan 3 can consume the module without importing anything "
+                           "else"), encoding="utf-8")
+    rc, out, err = run(soft)
+    check(rc == 0, f"a hedged mention of a descendant ('can consume') passes (rc {rc})")
+
+
 print("group 5 — the matcher's two named non-matches, and a light plan")
 toks = vd.scope_tokens("`planning/skills/planning-projects/SKILL.md` (§ `## Checklist`; "
                        "`KNOWN_PHASES`), `references/task-fields.md` (§ Checklist)")
