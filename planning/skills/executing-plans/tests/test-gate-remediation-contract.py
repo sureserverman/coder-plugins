@@ -1441,6 +1441,45 @@ def main():
     check("retired: no 'prefer the reset' / 'per session, ideally' under planning/**/*.md",
           not _ret_off, "the unmeasured reset advice survives at: " + ", ".join(_ret_off))
 
+    # 13. (executor-handoff plan, Task 3.6) The task field is named for what it does.
+    #     `Dispatch:` replaced `Parallel:` because the old name read as a description of
+    #     concurrency; each pin is a site a revert would have to touch.
+    _pp_root = SKILLS_ROOT / "planning-projects"
+    _tmpl = (_pp_root / "references" / "plan-document-template.md").read_text(encoding="utf-8")
+    check("template: the task field is spelled `- **Dispatch:**`",
+          re.search(r"^- \*\*Dispatch:\*\* YES", _tmpl, re.M) is not None
+          and re.search(r"^- \*\*Parallel:\*\*", _tmpl, re.M) is None,
+          "the plan template writes the retired `Parallel:` spelling (or no field) again")
+    check("authoring: `Dispatch: YES` obligates a dispatch",
+          affirms_claim(flat(pp), r"YES obligates dispatch")
+          and re.search(r"Mark a task `Dispatch: YES`", pp) is not None,
+          "the authoring skill no longer defines the renamed field as an obligation")
+    check("executing: Step 3.2 reads the `Dispatch` field",
+          re.search(r"Dispatch: YES", split) is not None,
+          "Step 3.2 no longer names the field it splits on")
+    # Assembled with join, not written literally: this file sits under planning/, which
+    # the sweep reads — a literal would turn the check red against itself.
+    _retired_phr = (" ".join(("own", "context-hygiene", "criteria")),
+                    " ".join(("delegate", "by", "signal")))
+    _off = []
+    for _p in sorted(SKILLS_ROOT.parent.rglob("*.md")):
+        if "fixtures" in _p.parts:
+            continue
+        _body = _p.read_text(encoding="utf-8", errors="replace")
+        for _r in _retired_phr:
+            if _r in _body:
+                _off.append(f"{_p.relative_to(SKILLS_ROOT.parent.parent)} ({_r!r})")
+    check("retired: executor discretion over a NO task stays deleted across planning/**/*.md",
+          not _off, "a delegate-by-judgment rule is back: " + ", ".join(_off))
+    _both = {
+        "planning-projects/SKILL.md": pp,
+        "executing-plans/SKILL.md": SKILL.read_text(encoding="utf-8"),
+    }
+    check("validate-dispatch.py is named in both skills",
+          all("validate-dispatch.py" in body for body in _both.values()),
+          "a skill stopped running the dispatch-field validator: "
+          + ", ".join(k for k, v in _both.items() if "validate-dispatch.py" not in v))
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")
