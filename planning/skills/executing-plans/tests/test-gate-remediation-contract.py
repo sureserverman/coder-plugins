@@ -1480,6 +1480,22 @@ def main():
           "a skill stopped running the dispatch-field validator: "
           + ", ".join(k for k, v in _both.items() if "validate-dispatch.py" not in v))
 
+    # 14. (executor-handoff plan, Task 4.3) Runtime enforcement. The roster reconciliation
+    #     was a report line and missed multitor 5.1; a stage-level `Depends on:` was parsed
+    #     nowhere and multitor Stage 4 closed before Stage 3's gate. Each is now an exit
+    #     status, and these pins keep the prose calling it.
+    check("close-out step 9 runs --dispatch-check as the reconciliation gate",
+          "--dispatch-check" in closeout_report
+          and affirms_claim(closeout_report, r"reconciled against Preflight's roster"),
+          "close-out reconciles dispatch by reading trailers again, so a rostered task "
+          "run inline without a reason reaches merge as a report line nobody acts on")
+    step31 = section(SKILL.read_text(encoding="utf-8"),
+                     r"### Step 3\.1 — Identify what can run now", r"### Step 3\.2")
+    check("Step 3.1 runs --stage-order-check before a stage opens",
+          "--stage-order-check" in step31
+          and affirms_claim(step31, r"fully `\[x\]` gate"),
+          "a stage can open before the gate it depends on, and nothing says so")
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")
