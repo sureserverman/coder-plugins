@@ -368,7 +368,7 @@ For each stage in order:
 
 Scan the stage's tasks. A task is **dispatchable** when every task in its `Depends on` list is green. At stage start, this is every task whose `Depends on` is either empty or lists only tasks from already-green prior stages.
 
-A stage opens only when every stage in its `**Depends on:**` has a fully `[x]` gate: run `plan-progress.py --stage-order-check` first; exit 2 is a Stop condition.
+A stage opens only when every stage in its `**Depends on:**` has a fully `[x]` gate: run `plan-progress.py --stage-order-check --stage <N>` first; exit 2 is a Stop condition.
 
 ### Step 3.2 — Split by parallelism
 

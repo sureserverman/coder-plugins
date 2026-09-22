@@ -187,7 +187,9 @@
 #   validate-dispatch.py FAIL is advisory on an existing plan, as the classification beside it is.
 # Raised 49714 -> 49878 (+164 B) 2026-09-22, Stage 4 Task 4.2: Step 3.1 says a stage opens only
 #   when its Depends-on gates are fully [x], checked by plan-progress.py --stage-order-check.
-planning/skills/executing-plans/SKILL.md 49878
+# Raised 49878 -> 49890 (+12 B) 2026-09-22, Stage 5 gate (evaluator Blocking): Step 3.1 passes
+#   --stage <N> so the check reads the stage being opened, not the one the state file still names.
+planning/skills/executing-plans/SKILL.md 49890
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

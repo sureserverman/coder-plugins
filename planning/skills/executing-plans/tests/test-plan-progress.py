@@ -2384,7 +2384,31 @@ def case_stage_order():
     check(r.returncode == 0,
           f"a stage's OWN open gate is not an ordering fault (got {r.returncode})")
 
+    # Final-gate evaluator (Blocking): Step 3.1 runs the check BEFORE the state file
+    # moves to the opening stage, so reading `stage` from the file checked the stage
+    # already running. `--stage N` names the stage being opened.
+    plan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    write_state(repo, plan=str(plan), phase="gate", stage=3)
+    def opening(*extra):
+        return subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check", *extra],
+                              cwd=repo, capture_output=True, text=True)
+    r = opening("--stage", "4")
+    check(r.returncode == 2 and "Stage 3" in r.stderr,
+          f"opening Stage 4 while the file still says stage 3 exits 2 ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "3")
+    check(r.returncode == 0, f"--stage 3 (no dependency) exits 0 (got {r.returncode})")
+    r = opening("--stage", "x")
+    check(r.returncode == 2 and "FAIL" in r.stderr,
+          f"a non-numeric --stage exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "4", "--plan", str(plan))
+    check(r.returncode == 2, f"--plan names the plan explicitly (got {r.returncode})")
     (repo / ".claude" / "plan-progress.json").unlink()
+    r = opening("--stage", "4")
+    check(r.returncode == 2 and "FAIL" in r.stderr,
+          f"--stage with no plan to read exits 2, never a silent pass ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "4", "--plan", str(plan))
+    check(r.returncode == 2, f"--plan works with no state file at all (got {r.returncode})")
+
     r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
                        cwd=repo, capture_output=True, text=True)
     check(r.returncode == 0 and "Traceback" not in r.stderr,

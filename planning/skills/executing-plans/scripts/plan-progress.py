@@ -1691,27 +1691,58 @@ def dispatch_check(args):
     return 2 if unreconciled else 0
 
 
-def stage_order_check(cwd):
-    """Exit status for `--stage-order-check`: 0 when the state file's stage may
-    be open, 2 when a stage it depends on has a gate that is not fully `[x]`.
+def stage_order_check(cwd, args=()):
+    """Exit status for `--stage-order-check [--stage N] [--plan <path>]`: 0 when the
+    stage may open, 2 when a stage it depends on has a gate that is not fully `[x]`.
 
-    Run at stage open, before the stage's first task. Silent 0 where no stage
-    is open — no state file, or no `stage` in it. A state file naming a plan
-    that cannot be read exits 2: this is asked at the moment a stage would
-    open, and an unreadable plan cannot prove the order holds.
+    Run at stage open, before the stage's first task — and so BEFORE the state file
+    moves to it. `--stage N` names the stage being opened; without it the check reads
+    the file's `stage`, which at that moment is the stage already running (a final-gate
+    evaluator reproduced exactly that: the check passed a Stage 4 opened over an open
+    Stage 3 gate). `--plan` names the plan when there is no state file to read it from.
+
+    Without `--stage`, silent 0 where no stage is open — no state file, or no `stage`.
+    With `--stage`, the caller asked about a specific stage, so a plan that cannot be
+    found or read exits 2: an unreadable plan cannot prove the order holds.
     """
-    sf = find_state(cwd)
-    if sf is None:
-        return 0
-    try:
-        state = json.loads(sf.read_text())
-    except (OSError, ValueError) as e:
-        print(f"FAIL: cannot read {sf}: {e}", file=sys.stderr)
+    args = list(args)
+
+    def opt(name):
+        if name not in args:
+            return None
+        i = args.index(name)
+        return args[i + 1] if i + 1 < len(args) else ""
+
+    stage_arg, plan_arg = opt("--stage"), opt("--plan")
+    state, sf = {}, find_state(cwd)
+    if sf is not None:
+        try:
+            state = json.loads(sf.read_text())
+        except (OSError, ValueError) as e:
+            print(f"FAIL: cannot read {sf}: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(state, dict):
+            state = {}
+    if stage_arg is not None:
+        try:
+            stage = int(stage_arg)
+        except ValueError:
+            print(f"FAIL: --stage takes a stage number (got {stage_arg!r})", file=sys.stderr)
+            return 2
+    else:
+        stage = state.get("stage")
+        if not isinstance(stage, int) or isinstance(stage, bool):
+            return 0
+    if plan_arg:
+        plan = Path(plan_arg)
+    elif state.get("plan") and sf is not None:
+        plan = pinned_plan_path(state, sf)
+    elif stage_arg is not None:
+        print("FAIL: no plan to read — pass --plan or write the state file first",
+              file=sys.stderr)
         return 2
-    stage = state.get("stage")
-    if not isinstance(stage, int) or isinstance(stage, bool) or not state.get("plan"):
+    else:
         return 0
-    plan = pinned_plan_path(state, sf)
     try:
         text = plan.read_text(errors="ignore")
     except BAD_PATH as e:
@@ -1729,7 +1760,7 @@ def main():
         sys.exit(budget_check(os.getcwd()))
     if "--stage-order-check" in sys.argv[1:]:
         try:
-            status = stage_order_check(os.getcwd())
+            status = stage_order_check(os.getcwd(), sys.argv[1:])
         except Exception as e:
             print(f"FAIL: --stage-order-check crashed: {e!r}", file=sys.stderr)
             status = 2

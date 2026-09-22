@@ -69,8 +69,11 @@ rule has the same failure shape, so the same discipline applies here.
 
 ## On `continue`
 
-Paste the verdict line verbatim into the gate report and the handoff note, and issue the
-next stage's first tool call in the same turn (`stage-gate.md` § If the gate passes).
+Paste the verdict line verbatim into the handoff note as its `context:` line, and issue the
+next stage's first tool call in the same turn (`stage-gate.md` § If the gate passes). The
+gate report is already committed by then — the script runs after that commit — so the line
+goes in the plan, not the report, and rides the next commit that carries the plan (a
+vault-resident plan rides none).
 
 ## On `handoff`
 

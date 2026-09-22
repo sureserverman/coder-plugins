@@ -405,7 +405,8 @@ dispatch counts can be rebuilt from the trailers, but **the review ledger cannot
 agent saw which diff exists only in the gate report, so a reset without it turns "the stage
 was reviewed" into a claim with no artifact behind it. Copy the lines the gate already
 produced; do not re-derive them. Committed with the `"Stage N green"` commit, and kept to a
-few lines — a briefing, not a log.
+few lines — a briefing, not a log. The `context:` line is the exception: it is measured after
+that commit, so it is appended then and rides the next one (`session-handoff.md`).
 
 **A reset is measured, not suggested.** Whether the next stage runs in this session or a
 fresh one is `context-usage.py`'s verdict, under the four rules in `session-handoff.md` — not
