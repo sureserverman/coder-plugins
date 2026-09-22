@@ -69,6 +69,14 @@ MODEL_WINDOWS = {
 ONE_M = 1_000_000
 
 HANDOFF_PCT = 50.0
+# Floor under the dead-weight and sub-plan-boundary rules: below it a fresh session buys
+# too little to be worth the handoff.
+FLOOR_PCT = 25.0
+
+STAGE_HEAD = re.compile(r"^## Stage (\d+)\b", re.M)
+FIELD = re.compile(r"^\s*- \*\*(Scope|Test):\*\*(.*)$", re.M)
+# A path token: something with a slash, or a name with a file extension.
+PATH_TOKEN = re.compile(r"[\w.\-]*[A-Za-z_][\w\-]*\.[A-Za-z][A-Za-z0-9]{0,6}\b|[\w.\-]+/[\w.\-/]+")
 
 DATED = re.compile(r"-\d{8}$")
 # A stage boundary is the assistant turn whose Bash call commits `Stage N green`.
@@ -215,22 +223,91 @@ def resolve_window(model, window_arg, max_seen, configured):
     return base, "table"
 
 
+def stage_paths(plan_text):
+    """Map stage number -> (set of path basenames, has_scope) from Scope:/Test: lines."""
+    heads = list(STAGE_HEAD.finditer(plan_text))
+    out = {}
+    for i, h in enumerate(heads):
+        body = plan_text[h.end():heads[i + 1].start() if i + 1 < len(heads) else len(plan_text)]
+        paths, has_scope = set(), False
+        for f in FIELD.finditer(body):
+            has_scope = has_scope or f.group(1) == "Scope"
+            for tok in PATH_TOKEN.findall(f.group(2)):
+                name = os.path.basename(tok.rstrip("/.,;:"))
+                if name:
+                    paths.add(name)
+        out[int(h.group(1))] = (paths, has_scope)
+    return out
+
+
+def disjointness(plan_path, next_stage, done):
+    """Return (True | False | "unknown", why) — is next_stage disjoint from every done stage?
+
+    Paths are compared by basename, so a file named once in full and once bare still
+    overlaps; a stage without any Scope: field cannot be judged and yields "unknown".
+    """
+    try:
+        with open(plan_path, encoding="utf-8") as fh:
+            stages = stage_paths(fh.read())
+    except OSError:
+        return "unknown", f"plan {plan_path} cannot be read"
+    done = sorted(set(done) - {next_stage})
+    if not done:
+        return "unknown", "no other stage was committed green in this session"
+    if next_stage not in stages:
+        return "unknown", f"plan has no Stage {next_stage}"
+    for n in [next_stage] + done:
+        if n not in stages or not stages[n][1]:
+            return "unknown", f"Stage {n} has no Scope: field"
+    shared = set()
+    for n in done:
+        shared |= stages[next_stage][0] & stages[n][0]
+    if shared:
+        return False, f"Stage {next_stage} shares {', '.join(sorted(shared))} with this session's stages"
+    return True, (f"Stage {next_stage} shares no Scope:/Test: path with stage(s) "
+                  f"{', '.join(map(str, done))} done this session")
+
+
 def verdict(result):
-    """Return (verdict, reason) for a result dict built by main()."""
+    """Return (verdict, reason) for a result dict built by main().
+
+    Rules, in order — each reason names its rule and the numbers:
+      sub-plan boundary  handoff unless pct < 25
+      first stage        no stage committed green this session -> continue, always
+      context            pct > 50, or pct + last_stage_cost_pct > 50 -> handoff
+      dead weight        next stage disjoint from this session's stages and pct > 25 -> handoff
+    Anything unproven is `unknown`, which never stops a run.
+    """
     if result.get("_unknown"):
         return "unknown", result["_unknown"]
-    pct = result["pct"]
-    rule = (f"now={result['now']} of window={result['window']} "
+    pct, proj = result["pct"], result["projected_pct"]
+    nums = (f"now={result['now']} of window={result['window']} "
             f"({result['window_source']}) is {pct}%")
+    if result.get("_sub_plan_boundary"):
+        if pct < FLOOR_PCT:
+            return "continue", f"rule sub-plan boundary: {nums} < {FLOOR_PCT:g}% floor"
+        return "handoff", f"rule sub-plan boundary: {nums} >= {FLOOR_PCT:g}% floor"
+    if result["last_stage_cost"] is None:
+        return "continue", (f"rule first stage: no Stage N green commit in this session, "
+                            f"so the first stage of a session always runs; {nums}")
     if pct > HANDOFF_PCT:
-        return "handoff", f"{rule} > {HANDOFF_PCT:g}% handoff threshold"
-    return "continue", f"{rule} <= {HANDOFF_PCT:g}% handoff threshold"
+        return "handoff", f"rule context: {nums} > {HANDOFF_PCT:g}%"
+    if proj > HANDOFF_PCT:
+        return "handoff", (f"rule context: {nums} + last_stage_cost={result['last_stage_cost']} "
+                           f"projects {proj}% > {HANDOFF_PCT:g}%")
+    dj = result.get("disjoint")
+    if dj is True and pct > FLOOR_PCT:
+        return "handoff", (f"rule dead weight: {result['_disjoint_why']}, and {nums} "
+                           f"> {FLOOR_PCT:g}% floor")
+    tail = f"; disjoint={dj} ({result['_disjoint_why']})" if dj is not None else ""
+    return "continue", (f"rule context: {nums}, projected {proj}% <= {HANDOFF_PCT:g}%{tail}")
 
 
 def build(args, env, cwd, home):
     res = {"now": None, "window": None, "window_source": None, "pct": None,
            "stage_costs": [], "last_stage_cost": None, "projected_pct": None,
-           "model": None, "transcript": None, "compactions": None}
+           "model": None, "transcript": None, "compactions": None, "disjoint": None,
+           "_sub_plan_boundary": args.sub_plan_boundary}
     path, why = locate_transcript(args.transcript, env, home)
     res["transcript"] = path
     if path is None:
@@ -258,6 +335,13 @@ def build(args, env, cwd, home):
     res["pct"] = round(m["now"] / window * 100, 1)
     if res["last_stage_cost"] is not None:
         res["projected_pct"] = round(res["pct"] + res["last_stage_cost"] / window * 100, 1)
+    if args.plan:
+        done = [c["stage"] for c in m["stage_costs"]]
+        nxt = args.next_stage or (done[-1] + 1 if done else None)
+        if nxt is None:
+            res["disjoint"], res["_disjoint_why"] = "unknown", "no stage committed green yet"
+        else:
+            res["disjoint"], res["_disjoint_why"] = disjointness(args.plan, nxt, done)
     return res
 
 
@@ -280,18 +364,25 @@ def main(argv=None):
     ap.add_argument("--transcript", help="transcript JSONL path (overrides the session id)")
     ap.add_argument("--window", type=positive_int, help="context window in tokens (wins)")
     ap.add_argument("--format", choices=("text", "json"), default="text")
+    ap.add_argument("--plan", help="plan file, to judge the next stage's disjointness")
+    ap.add_argument("--next-stage", type=positive_int,
+                    help="stage about to open (default: last stage green here + 1)")
+    ap.add_argument("--sub-plan-boundary", action="store_true",
+                    help="a master plan's sub-plan just closed: handoff unless pct < 25")
     args = ap.parse_args(argv)
 
     res = build(args, os.environ, os.getcwd(), os.path.expanduser("~"))
     res["verdict"], res["reason"] = verdict(res)
-    res.pop("_unknown", None)
+    for k in [k for k in res if k.startswith("_")]:
+        res.pop(k)
 
     if args.format == "json":
         print(json.dumps(res))
     else:
         print(f"context-usage: verdict={res['verdict']} now={fmt(res['now'])} "
               f"window={fmt(res['window'])} pct={fmt(res['pct'])} "
-              f"projected_pct={fmt(res['projected_pct'])} reason: {res['reason']}")
+              f"projected_pct={fmt(res['projected_pct'])} disjoint={fmt(res['disjoint'])} "
+              f"reason: {res['reason']}")
     return 0
 
 

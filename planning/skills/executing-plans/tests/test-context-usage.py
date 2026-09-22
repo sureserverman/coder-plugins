@@ -31,6 +31,8 @@ FIXTURE = os.path.join(HERE, "fixtures", "context-usage", "synthetic.jsonl")
 # 925299 - 862941 = 62358 (baseline: first turn of the slice), then the compaction,
 # then 147636 - 75460 = 72176 (baseline: first turn after the compaction).
 STAGED = os.path.join(HERE, "fixtures", "context-usage", "staged.jsonl")
+# Stage 1 and 2 share tests/test-entries.py; Stage 3 is disjoint; Stage 4 has no Scope.
+PLAN = os.path.join(HERE, "fixtures", "context-usage", "plan.md")
 
 # The fixture's last real assistant row: input 5 + cache_read 90000 + cache_creation 3000.
 FIXTURE_NOW = 93005
@@ -113,7 +115,7 @@ check(mod is not None, f"script exists and imports ({SCRIPT})")
 TABLE = getattr(mod, "MODEL_WINDOWS", {}) if mod else {}
 
 KEYS = {"now", "window", "window_source", "pct", "stage_costs", "last_stage_cost",
-        "projected_pct", "model", "transcript", "verdict", "reason", "compactions"}
+        "projected_pct", "model", "transcript", "verdict", "reason", "compactions", "disjoint"}
 
 tmp = tempfile.mkdtemp(prefix="ctxuse-")
 try:
@@ -199,10 +201,12 @@ try:
           f"pct 93005/200000 -> 46.5, continue ({j.get('pct')}, {j.get('verdict')})")
     rc, j, err = run_json(["--transcript", FIXTURE, "--window", "180000"], home, work)
     j = j or {}
-    check(j.get("pct") == 51.7 and j.get("verdict") == "handoff",
-          f"pct 51.7 -> handoff ({j.get('pct')}, {j.get('verdict')})")
-    check("51.7" in (j.get("reason") or "") and "50" in (j.get("reason") or ""),
-          f"handoff reason names pct and threshold ({j.get('reason')})")
+    # No `Stage N green` commit in this fixture: the first stage of a session always runs
+    # (Task 1.3), so 51.7% continues here; group 12 covers the handoff with history.
+    check(j.get("pct") == 51.7 and j.get("verdict") == "continue",
+          f"pct 51.7 with no stage history -> continue ({j.get('pct')}, {j.get('verdict')})")
+    check("51.7" in (j.get("reason") or "") and "first stage" in (j.get("reason") or ""),
+          f"reason names pct and the first-stage rule ({j.get('reason')})")
     rc, j, err = run_json(["--transcript", FIXTURE, "--window", "186010"], home, work)
     j = j or {}
     check(j.get("pct") == 50.0 and j.get("verdict") == "continue",
@@ -213,7 +217,7 @@ try:
         rc, j, err = run_json(["--transcript", str(t), "--window", "30000"], home, work)
         j = j or {}
         check(j.get("window") == 30000 and j.get("window_source") == "--window"
-              and j.get("verdict") == "handoff",
+              and j.get("verdict") in ("continue", "handoff"),
               f"--window overrides a listed model's table window ({j.get('window')})")
 
     print("group 6 — unknown for anything unproven, always exit 0")
@@ -243,7 +247,7 @@ try:
     check(rc == 0 and len(lines) == 1, f"text output is one line ({len(lines)})")
     line = lines[0] if lines else ""
     check(line.startswith("context-usage: verdict=continue now=93005 window=200000 pct=46.5 "
-                          "projected_pct=null reason: "), f"text line shape ({line[:120]})")
+                          "projected_pct=null disjoint=null reason: "), f"text line shape ({line[:120]})")
     rc, out, err = run(["--transcript", str(pathlib.Path(tmp) / "missing.jsonl")], home, work)
     check(rc == 0 and out.startswith("context-usage: verdict=unknown ")
           and len(out.strip().splitlines()) == 1, "unknown also prints one text line, exit 0")
@@ -338,6 +342,73 @@ try:
     check(j.get("last_stage_cost") == 6000 and j.get("compactions") == 1,
           "a compaction after the last commit keeps last_stage_cost and is counted")
     check(j.get("now") == 3500, "now is still the last row after a compaction")
+
+    print("group 12 — verdict rules: context threshold, first stage, projection")
+    W = ["--window", "100000"]
+
+    def verdict_for(name, rows, *extra):
+        rc, j, err = run_json(["--transcript", str(rows_transcript(tmp, name, rows)), *W,
+                               *extra], home, work)
+        return rc, (j or {})
+
+    C1 = 'git commit -m "Stage 1 green"'
+    rc, j = verdict_for("v51.jsonl", [turn(10000), turn(30000, C1), turn(51000)])
+    check(j.get("verdict") == "handoff" and "51.0" in (j.get("reason") or ""),
+          f"handoff when pct > 50 ({j.get('verdict')}: {j.get('reason')})")
+    rc, j = verdict_for("vproj.jsonl", [turn(10000), turn(30000, C1), turn(40000)])
+    check(j.get("projected_pct") == 60.0 and j.get("verdict") == "handoff",
+          f"handoff when pct + last_stage_cost_pct > 50 (40 + 20) ({j.get('reason')})")
+    rc, j = verdict_for("v50.jsonl", [turn(50000, C1)])
+    check(j.get("pct") == 50.0 and j.get("projected_pct") == 50.0
+          and j.get("verdict") == "continue",
+          f"continue at exactly 50 ({j.get('verdict')}: {j.get('reason')})")
+    rc, j = verdict_for("vfirst.jsonl", [turn(10000), turn(70000)])
+    check(j.get("last_stage_cost") is None and j.get("verdict") == "continue"
+          and "first stage" in (j.get("reason") or ""),
+          f"continue when last_stage_cost is null, even at 70% ({j.get('reason')})")
+
+    print("group 13 — dead weight: --plan / --next-stage disjointness")
+    low = [turn(10000), turn(12000, C1), turn(30000)]      # pct 30, stage cost 2%
+    rc, j = verdict_for("dw3.jsonl", low, "--plan", PLAN, "--next-stage", "3")
+    check(j.get("disjoint") is True and j.get("verdict") == "handoff",
+          f"handoff when disjoint and pct > 25 ({j.get('disjoint')}, {j.get('reason')})")
+    rc, j = verdict_for("dw2.jsonl", low, "--plan", PLAN, "--next-stage", "2")
+    check(j.get("disjoint") is False and j.get("verdict") == "continue",
+          f"continue when the next stage shares a path ({j.get('disjoint')}, {j.get('reason')})")
+    rc, j = verdict_for("dwlow.jsonl", [turn(10000), turn(12000, C1), turn(20000)],
+                        "--plan", PLAN, "--next-stage", "3")
+    check(j.get("disjoint") is True and j.get("verdict") == "continue",
+          f"continue when disjoint and pct <= 25 ({j.get('reason')})")
+    rc, j = verdict_for("dw4.jsonl", low, "--plan", PLAN, "--next-stage", "4")
+    check(j.get("disjoint") == "unknown" and j.get("verdict") == "continue",
+          f"next stage without Scope -> disjoint unknown, no stop ({j.get('disjoint')})")
+    rc, j = verdict_for("dwdone4.jsonl", [turn(10000), turn(12000, 'git commit -m "Stage 4 green"'),
+                                          turn(30000)], "--plan", PLAN, "--next-stage", "3")
+    check(j.get("disjoint") == "unknown" and j.get("verdict") == "continue",
+          f"a done stage without Scope -> disjoint unknown, no stop ({j.get('disjoint')})")
+    rc, j = verdict_for("dwdef.jsonl", low, "--plan", PLAN)
+    check(j.get("disjoint") is False,
+          f"--next-stage defaults to the last green stage + 1 ({j.get('disjoint')})")
+    rc, j = verdict_for("dwnone.jsonl", low)
+    check(j.get("disjoint") is None, "no --plan -> disjoint null")
+
+    print("group 14 — sub-plan boundary and reasons")
+    rc, j = verdict_for("sp30.jsonl", low, "--sub-plan-boundary")
+    check(j.get("verdict") == "handoff" and "sub-plan boundary" in (j.get("reason") or ""),
+          f"--sub-plan-boundary at 30% -> handoff ({j.get('reason')})")
+    rc, j = verdict_for("sp20.jsonl", [turn(10000), turn(12000, C1), turn(20000)],
+                        "--sub-plan-boundary")
+    check(j.get("verdict") == "continue" and "sub-plan boundary" in (j.get("reason") or ""),
+          f"--sub-plan-boundary under 25% -> continue ({j.get('reason')})")
+    rc, j = verdict_for("sp25.jsonl", [turn(25000)], "--sub-plan-boundary")
+    check(j.get("verdict") == "handoff", f"--sub-plan-boundary at exactly 25% -> handoff "
+                                          f"(unless pct < 25) ({j.get('reason')})")
+    for name, rows, extra in (("r1.jsonl", low, ()), ("r2.jsonl", low, ("--plan", PLAN)),
+                              ("r3.jsonl", [turn(60000)], ())):
+        rc, j = verdict_for(name, rows, *extra)
+        r = j.get("reason") or ""
+        check(str(j.get("pct")) in r and ("rule" in r or "unknown" in r),
+              f"reason names the rule and the numbers ({r})")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 
