@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Fixture suite for scripts/context-usage.py — run directly (CI convention):
+    python3 planning/skills/executing-plans/tests/test-context-usage.py
+
+Asserts the script's contract: it finds the transcript from CLAUDE_CODE_SESSION_ID
+and from --transcript; `now` is input + cache_read + cache_creation on the last
+real assistant row (sidechain, <synthetic> and usage-less rows skipped, malformed
+lines tolerated); the window comes from the model table for every listed model
+id, --window overrides it, and the 1M upgrade needs evidence; anything the script
+cannot prove yields `verdict: unknown` with exit 0; bad CLI usage exits 2.
+
+Every subprocess runs with a temp HOME, a temp cwd, and CLAUDE_CODE_SESSION_ID /
+ANTHROPIC_MODEL stripped, so the suite never reads the real ~/.claude.
+
+Stdlib only.
+"""
+import importlib.util
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPT = os.path.join(os.path.dirname(HERE), "scripts", "context-usage.py")
+FIXTURE = os.path.join(HERE, "fixtures", "context-usage", "synthetic.jsonl")
+
+# The fixture's last real assistant row: input 5 + cache_read 90000 + cache_creation 3000.
+FIXTURE_NOW = 93005
+
+FAILURES = []
+
+
+def check(cond, msg):
+    if cond:
+        print(f"  ok: {msg}")
+    else:
+        print(f"  FAIL: {msg}")
+        FAILURES.append(msg)
+
+
+def env_for(home, **extra):
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CLAUDE_CODE_SESSION_ID", "ANTHROPIC_MODEL")}
+    env["HOME"] = str(home)
+    env.update(extra)
+    return env
+
+
+def run(args, home, cwd=None, **extra_env):
+    """Run the script; return (rc, stdout, stderr)."""
+    r = subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True,
+                       env=env_for(home, **extra_env), cwd=str(cwd or home))
+    return r.returncode, r.stdout, r.stderr
+
+
+def run_json(args, home, cwd=None, **extra_env):
+    rc, out, err = run(["--format", "json", *args], home, cwd, **extra_env)
+    try:
+        return rc, json.loads(out), err
+    except ValueError:
+        return rc, None, f"stdout not JSON: {out!r} stderr: {err!r}"
+
+
+def transcript_for(d, model, rows=((2, 1000, 500), (4, 20000, 1000))):
+    """Write a small transcript whose assistant rows use `model`; return its path."""
+    p = pathlib.Path(d) / f"{model}.jsonl"
+    lines = [json.dumps({"type": "user", "message": {"role": "user", "content": "x"}})]
+    for inp, read, create in rows:
+        lines.append(json.dumps({"type": "assistant", "message": {
+            "model": model, "usage": {"input_tokens": inp,
+                                      "cache_read_input_tokens": read,
+                                      "cache_creation_input_tokens": create}}}))
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return p
+
+
+mod = None
+if os.path.exists(SCRIPT):
+    spec = importlib.util.spec_from_file_location("context_usage", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+check(mod is not None, f"script exists and imports ({SCRIPT})")
+TABLE = getattr(mod, "MODEL_WINDOWS", {}) if mod else {}
+
+KEYS = {"now", "window", "window_source", "pct", "stage_costs", "last_stage_cost",
+        "projected_pct", "model", "transcript", "verdict", "reason"}
+
+tmp = tempfile.mkdtemp(prefix="ctxuse-")
+try:
+    home = pathlib.Path(tmp) / "home"
+    home.mkdir()
+    work = pathlib.Path(tmp) / "work"
+    work.mkdir()
+
+    print("group 1 — locating the transcript")
+    sid = "11111111-2222-3333-4444-555555555555"
+    proj = home / ".claude" / "projects" / "-some-cwd-slug"
+    proj.mkdir(parents=True)
+    located = proj / f"{sid}.jsonl"
+    shutil.copy(FIXTURE, located)
+    rc, j, err = run_json([], home, work, CLAUDE_CODE_SESSION_ID=sid)
+    check(rc == 0 and j is not None, f"session-id run exits 0 with JSON ({err.strip()[:200]})")
+    j = j or {}
+    check(j.get("transcript") == str(located),
+          f"transcript located from CLAUDE_CODE_SESSION_ID under $HOME ({j.get('transcript')})")
+    check(j.get("now") == FIXTURE_NOW, f"session-id run: now == {FIXTURE_NOW} ({j.get('now')})")
+
+    rc, j, err = run_json(["--transcript", FIXTURE], home, work)
+    j = j or {}
+    check(rc == 0 and j.get("transcript") == FIXTURE,
+          f"--transcript is used with no session id in env ({j.get('transcript')})")
+    other = proj / "other-session.jsonl"
+    other.write_text("", encoding="utf-8")
+    rc, j, err = run_json(["--transcript", FIXTURE], home, work,
+                          CLAUDE_CODE_SESSION_ID="other-session")
+    j = j or {}
+    check(j.get("transcript") == FIXTURE and j.get("now") == FIXTURE_NOW,
+          "--transcript overrides CLAUDE_CODE_SESSION_ID")
+
+    print("group 2 — `now` is the exact last-row sum")
+    rc, j, err = run_json(["--transcript", FIXTURE], home, work)
+    j = j or {}
+    check(j.get("now") == FIXTURE_NOW,
+          f"now == input+cache_read+cache_creation of last real row ({j.get('now')})")
+    check(j.get("now") is not None and j.get("now") != 900001, "isSidechain row is ignored")
+    check(j.get("now") is not None and j.get("now") != 0,
+          "<synthetic> zero-usage row is ignored")
+    check(j.get("model") == "claude-opus-5-5", f"model reported from last row ({j.get('model')})")
+    check(set(j) == KEYS, f"JSON has exactly the contract keys ({sorted(set(j) ^ KEYS)})")
+    check(j.get("stage_costs") == [] and j.get("last_stage_cost") is None
+          and j.get("projected_pct") is None,
+          "stage_costs [] / last_stage_cost null / projected_pct null for now")
+
+    print("group 3 — unlisted model yields unknown, exit 0")
+    check("claude-unlisted-test" not in TABLE, "claude-unlisted-test is not in MODEL_WINDOWS")
+    rc, j, _err = run_json(["--transcript", str(transcript_for(tmp, "claude-unlisted-test"))],
+                           home, work)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown",
+          f"unlisted model -> verdict unknown, exit 0 (rc={rc}, {j.get('verdict')})")
+    check("claude-unlisted-test" in (j.get("reason") or ""), "unknown reason names the model")
+    check(j.get("window") is None and j.get("pct") is None,
+          "unlisted model -> window and pct are null")
+
+    print("group 4 — window from the table for every listed model id")
+    check(len(TABLE) >= 3, f"MODEL_WINDOWS lists models ({len(TABLE)})")
+    for model, (base, _supports_1m) in sorted(TABLE.items()):
+        t = transcript_for(tmp, model)
+        rc, j, err = run_json(["--transcript", str(t)], home, work)
+        j = j or {}
+        check(rc == 0 and j.get("window") == base and j.get("window_source") == "table",
+              f"{model}: window {j.get('window')} == table {base} (source {j.get('window_source')})")
+        exp_pct = round(21004 / base * 100, 1)
+        check(j.get("pct") == exp_pct and j.get("verdict") == "continue",
+              f"{model}: pct {j.get('pct')} == {exp_pct}, verdict continue")
+    if "claude-haiku-4-5" in TABLE:
+        t = transcript_for(tmp, "claude-haiku-4-5-20251001")
+        rc, j, err = run_json(["--transcript", str(t)], home, work)
+        j = j or {}
+        check(j.get("window") == TABLE["claude-haiku-4-5"][0],
+              f"dated suffix claude-haiku-4-5-20251001 resolves ({j.get('window')})")
+
+    print("group 5 — --window overrides; pct and the handoff threshold")
+    rc, j, err = run_json(["--transcript", FIXTURE, "--window", "200000"], home, work)
+    j = j or {}
+    check(j.get("window") == 200000 and j.get("window_source") == "--window",
+          f"--window wins over an unlisted model ({j.get('window')}, {j.get('window_source')})")
+    check(j.get("pct") == 46.5 and j.get("verdict") == "continue",
+          f"pct 93005/200000 -> 46.5, continue ({j.get('pct')}, {j.get('verdict')})")
+    rc, j, err = run_json(["--transcript", FIXTURE, "--window", "180000"], home, work)
+    j = j or {}
+    check(j.get("pct") == 51.7 and j.get("verdict") == "handoff",
+          f"pct 51.7 -> handoff ({j.get('pct')}, {j.get('verdict')})")
+    check("51.7" in (j.get("reason") or "") and "50" in (j.get("reason") or ""),
+          f"handoff reason names pct and threshold ({j.get('reason')})")
+    rc, j, err = run_json(["--transcript", FIXTURE, "--window", "186010"], home, work)
+    j = j or {}
+    check(j.get("pct") == 50.0 and j.get("verdict") == "continue",
+          f"pct exactly 50.0 -> continue ({j.get('pct')}, {j.get('verdict')})")
+    if TABLE:
+        listed = sorted(TABLE)[0]
+        t = transcript_for(tmp, listed)
+        rc, j, err = run_json(["--transcript", str(t), "--window", "30000"], home, work)
+        j = j or {}
+        check(j.get("window") == 30000 and j.get("window_source") == "--window"
+              and j.get("verdict") == "handoff",
+              f"--window overrides a listed model's table window ({j.get('window')})")
+
+    print("group 6 — unknown for anything unproven, always exit 0")
+    rc, j, err = run_json([], home, work)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown",
+          f"no session id and no --transcript -> unknown, exit 0 (rc={rc})")
+    rc, j, err = run_json([], home, work, CLAUDE_CODE_SESSION_ID="no-such-session")
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown", "session id with no transcript file -> unknown")
+    rc, j, err = run_json(["--transcript", str(pathlib.Path(tmp) / "missing.jsonl")], home, work)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown" and j.get("now") is None,
+          f"missing --transcript -> unknown, exit 0 (rc={rc})")
+    empty = pathlib.Path(tmp) / "no-usage.jsonl"
+    empty.write_text('{"type":"user","message":{"content":"x"}}\nnot json\n', encoding="utf-8")
+    rc, j, err = run_json(["--transcript", str(empty), "--window", "200000"], home, work)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown",
+          f"no assistant usage rows -> unknown even with --window (rc={rc})")
+    for key in ("reason",):
+        check(bool(j.get(key)), "unknown verdict carries a reason")
+
+    print("group 7 — one-line text output (the default)")
+    rc, out, err = run(["--transcript", FIXTURE, "--window", "200000"], home, work)
+    lines = out.strip().splitlines()
+    check(rc == 0 and len(lines) == 1, f"text output is one line ({len(lines)})")
+    line = lines[0] if lines else ""
+    check(line.startswith("context-usage: verdict=continue now=93005 window=200000 pct=46.5 "
+                          "projected_pct=null reason: "), f"text line shape ({line[:120]})")
+    rc, out, err = run(["--transcript", str(pathlib.Path(tmp) / "missing.jsonl")], home, work)
+    check(rc == 0 and out.startswith("context-usage: verdict=unknown ")
+          and len(out.strip().splitlines()) == 1, "unknown also prints one text line, exit 0")
+
+    print("group 8 — bad CLI usage exits 2")
+    for bad in (["--format", "xml"], ["--window", "abc"], ["--window", "0"], ["--bogus"]):
+        rc, out, err = run(bad, home, work)
+        # "usage:" proves argparse rejected it — python3 also exits 2 on a missing script.
+        check(rc == 2 and "usage:" in err, f"{' '.join(bad)} -> argparse exit 2 (rc={rc})")
+
+    print("group 9 — 1M upgrade needs evidence (unit-level, injected table entry)")
+    if mod is not None:
+        mod.MODEL_WINDOWS["test-model-200k"] = (200_000, True)
+        mod.MODEL_WINDOWS["test-model-no1m"] = (200_000, False)
+        rw = mod.resolve_window
+        w, src = rw("test-model-200k", None, 50_000, None)
+        check(w == 200_000 and src == "table", f"no evidence -> base window ({w}, {src})")
+        w, src = rw("test-model-200k", None, 50_000, ("ANTHROPIC_MODEL", "opus[1m]"))
+        check(w == 1_000_000 and "[1m]" in src and "ANTHROPIC_MODEL" in src,
+              f"[1m] configured -> 1M, source names it ({w}, {src})")
+        w, src = rw("test-model-200k", None, 250_000, None)
+        check(w == 1_000_000 and "observed" in src, f"observed > base -> 1M ({w}, {src})")
+        w, src = rw("test-model-no1m", None, 50_000, ("ANTHROPIC_MODEL", "x[1m]"))
+        check(w == 200_000 and src == "table", f"[1m] ignored when model lacks 1M ({w}, {src})")
+        w, src = rw("test-model-200k", 123_456, 250_000, ("ANTHROPIC_MODEL", "opus[1m]"))
+        check(w == 123_456 and src == "--window", f"--window beats every upgrade ({w}, {src})")
+        w, src = rw("not-a-model", None, 1, None)
+        check(w is None, f"unlisted model -> no window ({w})")
+
+        cm = mod.configured_model
+        h = pathlib.Path(tmp) / "cm-home"
+        c = pathlib.Path(tmp) / "cm-cwd"
+        (h / ".claude").mkdir(parents=True)
+        (c / ".claude").mkdir(parents=True)
+        (h / ".claude" / "settings.json").write_text('{"model": "home[1m]"}')
+        check(cm({}, str(c), str(h)) == (str(h / ".claude" / "settings.json"), "home[1m]"),
+              "falls back to $HOME/.claude/settings.json")
+        (c / ".claude" / "settings.json").write_text('{"model": "proj"}')
+        check(cm({}, str(c), str(h))[1] == "proj", "project settings.json beats home")
+        (c / ".claude" / "settings.local.json").write_text('{"model": "local[1m]"}')
+        check(cm({}, str(c), str(h))[1] == "local[1m]", "settings.local.json beats settings.json")
+        check(cm({"ANTHROPIC_MODEL": "env"}, str(c), str(h)) == ("ANTHROPIC_MODEL", "env"),
+              "ANTHROPIC_MODEL beats every settings file")
+        (c / ".claude" / "settings.local.json").write_text('not json')
+        check(cm({}, str(c), str(h))[1] == "proj", "malformed settings file is skipped")
+
+    print("group 10 — end-to-end [1m] evidence from $HOME settings")
+    if "claude-haiku-4-5" in TABLE:
+        (home / ".claude" / "settings.json").write_text('{"model": "haiku[1m]"}')
+        t = transcript_for(tmp, "claude-haiku-4-5")
+        rc, j, err = run_json(["--transcript", str(t)], home, work)
+        j = j or {}
+        check(j.get("window") == TABLE["claude-haiku-4-5"][0],
+              f"haiku (no 1M in doc) keeps its base window despite [1m] ({j.get('window')})")
+        (home / ".claude" / "settings.json").unlink()
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+
+print()
+if FAILURES:
+    print(f"FAILED — {len(FAILURES)} check(s):")
+    for f in FAILURES:
+        print(f"  {f}")
+    sys.exit(1)
+print("OK — context-usage.py locates the transcript, reports the exact last-row context, "
+      "resolves the window from its table, and says unknown for anything it cannot prove")
