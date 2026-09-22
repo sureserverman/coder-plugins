@@ -47,6 +47,7 @@ the one you need rather than working from memory.
 | `references/gate-failure-procedure.md` | a stage gate has failed |
 | `references/close-out.md` | every stage is green — the close-out procedure |
 | `references/progress-state-file.md` | writing `.claude/plan-progress.json`, or wiring the statusline |
+| `references/session-handoff.md` | a stage or sub-plan gate has passed — whether to continue or hand off |
 | `references/integration.md` | routing to another skill or agent, or citing the opt-out rules |
 | `references/sources.md` | citing why a rule here exists |
 
@@ -102,6 +103,7 @@ Create a task for each, work them in order:
    a. Dispatch `Parallel: YES` tasks via `dispatching-parallel-agents`; work `Parallel: NO` tasks in the main session
    b. Drive each task through its Red-Green loop
    c. Run the stage gate; stop if it fails
+   d. After the gate commit, run `context-usage.py`; hand off only on its `handoff` verdict
 4. **After all stages green:** hand off for review and merge (Phase Close-out)
 
 ---
@@ -638,9 +640,13 @@ degraded context, and the plan file is already the handoff artifact.
   log. **The plan file gets the handoff note only (~15 lines); the gate report itself goes
   in the `"Stage N green"` commit body, never into the plan**
   (`references/stage-gate.md` § The plan file is read whole; exact shape there too).
-- **Resuming fresh:** a new session (or a post-compaction continuation) picks up the plan by
-  reading the Research Summary, the `Status:` flips, and the handoff notes — never by needing
-  the prior transcript; a note too thin to resume from is the bug to fix.
+- **Stop on a measured reason, never by eye.** After each gate commit, in a separate call, run
+  `scripts/context-usage.py`. Four rules — **context**, **dead weight**, **sub-plan
+  boundary**, **dated wait** — decide `handoff`; a `handoff` writes a `RESUME HERE` block and
+  `phase: "handoff"`. `unknown` never stops, no rule fires before a gate, and a stop without
+  the script's `reason:` is not a legal stop (`references/session-handoff.md`).
+- **Resuming fresh:** a new session reads the Research Summary, `Status:` flips, handoff
+  notes and the last `RESUME HERE` block — never by needing the prior transcript.
 
 ---
 

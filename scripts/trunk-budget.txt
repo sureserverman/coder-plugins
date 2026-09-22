@@ -170,7 +170,11 @@
 #   names an executed probe. Within the 49016 origin.
 # Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
 #   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
-planning/skills/executing-plans/SKILL.md 48871
+# Raised 48871 -> 49433 (+562 B) 2026-09-22, executor-handoff plan Task 2.1: the
+#   context-reset section gains the measured stop rule (four rule names, the DEC-014 bounds
+#   and a pointer) plus one Checklist step and one Reference-map row; the procedure lives in
+#   references/session-handoff.md. The plan bounds Stage 2's trunk growth at 1,500 B (DEC-018).
+planning/skills/executing-plans/SKILL.md 49433
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
