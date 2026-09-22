@@ -2021,6 +2021,39 @@ def case_status_lag_warns():
           f"a `Parallel: NO` task left unmarked is still a stall (got {pout2!r})")
     par.unlink()
 
+    print("  the renamed `Dispatch:` field is read the same way:")
+    # `Parallel: YES|NO` was renamed `Dispatch: YES|NO` (same meaning). The
+    # `Parallel:` case above stays as the old-spelling guard; this one pins the
+    # new spelling, which is what newly authored plans carry.
+    dsp = repo / "plans" / "dispatch-plan.md"
+    dsp.write_text("""# Plan
+
+## Stage 1: fan out
+
+### Task 1.1: first
+- **Status:** [x]
+- **Dispatch:** NO
+
+### Task 1.2: dispatched sibling
+- **Status:** [ ]
+- **Dispatch:** YES
+
+### Task 1.3: dispatched sibling
+- **Status:** [ ]
+- **Dispatch:** YES
+""")
+    write_state(repo, plan=str(dsp), phase="task", stage=1, task="1.3")
+    dout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in dout,
+          f"an unmarked `Dispatch: YES` sibling is concurrency, not lag (got {dout!r})")
+    dsp.write_text(dsp.read_text().replace(
+        "### Task 1.2: dispatched sibling\n- **Status:** [ ]\n- **Dispatch:** YES",
+        "### Task 1.2: sequential\n- **Status:** [ ]\n- **Dispatch:** NO"))
+    dout2 = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" in dout2,
+          f"a `Dispatch: NO` task left unmarked is still a stall (got {dout2!r})")
+    dsp.unlink()
+
     print("  a state file naming a task the plan no longer has says so:")
     # Silently returning "" folded this into the ordinary cases. It is a WORSE
     # divergence than a two-task lag — the plan was edited under a run whose

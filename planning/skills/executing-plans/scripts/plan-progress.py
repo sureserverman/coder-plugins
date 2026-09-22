@@ -1115,7 +1115,9 @@ LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
 # --budget-check's ceiling are the same rule, and two literals would let the bar
 # and the stop disagree about when a budget is spent.
 DEFAULT_REMEDIATION_BUDGET = 2
-PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
+# `Dispatch: YES|NO` is the task field; `Parallel:` is its old spelling, which
+# existing plans keep forever, so both are read.
+DISPATCH_YES_RE = re.compile(r"^\s*-\s*\*\*(?:Dispatch|Parallel):\*\*\s*YES\b", re.I)
 
 
 def status_lag(state, text, plan_path):
@@ -1134,9 +1136,10 @@ def status_lag(state, text, plan_path):
     still going.
 
     LAG counts the SEQUENTIAL tasks between the last marker that moved (`[x]` or
-    `[~]`) and the task the state file names, plus the current one. `Parallel:
-    YES` siblings are excluded: they are dispatched together and do not finish
-    in document order, so an unmarked one is concurrency the plan asked for.
+    `[~]`) and the task the state file names, plus the current one. `Dispatch:
+    YES` siblings (old spelling `Parallel: YES`, still accepted) are excluded:
+    they are dispatched together and do not finish in document order, so an
+    unmarked one is concurrency the plan asked for.
 
     NOT extended to master plans, deliberately. The state-file contract
     (`../references/progress-state-file.md`) says a master's state file always
@@ -1171,7 +1174,7 @@ def status_lag(state, text, plan_path):
         sm = pu.STATUS_RE.match(line)
         if sm and order[-1]["state"] is None:
             order[-1]["state"] = pu.status_state(sm.group(1))
-        elif PARALLEL_YES_RE.match(line):
+        elif DISPATCH_YES_RE.match(line):
             order[-1]["parallel"] = True
     # Measured from the last marker that MOVED, not the last `[x]`. BL-096 is
     # about markers that stop moving, and `[~]` is a marker that moved — warning
@@ -1196,9 +1199,10 @@ def status_lag(state, text, plan_path):
         # edited under a run whose markers had already stopped — and silence
         # made it indistinguishable from nothing to report.
         return f" {RED}⚠ not in plan{RESET}"
-    # `Parallel: YES` siblings are dispatched together and do not finish in
-    # document order, so an unmarked one between the last marker and the current
-    # task is the format's own first-class concurrency, not a stall. Counting it
+    # `Dispatch: YES` siblings (or the old `Parallel: YES`) are dispatched
+    # together and do not finish in document order, so an unmarked one between
+    # the last marker and the current task is the format's own first-class
+    # concurrency, not a stall. Counting it
     # made the warning fire on sanctioned behaviour — and a signal that cries
     # wolf on the thing the plan told it to expect is worse than the silence it
     # replaces, because it teaches the reader to ignore it.

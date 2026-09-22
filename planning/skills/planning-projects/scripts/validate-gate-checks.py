@@ -108,7 +108,8 @@ Every figure below is measured over that corpus and is therefore reproducible fr
 repo alone — except where a bullet says otherwise, which is the one thing worth reading
 carefully here:
 
-  - Calibrated against 48 gate checks in 3 real plans: 21 EXECUTABLE,
+  - Calibrated against 53 gate checks in 4 plans (3 real copies, plus 1 authored
+    fixture in the `Dispatch:` spelling that adds 5 EXECUTABLE): 26 EXECUTABLE,
     7 JUDGMENT, 3 INSTANCE-SHAPED, 17 PROSE. The corpus is frozen in the repo at
     tests/fixtures/gate-check-corpus/ (see its PROVENANCE.md) and these figures are pinned
     to it by tests/test-validate-gate-checks.py group 9, so they move only when someone
