@@ -26,6 +26,11 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), "scripts", "context-usage.py")
 FIXTURE = os.path.join(HERE, "fixtures", "context-usage", "synthetic.jsonl")
+# A real transcript slice (e8befa8a, rows 2400-3200) scrubbed to usage blocks, the two
+# `Stage 1 green` commit commands and the one compaction row. Deltas hand-computed:
+# 925299 - 862941 = 62358 (baseline: first turn of the slice), then the compaction,
+# then 147636 - 75460 = 72176 (baseline: first turn after the compaction).
+STAGED = os.path.join(HERE, "fixtures", "context-usage", "staged.jsonl")
 
 # The fixture's last real assistant row: input 5 + cache_read 90000 + cache_creation 3000.
 FIXTURE_NOW = 93005
@@ -64,6 +69,28 @@ def run_json(args, home, cwd=None, **extra_env):
         return rc, None, f"stdout not JSON: {out!r} stderr: {err!r}"
 
 
+def rows_transcript(d, name, rows):
+    """Write raw rows (dicts) as a transcript; return its path."""
+    p = pathlib.Path(d) / name
+    p.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    return p
+
+
+def turn(ctx, command=None, model="claude-fable-5-1"):
+    """An assistant row whose context is `ctx`, optionally carrying a Bash command."""
+    content = []
+    if command:
+        content.append({"type": "tool_use", "name": "Bash", "input": {"command": command}})
+    return {"type": "assistant", "message": {
+        "model": model, "content": content,
+        "usage": {"input_tokens": 1, "cache_read_input_tokens": ctx - 1,
+                  "cache_creation_input_tokens": 0}}}
+
+
+COMPACT = {"type": "user", "isCompactSummary": True,
+           "message": {"role": "user", "content": "summary"}}
+
+
 def transcript_for(d, model, rows=((2, 1000, 500), (4, 20000, 1000))):
     """Write a small transcript whose assistant rows use `model`; return its path."""
     p = pathlib.Path(d) / f"{model}.jsonl"
@@ -86,7 +113,7 @@ check(mod is not None, f"script exists and imports ({SCRIPT})")
 TABLE = getattr(mod, "MODEL_WINDOWS", {}) if mod else {}
 
 KEYS = {"now", "window", "window_source", "pct", "stage_costs", "last_stage_cost",
-        "projected_pct", "model", "transcript", "verdict", "reason"}
+        "projected_pct", "model", "transcript", "verdict", "reason", "compactions"}
 
 tmp = tempfile.mkdtemp(prefix="ctxuse-")
 try:
@@ -272,6 +299,45 @@ try:
         check(j.get("window") == TABLE["claude-haiku-4-5"][0],
               f"haiku (no 1M in doc) keeps its base window despite [1m] ({j.get('window')})")
         (home / ".claude" / "settings.json").unlink()
+
+    print("group 11 — per-stage cost from `Stage N green` commits, compaction-aware")
+    rc, j, err = run_json(["--transcript", STAGED], home, work)
+    j = j or {}
+    costs = j.get("stage_costs") or []
+    check(rc == 0 and [c.get("cost") for c in costs] == [62358, 72176],
+          f"real fixture: stage_costs == hand-computed [62358, 72176] ({costs})")
+    check([c.get("stage") for c in costs] == [1, 1], "each cost names its stage number")
+    check(len(costs) == 2 and costs[1].get("from") == 75460
+          and costs[1].get("after_compaction") is True,
+          "the compaction resets the baseline to the first turn after it (75460)")
+    check(len(costs) == 2 and costs[0].get("after_compaction") is False,
+          "the first cost does not span a compaction")
+    check(j.get("compactions") == 1, f"compactions counted ({j.get('compactions')})")
+    check(j.get("last_stage_cost") == 72176, f"last_stage_cost ({j.get('last_stage_cost')})")
+    check(j.get("pct") is not None and j.get("projected_pct")
+          == round(j["pct"] + 72176 / 1_000_000 * 100, 1),
+          f"projected_pct = pct + last_stage_cost/window ({j.get('projected_pct')})")
+
+    t = rows_transcript(tmp, "nocommit.jsonl", [turn(1000), turn(5000),
+                                               turn(9000, 'git log --grep "Stage 1 green"')])
+    rc, j, err = run_json(["--transcript", str(t)], home, work)
+    j = j or {}
+    check(j.get("stage_costs") == [] and j.get("last_stage_cost") is None
+          and j.get("projected_pct") is None,
+          "a command that only mentions `Stage 1 green` without committing is not a stage")
+
+    t = rows_transcript(tmp, "two.jsonl", [
+        turn(1000), turn(4000, 'git commit -m "Stage 2 green"'), turn(4500),
+        turn(10000, "git add -A && git commit -q -F - <<'EOF'\nStage 3 green\nEOF"),
+        COMPACT, turn(3000), turn(3500)])
+    rc, j, err = run_json(["--transcript", str(t)], home, work)
+    j = j or {}
+    costs = j.get("stage_costs") or []
+    check([(c.get("stage"), c.get("cost")) for c in costs] == [(2, 3000), (3, 6000)],
+          f"two commits, no compaction between them: deltas 3000 and 6000 ({costs})")
+    check(j.get("last_stage_cost") == 6000 and j.get("compactions") == 1,
+          "a compaction after the last commit keeps last_stage_cost and is counted")
+    check(j.get("now") == 3500, "now is still the last row after a compaction")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

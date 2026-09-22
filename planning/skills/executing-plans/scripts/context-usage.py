@@ -71,6 +71,29 @@ ONE_M = 1_000_000
 HANDOFF_PCT = 50.0
 
 DATED = re.compile(r"-\d{8}$")
+# A stage boundary is the assistant turn whose Bash call commits `Stage N green`.
+# Both halves are required: a `git log --grep "Stage 1 green"` mentions it, commits nothing.
+GIT_COMMIT = re.compile(r"\bgit\b[^\n]*\bcommit\b")
+STAGE_GREEN = re.compile(r"\bStage (\d+) green\b")
+
+
+def stage_committed(msg):
+    """Return the stage number a turn's Bash call commits as green, or None."""
+    content = msg.get("content")
+    if not isinstance(content, list):
+        return None
+    for block in content:
+        if not isinstance(block, dict) or block.get("type") != "tool_use":
+            continue
+        if block.get("name") != "Bash" or not isinstance(block.get("input"), dict):
+            continue
+        cmd = block["input"].get("command")
+        if not isinstance(cmd, str) or not GIT_COMMIT.search(cmd):
+            continue
+        m = STAGE_GREEN.search(cmd)
+        if m:
+            return int(m.group(1))
+    return None
 
 
 def locate_transcript(arg, env, home):
@@ -90,10 +113,18 @@ def locate_transcript(arg, env, home):
 def measure(path):
     """Read the transcript. Returns a dict, or None when the file cannot be read.
 
-    Keys: now (int or None), model (str or None), max_seen (int), rows (int).
+    Keys: now (int or None), model (str or None), max_seen (int), rows (int),
+    stage_costs (list), compactions (int).
+
+    A stage's cost is the context at its `Stage N green` turn minus the baseline: the
+    previous green turn, or the first turn of the session. A compaction row resets the
+    baseline to the first turn after it, so no delta ever spans a compaction.
     """
     now = model = None
-    max_seen = rows = 0
+    max_seen = rows = compactions = 0
+    baseline = None
+    after_compaction = False
+    stage_costs = []
     try:
         fh = open(path, encoding="utf-8", errors="replace")
     except OSError:
@@ -104,7 +135,13 @@ def measure(path):
                 row = json.loads(line)
             except ValueError:
                 continue
-            if not isinstance(row, dict) or row.get("type") != "assistant":
+            if not isinstance(row, dict):
+                continue
+            if row.get("type") == "user" and row.get("isCompactSummary") is True:
+                compactions += 1
+                baseline, after_compaction = None, True
+                continue
+            if row.get("type") != "assistant":
                 continue
             if row.get("isSidechain") is True:
                 continue
@@ -123,7 +160,15 @@ def measure(path):
             now, model = ctx, msg.get("model")
             max_seen = max(max_seen, ctx)
             rows += 1
-    return {"now": now, "model": model, "max_seen": max_seen, "rows": rows}
+            if baseline is None:
+                baseline = ctx
+            stage = stage_committed(msg)
+            if stage is not None:
+                stage_costs.append({"stage": stage, "cost": ctx - baseline, "from": baseline,
+                                    "at": ctx, "after_compaction": after_compaction})
+                baseline, after_compaction = ctx, False
+    return {"now": now, "model": model, "max_seen": max_seen, "rows": rows,
+            "stage_costs": stage_costs, "compactions": compactions}
 
 
 def configured_model(env, cwd, home):
@@ -185,7 +230,7 @@ def verdict(result):
 def build(args, env, cwd, home):
     res = {"now": None, "window": None, "window_source": None, "pct": None,
            "stage_costs": [], "last_stage_cost": None, "projected_pct": None,
-           "model": None, "transcript": None}
+           "model": None, "transcript": None, "compactions": None}
     path, why = locate_transcript(args.transcript, env, home)
     res["transcript"] = path
     if path is None:
@@ -199,6 +244,9 @@ def build(args, env, cwd, home):
         res["_unknown"] = f"transcript {path} has no main-thread assistant row with usage"
         return res
     res["now"], res["model"] = m["now"], m["model"]
+    res["stage_costs"], res["compactions"] = m["stage_costs"], m["compactions"]
+    if m["stage_costs"]:
+        res["last_stage_cost"] = m["stage_costs"][-1]["cost"]
     window, source = resolve_window(m["model"], args.window, m["max_seen"],
                                     configured_model(env, cwd, home))
     res["window_source"] = source
