@@ -262,7 +262,9 @@ planning/skills/executing-plans/SKILL.md 49494
 # Raised 37456 -> 37502 (+46 B) settling BL-106, the no-vault_dir fallback: three
 #   sites stated one rule and two of them contradicted each other. Decided by the user
 #   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
-planning/skills/planning-projects/SKILL.md 37489
+# Lowered 37489 -> 37479 (-10 B) 2026-09-22, executor-handoff plan Task 3.2: the rename to
+#   `Dispatch:` and its "Phase 5 — Dispatch" heading came out 10 B shorter.
+planning/skills/planning-projects/SKILL.md 37479
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -449,7 +451,10 @@ planning/skills/backlog/SKILL.md 17333
 #   three fixes: the halts pointer now names its section, the stack-routing
 #   citation was joined onto one line so its path qualifies it, and a CLRS
 #   section number stopped being read as document deixis
-planning/skills/dispatching-parallel-agents/SKILL.md 17381
+# Raised 17381 -> 17460 (+79 B) 2026-09-22, executor-handoff plan Task 3.3: the field is
+#   renamed Parallel -> Dispatch (byte-neutral) and one sentence says pre-0.51.0 plans spell it
+#   `Parallel:` and are treated identically — the compat note a reader of an old plan needs.
+planning/skills/dispatching-parallel-agents/SKILL.md 17460
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file

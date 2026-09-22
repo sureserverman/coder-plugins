@@ -1,7 +1,7 @@
 # Dispatch fidelity — why the roster, the probe and the snapshot exist
 
 An inlined task and a dispatched one produce byte-identical artifacts: the same diff, the
-same `Status: [x]`, the same commit subject. So a run that ignores its `Parallel: YES`
+same `Status: [x]`, the same commit subject. So a run that ignores its `Dispatch: YES`
 directives leaves nothing for a later reader to notice. Everything in this file exists to
 make that specific omission visible — including, below, why the omission happens in the
 first place. `executing-plans` keeps the mechanics — the roster format, the probe, the
@@ -13,14 +13,14 @@ trunk beside the trailer shapes themselves (Step 3.3 rule 7).
 Two rules about dispatch live in different places, and nothing forces a session to
 reconcile them: a standing session caution of the form *"do not call the Agent tool
 unless the user requested it,"* and the plan's own execution model naming dispatch points
-— `Parallel: YES` tasks, tier-mandated reviews, evaluators, the Preflight probe itself.
+— `Dispatch: YES` tasks, tier-mandated reviews, evaluators, the Preflight probe itself.
 Nothing arbitrates between the two, so the more general, more recently read caution wins
 by default. That is the whole failure — not carelessness, a genuine precedence question
 nobody had answered in writing.
 
 The resolution: the caution is **conditional, not absolute**. Approving a plan whose
 execution model mandates dispatch **is** the request the caution is waiting for — the
-confirmation already happened at plan approval. So a `Parallel: YES` task, a
+confirmation already happened at plan approval. So a `Dispatch: YES` task, a
 tier-mandated review, an evaluator, and the Preflight probe itself are dispatched without
 a further confirmation turn: `../../dispatching-parallel-agents/references/stack-routing.md` § "Not
 every routed agent can commit" states the same precedence for the handoff side of this rule.
@@ -57,7 +57,7 @@ than the detection side.
 
 ### Dispatch roster and capability probe
 
-A `Parallel: YES` task is a directive to dispatch, not a note about concurrency
+A `Dispatch: YES` task is a directive to dispatch, not a note about concurrency
 (`../../planning-projects/SKILL.md` § Stage structure) — and an inlined task and a
 dispatched one produce byte-identical artifacts. So a run that ignores the field leaves
 no trace in the diff, the commits, or the gate: there is nothing for a later reader to
@@ -66,12 +66,12 @@ notice. The omission becomes visible only if the run wrote down what it was goin
 hard stop.
 
 1. **Enumerate the roster.** Sweep **every task in the plan**, across all stages, and
-   list in the Preflight report each task whose `Parallel:` field reads `YES`, with the
+   list in the Preflight report each task whose `Dispatch:` field reads `YES`, with the
    `subagent_type` it routes to per
    `../../dispatching-parallel-agents/references/stack-routing.md`:
 
    ```
-   Dispatch roster (Parallel: YES) — <n> of <total> tasks
+   Dispatch roster (Dispatch: YES) — <n> of <total> tasks
      Task <N.M> → <subagent_type>
      Task <N.M> → <subagent_type>
      …
@@ -131,7 +131,7 @@ hard stop.
 
 **A failed probe is a Preflight failure.** When dispatch is unavailable or disallowed in
 this session and the roster lists at least one task, Preflight fails and you stop — the
-user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or accept
+user decides whether to enable it, re-plan those tasks as `Dispatch: NO`, or accept
 inline execution knowingly. Substituting inline execution on your own authority is not a
 resolution; it takes a decision that belongs to the user and makes it silently, which is
 the exact failure this check exists to surface.
@@ -147,7 +147,7 @@ different mechanism. What made the asymmetry survive is that the substitute look
 work: an inlined task produces the same diff, and an unreviewed gate reads exactly like a
 reviewed one. That is the reason it needs a rule rather than judgment — the failure is
 invisible in the artifact, so nothing downstream will raise it. **The choice belongs to the
-user**: they can enable dispatch, re-mark the tasks `Parallel: NO` through
+user**: they can enable dispatch, re-mark the tasks `Dispatch: NO` through
 `planning-projects`, or accept inline execution knowingly. What the executor may not do is
 make that call silently on their behalf, which is exactly what happened in the incident this
 rule comes from. The other half of the symmetry: the Stop condition fires when a mandated

@@ -1,13 +1,13 @@
 ---
 name: dispatching-parallel-agents
-description: Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on "dispatch these tasks in parallel", "run these Parallel YES tasks", "fan out these independent fixes".
+description: Use when executing-plans has Dispatch YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on "dispatch these tasks in parallel", "run these Dispatch YES tasks", "fan out these independent fixes".
 ---
 
 # Dispatching Parallel Agents
 
 Fan out independent tasks from a `planning-projects` plan to concurrent sub-agents, collect their results, propagate the dependency graph, and return control to `executing-plans` (or the caller).
 
-This skill is the operational arm of `planning-projects` Phase 5 ("Parallel Execution") and is usually invoked by `executing-plans` rather than the user directly.
+This skill is the operational arm of `planning-projects` Phase 5 ("Dispatch") and is usually invoked by `executing-plans` rather than the user directly.
 
 **Announce at start:** "Using the dispatching-parallel-agents skill to fan out <N> independent tasks."
 
@@ -17,8 +17,8 @@ This skill is the operational arm of `planning-projects` Phase 5 ("Parallel Exec
 
 Refuse to dispatch unless all are true:
 
-1. **A plan exists** at a known path, produced by `planning-projects`. The plan's task fields (`Depends on`, `Blocks`, `Parallel`, `Test`, `Red-Green max cycles`) are the source of truth.
-2. **Every task in scope has `Parallel: YES`** in the plan.
+1. **A plan exists** at a known path, produced by `planning-projects`. The plan's task fields (`Depends on`, `Blocks`, `Dispatch`, `Test`, `Red-Green max cycles`) are the source of truth. Plans authored before planning 0.51.0 spell the field `Parallel:`; treat it identically.
+2. **Every task in scope has `Dispatch: YES`** in the plan.
 3. **Every task's `Depends on` list is fully green** (every referenced prior task has passed its test and been committed).
 4. **No two tasks in scope modify the same file.** This is checked against the plan's declared file paths; if the plan doesn't list files, scan the task descriptions. When in doubt, force sequential.
 5. **The stage gate has not yet run.** Dispatches happen before the gate, not after.
@@ -26,7 +26,7 @@ Refuse to dispatch unless all are true:
 If any precondition fails, stop and report which one — do not relax them on your own.
 
 **These five preconditions are the whole check.** Satisfying them means dispatch — not a
-pause to confirm with the user first. A plan's `Parallel: YES` is a direct order, approved
+pause to confirm with the user first. A plan's `Dispatch: YES` is a direct order, approved
 when the plan was approved; asking "should I dispatch these?" here re-litigates a decision
 that's already made. (An inlined task and a dispatched one produce byte-identical
 artifacts, so skipping a mandated dispatch shows up nowhere in the diff — only later, when
@@ -54,13 +54,13 @@ Create a task for each:
 
 From the current stage, identify tasks where:
 
-- `Parallel: YES`
+- `Dispatch: YES`
 - Every task in `Depends on` is in the completed set (check TodoWrite or plan status notes)
 - The task has not already been dispatched or completed
 
 Call this set **S**. A lone ready task is **still dispatched**: |S| = 1 runs as a single
 dispatch rather than a fan-out, and is never a reason to hand the task back to the caller.
-Having nothing to run alongside it is a fact about *concurrency*, while `Parallel: YES` is
+Having nothing to run alongside it is a fact about *concurrency*, while `Dispatch: YES` is
 a *delegation* directive — two different properties (`../planning-projects/SKILL.md` § Stage structure). Only |S| = 0 returns control to the caller with nothing to do.
 
 ## Phase 2 — Guard against file conflicts
@@ -68,7 +68,7 @@ a *delegation* directive — two different properties (`../planning-projects/SKI
 For every pair `(tᵢ, tⱼ)` in S, compare the file paths each task will modify:
 
 - If paths are disjoint → keep both in S
-- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task is **dispatched on its own after this batch returns** — removing it from S drops it from *this concurrent batch*, never from dispatch. It carries `Parallel: YES`, so it goes to a subagent whenever it runs; the conflict decided *when*, not *whether*.
+- If paths overlap → remove one from S (prefer keeping the higher-`Blocks`-count task, since it unblocks more downstream work). The removed task is **dispatched on its own after this batch returns** — removing it from S drops it from *this concurrent batch*, never from dispatch. It carries `Dispatch: YES`, so it goes to a subagent whenever it runs; the conflict decided *when*, not *whether*.
 
 Also guard against **shared resources** beyond files: same DB table schema migration, same CI config section, same feature flag — these are "logical" file conflicts even when the literal paths differ.
 
@@ -251,7 +251,7 @@ Return to `executing-plans` (or the calling session) with:
 
 - Tasks are related (one fix might fix others) — investigate as a group first
 - You don't have a plan — brainstorm and plan before dispatching
-- |S| = 0 — nothing is dispatchable yet (a `Depends on` is still red). **|S| = 1 is not on this list**: a lone `Parallel: YES` task is dispatched as a single dispatch, per Phase 1
+- |S| = 0 — nothing is dispatchable yet (a `Depends on` is still red). **|S| = 1 is not on this list**: a lone `Dispatch: YES` task is dispatched as a single dispatch, per Phase 1
 - Tasks touch shared state (same file, same DB schema, same CI job) — force sequential
 - The stage gate is ready to run — gates are a synchronization point; don't dispatch past them
 
@@ -268,7 +268,7 @@ Return to `executing-plans` (or the calling session) with:
 
 ## Integration
 
-- **planning-projects** — the upstream skill producing the plan with Parallel and dependency fields this skill consumes
+- **planning-projects** — the upstream skill producing the plan with Dispatch and dependency fields this skill consumes
 - **executing-plans** — the usual caller; decides when to invoke this skill during stage execution
 - **stack-routing reference** (`references/stack-routing.md`) — the source of truth for Phase 4's `subagent_type` + stack-skill choice; maps stacks to real marketplace agents (`rust-dev:rust-expert`, `testing:testing-expert`, `game-dev:game-design-expert`, `i18n:translator`, `planning:design-handoff-reproducer`, `stingy-agents:code-generator`/`skill-rewriter`/`readonly-scanner`) with a `general-purpose` fallback. Shared with `executing-plans` Step 3.2
 - **code-reviewer agent** — optional between dispatch rounds if integrated diffs need independent review before the stage gate

@@ -13,24 +13,7 @@ dumps, build logs, and search noise. (Anthropic, "Create custom subagents" and
 
 ---
 
-## Decision rule — delegate by signal, not by default
-
-Hand a task to a subagent when **all three** hold:
-
-1. **Independent** — it doesn't need the running session's accumulated context, and
-   later steps won't need *its* working trace (only its result).
-2. **Output-heavy** — it will generate verbose intermediate output the orchestrator
-   would otherwise absorb and never reference again (builds, greps over many files,
-   long test logs, large reads).
-3. **Not latency-critical** — a fresh subagent pays startup + re-gather cost; that's
-   worth it here because the task is substantial.
-
-Keep it **inline in the main session** when any of these hold:
-
-- **Coupled** — it depends on intent/state built up across earlier steps.
-- **Iterative** — it needs frequent back-and-forth or refinement.
-- **Quick / targeted** — a small edit where re-gathering context costs more than the
-  work itself.
+## Decision rule — the field decides
 
 **Caveats (don't oversell delegation):**
 
@@ -41,12 +24,12 @@ Keep it **inline in the main session** when any of these hold:
   already-invoked skills. Brief them completely (see the Phase 3 prompt template).
 - Subagents can't talk to each other — only the orchestrator integrates their results.
 
-`Parallel: YES` tasks are *already* delegated (that's what this skill does), and they
-are the only tasks this table routes. **A `Parallel: NO` task runs inline** —
+`Dispatch: YES` tasks are *already* delegated (that's what this skill does), and they
+are the only tasks this table routes. **A `Dispatch: NO` task runs inline** —
 `executing-plans` Step 3.2 retired the rule that sent independent, output-heavy
 sequential tasks here, because it was a discretionary third execution mode that no
 reader of the plan could predict and that saved nothing (the subagent's tokens burn
-either way). A task that should be dispatched is marked `Parallel: YES` in the plan,
+either way). A task that should be dispatched is marked `Dispatch: YES` in the plan,
 where the roster and the gate's reconciliation can see it.
 
 ---
@@ -190,11 +173,12 @@ Then, by `kind`:
   the user which plugin to enable and why (e.g. "this task needs android-dev's
   emulator MCP — enable the android-dev plugin for this session").
 
-This disk-resolution path is a fallback layered **under** the delegate-by-signal
-rule above, not a replacement for it: first decide *whether* the task should be
-delegated at all, then — if the chosen capability's plugin happens to be disabled —
-resolve it from the index. When the plugin **is** enabled, use the normal registered
-`subagent_type` / skill invocation; the index path is only for the disabled case.
+This disk-resolution path is a fallback layered **under** the field-decides rule
+above, not a replacement for it: the plan's `Dispatch:` field already decided
+*whether* the task is delegated; if the chosen capability's plugin happens to be
+disabled, resolve it from the index. When the plugin **is** enabled, use the normal
+registered `subagent_type` / skill invocation; the index path is only for the
+disabled case.
 
 For ad-hoc (non-plan) work where you just need a domain capability that isn't
 loaded, the `planning:capability-router` skill wraps this same lookup-and-resolve

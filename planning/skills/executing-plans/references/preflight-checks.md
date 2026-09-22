@@ -46,7 +46,7 @@ declarations.
    **which tasks** a `high` declaration binds, and that it binds no more than a third of them
    without naming the path each touches — `review-scope.md` § *Risk-listed names a path, not a project*),
    `../../planning-projects/references/test-scope-tiers.md`
-   for the scoped commands, and the roster from the plan's own `Parallel:` fields.
+   for the scoped commands, and the roster from the plan's own `Dispatch:` fields.
    **Time the stage-scope command at the baseline run.** Over ~5 minutes it is narrowed to
    the trees the stage's commits touch or depend on (`test-scope-tiers.md` § *A declared
    stage-scope command is subject to the same cost threshold*), amended under the protocol

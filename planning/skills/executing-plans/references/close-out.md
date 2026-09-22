@@ -120,7 +120,7 @@ procedure. Work the steps in order.
    - **Dispatch reconciled against Preflight's roster, plan-wide.** Read the trailers across
      the whole plan (`git log --format='%h %(trailers:key=Executor,valueonly)'
      <plan-base>..HEAD`) and state `dispatch: <n> of <total> rostered tasks dispatched`, naming
-     every inlined `Parallel: YES` task with its reason. Per-stage gates each reconcile their
+     every inlined `Dispatch: YES` task with its reason. Per-stage gates each reconcile their
      own slice, so aggregate coverage holds **only if every stage gate ran and reported**. The
      roster is declared once for the whole plan; this is where it is answered.
    - Backlog items closed (by ID) and any new ones opened during execution

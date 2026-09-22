@@ -45,7 +45,7 @@ bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` not
 | Marker | Means |
 |---|---|
 | `⊘ GATE BLOCKED` | a stage-gate check in the plan is `[~]` — a check that could not be run. Rendered on the executing bar and on a discovered plan's bar alike, because a blocked plan is blocked for whoever looks next. Never affects done/total: the counts are about tasks. |
-| `⚠ status lag N` | the plan file's `Status:` markers trail the task this state file names by N sequential tasks. `Parallel: YES` siblings are excluded — they are dispatched together and do not finish in document order. `[~]` counts as a marker that moved. |
+| `⚠ status lag N` | the plan file's `Status:` markers trail the task this state file names by N sequential tasks. `Dispatch: YES` siblings are excluded — they are dispatched together and do not finish in document order. `[~]` counts as a marker that moved. |
 | `⚠ not in plan` | this file names a task the plan does not contain. A worse divergence than a lag: the plan was edited under a run whose markers had already stopped. |
 | `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
 | `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured context rule fired. Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block. |

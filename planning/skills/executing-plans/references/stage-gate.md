@@ -8,13 +8,13 @@ the decisions sweep, and the reasoning behind each disposition rule.
 ## The gate report's dispatch line
 
 **The gate report states the stage's dispatched-vs-inline counts, and a reason for every
-inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory —
+inlined `Dispatch: YES` task.** Read them off the executor trailers rather than from memory —
 `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the
 previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) —
 and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks
 dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says
 `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A
-**Light plan** has no `Parallel` field and never fans out, so its single gate carries no
+**Light plan** has no `Dispatch` field and never fans out, so its single gate carries no
 dispatch line — the requirement is scoped to plans that can have a roster, not waived where
 one would be vacuous.
 
@@ -54,9 +54,9 @@ substrate gets written down so that rule has something to read.
 Naming the **agent** distinguishes a dispatched review from the executor reading its own diff,
 which both tiers forbid; naming the **diff** makes its coverage checkable, since a reviewer
 briefed on the wrong range returns a clean verdict over code nobody looked at and "reviewed"
-reads identically either way. An inlined `Parallel: YES` task is a **deviation being
+reads identically either way. An inlined `Dispatch: YES` task is a **deviation being
 disclosed**, not one being ratified — a gate report that keeps producing them is evidence the
-plan's `Parallel` fields belong back in `planning-projects`.
+plan's `Dispatch` fields belong back in `planning-projects`.
 
 ## ACTION NEEDED — the one place a report asks the user for something
 
