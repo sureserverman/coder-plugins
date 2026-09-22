@@ -370,6 +370,16 @@ try:
          + "PY", None),
         # `git` after && but inside an open quote on its line is a string, not a command.
         ("python3 -c \"print('a && git commit -m Stage 9 green')\"", None),
+        # A quoted argument spanning lines without heredoc syntax is still one string
+        # (Tier-2 finding, Stage 2 gate): the quote state carries across lines.
+        ('echo "start' + NL + 'git commit -m \\"Stage 9 green\\"' + NL + 'end"', None),
+        # An apostrophe inside a double-quoted subject does not open a single quote for
+        # the rest of the command, and neither does one in a shell comment.
+        ('git commit -m "Fix: don\'t skip"' + NL + 'git commit -m "Stage 15 green"', 15),
+        ("# don't" + NL + 'git commit -m "Stage 16 green"', 16),
+        # `commit` inside a filename is not the subcommand.
+        ('git add .husky/commit-msg && git commit -m "Stage 17 green"', 17),
+        ('git add .husky/commit-msg -m "Stage 18 green"', None),
         # ...and a real commit after such a heredoc still counts.
         ("python3 - <<'PY'" + NL + "print(1)" + NL + "PY" + NL
          + 'git commit -q -m "Stage 10 green"', 10),

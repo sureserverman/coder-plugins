@@ -84,16 +84,37 @@ DATED = re.compile(r"-\d{8}$")
 # SUBJECT. Both halves are load-bearing, measured: a `git log --grep "Stage 1 green"`
 # commits nothing; a command that writes test source containing the commit string puts
 # `git` inside a quoted literal; a gate-fix commit may mention the phrase in its body.
-GIT_COMMIT = re.compile(r"(?:^|[;&|(])[ \t]*(?P<git>git)\b[^;&|]*?\bcommit\b(?P<rest>.*)")
+GIT_COMMIT = re.compile(r"(?:^|[;&|(])[ \t]*(?P<git>git)\b[^;&|]*?(?<=\s)commit(?=\s|$)(?P<rest>.*)")
 HEREDOC = re.compile(r"""<<(-?)[ \t]*['"]?(\w+)['"]?""")
 MSG_ARG = re.compile(r"""(?<!\S)(?:-[A-Za-z]*m|--message)(?:[ \t]+|=)?(?P<q>["']?)"""
                      r"""(?P<pf>\$\((?:printf[ \t]*["'])?)?(?P<s>.*)""")
 STAGE_GREEN = re.compile(r"\bStage (\d+) green\b")
 
 
-def _unquoted(prefix):
-    """True when `prefix` leaves no single or double quote open."""
-    return prefix.count("'") % 2 == 0 and prefix.replace('\\"', "").count('"') % 2 == 0
+def _scan_quotes(text, state):
+    """Return the shell quote state after `text`, starting from `state` (None, "'" or '"').
+
+    Enough of the shell's rules to tell a command from a string: single quotes take
+    everything literally, a backslash escapes outside them, an apostrophe inside double
+    quotes is just a character, and an unquoted `#` at a word start begins a comment.
+    """
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if state == "'":
+            if c == "'":
+                state = None
+        elif c == "\\":
+            i += 1
+        elif state == '"':
+            if c == '"':
+                state = None
+        elif c in "'\"":
+            state = c
+        elif c == "#" and (i == 0 or text[i - 1] in " \t;&|("):
+            break
+        i += 1
+    return state
 
 
 def commit_subject(cmd):
@@ -101,14 +122,17 @@ def commit_subject(cmd):
 
     Line by line: a heredoc body is skipped whole (it is data — Python source, a message),
     except that a commit's own heredoc yields its first line as the subject; a `git` token
-    inside a quote still open on its line is a string, not a command.
+    inside a quote still open at that point — on its line or carried from an earlier one —
+    is a string, not a command. Not read: `git commit -F <file>` (the message is in a file
+    this script never sees), so such a commit is not a boundary.
     """
     lines = cmd.split("\n")
     i = 0
+    carry = None            # quote state carried in from the previous line
     while i < len(lines):
         line = lines[i]
         for m in GIT_COMMIT.finditer(line):
-            if not _unquoted(line[:m.start("git")]):
+            if _scan_quotes(line[:m.start("git")], carry) is not None:
                 continue
             rest = m.group("rest")
             if HEREDOC.search(rest):
@@ -122,6 +146,7 @@ def commit_subject(cmd):
                         subject = re.split(r'(?<!\\)' + a.group("q"), subject, 1)[0]
                     yield subject.split("\\n", 1)[0]
         h = HEREDOC.search(line)
+        carry = _scan_quotes(line, carry)
         i += 1
         if h:
             tag, dash = h.group(2), h.group(1)

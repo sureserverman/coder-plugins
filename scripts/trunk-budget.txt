@@ -171,13 +171,16 @@
 # Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
 #   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
 # Raised 48871 -> 49433 (+562 B) 2026-09-22, executor-handoff plan Task 2.1: the
-#   context-reset section gains the measured stop rule (four rule names, the DEC-014 bounds
-#   and a pointer) plus one Checklist step and one Reference-map row; the procedure lives in
+#   context-reset section gains the measured stop rule (four rule names, their bounds and a
+#   pointer) plus one Checklist step and one Reference-map row; the procedure lives in
 #   references/session-handoff.md. The plan bounds Stage 2's trunk growth at 1,500 B (DEC-018).
 # Raised 49433 -> 49467 (+34 B) 2026-09-22, same plan, Task 2.2: the Master plans
 #   paragraph's "one per fresh session where practical" becomes the measured sub-plan
 #   boundary rule. Stage 2 total +596 B, within its 1,500 B bound.
-planning/skills/executing-plans/SKILL.md 49467
+# Raised 49467 -> 49494 (+27 B) 2026-09-22, Stage 2 gate (Tier-2 Important): the Run to
+#   completion paragraph's "prefer a fresh session over a degraded one" judgment becomes the
+#   measured rule. Stage 2 total +623 B, within its 1,500 B bound.
+planning/skills/executing-plans/SKILL.md 49494
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

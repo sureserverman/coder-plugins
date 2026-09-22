@@ -119,9 +119,9 @@ resolve from the plan plus evidence.
 
 **Only the documented Stop conditions halt execution.** Everything else is work to push
 through. When you do stop, it is because continuing would be guessing or unsafe — say which,
-with evidence, and what you need to resume. The context-reset guidance is an efficiency
-tactic for very large plans, **not** a licence to stop early: prefer a fresh session over a
-*degraded* one, never over *finishing the work*.
+with evidence, and what you need to resume. A context handoff is **not** a licence to stop
+early: it happens at a gate, on `context-usage.py`'s `handoff` verdict, never on an
+impression that the session is degraded (§ Context resets at stage boundaries).
 
 **Never end a turn on an announcement.** *"Starting Stage 3."* as last words has started
 nothing: the tool call opening the announced work goes in the **same turn** as the sentence,

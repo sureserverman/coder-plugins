@@ -53,7 +53,11 @@ Evaluated in this order; the script names the rule that fired and its numbers in
 `compactions` count rose), re-read the plan's `Status:` flips and handoff notes before the
 next tool call. A compaction summary is not a source for task state.
 
-## The bounds (DEC-014)
+## The bounds
+
+Stated with the rules, not after them: DEC-014 binds every dispatch rule to state its bound
+in the same breath, because a rule without one was over-corrected into its inverse. A stop
+rule has the same failure shape, so the same discipline applies here.
 
 - **`unknown` never stops.** A missing transcript, an unlisted model, a stage without
   `Scope:` — the script says `unknown`, the gate report says so, and execution continues.
