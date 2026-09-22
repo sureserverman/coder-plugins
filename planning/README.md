@@ -1,6 +1,14 @@
 # planning
 
-A fifteen-skill pipeline (v0.50.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.51.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.51.0
+
+- **`Dispatch:` task field** replaces `Parallel:`. `Dispatch: YES` means the task must be dispatched to a sub-agent. Master-plan registers keep `Parallel:`. Parsers read both names.
+- **`context-usage.py`** reads exact context use from the session transcript. Each stage gate gets a measured `continue | handoff | unknown` verdict. On `handoff` the executor stops and writes a `RESUME HERE` block into the plan.
+- **`validate-dispatch.py`** fails a plan whose dispatch fields are wrong. It runs before the plan is presented and again at Preflight.
+- **`plan-progress.py --dispatch-check`** makes roster reconciliation a close-out gate.
+- **`plan-progress.py --stage-order-check`** stops a stage from opening before the gate it depends on.
 
 ## Installation
 
