@@ -12,16 +12,23 @@ output (openclaw health-report-v3, Sub-plan 3) cannot really run in its own sess
 
 FAIL classes (stderr `FAIL: <file>: <CLASS>: <detail>`, exit 1):
 
-    YES-SAME-STAGE-DEP      a YES task whose `Depends on` names a task in its own stage
+    YES-SAME-STAGE-DEP      a YES task whose `Depends on` names a task in its own stage.
+                            Before --cutover it is a note: older plans used the field
+                            under looser conventions, and resuming one must not fail
     YES-SHARED-SCOPE        two YES tasks in one stage whose `Scope:` share a path
     YES-NO-SCOPE            a YES task with no `Scope:` — nothing shows it is disjoint.
                             Only in plans dated on or after --cutover (or undated): the
                             rule arrives with `Dispatch:`, and plans written before it
                             omitted `Scope:` on single-artifact tasks by design
     STAGE-CYCLE             the stage-level `**Depends on:**` graph has a cycle
-    MASTER-YES-SIBLING-DEP  a register entry marked `Parallel: YES` whose `Depends on`
-                            names a sibling sub-plan, or whose `**Gate:**` block names
-                            another sub-plan by number
+    MASTER-YES-SIBLING-DEP  a register entry marked `Parallel: YES` whose `**Gate:**`
+                            block reads a sibling sub-plan its `Depends on` chain never
+                            reaches — an undeclared dependency. Depending on a sibling is
+                            not one: `Depends on` orders the register, and fan-out after a
+                            shared prerequisite is the legal shape (master-plans.md). Nor
+                            is naming a descendant (a forward reference), or text inside
+                            an HTML comment (an amendment annotation). A heuristic over
+                            prose: a gate narrating an earlier sibling can still trip it
 
 Notes (stdout `note: <file>: …`, never change the exit code):
 
@@ -39,6 +46,7 @@ register level, then each sub-plan its register links (`- **Plan:** ./x.md`, res
 against the master's own directory) gets the task-level checks. Nothing else is read.
 
 Exit: 0 clean (notes allowed), 1 any FAIL, 2 a plan or linked sub-plan cannot be read.
+2 takes priority when both apply; every FAIL line is still printed.
 Stdlib only.
 """
 import argparse
@@ -343,11 +351,15 @@ def check_tasks(path, lines, cutover, fails, notes):
             if t["value"] != "YES":
                 continue
             if same:
-                fails.append((name, "YES-SAME-STAGE-DEP",
-                              f"Task {t['id']} is YES but depends on "
-                              + ", ".join(f"Task {d}" for d in same)
-                              + " in its own stage"
-                              + ("" if all(d in ids for d in same) else " (not found)")))
+                detail = (f"Task {t['id']} is YES but depends on "
+                          + ", ".join(f"Task {d}" for d in same)
+                          + " in its own stage"
+                          + ("" if all(d in ids for d in same) else " (not found)"))
+                if new_rules:
+                    fails.append((name, "YES-SAME-STAGE-DEP", detail))
+                else:
+                    notes.append((name, f"YES-SAME-STAGE-DEP (advisory, plan dated before "
+                                        f"cutover {cutover}): {detail}"))
             if not t["has_scope"] and new_rules:
                 fails.append((name, "YES-NO-SCOPE",
                               f"Task {t['id']} is YES with no Scope: — nothing shows it "
@@ -432,21 +444,38 @@ def check_master(path, lines, fails):
     """Register checks; returns the linked sub-plan paths, resolved against the
     master's own directory."""
     name, subs = path.name, []
-    for e in register(lines):
+    entries = register(lines)
+    deps = {}
+    for e in entries:
+        v = e["fields"].get("depends on", "")
+        deps[e["n"]] = set() if _is_none(v) else {k for k in subplan_refs(v) if k != e["n"]}
+
+    def ancestors(n):
+        seen, todo = set(), list(deps.get(n, ()))
+        while todo:
+            k = todo.pop()
+            if k not in seen:
+                seen.add(k)
+                todo.extend(deps.get(k, ()))
+        return seen
+
+    for e in entries:
         f, n = e["fields"], e["n"]
         if first_word(f.get("parallel", "")) == "YES":
-            deps = [] if _is_none(f.get("depends on", "")) else \
-                sorted({k for k in subplan_refs(f.get("depends on", "")) if k != n})
-            if deps:
-                fails.append((name, "MASTER-YES-SIBLING-DEP",
-                              f"Sub-plan {n} is Parallel: YES but depends on "
-                              + ", ".join(f"Sub-plan {k}" for k in deps)))
-            gated = sorted({k for k in subplan_refs(e["gate"]) if k != n})
-            if gated:
+            # An HTML comment in a gate block is an amendment annotation, not a check:
+            # "AMENDED at Sub-plan 1's close-out" names when, not what the gate reads.
+            gate = re.sub(r"<!--.*?-->", " ", e["gate"], flags=re.S)
+            # A descendant (a sibling whose chain reaches n) cannot be a dependency of n —
+            # naming it is a forward reference ("Sub-plan 3 can consume …").
+            descendants = {k for k in deps if n in ancestors(k)}
+            undeclared = sorted({k for k in subplan_refs(gate) if k != n}
+                                - ancestors(n) - descendants)
+            if undeclared:
                 fails.append((name, "MASTER-YES-SIBLING-DEP",
                               f"Sub-plan {n} is Parallel: YES but its Gate: reads "
-                              + ", ".join(f"Sub-plan {k}" for k in gated)
-                              + " — it cannot finish in its own session"))
+                              + ", ".join(f"Sub-plan {k}" for k in undeclared)
+                              + ", which its Depends on chain never reaches — an "
+                                "undeclared dependency; it cannot finish in its own session"))
         link = plan_link(f.get("plan", ""))
         if link:
             subs.append((n, path.parent / link))

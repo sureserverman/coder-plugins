@@ -86,12 +86,25 @@ rc, out, err = run(CORPUS / "master-yes-sibling-dep-master-plan.md")
 lines = fail_lines(err, "MASTER-YES-SIBLING-DEP")
 check(rc == 1, f"master-yes-sibling-dep-master-plan.md exits 1 (got {rc})")
 check(any("Sub-plan 2" in ln for ln in lines),
-      "a YES entry whose Gate reads a sibling fails (Sub-plan 2 — the openclaw shape)")
-check(any("Sub-plan 3" in ln for ln in lines),
-      "a YES entry whose Depends on names a sibling fails (Sub-plan 3)")
+      "a YES entry whose Gate reads an undeclared sibling fails (Sub-plan 2 — the openclaw shape)")
+# Stage 3 Tier-2 Critical: `Depends on` orders the register, and fan-out after a shared
+# prerequisite is the commonest real master shape (four coder-plugins masters). Reading a
+# sibling you declared — directly or through your chain — is not a defect.
+check(not any("MASTER-YES-SIBLING-DEP: Sub-plan 3 " in ln for ln in lines),
+      "a YES entry that depends on Sub-plan 1 and gates on it does not fail (fan-out), "
+      "and an HTML-comment amendment naming Sub-plan 2 in its gate is not a check")
+check(not any("MASTER-YES-SIBLING-DEP: Sub-plan 4 " in ln for ln in lines),
+      "a YES entry reading a sibling reached through its declared chain does not fail (4→3→1)")
 check(not any("MASTER-YES-SIBLING-DEP: Sub-plan 1 " in ln for ln in lines),
-      "a YES entry depending on nothing and gating on itself does not fail (Sub-plan 1)")
+      "a YES entry whose gate names a downstream consumer (Sub-plan 3, which depends on "
+      "it) does not fail — that is a forward reference, not a dependency (Sub-plan 1)")
 
+
+rc, out, err = run("--cutover", "2026-09-30", CORPUS / "yes-same-stage-dep-plan.md")
+check(rc == 0 and "FAIL:" not in err
+      and any(ln.startswith("note:") and "YES-SAME-STAGE-DEP" in ln for ln in out.splitlines()),
+      f"before --cutover a same-stage YES dependency is a note, not a FAIL (rc {rc}) — "
+      f"older plans used YES under looser conventions")
 
 rc, out, err = run("--cutover", "2026-09-30", CORPUS / "yes-no-scope-plan.md")
 check(rc == 0 and "YES-NO-SCOPE" not in err,

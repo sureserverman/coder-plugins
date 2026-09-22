@@ -216,7 +216,7 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
    **Advisory on an existing plan, mandatory on a new one** — say which case you are in.
    `(judgment)` is the sanctioned escape hatch for a check that genuinely needs a reader.
    Beside it run `validate-dispatch.py <plan>`: a FAIL is a wrong `Dispatch:` field, surfaced
-   the same way before Preflight builds a roster from it.
+   the same way — advisory on an existing plan too — before Preflight builds a roster from it.
 
 5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
    carried into the file so a session that never reads the register still implements under

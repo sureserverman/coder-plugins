@@ -183,7 +183,9 @@
 # Raised 49494 -> 49673 (+179 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 1 step 4a
 #   and the Master plans paragraph run validate-dispatch.py beside validate-gate-checks.py, so
 #   a wrong Dispatch: field is caught before Preflight builds a roster from it.
-planning/skills/executing-plans/SKILL.md 49673
+# Raised 49673 -> 49714 (+41 B) 2026-09-22, Stage 3 gate (Tier-2 Important): step 4a says a
+#   validate-dispatch.py FAIL is advisory on an existing plan, as the classification beside it is.
+planning/skills/executing-plans/SKILL.md 49714
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
