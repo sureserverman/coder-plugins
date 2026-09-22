@@ -1290,6 +1290,58 @@ def blocked_gate_marker(text, plan_path=None):
     return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_blocked(text, plan_path)[0] else ""
 
 
+STAGE_DEPS_RE = re.compile(r"^\*\*Depends on:\*\*\s*(.*)$")
+STAGE_REF_RE = re.compile(r"\bStage\s+(\d+)\b", re.I)
+
+
+def unpassed_dependencies(text, stage):
+    """Stage numbers `stage` depends on whose gate is not fully `[x]`.
+
+    The measured incident: multitor's Stage 4 closed before Stage 3's gate
+    although Stage 4 read `Depends on: Stage 3 gate`. Nothing parsed a
+    stage-level `**Depends on:**`, so the field was decoration.
+
+    The dependency line is the one between `## Stage N` and its first `###`
+    heading — a task's `- **Depends on:**` is a list item and never matches.
+    A gate passes only when it has at least one check and every check is
+    `[x]`: an open `[ ]` and a BLOCKED `[~]` both fail it, and a dependency
+    with no gate checks at all is unproven, not passed.
+    """
+    deps, gates = set(), {}
+    cur, in_head, gate = None, False, None
+    for line in text.splitlines():
+        m = pu.STAGEHDR_RE.match(line)
+        if m and not line.startswith("###"):
+            cur, in_head, gate = int(m.group(1)), True, None
+            continue
+        if line.startswith("#"):
+            in_head = False
+            g = pu.GATEHDR_RE.match(line)
+            gate = int(g.group(1)) if g else None
+            if gate is not None:
+                gates.setdefault(gate, [])
+            continue
+        if in_head and cur == stage:
+            d = STAGE_DEPS_RE.match(line.strip())
+            if d:
+                deps.update(int(n) for n in STAGE_REF_RE.findall(d.group(1)))
+        if gate is not None:
+            item = pu.GATE_ITEM_RE.match(line)
+            if item:
+                gates[gate].append(pu.gate_item_state(item.group(1)))
+    deps.discard(stage)
+    return sorted(n for n in deps
+                  if not gates.get(n) or any(s != "done" for s in gates[n]))
+
+
+def stage_order_marker(state, text):
+    """` ⊘ STAGE ORDER` when the state file's stage depends on an unpassed gate."""
+    stage = state.get("stage")
+    if not isinstance(stage, int) or isinstance(stage, bool):
+        return ""
+    return f" {RED}⊘ STAGE ORDER{RESET}" if unpassed_dependencies(text, stage) else ""
+
+
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
     """The one line for the plan the state file names.
 
@@ -1328,6 +1380,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
     out += status_lag(state, text, plan)
+    out += stage_order_marker(state, text)
     out += staleness(state)
     return out
 
@@ -1607,9 +1660,49 @@ def dispatch_check(args):
     return 2 if unreconciled else 0
 
 
+def stage_order_check(cwd):
+    """Exit status for `--stage-order-check`: 0 when the state file's stage may
+    be open, 2 when a stage it depends on has a gate that is not fully `[x]`.
+
+    Run at stage open, before the stage's first task. Silent 0 where no stage
+    is open — no state file, or no `stage` in it. A state file naming a plan
+    that cannot be read exits 2: this is asked at the moment a stage would
+    open, and an unreadable plan cannot prove the order holds.
+    """
+    sf = find_state(cwd)
+    if sf is None:
+        return 0
+    try:
+        state = json.loads(sf.read_text())
+    except (OSError, ValueError) as e:
+        print(f"FAIL: cannot read {sf}: {e}", file=sys.stderr)
+        return 2
+    stage = state.get("stage")
+    if not isinstance(stage, int) or isinstance(stage, bool) or not state.get("plan"):
+        return 0
+    plan = pinned_plan_path(state, sf)
+    try:
+        text = plan.read_text(errors="ignore")
+    except BAD_PATH as e:
+        print(f"FAIL: cannot read plan {plan}: {e}", file=sys.stderr)
+        return 2
+    bad = unpassed_dependencies(text, stage)
+    for n in bad:
+        print(f"FAIL: Stage {stage} depends on Stage {n}, whose gate is not fully [x]",
+              file=sys.stderr)
+    return 2 if bad else 0
+
+
 def main():
     if "--budget-check" in sys.argv[1:]:
         sys.exit(budget_check(os.getcwd()))
+    if "--stage-order-check" in sys.argv[1:]:
+        try:
+            status = stage_order_check(os.getcwd())
+        except Exception as e:
+            print(f"FAIL: --stage-order-check crashed: {e!r}", file=sys.stderr)
+            status = 2
+        sys.exit(status)
     if "--dispatch-check" in sys.argv[1:]:
         # Its own handler: the bottom-of-file one exits 0, and a gate that
         # crashes must never read as a gate that passed.

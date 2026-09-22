@@ -2278,6 +2278,101 @@ def case_dispatch_check():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+STAGE_ORDER_PLAN = """# Project Plan: stage order demo
+
+## Stage 3: the earlier stage
+
+**Goal:** g
+**Depends on:** none
+
+### Task 3.1: done
+- **Status:** [x]
+
+### Stage 3 Gate
+
+- [x] the suite is green
+- {second} the review ran
+
+**Stage 3 handoff:** a note, not a checklist.
+
+---
+
+## Stage 4: the later stage
+
+**Goal:** g
+**Depends on:** {deps}
+
+### Task 4.1: in flight
+- **Status:** [ ]
+
+### Stage 4 Gate
+
+- [ ] the suite is green
+"""
+
+
+def case_stage_order():
+    """Task 4.2 — a stage cannot open before the gate it depends on.
+
+    The measured incident: multitor's Stage 4 closed before Stage 3's gate
+    although Stage 4 read `Depends on: Stage 3 gate`. Nothing parsed a
+    stage-level `**Depends on:**`, so nothing could say so.
+    """
+    print("Task 4.2 — --stage-order-check and the ⊘ STAGE ORDER marker:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-stage-order-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "so-plan.md"
+
+    def setup(second="[x]", deps="Stage 3 gate passing", stage=4):
+        plan.write_text(STAGE_ORDER_PLAN.format(second=second, deps=deps))
+        write_state(repo, plan=str(plan), phase="task", stage=stage, task=f"{stage}.1")
+        r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                           cwd=repo, capture_output=True, text=True)
+        line = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+        return r, line
+
+    r, line = setup(second="[ ]")
+    check(r.returncode == 2,
+          f"Stage 4 open while Stage 3's gate has a `[ ]` exits 2 (got {r.returncode})")
+    check("Stage 3" in r.stderr and "FAIL" in r.stderr,
+          f"and the FAIL: line names Stage 3 ({r.stderr!r})")
+    check("STAGE ORDER" in line, f"the bar renders ⊘ STAGE ORDER (got {line!r})")
+
+    r, line = setup(second="[~]")
+    check(r.returncode == 2,
+          f"a `[~]` in the dependency's gate is not a passed gate: exit 2 (got {r.returncode})")
+    check("STAGE ORDER" in line, f"and it renders the marker (got {line!r})")
+
+    r, line = setup(second="[x]")
+    check(r.returncode == 0,
+          f"Stage 3's gate all `[x]` exits 0 (got {r.returncode}: {r.stderr!r})")
+    check("STAGE ORDER" not in line, f"and no marker renders (got {line!r})")
+
+    r, line = setup(second="[ ]", deps="none")
+    check(r.returncode == 0,
+          f"`Depends on: none` exits 0 whatever other gates say (got {r.returncode})")
+    check("STAGE ORDER" not in line, f"and no marker renders (got {line!r})")
+
+    r, line = setup(second="[ ]", stage=3)
+    check(r.returncode == 0,
+          f"a stage's OWN open gate is not an ordering fault (got {r.returncode})")
+
+    (repo / ".claude" / "plan-progress.json").unlink()
+    r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                       cwd=repo, capture_output=True, text=True)
+    check(r.returncode == 0 and "Traceback" not in r.stderr,
+          f"no state file — no stage open — exits 0, no traceback ({r.returncode})")
+
+    write_state(repo, plan=str(tmp / "missing-plan.md"), phase="task", stage=4)
+    r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                       cwd=repo, capture_output=True, text=True)
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"an unreadable plan exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_palette_contrast():
     """Every palette colour is legible on a light terminal as well as a dark one.
 
@@ -2467,6 +2562,7 @@ def main():
     case_status_lag_warns()
     case_budget_check()
     case_dispatch_check()
+    case_stage_order()
     case_palette_contrast()
 
     print()
