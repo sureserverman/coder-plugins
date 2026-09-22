@@ -17,7 +17,7 @@ This skill is the operational arm of `planning-projects` Phase 5 ("Dispatch") an
 
 Refuse to dispatch unless all are true:
 
-1. **A plan exists** at a known path, produced by `planning-projects`. The plan's task fields (`Depends on`, `Blocks`, `Dispatch`, `Test`, `Red-Green max cycles`) are the source of truth. Plans authored before planning 0.51.0 spell the field `Parallel:`; treat it identically.
+1. **A plan exists** at a known path, produced by `planning-projects`. The plan's task fields (`Depends on`, `Blocks`, `Dispatch`, `Test`, `Red-Green max cycles`) are the source of truth. Plans authored before planning 0.51.0 spell the field `Parallel:`, the retired spelling; treat it identically.
 2. **Every task in scope has `Dispatch: YES`** in the plan.
 3. **Every task's `Depends on` list is fully green** (every referenced prior task has passed its test and been committed).
 4. **No two tasks in scope modify the same file.** This is checked against the plan's declared file paths; if the plan doesn't list files, scan the task descriptions. When in doubt, force sequential.

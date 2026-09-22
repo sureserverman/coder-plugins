@@ -91,7 +91,7 @@ Step 3.2), it does not merely note that a subagent *could* handle it. The author
 what the field MEANS is `../SKILL.md` § Stage structure, where it is defined; this section
 is the authoring rule built on it.
 
-Plans authored before planning 0.51.0 spell this field `Parallel:`; parsers accept both.
+Plans authored before planning 0.51.0 spell this field `Parallel:`, the retired spelling; parsers accept both.
 
 > **Where else this rule is stated, and why that is not duplication.** The
 > directive-not-description distinction reads as repeated prose across the repo, and a

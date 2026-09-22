@@ -460,7 +460,9 @@ planning/skills/backlog/SKILL.md 17333
 # Raised 17381 -> 17460 (+79 B) 2026-09-22, executor-handoff plan Task 3.3: the field is
 #   renamed Parallel -> Dispatch (byte-neutral) and one sentence says pre-0.51.0 plans spell it
 #   `Parallel:` and are treated identically — the compat note a reader of an old plan needs.
-planning/skills/dispatching-parallel-agents/SKILL.md 17460
+# Raised 17460 -> 17482 (+22 B) 2026-09-22, Stage 3 gate: the compat sentence names
+#   `Parallel:` as "the retired spelling", the marker the gate's rename sweep excludes on.
+planning/skills/dispatching-parallel-agents/SKILL.md 17482
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file
