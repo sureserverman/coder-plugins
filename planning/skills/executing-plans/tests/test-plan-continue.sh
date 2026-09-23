@@ -115,6 +115,32 @@ check "ACTION NEEDED wins over promise" allow "$(payload "$TRANSCRIPT" s5)" PLAN
 write_transcript "Next: Task 2.4 — waiting on the adversarial pass before it starts, it will report."
 check "wait marker wins over promise"  allow "$(payload "$TRANSCRIPT" s6)"  PLAN_CONTINUE=1
 
+echo "── measured handoff (session-handoff.md)"
+RESUME_BARE="Stage 2 is green. **RESUME HERE (2026-09-22):**
+plan: /vault/plans/x-plan.md   cwd: /repo
+next: Task 3.1 — write the validator"
+RESUME_REASONED="Stage 2 is green. **RESUME HERE (2026-09-22):**
+reason: rule context: now=530000 of window=1000000 (table) is 53.0% > 50%
+plan: /vault/plans/x-plan.md   cwd: /repo
+next: Task 3.1 — write the validator"
+write_state handoff; write_transcript "$PROMISE_TEXT"
+check "phase handoff -> allow"             allow "$(payload "$TRANSCRIPT" h1)" PLAN_CONTINUE=1
+write_state gate; write_transcript "$RESUME_BARE"
+check "RESUME HERE without reason: -> block" block "$(payload "$TRANSCRIPT" h2)" PLAN_CONTINUE=1
+out="$(printf '%s' "$(payload "$TRANSCRIPT" h2b)" | env PLAN_CONTINUE=1 bash "$HOOK")"
+if printf '%s' "$out" | grep -q 'context-usage.py'; then
+    echo "  ok    the bare-handoff reason names context-usage.py"; pass=$((pass+1))
+else echo "  FAIL  the bare-handoff reason does not name context-usage.py: ${out:0:140}"; fail=$((fail+1)); fi
+write_transcript "$RESUME_REASONED"
+check "RESUME HERE with reason: -> allow"  allow "$(payload "$TRANSCRIPT" h3)" PLAN_CONTINUE=1
+# The nudge tells the executor to run the script; a hook installed without it
+# beside the plugin cannot give that instruction, so it fails open.
+ALONE="$WORK/alone/hooks"; mkdir -p "$ALONE"; cp "$HOOK" "$ALONE/plan-continue.sh"
+write_transcript "$RESUME_BARE"
+HOOK_SAVED="$HOOK"; HOOK="$ALONE/plan-continue.sh"
+check "context-usage.py absent -> fails open" allow "$(payload "$TRANSCRIPT" h4)" PLAN_CONTINUE=1
+HOOK="$HOOK_SAVED"
+
 echo "── transcript handling"
 python3 - "$TRANSCRIPT" <<'PY'
 import json, sys

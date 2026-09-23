@@ -13,7 +13,7 @@ running at full weight:
    bootstrap (Phase 2 — a repo must exist for commit-per-task) and confirm the baseline
    is green before Stage 1. Nothing else to verify.
 2. **No parallel dispatch.** Every task runs **inline in the main session**, in listed
-   order, through the normal Red-Green loop. A light plan has no `Parallel` field and no
+   order, through the normal Red-Green loop. A light plan has no `Dispatch` field and no
    fan-out — do not invoke `dispatching-parallel-agents`. (A task may carry an optional
    `Depends on`; honor it as ordering.)
 3. **One review, not per-task.** **Skip the Tier-1 per-task review** — unless the declared

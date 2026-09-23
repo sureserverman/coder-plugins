@@ -108,7 +108,8 @@ Every figure below is measured over that corpus and is therefore reproducible fr
 repo alone — except where a bullet says otherwise, which is the one thing worth reading
 carefully here:
 
-  - Calibrated against 48 gate checks in 3 real plans: 21 EXECUTABLE,
+  - Calibrated against 53 gate checks in 4 plans (3 real copies, plus 1 authored
+    fixture in the `Dispatch:` spelling that adds 5 EXECUTABLE): 26 EXECUTABLE,
     7 JUDGMENT, 3 INSTANCE-SHAPED, 17 PROSE. The corpus is frozen in the repo at
     tests/fixtures/gate-check-corpus/ (see its PROVENANCE.md) and these figures are pinned
     to it by tests/test-validate-gate-checks.py group 9, so they move only when someone
@@ -404,6 +405,15 @@ def _is_continuation(accumulated, line):
         r"(Note|NOTE|TODO|Why|See|Rationale|Evidence)\b", stripped)
 
 
+# `*(amended … — was: …)*` — the annotation preflight-checks.md § Amending authored
+# ceremony REQUIRES on an amended check: it cites the rule (naming a reference file) and
+# keeps the was-value (often the old command). Both are history, not the check, and read
+# as the check they made every properly amended sweep INSTANCE-SHAPED. A backticked span
+# is consumed whole, so a `)*` inside the was-value's command (a regex quantifier) cannot
+# close the note early and splice its remainder onto the check.
+AMENDMENT = re.compile(r"\s*\*\(amended\b(?:`[^`]*`|[^`])*?\)\*", re.I | re.S)
+
+
 def gate_checks(text):
     """Extract gate checks, joining wrapped continuation lines.
 
@@ -436,7 +446,7 @@ def gate_checks(text):
                     current = None
         if current:
             out.append(current)
-    return out
+    return [AMENDMENT.sub("", c).strip() for c in out]
 
 
 SCOPE_FIELD = re.compile(r"^\s*[-*]\s+\*\*Scope:\*\*\s*(.+)$", re.MULTILINE)

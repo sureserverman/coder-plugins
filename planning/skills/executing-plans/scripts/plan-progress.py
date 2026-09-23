@@ -35,6 +35,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -953,7 +954,7 @@ def bar(done, total):
 
 
 # The state file has TWO dialects in the wild, and the renderer only knew one.
-# references/progress-state-file.md specifies `phase` as one of five keywords,
+# references/progress-state-file.md specifies `phase` as one of six keywords,
 # `stage` as an integer and `task` as "N.M". Real executions also write prose
 # into those same keys and put the integers in `stage_index`/`stage_total`
 # beside them -- android/writer-pad's live file carries
@@ -965,7 +966,7 @@ def bar(done, total):
 # are the shape the schema promises, and otherwise says NOTHING -- a status line
 # has one line's worth of room, so a paragraph pasted into it is worse than a
 # missing field. Verified against the live file, not a fixture.
-KNOWN_PHASES = ("preflight", "task", "gate", "closeout", "blocked")
+KNOWN_PHASES = ("preflight", "task", "gate", "closeout", "blocked", "handoff")
 TASK_ID_RE = re.compile(r"^\d+\.\d+$")
 
 
@@ -1048,6 +1049,12 @@ def phase_part(state):
         note = state.get("note") or state.get("task_desc") or ""
         note = clip(plain(note), NOTE_WIDTH)
         return f"{RED}✘ blocked{RESET}" + (f" {DIM}{note}{RESET}" if note else "")
+    if phase == "handoff":
+        # A deliberate stop at a gate on a context-usage.py `handoff` verdict, not
+        # a failure -- hence YELLOW, not blocked's RED. `reason` is that script's
+        # `reason:` text verbatim, bounded exactly like the blocked note.
+        reason = clip(plain(state.get("reason") or ""), NOTE_WIDTH)
+        return f"{YELLOW}⏸ HANDOFF{RESET}" + (f" {DIM}{reason}{RESET}" if reason else "")
     task = state.get("task")
     desc = state.get("task_desc")
     desc = clip(plain(desc), NOTE_WIDTH)
@@ -1109,7 +1116,9 @@ LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
 # --budget-check's ceiling are the same rule, and two literals would let the bar
 # and the stop disagree about when a budget is spent.
 DEFAULT_REMEDIATION_BUDGET = 2
-PARALLEL_YES_RE = re.compile(r"^\s*-\s*\*\*Parallel:\*\*\s*YES\b", re.I)
+# `Dispatch: YES|NO` is the task field; `Parallel:` is its old spelling, which
+# existing plans keep forever, so both are read.
+DISPATCH_YES_RE = re.compile(r"^\s*-\s*\*\*(?:Dispatch|Parallel):\*\*\s*YES\b", re.I)
 
 
 def status_lag(state, text, plan_path):
@@ -1128,9 +1137,10 @@ def status_lag(state, text, plan_path):
     still going.
 
     LAG counts the SEQUENTIAL tasks between the last marker that moved (`[x]` or
-    `[~]`) and the task the state file names, plus the current one. `Parallel:
-    YES` siblings are excluded: they are dispatched together and do not finish
-    in document order, so an unmarked one is concurrency the plan asked for.
+    `[~]`) and the task the state file names, plus the current one. `Dispatch:
+    YES` siblings (old spelling `Parallel: YES`, still accepted) are excluded:
+    they are dispatched together and do not finish in document order, so an
+    unmarked one is concurrency the plan asked for.
 
     NOT extended to master plans, deliberately. The state-file contract
     (`../references/progress-state-file.md`) says a master's state file always
@@ -1165,7 +1175,7 @@ def status_lag(state, text, plan_path):
         sm = pu.STATUS_RE.match(line)
         if sm and order[-1]["state"] is None:
             order[-1]["state"] = pu.status_state(sm.group(1))
-        elif PARALLEL_YES_RE.match(line):
+        elif DISPATCH_YES_RE.match(line):
             order[-1]["parallel"] = True
     # Measured from the last marker that MOVED, not the last `[x]`. BL-096 is
     # about markers that stop moving, and `[~]` is a marker that moved — warning
@@ -1190,9 +1200,10 @@ def status_lag(state, text, plan_path):
         # edited under a run whose markers had already stopped — and silence
         # made it indistinguishable from nothing to report.
         return f" {RED}⚠ not in plan{RESET}"
-    # `Parallel: YES` siblings are dispatched together and do not finish in
-    # document order, so an unmarked one between the last marker and the current
-    # task is the format's own first-class concurrency, not a stall. Counting it
+    # `Dispatch: YES` siblings (or the old `Parallel: YES`) are dispatched
+    # together and do not finish in document order, so an unmarked one between
+    # the last marker and the current task is the format's own first-class
+    # concurrency, not a stall. Counting it
     # made the warning fire on sanctioned behaviour — and a signal that cries
     # wolf on the thing the plan told it to expect is worse than the silence it
     # replaces, because it teaches the reader to ignore it.
@@ -1279,6 +1290,84 @@ def blocked_gate_marker(text, plan_path=None):
     return f" {RED}⊘ GATE BLOCKED{RESET}" if pu.plan_blocked(text, plan_path)[0] else ""
 
 
+STAGE_DEPS_RE = re.compile(r"^\*\*Depends on:\*\*\s*(.*)$")
+_VD = None
+
+
+def _stage_refs(value):
+    """validate-dispatch.py's `stage_refs()`, loaded on first use.
+
+    One parser for a stage's `Depends on:` value, not two: the vault writes
+    `Stages 1–3`, `Stages 2 and 3`, parentheticals and a `**Blocks:**` on the
+    same line, and that function already reads all of them. Loaded lazily so a
+    redraw with no stage in the state file never pays for it.
+    """
+    global _VD
+    if _VD is None:
+        path = Path(__file__).resolve().parents[2] / "planning-projects" / "scripts" / "validate-dispatch.py"
+        spec = importlib.util.spec_from_file_location("validate_dispatch", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _VD = mod
+    return _VD.stage_refs(value)
+
+
+def unpassed_dependencies(text, stage):
+    """Stage numbers `stage` depends on whose gate is not fully `[x]`.
+
+    The measured incident: multitor's Stage 4 closed before Stage 3's gate
+    although Stage 4 read `Depends on: Stage 3 gate`. Nothing parsed a
+    stage-level `**Depends on:**`, so the field was decoration.
+
+    The dependency line is the one between `## Stage N` and its first `###`
+    heading — a task's `- **Depends on:**` is a list item and never matches.
+    A gate passes only when it has at least one check and every check is
+    `[x]`: an open `[ ]` and a BLOCKED `[~]` both fail it, and a dependency
+    with no gate checks at all is unproven, not passed.
+    """
+    deps, gates = set(), {}
+    cur, in_head, gate = None, False, None
+    for line in text.splitlines():
+        m = pu.STAGEHDR_RE.match(line)
+        if m and not line.startswith("###"):
+            cur, in_head, gate = int(m.group(1)), True, None
+            continue
+        if line.startswith("#"):
+            in_head = False
+            g = pu.GATEHDR_RE.match(line)
+            gate = int(g.group(1)) if g else None
+            if gate is not None:
+                gates.setdefault(gate, [])
+            continue
+        if in_head and cur == stage:
+            d = STAGE_DEPS_RE.match(line.strip())
+            if d:
+                deps.update(_stage_refs(d.group(1)))
+        if gate is not None:
+            item = pu.GATE_ITEM_RE.match(line)
+            if item:
+                gates[gate].append(pu.gate_item_state(item.group(1)))
+    deps.discard(stage)
+    return sorted(n for n in deps
+                  if not gates.get(n) or any(s != "done" for s in gates[n]))
+
+
+def stage_order_marker(state, text):
+    """` ⊘ STAGE ORDER` when the state file's stage depends on an unpassed gate.
+
+    Blank if the parser cannot load: a redraw must never fail, and
+    `--stage-order-check` — the gate — exits 2 on the same failure.
+    """
+    stage = state.get("stage")
+    if not isinstance(stage, int) or isinstance(stage, bool):
+        return ""
+    try:
+        bad = unpassed_dependencies(text, stage)
+    except Exception:
+        return ""
+    return f" {RED}⊘ STAGE ORDER{RESET}" if bad else ""
+
+
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
     """The one line for the plan the state file names.
 
@@ -1317,6 +1406,7 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
             out += f" {DIM}·{RESET} "
         out += " ".join(tail)
     out += status_lag(state, text, plan)
+    out += stage_order_marker(state, text)
     out += staleness(state)
     return out
 
@@ -1483,9 +1573,207 @@ def budget_check(cwd):
     return 2
 
 
+ROSTER_ITEM_RE = re.compile(r"^\s*- \[.\] .*Dispatch roster")
+ROSTER_END_RE = re.compile(r"^\s*(- \[|#)")
+ROSTER_COUNT_RE = re.compile(r"\b(\d+)\s+of\s+\d+\s+tasks\b|\b(0)\s+tasks\b")
+TASK_REF_RE = re.compile(r"\bTask\s+(\d+\.\d+)\b")
+# A commit belongs to the task its subject OPENS with (`Stage 4 Task 4.1: …`).
+# A task named later in the subject is a cross-reference, and counting it let
+# one task's `dispatched` trailer reconcile another it merely mentioned.
+COMMIT_TASK_RE = re.compile(r"^(?:Stage\s+\d+\s+)?Task\s+(\d+\.\d+)\b")
+AUTHORISED_INLINE = "inline (user authorised)"
+
+
+def parse_roster(text):
+    """(count, [task ids]) from Preflight's `Dispatch roster` item, or None.
+
+    The item wraps across continuation lines, so it runs until the next
+    checklist item, a heading, or a blank line."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not ROSTER_ITEM_RE.match(line):
+            continue
+        item = [line]
+        for nxt in lines[i + 1:]:
+            if not nxt.strip() or ROSTER_END_RE.match(nxt):
+                break
+            item.append(nxt)
+        body = " ".join(item)
+        m = ROSTER_COUNT_RE.search(body)
+        count = int(m.group(1) or m.group(2)) if m else None
+        return count, list(dict.fromkeys(TASK_REF_RE.findall(body)))
+    return None
+
+
+def dispatch_check(args):
+    """Exit status for `--dispatch-check <plan> [--since <ref>]`: 0 when every
+    rostered task is reconciled, 2 otherwise.
+
+    Close-out used to reconcile Preflight's roster by reading trailers and
+    writing prose, and the measured failure is the one prose permits: a rostered
+    task run inline under a bare `Executor: inline`, and a close-out that
+    reported the plan done. Reconciled means ANY of the task's commits carries a
+    `dispatched …` trailer or the explicit `inline (user authorised)`; an empty
+    trailer is `unknown`, never `inline`. Every failure path — unreadable plan,
+    not a git repo, bad ref — is a FAIL: line and exit 2, never a silent 0.
+    """
+    def fail(msg):
+        print(f"FAIL: {msg}", file=sys.stderr)
+        return 2
+
+    rest = args[args.index("--dispatch-check") + 1:]
+    since = None
+    if "--since" in rest:
+        j = rest.index("--since")
+        if j + 1 >= len(rest):
+            return fail("--since needs a ref")
+        since = rest[j + 1]
+        del rest[j:j + 2]
+        if since.startswith("-"):
+            return fail(f"bad --since ref: {since}")
+    if not rest:
+        return fail("usage: plan-progress.py --dispatch-check <plan> [--since <ref>]")
+    plan = rest[0]
+    try:
+        text = Path(plan).read_text()
+    except BAD_PATH as e:
+        return fail(f"cannot read plan {plan}: {e}")
+
+    roster = parse_roster(text)
+    if roster is None:
+        return fail(f"roster missing — no `Dispatch roster` item in {plan}")
+    count, ids = roster
+    if count is None:
+        return fail("roster count unreadable — expected `<n> of <m> tasks` or `0 tasks`")
+    if count == 0:
+        print("dispatch: 0 of 0 rostered tasks dispatched")
+        return 0
+    if count != len(ids):
+        return fail(f"roster says {count} tasks but lists {len(ids)} task ids")
+
+    rng = f"{since}..HEAD" if since else "HEAD"
+    try:
+        r = subprocess.run(
+            ["git", "log", "--format=%s%x1f%(trailers:key=Executor,valueonly,unfold)%x1e", rng],
+            capture_output=True, text=True)
+    except OSError as e:
+        return fail(f"cannot run git: {e}")
+    if r.returncode != 0:
+        why = (r.stderr.strip().splitlines() or ["git log failed"])[0]
+        return fail(f"git log {rng}: {why}")
+
+    seen = {}  # task id -> list of Executor values across its commits
+    for rec in r.stdout.split("\x1e"):
+        if "\x1f" not in rec:
+            continue
+        subject, trailer = rec.split("\x1f", 1)
+        values = [v.strip() for v in trailer.splitlines() if v.strip()] or ["unknown"]
+        m = COMMIT_TASK_RE.match(subject.strip())
+        if m:
+            seen.setdefault(m.group(1), []).extend(values)
+
+    dispatched = 0
+    unreconciled = []
+    for tid in ids:
+        values = seen.get(tid)
+        if not values:
+            unreconciled.append((tid, f"no commit in {rng}"))
+            continue
+        if any(v.startswith("dispatched") for v in values):
+            dispatched += 1
+        elif AUTHORISED_INLINE not in values:
+            unreconciled.append(
+                (tid, "Executor: " + ", ".join(dict.fromkeys(values))))
+    for tid, why in unreconciled:
+        print(f"FAIL: Task {tid} — rostered Dispatch: YES, not reconciled ({why})",
+              file=sys.stderr)
+    print(f"dispatch: {dispatched} of {count} rostered tasks dispatched")
+    return 2 if unreconciled else 0
+
+
+def stage_order_check(cwd, args=()):
+    """Exit status for `--stage-order-check [--stage N] [--plan <path>]`: 0 when the
+    stage may open, 2 when a stage it depends on has a gate that is not fully `[x]`.
+
+    Run at stage open, before the stage's first task — and so BEFORE the state file
+    moves to it. `--stage N` names the stage being opened; without it the check reads
+    the file's `stage`, which at that moment is the stage already running (a final-gate
+    evaluator reproduced exactly that: the check passed a Stage 4 opened over an open
+    Stage 3 gate). `--plan` names the plan when there is no state file to read it from.
+
+    Without `--stage`, silent 0 where no stage is open — no state file, or no `stage`.
+    With `--stage`, the caller asked about a specific stage, so a plan that cannot be
+    found or read exits 2: an unreadable plan cannot prove the order holds.
+    """
+    args = list(args)
+
+    def opt(name):
+        if name not in args:
+            return None
+        i = args.index(name)
+        return args[i + 1] if i + 1 < len(args) else ""
+
+    stage_arg, plan_arg = opt("--stage"), opt("--plan")
+    state, sf = {}, find_state(cwd)
+    if sf is not None:
+        try:
+            state = json.loads(sf.read_text())
+        except (OSError, ValueError) as e:
+            print(f"FAIL: cannot read {sf}: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(state, dict):
+            state = {}
+    if stage_arg is not None:
+        try:
+            stage = int(stage_arg)
+        except ValueError:
+            print(f"FAIL: --stage takes a stage number (got {stage_arg!r})", file=sys.stderr)
+            return 2
+    else:
+        stage = state.get("stage")
+        if not isinstance(stage, int) or isinstance(stage, bool):
+            return 0
+    if plan_arg:
+        plan = Path(plan_arg)
+    elif state.get("plan") and sf is not None:
+        plan = pinned_plan_path(state, sf)
+    elif stage_arg is not None:
+        print("FAIL: no plan to read — pass --plan or write the state file first",
+              file=sys.stderr)
+        return 2
+    else:
+        return 0
+    try:
+        text = plan.read_text(errors="ignore")
+    except BAD_PATH as e:
+        print(f"FAIL: cannot read plan {plan}: {e}", file=sys.stderr)
+        return 2
+    bad = unpassed_dependencies(text, stage)
+    for n in bad:
+        print(f"FAIL: Stage {stage} depends on Stage {n}, whose gate is not fully [x]",
+              file=sys.stderr)
+    return 2 if bad else 0
+
+
 def main():
     if "--budget-check" in sys.argv[1:]:
         sys.exit(budget_check(os.getcwd()))
+    if "--stage-order-check" in sys.argv[1:]:
+        try:
+            status = stage_order_check(os.getcwd(), sys.argv[1:])
+        except Exception as e:
+            print(f"FAIL: --stage-order-check crashed: {e!r}", file=sys.stderr)
+            status = 2
+        sys.exit(status)
+    if "--dispatch-check" in sys.argv[1:]:
+        # Its own handler: the bottom-of-file one exits 0, and a gate that
+        # crashes must never read as a gate that passed.
+        try:
+            status = dispatch_check(sys.argv[1:])
+        except Exception as e:
+            print(f"FAIL: --dispatch-check crashed: {e!r}", file=sys.stderr)
+            status = 2
+        sys.exit(status)
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."

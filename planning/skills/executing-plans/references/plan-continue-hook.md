@@ -40,28 +40,36 @@ All four must hold:
 1. `PLAN_CONTINUE=1` in the environment.
 2. `<repo-root>/.claude/plan-progress.json` exists, is owned by you, and its `phase` is
    `preflight`, `task` or `gate` — an allow-list, so a phase added to the contract later
-   fails open. `closeout` and `blocked` are excluded, and close-out deletes the file.
+   fails open. `closeout`, `blocked` and `handoff` are excluded, and close-out deletes the
+   file.
 3. `updated` is parseable, not in the future, and under 12 h old.
 4. The last main-thread assistant message matches a **promise** (*"Next: Task 2.4"*,
    *"starting now with Task 2.1"*, *"I'll start…"*) or an **approval question** (*"say the
    word"*, *"ready to start Stage 2"*, *"want me to carry on"*), and matches **neither** a
    wait marker (*"waiting on"*, *"once it reports"*, *"still running"*, *"blocked on"*) nor
-   an `ACTION NEEDED` block.
+   an `ACTION NEEDED` block — **or** it carries a `RESUME HERE` block with no `reason:` line
+   (below).
 
 Against the 39 measured turn ends: 7/7 bad stops caught, 0 of the 30 legitimate waits
 blocked. One further turn is blocked that the host happened to rescue four minutes later
 (*"Re-running the gate next, then Stage 3."*) — an announcement ending that got lucky, and
 blocking it is the intended reading rather than a miss.
 
-## Two ways to stop on purpose
+## Three ways to stop on purpose
 
-Both already exist in this skill's contract; the hook reads them rather than inventing a
-third:
+All three exist in this skill's contract; the hook reads them rather than inventing a
+fourth:
 
 - Write an **`ACTION NEEDED:`** block naming the decision that blocks the next stage
   (`stage-gate.md` § ACTION NEEDED — the one place a report asks the user for something).
 - Write **`phase: "blocked"`** to the progress state file when a documented Stop condition
   fires (`progress-state-file.md`).
+- Hand off on **`context-usage.py`'s `handoff` verdict**: a `RESUME HERE` block carrying the
+  script's `reason:` line, and `phase: "handoff"` (`session-handoff.md`). A `RESUME HERE`
+  with no `reason:` line is the eyeball stop that rule replaced: the hook blocks it and names
+  the script to run — and fails open when that script is not installed beside the hook,
+  since it cannot send the executor after a file that is not there. A legitimate block is
+  allowed even though its `next: Task N` line reads like a promise.
 
 Saying what you are waiting on also ends the turn cleanly — that is what the wait marker is.
 

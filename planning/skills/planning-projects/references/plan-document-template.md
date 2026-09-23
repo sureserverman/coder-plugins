@@ -38,7 +38,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - [ ] [Check 2]: [how to verify]
 - [ ] Review scope declared — `review-scope: <none|light|standard|high> — [why, in one clause]`. Emit it in exactly that form: it is the string the executor restates in every gate report, so a plan and its gates read the same. Undeclared means `standard`; a risk-listed area (security/auth, data-destructive, public API, schema/migration) sets `high` whatever the size (`planning/skills/executing-plans/references/review-scope.md`)
 - [ ] Dispatch probe: a throwaway subagent returns a fixed string — dispatch works in this session; skipped when the roster is `0 tasks` or the tier is below `standard`
-- [ ] Dispatch roster — `<n> of <total> tasks`: every `Parallel: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
+- [ ] Dispatch roster — `<n> of <total> tasks`: every `Dispatch: YES` task below, with the subagent type it routes to (`planning/skills/dispatching-parallel-agents/references/stack-routing.md`) — `[Task N.M → <subagent_type>, …]`, or `0 tasks` if the plan has none. The count is what the stage gate reconciles its dispatched-vs-inline ledger against, so a roster without one cannot be checked
 
 **Test-scope commands** (per test-scope-tiers.md — only when the full suite exceeds ~5 min):
 - stage-scope: [cheap checks in full + expensive suites for touched modules; no clean]
@@ -58,7 +58,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - **Status:** [ ]
 - **Depends on:** none
 - **Blocks:** Task 1.2
-- **Parallel:** YES
+- **Dispatch:** YES
 - **Scope:** [the set this task sweeps — omit for a single-artifact task]
 - **Test:** `[exact command or criterion]`
 - **Red-Green max cycles:** 3
@@ -67,7 +67,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 - **Status:** [ ]
 - **Depends on:** Task 1.1
 - **Blocks:** Task 1.3, Task 2.1
-- **Parallel:** NO (blocked by 1.1)
+- **Dispatch:** NO (blocked by 1.1)
 - **Test:** `[exact command or criterion]`
 - **Red-Green max cycles:** 3
 
@@ -100,7 +100,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 **Risk:** ...
 **Rollback:** ...
 
-[Tasks with Depends on / Blocks / Parallel fields...]
+[Tasks with Depends on / Blocks / Dispatch fields...]
 
 ### Stage 2 Gate
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the

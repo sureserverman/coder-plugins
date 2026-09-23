@@ -464,6 +464,11 @@ def wiring_sweep():
             "validator over a handoff pack path; no vault",
         ("project-maturity", "audit-detectors.py"):
             "detector library run against a repo path; no vault",
+        ("executing-plans", "context-usage.py"):
+            "reads the session transcript and an optional plan path; no vault, and its "
+            "stdout is parsed JSON at every gate",
+        ("planning-projects", "validate-dispatch.py"):
+            "validator: takes plan paths, reports on them, reads no vault state",
     }
     listed = set(WIRED) | set(not_wired)
     check(not (found - listed),

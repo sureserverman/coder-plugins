@@ -1285,7 +1285,34 @@ Date: 2026-08-01
 PHASE_FILES = {"2026-09-01-newest-plan.md": PHASE_PLAN,
                "2026-08-15-middle-plan.md": PHASE_PLAN,
                "2026-07-01-oldest-plan.md": PHASE_PLAN}
-GLYPHS = ("▶", "◆", "⚑", "✔", "✘")
+GLYPHS = ("▶", "◆", "⚑", "✔", "✘", "⏸")
+
+
+def case_handoff_phase():
+    """`handoff` is a deliberate stop at a gate on a context-usage.py verdict.
+
+    Asserted on phase_part() directly, not only through render(): a phase that
+    is missing from KNOWN_PHASES renders "" -- exactly what an unknown phase is
+    SUPPOSED to render -- so the full bar would still draw and only the reason
+    would be absent. The exact string pins both halves.
+    """
+    print("handoff phase (deliberate stop on a context verdict):")
+    mod = load_module()
+    check("handoff" in mod.KNOWN_PHASES, "KNOWN_PHASES contains `handoff`")
+    out = ANSI_RE.sub("", mod.phase_part(
+        {"phase": "handoff", "reason": "context 52% > 50%"}))
+    check(out == "⏸ HANDOFF context 52% > 50%",
+          f"renders `⏸ HANDOFF` followed by the reason verbatim ({out!r})")
+    out = ANSI_RE.sub("", mod.phase_part({"phase": "handoff"}))
+    check(out == "⏸ HANDOFF", f"no reason -> the marker alone, no trailing space ({out!r})")
+    long_reason = "sub-plan boundary: " + "x" * 200
+    out = ANSI_RE.sub("", mod.phase_part({"phase": "handoff", "reason": long_reason}))
+    check(mod.ELLIPSIS in out and len(out) <= len("⏸ HANDOFF ") + mod.NOTE_WIDTH,
+          f"a long reason is clipped like a blocked note ({len(out)} chars)")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\x1b[31mb"})
+    check("\x1b[31m" not in out, "an ESC in the reason is stripped, not passed to the terminal")
+    out = mod.phase_part({"phase": "HANDOFF-ish", "reason": "context 52% > 50%"})
+    check(out == "", f"an unknown phase still renders \"\" ({out!r})")
 
 
 def case_phase_indicator():
@@ -1994,6 +2021,39 @@ def case_status_lag_warns():
           f"a `Parallel: NO` task left unmarked is still a stall (got {pout2!r})")
     par.unlink()
 
+    print("  the renamed `Dispatch:` field is read the same way:")
+    # `Parallel: YES|NO` was renamed `Dispatch: YES|NO` (same meaning). The
+    # `Parallel:` case above stays as the old-spelling guard; this one pins the
+    # new spelling, which is what newly authored plans carry.
+    dsp = repo / "plans" / "dispatch-plan.md"
+    dsp.write_text("""# Plan
+
+## Stage 1: fan out
+
+### Task 1.1: first
+- **Status:** [x]
+- **Dispatch:** NO
+
+### Task 1.2: dispatched sibling
+- **Status:** [ ]
+- **Dispatch:** YES
+
+### Task 1.3: dispatched sibling
+- **Status:** [ ]
+- **Dispatch:** YES
+""")
+    write_state(repo, plan=str(dsp), phase="task", stage=1, task="1.3")
+    dout = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" not in dout,
+          f"an unmarked `Dispatch: YES` sibling is concurrency, not lag (got {dout!r})")
+    dsp.write_text(dsp.read_text().replace(
+        "### Task 1.2: dispatched sibling\n- **Status:** [ ]\n- **Dispatch:** YES",
+        "### Task 1.2: sequential\n- **Status:** [ ]\n- **Dispatch:** NO"))
+    dout2 = ANSI_RE.sub("", "".join(mod.render(str(repo))))
+    check("status lag" in dout2,
+          f"a `Dispatch: NO` task left unmarked is still a stall (got {dout2!r})")
+    dsp.unlink()
+
     print("  a state file naming a task the plan no longer has says so:")
     # Silently returning "" folded this into the ordinary cases. It is a WORSE
     # divergence than a two-task lag — the plan was edited under a run whose
@@ -2074,6 +2134,292 @@ def case_budget_check():
                        capture_output=True, text=True)
     check(r.returncode == 0, "no state file at all exits 0, never a traceback")
     check("Traceback" not in r.stderr, f"no traceback ({r.stderr!r})")
+
+
+DISPATCH_PLAN = """# Plan: dispatch demo
+
+## Preflight
+
+- [x] Tier declared
+- [x] Dispatch roster — `{roster}`: Task 1.1 → `rust-dev:rust-expert`, Task 2.1 →
+  `general-purpose`, Task 3.1 → `rust-dev:rust-expert`, Task 4.1 → `general-purpose`,
+  Task 5.1 → `general-purpose`.
+- [x] Baseline green
+
+## Stage 1 — groundwork
+
+### Task 1.1: scaffold
+- **Status:** [x]
+"""
+
+
+def case_dispatch_check():
+    """Task 4.1 — close-out's roster reconciliation becomes an exit status.
+
+    The multitor 5.1 shape: a roster of 5 `Dispatch: YES` tasks, four commits
+    trailered `dispatched — …` and one bare `Executor: inline`, and a close-out
+    that reported the plan done anyway. A bare `inline` on a rostered task is the
+    unauthorised downgrade, and only a non-zero exit stops a close-out.
+    """
+    print("Task 4.1 — --dispatch-check reconciles the roster against the ledger:")
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-dispatch-"))
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+
+    def git(repo, *args):
+        return subprocess.run(["git", "-C", str(repo), *args], env=env,
+                              capture_output=True, text=True, check=True).stdout
+
+    def make_repo(name, roster, commits):
+        # --template= keeps the user's global init template (and its hooks) out
+        # of the fixture; the fixture must measure the script, not a hook.
+        repo = tmp / name
+        repo.mkdir()
+        git(repo, "init", "-q", "--template=")
+        plan = repo / "plan.md"
+        if roster is None:
+            plan.write_text(DISPATCH_PLAN.split("- [x] Dispatch roster")[0]
+                            + "- [x] Baseline green\n")
+        else:
+            plan.write_text(DISPATCH_PLAN.format(roster=roster))
+        git(repo, "add", "plan.md")
+        git(repo, "commit", "-q", "--no-verify", "-m", "plan base")
+        for subject, executor in commits:
+            msg = subject + ("\n\nExecutor: " + executor if executor is not None else "")
+            git(repo, "commit", "-q", "--no-verify", "--allow-empty", "-m", msg)
+        return repo, plan
+
+    def dcheck(repo, plan, *extra):
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--dispatch-check", str(plan), *extra],
+            cwd=repo, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+
+    four = [("Stage 1 Task 1.1: scaffold", "dispatched — rust-dev:rust-expert"),
+            ("Stage 2 Task 2.1: parse", "dispatched — general-purpose"),
+            ("Stage 3 Task 3.1: render", "dispatched — rust-dev:rust-expert"),
+            ("Stage 4 Task 4.1: wire", "dispatched — general-purpose")]
+
+    repo, plan = make_repo("inlined", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline")])
+    r = dcheck(repo, plan)
+    out = r.stdout + r.stderr
+    check(r.returncode == 2, f"4 dispatched + 1 bare inline exits 2 (got {r.returncode}: {out!r})")
+    check("Task 5.1" in r.stderr and "FAIL" in r.stderr,
+          f"and a FAIL: line names the inlined Task 5.1 ({r.stderr!r})")
+    check("Task 4.1" not in r.stderr, "and does not name a dispatched task")
+    check("dispatch: 4 of 5" in out, f"with the 4-of-5 summary ({out!r})")
+
+    repo, plan = make_repo("authorised", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline (user authorised)")])
+    r = dcheck(repo, plan)
+    check(r.returncode == 0,
+          f"4 dispatched + 1 inline (user authorised) exits 0 (got {r.returncode}: {r.stderr!r})")
+    check("dispatch: 4 of 5 rostered tasks dispatched" in r.stdout,
+          f"and prints the summary line ({r.stdout!r})")
+
+    repo, plan = make_repo("zero", "0 tasks", [("Stage 1 Task 1.1: scaffold", "inline")])
+    r = dcheck(repo, plan)
+    check(r.returncode == 0, f"a `0 tasks` roster exits 0 (got {r.returncode}: {r.stderr!r})")
+
+    repo, plan = make_repo("noroster", None, four)
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and "roster missing" in r.stderr,
+          f"no roster item exits 2 with `roster missing` ({r.returncode}, {r.stderr!r})")
+
+    print("  reasons, follow-ups, ranges and broken inputs:")
+    repo, plan = make_repo("reasons", "5 of 17 tasks", [
+        ("Stage 1 Task 1.1: scaffold", "dispatched — rust-dev:rust-expert"),
+        ("Stage 1 Task 1.1: review fix", "inline"),
+        ("Stage 2 Task 2.1: parse", None),
+        ("Stage 3 Task 3.1: render", "inline (dispatch failed)"),
+        ("Stage 4 Task 4.1: wire", "dispatched — general-purpose"),
+    ])
+    r = dcheck(repo, plan)
+    lines = {ln for ln in r.stderr.splitlines() if ln.startswith("FAIL")}
+    check(r.returncode == 2, f"unreconciled tasks exit 2 (got {r.returncode})")
+    check(not any("Task 1.1" in ln for ln in lines),
+          "a dispatched commit plus an inline follow-up fix is reconciled")
+    check(any("Task 2.1" in ln and "unknown" in ln for ln in lines),
+          f"an empty trailer reads `unknown`, never `inline` ({r.stderr!r})")
+    check(any("Task 3.1" in ln and "inline (dispatch failed)" in ln for ln in lines),
+          "a dispatch-failed inline is named with its trailer")
+    check(any("Task 5.1" in ln and "no commit" in ln for ln in lines),
+          "a rostered task with no commit in range reads `no commit`")
+    check(len(lines) == 3, f"one FAIL: line per unreconciled task ({len(lines)})")
+
+    base = git(repo, "rev-parse", "HEAD~1").strip()
+    r = dcheck(repo, plan, "--since", base)
+    check(r.returncode == 2 and any("Task 1.1" in ln and "no commit" in ln
+                                   for ln in r.stderr.splitlines()),
+          f"--since bounds the ledger: Task 1.1 is out of range ({r.stderr!r})")
+
+    # Tier-2 review: a subject that NAMES another task is not that task's commit.
+    # `findall` over the whole subject let a dispatched 4.3 reconcile a 4.1 it
+    # only mentioned — a false pass on the gate this exists to make honest.
+    repo, plan = make_repo("crossref", "5 of 17 tasks", four[:3] + [
+        ("Stage 4 Task 4.1: wire", "inline"),
+        ("Stage 5 Task 5.1: fix the bug Task 4.1 left", "dispatched — general-purpose"),
+    ])
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and any("Task 4.1" in ln for ln in r.stderr.splitlines()),
+          f"a task merely named in another commit's subject is not reconciled by it ({r.stderr!r})")
+
+    repo, plan = make_repo("mismatch", "4 of 17 tasks", four)
+    r = dcheck(repo, plan)
+    check(r.returncode == 2 and "4" in r.stderr and "5" in r.stderr,
+          f"a roster count that disagrees with its ids exits 2 naming both ({r.stderr!r})")
+
+    # Broken inputs run against a plan that is GREEN on its own, so each exit 2
+    # can only come from the broken input — not from a roster problem.
+    repo, plan = make_repo("broken", "5 of 17 tasks",
+                           four + [("Stage 5 Task 5.1: ship", "inline (user authorised)")])
+    check(dcheck(repo, plan).returncode == 0, "control: the broken-input fixture is green")
+    r = dcheck(repo, plan, "--since", "no-such-ref")
+    check(r.returncode == 2 and "no-such-ref" in r.stderr and "Traceback" not in r.stderr,
+          f"a bad --since ref exits 2 naming it, no traceback ({r.returncode}, {r.stderr!r})")
+    r = dcheck(repo, repo / "missing.md")
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"an unreadable plan exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    notgit = tmp / "notgit"
+    notgit.mkdir()
+    shutil.copy(plan, notgit / "plan.md")
+    r = dcheck(notgit, notgit / "plan.md")
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"not a git repo exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+STAGE_ORDER_PLAN = """# Project Plan: stage order demo
+
+## Stage 3: the earlier stage
+
+**Goal:** g
+**Depends on:** none
+
+### Task 3.1: done
+- **Status:** [x]
+
+### Stage 3 Gate
+
+- [x] the suite is green
+- {second} the review ran
+
+**Stage 3 handoff:** a note, not a checklist.
+
+---
+
+## Stage 4: the later stage
+
+**Goal:** g
+**Depends on:** {deps}
+
+### Task 4.1: in flight
+- **Status:** [ ]
+
+### Stage 4 Gate
+
+- [ ] the suite is green
+"""
+
+
+def case_stage_order():
+    """Task 4.2 — a stage cannot open before the gate it depends on.
+
+    The measured incident: multitor's Stage 4 closed before Stage 3's gate
+    although Stage 4 read `Depends on: Stage 3 gate`. Nothing parsed a
+    stage-level `**Depends on:**`, so nothing could say so.
+    """
+    print("Task 4.2 — --stage-order-check and the ⊘ STAGE ORDER marker:")
+    mod = load_module()
+    tmp = Path(tempfile.mkdtemp(prefix="plan-progress-stage-order-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    plan = repo / "plans" / "so-plan.md"
+
+    def setup(second="[x]", deps="Stage 3 gate passing", stage=4):
+        plan.write_text(STAGE_ORDER_PLAN.format(second=second, deps=deps))
+        write_state(repo, plan=str(plan), phase="task", stage=stage, task=f"{stage}.1")
+        r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                           cwd=repo, capture_output=True, text=True)
+        line = "".join(ANSI_RE.sub("", ln) for ln in mod.render(str(repo)))
+        return r, line
+
+    r, line = setup(second="[ ]")
+    check(r.returncode == 2,
+          f"Stage 4 open while Stage 3's gate has a `[ ]` exits 2 (got {r.returncode})")
+    check("Stage 3" in r.stderr and "FAIL" in r.stderr,
+          f"and the FAIL: line names Stage 3 ({r.stderr!r})")
+    check("STAGE ORDER" in line, f"the bar renders ⊘ STAGE ORDER (got {line!r})")
+
+    r, line = setup(second="[~]")
+    check(r.returncode == 2,
+          f"a `[~]` in the dependency's gate is not a passed gate: exit 2 (got {r.returncode})")
+    check("STAGE ORDER" in line, f"and it renders the marker (got {line!r})")
+
+    r, line = setup(second="[x]")
+    check(r.returncode == 0,
+          f"Stage 3's gate all `[x]` exits 0 (got {r.returncode}: {r.stderr!r})")
+    check("STAGE ORDER" not in line, f"and no marker renders (got {line!r})")
+
+    r, line = setup(second="[ ]", deps="none")
+    check(r.returncode == 0,
+          f"`Depends on: none` exits 0 whatever other gates say (got {r.returncode})")
+    check("STAGE ORDER" not in line, f"and no marker renders (got {line!r})")
+
+    # Tier-2 review + class sweep: the vault writes plural, range and inline forms.
+    r, line = setup(second="[ ]", deps="Stages 1–3 gates passing")
+    check(r.returncode == 2,
+          f"`Stages 1–3` includes Stage 3 and exits 2 (got {r.returncode})")
+    r, line = setup(second="[ ]", deps="Stages 2 and 3")
+    check(r.returncode == 2,
+          f"`Stages 2 and 3` includes Stage 3 and exits 2 (got {r.returncode})")
+    r, line = setup(second="[ ]", deps="Stage 2 gate.  **Blocks:** Stage 3.")
+    check("Stage 3" not in r.stderr,
+          f"a `**Blocks:**` on the same line is not a dependency ({r.stderr!r})")
+    r, line = setup(second="[ ]", deps="Stage 2 (policy shared with Stage 3)")
+    check("Stage 3" not in r.stderr,
+          f"a parenthetical is prose, not an edge ({r.stderr!r})")
+
+    r, line = setup(second="[ ]", stage=3)
+    check(r.returncode == 0,
+          f"a stage's OWN open gate is not an ordering fault (got {r.returncode})")
+
+    # Final-gate evaluator (Blocking): Step 3.1 runs the check BEFORE the state file
+    # moves to the opening stage, so reading `stage` from the file checked the stage
+    # already running. `--stage N` names the stage being opened.
+    plan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    write_state(repo, plan=str(plan), phase="gate", stage=3)
+    def opening(*extra):
+        return subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check", *extra],
+                              cwd=repo, capture_output=True, text=True)
+    r = opening("--stage", "4")
+    check(r.returncode == 2 and "Stage 3" in r.stderr,
+          f"opening Stage 4 while the file still says stage 3 exits 2 ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "3")
+    check(r.returncode == 0, f"--stage 3 (no dependency) exits 0 (got {r.returncode})")
+    r = opening("--stage", "x")
+    check(r.returncode == 2 and "FAIL" in r.stderr,
+          f"a non-numeric --stage exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "4", "--plan", str(plan))
+    check(r.returncode == 2, f"--plan names the plan explicitly (got {r.returncode})")
+    (repo / ".claude" / "plan-progress.json").unlink()
+    r = opening("--stage", "4")
+    check(r.returncode == 2 and "FAIL" in r.stderr,
+          f"--stage with no plan to read exits 2, never a silent pass ({r.returncode}, {r.stderr!r})")
+    r = opening("--stage", "4", "--plan", str(plan))
+    check(r.returncode == 2, f"--plan works with no state file at all (got {r.returncode})")
+
+    r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                       cwd=repo, capture_output=True, text=True)
+    check(r.returncode == 0 and "Traceback" not in r.stderr,
+          f"no state file — no stage open — exits 0, no traceback ({r.returncode})")
+
+    write_state(repo, plan=str(tmp / "missing-plan.md"), phase="task", stage=4)
+    r = subprocess.run([sys.executable, str(SCRIPT), "--stage-order-check"],
+                       cwd=repo, capture_output=True, text=True)
+    check(r.returncode == 2 and "FAIL" in r.stderr and "Traceback" not in r.stderr,
+          f"an unreadable plan exits 2 with a FAIL: line ({r.returncode}, {r.stderr!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def case_palette_contrast():
@@ -2197,6 +2543,10 @@ def main():
                 note="cycle budget exhausted")
     _, out = run(repo)
     check("✘ blocked" in out and "cycle budget exhausted" in out, "blocked glyph + note")
+    write_state(repo, plan=str(plan), phase="handoff", stage=2,
+                reason="context 52% > 50%")
+    _, out = run(repo)
+    check("⏸ HANDOFF context 52% > 50%" in out, f"handoff glyph + reason ({out.strip()!r})")
 
     print("staleness:")
     write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2")
@@ -2255,10 +2605,13 @@ def main():
     case_master_plans_are_countable()
     case_master_grouping()
     case_phase_indicator()
+    case_handoff_phase()
     case_alignment_and_composition()
     case_blocked_gate_renders()
     case_status_lag_warns()
     case_budget_check()
+    case_dispatch_check()
+    case_stage_order()
     case_palette_contrast()
 
     print()

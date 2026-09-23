@@ -68,7 +68,12 @@ fi
 # world-readable, so passing it as an argument would publish session_id and the
 # repo root to every local user — which is what made the counter path below
 # predictable enough to pre-plant a symlink at, in the port this is derived from.
-PLAN_CONTINUE_PAYLOAD="$PAYLOAD" python3 - <<'PY'
+# The measured-handoff nudge tells the executor to run this script; resolved beside
+# the hook so a hook installed without it can fail open instead of sending the
+# executor after a file that is not there.
+CONTEXT_USAGE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/../skills/executing-plans/scripts/context-usage.py"
+
+PLAN_CONTINUE_PAYLOAD="$PAYLOAD" PLAN_CONTINUE_CONTEXT_USAGE="$CONTEXT_USAGE" python3 - <<'PY'
 import json, os, sys, re, stat, hashlib, tempfile, datetime
 
 STALE_HOURS = 12
@@ -189,8 +194,8 @@ phase = str(state.get("phase", "")).strip().lower()
 # said so. `closeout` matters just as much: close-out ends by offering merge
 # options that must not be auto-answered, and its remaining steps are short and
 # end by deleting this file, so continuing through it buys nothing. It is also
-# the phase at a master plan's sub-plan boundary, where master-plans.md
-# RECOMMENDS stopping for a fresh session.
+# the phase at a master plan's sub-plan boundary. `handoff` is the measured stop
+# of session-handoff.md: context-usage.py said so, and the reason is on record.
 if phase not in ("preflight", "task", "gate"):
     allow()
 
@@ -285,16 +290,33 @@ WAIT = re.compile(
     r"|when (?:it|they|both|the)\b.{0,30}\b(?:land|report|clear|finish|complete)"
     r"|still running|holding|blocked on|the monitor will|until (?:it|they))\b", re.I)
 
-tail = last_text[-400:]
-if not (PROMISE.search(tail) or ASK.search(tail)):
-    allow()
-if WAIT.search(tail):
-    allow()
 # The skill's own sanctioned ask. Checked over the WHOLE message: the block is
 # specified to come last, but a report that carries one is stopping on purpose
 # wherever it sits.
 if "ACTION NEEDED" in last_text:
     allow()
+
+# A measured handoff (session-handoff.md) is a legal stop only when it carries
+# context-usage.py's `reason:` line — a RESUME HERE block without one is the
+# eyeball stop the rule replaced. Decided before the promise classifier, whose
+# `next: Task N` pattern would otherwise refuse a legitimate block's `next:` line.
+RESUME = re.compile(r"RESUME HERE", re.I)
+REASON_LINE = re.compile(r"^[\s>*`_-]*reason:\s*\S", re.I | re.M)
+bare_handoff = False
+m = RESUME.search(last_text)
+if m:
+    if REASON_LINE.search(last_text[m.start():]):
+        allow()
+    script = os.environ.get("PLAN_CONTINUE_CONTEXT_USAGE", "")
+    if not script or not os.path.isfile(script):
+        allow()
+    bare_handoff = True
+else:
+    tail = last_text[-400:]
+    if not (PROMISE.search(tail) or ASK.search(tail)):
+        allow()
+    if WAIT.search(tail):
+        allow()
 
 # --------------------------------------------------------------------------
 # No-progress guard. Keyed per session so it needs no file in the user's repo.
@@ -353,6 +375,20 @@ desc = clean(state.get("task_desc"))
 if desc:
     where += " (%s)" % desc
 
+if bare_handoff:
+    reason = (
+        "You ended that turn with a RESUME HERE block that has no `reason:` line, while "
+        "plan execution is in flight: %s — %s.\n\n"
+        "executing-plans § Context resets / session-handoff.md: a handoff is a legal stop "
+        "only on context-usage.py's verdict. Run it now, in its own Bash call:\n"
+        "  python3 %s --plan <plan> --next-stage <N>\n"
+        "On `handoff`, paste its reason: line into the RESUME HERE block verbatim and "
+        "stop. On `continue` or `unknown`, delete the block and start the next stage now."
+    ) % (clean(state.get("plan"), "the plan"), where,
+         clean(os.environ.get("PLAN_CONTINUE_CONTEXT_USAGE"), "context-usage.py"))
+    json.dump({"decision": "block", "reason": reason}, sys.stdout)
+    sys.exit(0)
+
 reason = (
     "You ended that turn on an announcement or a question while plan execution is "
     "still in flight: %s — %s.\n\n"
@@ -360,10 +396,11 @@ reason = (
     "approval gates, and the tool call opening announced work goes in the SAME turn "
     "as the sentence announcing it. Start the announced work now — do not re-plan, "
     "do not re-verify finished work, and do not summarise what you have done.\n\n"
-    "If you genuinely need to stop, do it the two documented ways rather than by "
+    "If you genuinely need to stop, do it the documented ways rather than by "
     "trailing off: write an `ACTION NEEDED:` block naming the decision that blocks "
-    "the next stage, or write phase:\"blocked\" to .claude/plan-progress.json when a "
-    "documented Stop condition has fired. Waiting on a dispatched agent is not a "
+    "the next stage, write phase:\"blocked\" to .claude/plan-progress.json when a "
+    "documented Stop condition has fired, or hand off at a gate on context-usage.py's "
+    "`handoff` verdict with its reason: line. Waiting on a dispatched agent is not a "
     "stop — say what you are waiting on and this hook will let the turn end."
 ) % (clean(state.get("plan"), "the plan"), where)
 

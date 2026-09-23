@@ -46,7 +46,7 @@ guardrail that a one-session job cannot need.
 | `- **Status:** [ ]` per task, flipped on green | Full **Preflight** checklist (only "baseline tests pass", folded into the gate) — **except** the `**Test-scope commands**` block on an expensive-suite project, which is kept; see below |
 | Commit per green task | **Risk** / **Rollback** stage fields |
 | Red-Green cycle budget (default 3) | `Blocks:` field (derivable from `Depends on` at ≤5 tasks) |
-| Run-to-completion + stop conditions | `Parallel:` field (no fan-out at this size) |
+| Run-to-completion + stop conditions | `Dispatch:` field (no fan-out at this size) |
 | A single **Stage 1 Gate** incl. the full existing test suite | Tier-1 per-task review — the format replaces it with one whole-diff review before close-out, and the declared tier then decides whether even that runs (`high` restores Tier-1 for the risk-listed tasks its declaration names) |
 | honest-gates integrity contract | Default goal-evaluator dispatch (opt-in at Light) |
 | | Mirror-grep version-bump ritual (one stated bump) |
@@ -90,7 +90,7 @@ Light plan carrying the literal 3.5 h incident command reported zero findings. A
 in a checklist and unreachable by its checker is the "measures nothing" class this repo tracks.
 Below the threshold the block is omitted, as at any size.
 
-**No Risk / Rollback / Blocks / Parallel fields.** One low-risk stage does not need a rollback
+**No Risk / Rollback / Blocks / Dispatch fields.** One low-risk stage does not need a rollback
 rehearsal, and with ≤5 tasks in one session there is no fan-out to coordinate. `Depends on`
 survives, but only where a task genuinely consumes a prior task's output.
 
@@ -122,7 +122,7 @@ reading the filename or first heading.
 
 A Light plan is one `## Stage 1:` holding 2–5 `### Task 1.N:` tasks and one
 `### Stage 1 Gate`. It carries no Preflight section, no Risk/Rollback, and no
-Blocks/Parallel fields.
+Blocks/Dispatch fields.
 
 ```markdown
 # Light Plan: [Name]
@@ -194,7 +194,7 @@ The close-out line is identical to a Standard plan's:
 
 A Light plan that grows during execution — a task splits into a second stage, or a 6th
 task appears — is **re-issued as a Standard plan**, not patched in place. The Light
-format has no Risk/Rollback/Blocks/Parallel fields to absorb the growth, and stretching
+format has no Risk/Rollback/Blocks/Dispatch fields to absorb the growth, and stretching
 it produces a malformed hybrid. Re-run `planning-projects` on the expanded scope; the
 Light plan file is superseded. This keeps the format boundary crisp: a `-light-plan.md`
 file always means "single stage, ≤5 tasks."

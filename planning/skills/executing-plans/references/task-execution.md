@@ -9,12 +9,12 @@ that keep re-appearing when the reasoning is forgotten.
 
 A file conflict is a fact about *scheduling*: it says two tasks cannot run at the same
 moment, which is a different claim from "this task need not go to a subagent".
-`Parallel: YES` is a delegation directive (`../../planning-projects/SKILL.md` § Stage
+`Dispatch: YES` is a delegation directive (`../../planning-projects/SKILL.md` § Stage
 structure), and nothing about a sibling touching the same file withdraws it. So the
 conflicting task is dispatched on its own once the first returns, and its commit carries
 `Executor: dispatched — <type>` like any other.
 
-## An inlined `Parallel: YES` task is a deviation
+## An inlined `Dispatch: YES` task is a deviation
 
 It is a deviation the user authorised. An unavailable dispatch *raises* the Stop condition
 rather than resolving it: the run halts, the user chooses, and only then is there an inline
@@ -28,15 +28,15 @@ line with the reason, and let the trailer record `Executor: inline (dispatch fai
 
 ## Why there is no third execution mode
 
-The `Parallel: NO` rule retires a "delegate output-heavy sequential tasks for context
+The `Dispatch: NO` rule retires a "delegate output-heavy sequential tasks for context
 hygiene" nudge that stood in the trunk through 0.36.0. It was optional, discretionary, and
 conceded in its own text that it saved no tokens — the subagent's burn simply moved. What it
 actually produced was a third execution mode nobody could predict from the plan, since a
-reader of `Parallel: NO` could not tell whether a task would run inline or dispatched, and
+reader of `Dispatch: NO` could not tell whether a task would run inline or dispatched, and
 the choice turned on the executor's judgment about its own context window. A plan that wants
-a task dispatched says `Parallel: YES` and gets the roster, the reconciliation and the
+a task dispatched says `Dispatch: YES` and gets the roster, the reconciliation and the
 file-conflict rules with it. **If an inline task really would flood the orchestrator's
-context, that is a planning bug** — mark it `Parallel: YES` in `planning-projects` and it
+context, that is a planning bug** — mark it `Dispatch: YES` in `planning-projects` and it
 becomes a visible, reconciled dispatch instead of an invisible one.
 
 **If the matched capability's plugin isn't enabled**, don't fall through to `general-purpose`

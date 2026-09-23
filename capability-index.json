@@ -591,7 +591,7 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when executing-plans has Parallel YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on \"dispatch these tasks in parallel\", \"run these Parallel YES tasks\", \"fan out these independent fixes\".",
+      "description": "Use when executing-plans has Dispatch YES tasks from a planning-projects plan whose dependencies are green. Dispatches one agent per task, running concurrently. Triggers on \"dispatch these tasks in parallel\", \"run these Dispatch YES tasks\", \"fan out these independent fixes\".",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,

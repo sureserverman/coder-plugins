@@ -170,7 +170,26 @@
 #   names an executed probe. Within the 49016 origin.
 # Raised 48241 -> 48910 (+669 B) 2026-09-01, Task 3.4, BL-082 + BL-084: the host's own footing
 #   is a safety rail; a mid-execution feature request goes back through triage. Within 49016.
-planning/skills/executing-plans/SKILL.md 48871
+# Raised 48871 -> 49433 (+562 B) 2026-09-22, executor-handoff plan Task 2.1: the
+#   context-reset section gains the measured stop rule (four rule names, their bounds and a
+#   pointer) plus one Checklist step and one Reference-map row; the procedure lives in
+#   references/session-handoff.md. The plan bounds Stage 2's trunk growth at 1,500 B (DEC-018).
+# Raised 49433 -> 49467 (+34 B) 2026-09-22, same plan, Task 2.2: the Master plans
+#   paragraph's "one per fresh session where practical" becomes the measured sub-plan
+#   boundary rule. Stage 2 total +596 B, within its 1,500 B bound.
+# Raised 49467 -> 49494 (+27 B) 2026-09-22, Stage 2 gate (Tier-2 Important): the Run to
+#   completion paragraph's "prefer a fresh session over a degraded one" judgment becomes the
+#   measured rule. Stage 2 total +623 B, within its 1,500 B bound.
+# Raised 49494 -> 49673 (+179 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 1 step 4a
+#   and the Master plans paragraph run validate-dispatch.py beside validate-gate-checks.py, so
+#   a wrong Dispatch: field is caught before Preflight builds a roster from it.
+# Raised 49673 -> 49714 (+41 B) 2026-09-22, Stage 3 gate (Tier-2 Important): step 4a says a
+#   validate-dispatch.py FAIL is advisory on an existing plan, as the classification beside it is.
+# Raised 49714 -> 49878 (+164 B) 2026-09-22, Stage 4 Task 4.2: Step 3.1 says a stage opens only
+#   when its Depends-on gates are fully [x], checked by plan-progress.py --stage-order-check.
+# Raised 49878 -> 49890 (+12 B) 2026-09-22, Stage 5 gate (evaluator Blocking): Step 3.1 passes
+#   --stage <N> so the check reads the stage being opened, not the one the state file still names.
+planning/skills/executing-plans/SKILL.md 49890
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -252,7 +271,12 @@ planning/skills/executing-plans/SKILL.md 48871
 # Raised 37456 -> 37502 (+46 B) settling BL-106, the no-vault_dir fallback: three
 #   sites stated one rule and two of them contradicted each other. Decided by the user
 #   (option A — keep the fallback); the exit-3 line now names where the fallback rule lives instead of carrying a copy.
-planning/skills/planning-projects/SKILL.md 37489
+# Lowered 37489 -> 37479 (-10 B) 2026-09-22, executor-handoff plan Task 3.2: the rename to
+#   `Dispatch:` and its "Phase 5 — Dispatch" heading came out 10 B shorter.
+# Raised 37479 -> 37895 (+416 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 5 names
+#   validate-dispatch.py and the five things it fails; the checklist gains it as a fifth
+#   command-decided item; the Scope field line says a Dispatch: YES task always carries one.
+planning/skills/planning-projects/SKILL.md 37895
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.
@@ -439,7 +463,12 @@ planning/skills/backlog/SKILL.md 17333
 #   three fixes: the halts pointer now names its section, the stack-routing
 #   citation was joined onto one line so its path qualifies it, and a CLRS
 #   section number stopped being read as document deixis
-planning/skills/dispatching-parallel-agents/SKILL.md 17381
+# Raised 17381 -> 17460 (+79 B) 2026-09-22, executor-handoff plan Task 3.3: the field is
+#   renamed Parallel -> Dispatch (byte-neutral) and one sentence says pre-0.51.0 plans spell it
+#   `Parallel:` and are treated identically — the compat note a reader of an old plan needs.
+# Raised 17460 -> 17482 (+22 B) 2026-09-22, Stage 3 gate: the compat sentence names
+#   `Parallel:` as "the retired spelling", the marker the gate's rename sweep excludes on.
+planning/skills/dispatching-parallel-agents/SKILL.md 17482
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file

@@ -17,14 +17,14 @@ The plan file was produced by `planning-projects`. It contains:
 - A **Preflight** checklist (verified before Stage 1)
 - One or more **Stages**, each with:
   - Goal, Depends on, Blocks, Risk, Rollback
-  - Ordered **Tasks**, each with `Depends on`, `Blocks`, `Parallel: YES|NO`, `Test:` (a concrete runnable check), `Red-Green max cycles: N`
+  - Ordered **Tasks**, each with `Depends on`, `Blocks`, `Dispatch: YES|NO`, `Test:` (a concrete runnable check), `Red-Green max cycles: N`
   - A **Stage gate** checklist
 
 If the plan doesn't have these fields, stop — it wasn't produced by `planning-projects` and must be either rewritten through that skill or executed manually.
 
 **Exceptions.** A `*-master-plan.md` (`# Master Plan:`) or a `*-light-plan.md` (`# Light
 Plan:`). It deliberately has no Preflight, Stages or Tasks (master), or no Research Summary,
-Preflight, Risk / Rollback / Blocks / Parallel fields (light). Do NOT reject either — execute
+Preflight, Risk / Rollback / Blocks / Dispatch fields (light). Do NOT reject either — execute
 them per **Master plans** and **Light plans** below.
 
 ---
@@ -47,6 +47,7 @@ the one you need rather than working from memory.
 | `references/gate-failure-procedure.md` | a stage gate has failed |
 | `references/close-out.md` | every stage is green — the close-out procedure |
 | `references/progress-state-file.md` | writing `.claude/plan-progress.json`, or wiring the statusline |
+| `references/session-handoff.md` | a stage or sub-plan gate has passed — whether to continue or hand off |
 | `references/integration.md` | routing to another skill or agent, or citing the opt-out rules |
 | `references/sources.md` | citing why a rule here exists |
 
@@ -59,12 +60,13 @@ Paths are relative to this skill's directory; from a dispatch use
 
 A `*-master-plan.md` (or `# Master Plan:` heading) links 2–7 sub-plans through a
 `## Sub-plans` register. It deliberately has no Preflight, Stages or Tasks — do not reject
-it. Execute sub-plans in register dependency order, one per fresh session where practical;
-on each sub-plan's close-out flip its register `Status`, run that entry's `**Gate:**` checks,
-append a handoff note, and commit `"Sub-plan N green"`. **Version bumps defer to the master
+it. Execute sub-plans in register dependency order; on each sub-plan's close-out flip its
+register `Status`, run that entry's `**Gate:**` checks, append a handoff note, commit
+`"Sub-plan N green"`, then hand off unless `context-usage.py --sub-plan-boundary` says
+`continue`. **Version bumps defer to the master
 close-out** — one feature landing across five sub-plans is one release event, not five.
 
-Run `validate-gate-checks.py` on the master itself, not only on each sub-plan: a master's
+Run `validate-gate-checks.py` and `validate-dispatch.py` on the master itself, not only on each sub-plan: a master's
 cross-plan checks are exactly the ones that prove integration *between* sub-plans, so an
 instance-shaped one there survives every sub-plan gate.
 
@@ -99,9 +101,10 @@ Create a task for each, work them in order:
 1. **Load and critique the plan** — raise concerns before starting
 2. **Run Preflight** — verify every check; stop on failure
 3. **For each stage, in order:**
-   a. Dispatch `Parallel: YES` tasks via `dispatching-parallel-agents`; work `Parallel: NO` tasks in the main session
+   a. Dispatch `Dispatch: YES` tasks via `dispatching-parallel-agents`; work `Dispatch: NO` tasks in the main session
    b. Drive each task through its Red-Green loop
    c. Run the stage gate; stop if it fails
+   d. After the gate commit, run `context-usage.py`; hand off only on its `handoff` verdict
 4. **After all stages green:** hand off for review and merge (Phase Close-out)
 
 ---
@@ -116,9 +119,9 @@ resolve from the plan plus evidence.
 
 **Only the documented Stop conditions halt execution.** Everything else is work to push
 through. When you do stop, it is because continuing would be guessing or unsafe — say which,
-with evidence, and what you need to resume. The context-reset guidance is an efficiency
-tactic for very large plans, **not** a licence to stop early: prefer a fresh session over a
-*degraded* one, never over *finishing the work*.
+with evidence, and what you need to resume. A context handoff is **not** a licence to stop
+early: it happens at a gate, on `context-usage.py`'s `handoff` verdict, never on an
+impression that the session is degraded (§ Context resets at stage boundaries).
 
 **Never end a turn on an announcement.** *"Starting Stage 3."* as last words has started
 nothing: the tool call opening the announced work goes in the **same turn** as the sentence,
@@ -129,7 +132,7 @@ or instead of it — never in place of it (`references/stage-gate.md` § If the 
 ## The plan is the authorization — dispatch without a confirmation turn
 
 **A dispatch this plan mandates is a direct order, and you execute it without asking.** That
-covers a `Parallel: YES` task, and — **each on the conditions `references/review-scope.md`
+covers a `Dispatch: YES` task, and — **each on the conditions `references/review-scope.md`
 already sets for it, never beyond them** — a review the declared tier calls for, an evaluator
 the tier funds at a `(judgment)` gate, and the Preflight probe on a non-empty roster at
 `standard` or `high`. The rule removes the *asking*, never the *conditions*. Do not spend a
@@ -196,7 +199,7 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
 
 1. Read the plan file in full
 2. Verify the structure: Research Summary, Preflight, Stages with the expected fields. **For
-   a light plan those first two and the Risk / Rollback / Blocks / Parallel fields are
+   a light plan those first two and the Risk / Rollback / Blocks / Dispatch fields are
    correctly absent — do not flag it**; verify instead a single stage of 2–5 tasks, each with
    a `Status` and a runnable `Test:`, plus one gate. A light plan with a second stage or a
    6th task should have been Standard — flag that.
@@ -212,6 +215,8 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
 
    **Advisory on an existing plan, mandatory on a new one** — say which case you are in.
    `(judgment)` is the sanctioned escape hatch for a check that genuinely needs a reader.
+   Beside it run `validate-dispatch.py <plan>`: a FAIL is a wrong `Dispatch:` field, surfaced
+   the same way — advisory on an existing plan too — before Preflight builds a roster from it.
 
 5. **Read the plan's `## Decisions in force`** — the constraints it was written under,
    carried into the file so a session that never reads the register still implements under
@@ -235,7 +240,7 @@ Run every check in the Preflight section and report pass/fail:
 - **Decisions in force are current** — see below
 - **Every gate selector collects something** — probed with `--collect-only`, not assumed; see below
 - **Calibration re-check** — review-scope, test-scope commands and roster recomputed from today's rules rather than trusted from the plan file; see below
-- **The dispatch roster is declared** — every `Parallel: YES` task, with its routed agent type; see below
+- **The dispatch roster is declared** — every `Dispatch: YES` task, with its routed agent type; see below
 - **Pre-existing `Review: skip` annotations are recorded** — the list, at the commit the run starts from; see below
 - **Review scope is declared** — which tier the plan's diff warrants, and why; see below
 - **Dispatch works in this session** — probed, not assumed; only when the roster is non-empty **and** the declared tier is `standard` or `high`; see below
@@ -258,7 +263,7 @@ invalidates a task, which returns the plan to `planning-projects`.
 
 Recompute the review-scope tier, the test-scope commands and the roster from today's rules
 (`references/review-scope.md`, `../planning-projects/references/test-scope-tiers.md`, the
-plan's `Parallel:` fields), **time the stage-scope command at the baseline run**, and diff
+plan's `Dispatch:` fields), **time the stage-scope command at the baseline run**, and diff
 against the plan's declarations. Unchanged → one line. Changed, or a stage-scope command over
 ~5 minutes → amend under the protocol, stating both values.
 **What is never recomputed: the plan's facts** — tasks, `Test:` fields, gate checks'
@@ -296,11 +301,11 @@ Decision tree: `references/preflight-checks.md`.
 ### Dispatch roster and capability probe
 
 1. **Enumerate the roster** — sweep **every task in the plan, across all stages**, and list
-   each one whose `Parallel:` reads `YES` with the `subagent_type` it routes to per
+   each one whose `Dispatch:` reads `YES` with the `subagent_type` it routes to per
    `../dispatching-parallel-agents/references/stack-routing.md`:
 
    ```
-   Dispatch roster (Parallel: YES) — <n> of <total> tasks
+   Dispatch roster (Dispatch: YES) — <n> of <total> tasks
      Task <N.M> → <subagent_type>
    ```
 
@@ -322,7 +327,7 @@ Decision tree: `references/preflight-checks.md`.
 
 **A failed probe is a Preflight failure.** When dispatch is unavailable or disallowed in
 this session and the roster lists at least one task, **Preflight fails and you stop** — the
-user decides whether to enable it, re-plan those tasks as `Parallel: NO`, or accept inline
+user decides whether to enable it, re-plan those tasks as `Dispatch: NO`, or accept inline
 execution knowingly. Substituting inline execution on your own authority is not a
 resolution; it takes a decision that belongs to the user and makes it silently.
 
@@ -363,24 +368,26 @@ For each stage in order:
 
 Scan the stage's tasks. A task is **dispatchable** when every task in its `Depends on` list is green. At stage start, this is every task whose `Depends on` is either empty or lists only tasks from already-green prior stages.
 
+A stage opens only when every stage in its `**Depends on:**` has a fully `[x]` gate: run `plan-progress.py --stage-order-check --stage <N>` first; exit 2 is a Stop condition.
+
 ### Step 3.2 — Split by parallelism
 
-- Tasks with `Parallel: YES` and no file conflicts with another ready task → hand to `dispatching-parallel-agents`, concurrently
-- Tasks with `Parallel: YES` that modify files another ready task modifies → still dispatched, one after another
-- Tasks with `Parallel: NO` → work in the main session, always
+- Tasks with `Dispatch: YES` and no file conflicts with another ready task → hand to `dispatching-parallel-agents`, concurrently
+- Tasks with `Dispatch: YES` that modify files another ready task modifies → still dispatched, one after another
+- Tasks with `Dispatch: NO` → work in the main session, always
 
 **File-conflict check:** before dispatching, verify no two parallel tasks edit the same file.
 If they do, **serialize the dispatches — do not inline either one.** A file conflict says
 these two cannot run at the same moment, which is a different claim from "this task need not
 go to a subagent"; the conflicting task is dispatched on its own once the first returns.
 
-**A `Parallel: NO` task runs in the main session.** The plan's `Parallel` field is the whole
+**A `Dispatch: NO` task runs in the main session.** The plan's `Dispatch` field is the whole
 decision: `YES` obligates a dispatch, `NO` means inline. There is no executor discretion to
 hand a sequential task to a subagent anyway — and none, in the other direction, to check
 first: a `YES` is dispatched **without asking**
 (§ The plan is the authorization — dispatch without a confirmation turn).
 
-**If a `Parallel: YES` task ends up inline, that is a deviation the user authorised.** An
+**If a `Dispatch: YES` task ends up inline, that is a deviation the user authorised.** An
 unavailable dispatch *raises* the Stop condition, it does not resolve it — the choice that
 follows is the user's. *"It seemed easier inline"* and *"I judged it unnecessary"* are not on
 that list. Run it, say so in the gate report's dispatch line with the reason, and let
@@ -505,7 +512,7 @@ When every task in the stage is green, run the stage gate:
   because the pointer alone was measured unread: it cost six full passes where the policy
   allows two (`references/stage-gate.md` § *A review fix does not re-earn the full pass*).
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`."
-- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Parallel: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
+- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Dispatch: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
   **A mandated review the executor ran itself is a substitution, not a review**, legal only
   where the **user** authorised it — an undispatchable reviewer is a Stop condition, not a
@@ -638,9 +645,13 @@ degraded context, and the plan file is already the handoff artifact.
   log. **The plan file gets the handoff note only (~15 lines); the gate report itself goes
   in the `"Stage N green"` commit body, never into the plan**
   (`references/stage-gate.md` § The plan file is read whole; exact shape there too).
-- **Resuming fresh:** a new session (or a post-compaction continuation) picks up the plan by
-  reading the Research Summary, the `Status:` flips, and the handoff notes — never by needing
-  the prior transcript; a note too thin to resume from is the bug to fix.
+- **Stop on a measured reason, never by eye.** After each gate commit, in a separate call, run
+  `scripts/context-usage.py`. Four rules — **context**, **dead weight**, **sub-plan
+  boundary**, **dated wait** — decide `handoff`; a `handoff` writes a `RESUME HERE` block and
+  `phase: "handoff"`. `unknown` never stops, no rule fires before a gate, and a stop without
+  the script's `reason:` is not a legal stop (`references/session-handoff.md`).
+- **Resuming fresh:** a new session reads the Research Summary, `Status:` flips, handoff
+  notes and the last `RESUME HERE` block — never by needing the prior transcript.
 
 ---
 
@@ -721,7 +732,7 @@ What each source is load-bearing for: `references/sources.md`.
 ## Integration
 
 This skill routes to `planning-projects` (which produced the plan),
-`dispatching-parallel-agents` (every `Parallel: YES` task), `backlog` and `decisions` (at
+`dispatching-parallel-agents` (every `Dispatch: YES` task), `backlog` and `decisions` (at
 close-out), `workflow-spec` (the close-out audit), the `git-github:code-reviewer` agent (both
 review tiers) and a fresh agent in the goal-evaluator role (gate and close-out). What each is
 for, on what condition it fires, and the **Review opt-out** rules: `references/integration.md`.

@@ -8,13 +8,13 @@ the decisions sweep, and the reasoning behind each disposition rule.
 ## The gate report's dispatch line
 
 **The gate report states the stage's dispatched-vs-inline counts, and a reason for every
-inlined `Parallel: YES` task.** Read them off the executor trailers rather than from memory —
+inlined `Dispatch: YES` task.** Read them off the executor trailers rather than from memory —
 `git log --format='%h %(trailers:key=Executor,valueonly)' <base>..HEAD`, where `<base>` is the
 previous stage's `"Stage N green"` commit (for Stage 1, the commit the branch started from) —
 and reconcile against the roster Preflight declared. One line: `dispatch: 3 of 4 YES tasks
 dispatched; Task N.M inlined — <reason>`. A stage that dispatched everything it marked says
 `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. A
-**Light plan** has no `Parallel` field and never fans out, so its single gate carries no
+**Light plan** has no `Dispatch` field and never fans out, so its single gate carries no
 dispatch line — the requirement is scoped to plans that can have a roster, not waived where
 one would be vacuous.
 
@@ -54,9 +54,9 @@ substrate gets written down so that rule has something to read.
 Naming the **agent** distinguishes a dispatched review from the executor reading its own diff,
 which both tiers forbid; naming the **diff** makes its coverage checkable, since a reviewer
 briefed on the wrong range returns a clean verdict over code nobody looked at and "reviewed"
-reads identically either way. An inlined `Parallel: YES` task is a **deviation being
+reads identically either way. An inlined `Dispatch: YES` task is a **deviation being
 disclosed**, not one being ratified — a gate report that keeps producing them is evidence the
-plan's `Parallel` fields belong back in `planning-projects`.
+plan's `Dispatch` fields belong back in `planning-projects`.
 
 ## ACTION NEEDED — the one place a report asks the user for something
 
@@ -322,9 +322,11 @@ quote it back afterwards.
 
 So the boundary is not a decision point:
 
-- **A green gate is a commit, not a question.** Commit the gate, write the handoff note, and
+- **A green gate is a commit, not a question.** Commit the gate, write the handoff note, run
+  `../scripts/context-usage.py` in the next Bash call, and — on `continue` or `unknown` —
   issue the next stage's first tool call. No "should I continue?", no "ready to start Stage
-  3", no summary offered in place of the work.
+  3", no summary offered in place of the work. Only its `handoff` verdict ends the turn
+  (`session-handoff.md`).
 - **The announcement and the call ship together.** If you name the next task, the tool call
   starting it is in the same turn. An announcement alone has started nothing: it hands the
   turn back on a promise, and the user has to ask again for work already authorized. An
@@ -392,6 +394,7 @@ anything a fresh context needs that the Status flips don't capture>
 fixed — one line each; "none" when there were none>`
 **Decisions in force:** <the DEC/GDEC IDs still binding, plus any Supersedes
 citation raised in this stage and not yet recorded>
+`context: <context-usage.py's verdict line, verbatim>`
 ```
 
 The decisions line is not redundant with the plan's `## Decisions in force`: a constraint
@@ -402,12 +405,14 @@ dispatch counts can be rebuilt from the trailers, but **the review ledger cannot
 agent saw which diff exists only in the gate report, so a reset without it turns "the stage
 was reviewed" into a claim with no artifact behind it. Copy the lines the gate already
 produced; do not re-derive them. Committed with the `"Stage N green"` commit, and kept to a
-few lines — a briefing, not a log.
+few lines — a briefing, not a log. The `context:` line is the exception: it is measured after
+that commit, so it is appended then and rides the next one (`session-handoff.md`).
 
-**On large plans, prefer the reset.** A stage that closed with heavy diagnostic noise — long
-Red-Green loops, big tool outputs — is one to suggest restarting in a fresh session pointed at
-the plan path. The handoff note is what makes that safe; if you could not continue from it
-without the old transcript, the note was too thin, and that is the bug to fix.
+**A reset is measured, not suggested.** Whether the next stage runs in this session or a
+fresh one is `context-usage.py`'s verdict, under the four rules in `session-handoff.md` — not
+an impression of how noisy the stage was. The handoff note is what makes a reset safe; if you
+could not continue from it without the old transcript, the note was too thin, and that is the
+bug to fix.
 
 ## The plan file is read whole
 

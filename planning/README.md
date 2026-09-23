@@ -1,6 +1,14 @@
 # planning
 
-A fifteen-skill pipeline (v0.50.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.51.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.51.0
+
+- **`Dispatch:` task field** replaces `Parallel:`. `Dispatch: YES` means the task must be dispatched to a sub-agent. Master-plan registers keep `Parallel:`. Parsers read both names.
+- **`context-usage.py`** reads exact context use from the session transcript. Each stage gate gets a measured `continue | handoff | unknown` verdict. On `handoff` the executor stops and writes a `RESUME HERE` block into the plan.
+- **`validate-dispatch.py`** fails a plan whose dispatch fields are wrong. It runs before the plan is presented and again at Preflight.
+- **`plan-progress.py --dispatch-check`** makes roster reconciliation a close-out gate.
+- **`plan-progress.py --stage-order-check`** stops a stage from opening before the gate it depends on.
 
 ## Installation
 
@@ -33,12 +41,12 @@ architecting-projects   ── (designs with a structural surface) research 2–
     ▼
 planning-projects       ── triage a format first (Direct / Light / Standard /
     │                      Master), then stage the work: tasks with Depends on /
-    │                      Blocks / Parallel fields, Red-Green cycles, gates.
+    │                      Blocks / Dispatch fields, Red-Green cycles, gates.
     ▼
 executing-plans         ── drive the plan: Red-Green loops, tiered test-scope
     │                      gates, fan independent tasks out for parallel run.
     ▼
-dispatching-parallel-agents  ── one agent per task marked Parallel YES whose
+dispatching-parallel-agents  ── one agent per task marked Dispatch YES whose
                                dependencies are all green; integrate results
                                respecting the dependency graph.
 
@@ -65,7 +73,7 @@ Use after a design is validated (or on a direct architecture request) to produce
 
 ### `planning-projects`
 
-Produces a staged plan for a non-trivial project with phase gates before execution. Plans use a strict format with Stages, Tasks, `Depends on` / `Blocks` / `Parallel` fields, Red-Green max cycles, and Stage gates that `executing-plans` can drive mechanically.
+Produces a staged plan for a non-trivial project with phase gates before execution. Plans use a strict format with Stages, Tasks, `Depends on` / `Blocks` / `Dispatch` fields, Red-Green max cycles, and Stage gates that `executing-plans` can drive mechanically.
 
 **Format ladder (since v0.22.1).** Every request is triaged to a format *first*, so the apparatus scales to the size of the job — and a trivial request may be declined a plan file entirely:
 
@@ -108,7 +116,7 @@ A scoped gate report always discloses what actually ran. Policy lives in `skills
 | **standard** | multi-file code with new behavior — the default, and what an undeclared run gets | + one Tier-2 review per stage gate; an evaluator only at gates carrying a `(judgment)` check, plus a close-out evaluator when the final gate carries one |
 | **high** | security / auth, data-destructive, public API, schema / migration | the full apparatus: per-task Tier-1, per-gate Tier-2 + evaluator, a second independent close-out pass |
 
-**What the tier gates** is every mandate that costs an agent dispatch: both review tiers, the gate and close-out evaluators, the Preflight dispatch probe, and the design-fidelity verify loop's evaluator. What it never gates is the cheap-but-load-bearing half — the dispatch roster, the executor trailer, the dispatched-vs-inline reconciliation, honest-gates disclosure, the class sweep run on any bug found during execution, and the plan's own tests. Concretely, counting **verification** dispatches only — the plan's own `Parallel: YES` task dispatches are execution, not verification, and are never tiered — a Standard 3-stage / 9-task plan whose gates each carry a `(judgment)` check costs **7** at `standard` (3 Tier-2, 3 gate evaluators, 1 probe; 8 if its close-out evaluator is a separate dispatch, 4 if its gates are all executable sweeps). The same plan under v0.36.0 mandated **17** (9 Tier-1, 3 Tier-2, 3 gate evaluators, 1 close-out, 1 probe), before any re-dispatch after a fix — and re-dispatches were unbounded, which is the larger part of the saving.
+**What the tier gates** is every mandate that costs an agent dispatch: both review tiers, the gate and close-out evaluators, the Preflight dispatch probe, and the design-fidelity verify loop's evaluator. What it never gates is the cheap-but-load-bearing half — the dispatch roster, the executor trailer, the dispatch reconciliation, honest-gates disclosure, the class sweep run on any bug found during execution, and the plan's own tests. Concretely, counting **verification** dispatches only — the plan's own `Dispatch: YES` task dispatches are execution, not verification, and are never tiered — a Standard 3-stage / 9-task plan whose gates each carry a `(judgment)` check costs **7** at `standard` (3 Tier-2, 3 gate evaluators, 1 probe; 8 if its close-out evaluator is a separate dispatch, 4 if its gates are all executable sweeps). The same plan under v0.36.0 mandated **17** (9 Tier-1, 3 Tier-2, 3 gate evaluators, 1 close-out, 1 probe), before any re-dispatch after a fix — and re-dispatches were unbounded, which is the larger part of the saving.
 
 The prior version of this table was reachable only in theory — `light` required prose or config edits, **a single file**, or the absence of new executable behavior. In practice almost nothing landed there: the first two disjuncts exclude any real multi-file plan, and the third turns on a judgment ("new executable behavior") that an executor under the old "never take the lighter option" rule resolved upward every time. A criterion nothing can satisfy is a dead branch, not a conservative default. The bar is now a size the diff can be measured against, with escalation carried by the risk list instead.
 
@@ -130,7 +138,7 @@ Redesigns an app to **precisely reproduce a Claude Design handoff pack** (the sp
 
 ### `dispatching-parallel-agents`
 
-Used by `executing-plans` (or directly) when a task is marked `Parallel YES` and its dependencies are green — one such task or many. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
+Used by `executing-plans` (or directly) when a task is marked `Dispatch YES` and its dependencies are green — one such task or many. Dispatches one agent per task, runs them concurrently, integrates results respecting the plan's dependency graph.
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 

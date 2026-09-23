@@ -49,10 +49,10 @@ Run every item before showing the plan to the user.
 
 **Task fields**
 
-- [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it (`../SKILL.md` § Task and stage fields)
+- [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it, except a `Dispatch: YES` task, which always carries one (`../SKILL.md` § Task and stage fields)
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
-- [ ] Every task has a `Parallel` field (YES/NO) consistent with its dependencies
-- [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Parallel Execution)
+- [ ] Every task has a `Dispatch` field (YES/NO) consistent with its dependencies — `../scripts/validate-dispatch.py <plan>` exits 0
+- [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Dispatch)
 - [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it; `../scripts/validate-gate-checks.py` reports zero TASK-TEST-UNSCOPED)
 
 **Where it lands, and what it reconciles**
@@ -86,7 +86,7 @@ these eight — the Standard checklist does not apply:
 - [ ] On an expensive-suite project, every task's `Test:` is path- or suite-scoped, or the **task** carries a `full-suite: accepted` field with a reason — the same bar as any plan, and an **authoring-time** check (`test-scope-tiers.md`). A Light plan has task `Test:` fields, so this is not one of the items the format drops; it also carries the `**Test-scope commands**` block that arms the check (`light-plan-format.md` § Preflight collapses into the gate), without which this item is unenforceable
 
 **Why the Light list is shorter rather than softer.** Every item it drops is a field the Light
-format does not have (Risk, Rollback, Blocks, Parallel, a Preflight section) or a long-horizon
+format does not have (Risk, Rollback, Blocks, Dispatch, a Preflight section) or a long-horizon
 artifact it does not produce. The items it keeps are the invariants — a runnable test, one
 gate, the two scans — and those are identical to a Standard plan's, because a small plan can
 violate a binding constraint just as thoroughly as a large one.

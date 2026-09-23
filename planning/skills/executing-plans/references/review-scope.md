@@ -101,14 +101,14 @@ often the sweep is repeated over a diff that is still growing, and the one readi
 complete is the one over the finished diff.
 
 What the tier does **not** gate — because each costs a line of text and its absence is
-invisible — is the dispatch roster, the executor trailer, the dispatched-vs-inline
+invisible — is the dispatch roster, the executor trailer, the dispatch
 reconciliation, honest-gates disclosure, the class sweep of `../SKILL.md` § *A bug found
 during execution is a class*, and the plan's own tests and gate checks. Those run
 at every tier including `none`. The distinction is cost: **a *verification* mandate that costs
 an agent dispatch is tiered; one that costs a line of text is not.**
 
 "Verification" is load-bearing in that sentence. The run's **execution** dispatches — the
-rostered `Parallel: YES` tasks — also cost an agent, and are deliberately **not** tiered:
+rostered `Dispatch: YES` tasks — also cost an agent, and are deliberately **not** tiered:
 they are how the work gets done, not how it gets checked, and a `light` run dispatches them
 exactly as a `standard` one does. Tiering those would not reduce the cost of verification, it would
 reduce the plan.

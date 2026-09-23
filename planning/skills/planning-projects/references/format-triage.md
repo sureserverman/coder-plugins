@@ -24,7 +24,7 @@ planning bug at any size. That backlog check is the one Phase 0 step Direct keep
 **Light.** Real-but-small work: one coherent stage of a handful of tested tasks, no fan-out, no
 cross-session handoff. It keeps the invariants (a `Test:` per task, `Status:` flips, a commit
 per green task, honest gates) and drops the long-horizon artifacts (a mandated Research
-Summary, the full Preflight, Risk/Rollback, Blocks/Parallel fields). The full spec, and the
+Summary, the full Preflight, Risk/Rollback, Blocks/Dispatch fields). The full spec, and the
 exact kept-vs-dropped split, is `light-plan-format.md`.
 
 **Standard.** The default staged plan authored by Phases 0–5 of `../SKILL.md`. It is the

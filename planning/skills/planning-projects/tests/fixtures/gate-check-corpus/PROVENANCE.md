@@ -27,6 +27,16 @@ non-zero count, drawn from three different months so the sample is not one autho
 | `2026-06-09-i18n-formats-progressive-disclosure-plan.md` | `/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/` | 2026-07-27 |
 | `2026-07-14-plan-format-tiering-plan.md` | `/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/` | 2026-07-27 |
 | `2026-07-26-backlog-bl020-bl027-plan.md` | `/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/` | 2026-07-27 |
+| `2026-09-22-dispatch-field-plan.md` | **authored, not copied** — see below | 2026-09-22 |
+
+**The one authored fixture.** `2026-09-22-dispatch-field-plan.md` breaks the copy-verbatim
+rule on purpose. The task field `Parallel: YES|NO` was renamed `Dispatch: YES|NO` on
+2026-09-22. No real plan used the new spelling yet, so there was nothing to copy. It is a
+small Standard plan with every task field in the new spelling. It adds 5 gate checks, all
+EXECUTABLE: 48 → 53 total, 21 → 26 EXECUTABLE, other classes unchanged. The skew table
+below was measured before it was added and still describes the three real copies only.
+Once a real plan in the `Dispatch:` spelling exists, replacing this file with a verbatim
+copy of that plan is a legitimate refresh.
 
 INSTANCE-SHAPED is the constraint that shaped the selection: **of the three files here,
 only two carry it** — i18n contributes 1 and plan-format-tiering 2. Both are kept so the

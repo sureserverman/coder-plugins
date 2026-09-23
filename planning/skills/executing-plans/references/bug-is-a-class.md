@@ -104,7 +104,7 @@ population nobody defined.
 ## It costs a command, never a dispatch
 
 DEC-010: the sweep is a `grep`, an `ls`, a `git grep` you run yourself — so it belongs with the
-untiered mandates (the dispatch roster, the executor trailer, the dispatched-vs-inline
+untiered mandates (the dispatch roster, the executor trailer, the dispatch
 reconciliation, honest-gates disclosure, the plan's own tests and gate checks) and runs at
 **every** review tier, including `none`. A tier gates agent cost; this has none to gate.
 

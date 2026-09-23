@@ -250,6 +250,30 @@ check(vgc.gate_checks("### Stage 1 Gate\n- [ ] `grep -c 'x'\n      a/b.md` = 1\n
       .endswith("a/b.md` = 1"),
       "a genuine mid-backtick wrap is still joined")
 
+# An amendment annotation is history the protocol REQUIRES (preflight-checks.md §
+# Amending authored ceremony: cite the rule, keep the was-value). Read as part of the
+# check, the cited reference file became an "uncovered artifact" and the was-value's
+# old command a second command, so every properly amended check could go
+# INSTANCE-SHAPED — measured on the 2026-09-22 executor-handoff plan's final gate.
+amended = ("### Stage 1 Gate\n"
+           "- [ ] `grep -rn x planning/skills --include='*.md'` prints nothing"
+           " *(amended at Preflight 2026-09-22 per preflight-checks.md § Amending authored"
+           " ceremony, user-approved — was: `grep -c x one/file.md` = 0)* — the tail stays\n")
+got_am = vgc.gate_checks(amended)
+check(len(got_am) == 1 and "amended" not in got_am[0] and "one/file.md" not in got_am[0]
+      and got_am[0].endswith("the tail stays"),
+      f"an amendment annotation is stripped, the check around it kept ({got_am!r})")
+check(kind(got_am[0]) == "EXECUTABLE",
+      "an amended sweep still classifies EXECUTABLE, not INSTANCE-SHAPED")
+# Tier-2 review: a `)*` inside the backticked was-value (a regex quantifier) must not
+# close the note early and splice its remainder onto the check.
+quant = ("### Stage 1 Gate\n"
+         "- [ ] `grep -rE '(foo)*' planning/skills` prints nothing"
+         " *(amended per preflight-checks.md — was: `grep -E '(bar)*' one/file.md`)* tail\n")
+got_q = vgc.gate_checks(quant)
+check(got_q == ["`grep -rE '(foo)*' planning/skills` prints nothing tail"],
+      f"a `)*` inside the was-value's backticks does not end the note ({got_q!r})")
+
 print("group 8b — a declared Scope: must be swept, not merely named")
 
 
