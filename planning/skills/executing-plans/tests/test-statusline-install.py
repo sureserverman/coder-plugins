@@ -1007,6 +1007,10 @@ def main():
     check(data.get("statusLine", {}).get("command") == EXPECTED_COMMAND,
           "statusLine.command points at resolved chain script")
     check(data.get("foo") == "bar", "unrelated key survives")
+    # Claude Code 2.1.288+ draws the same bars as the planning mod's band above
+    # the prompt; an install there doubles them, so the installer says so.
+    check("band" in r.stdout and "2.1.288" in r.stdout,
+          f"install names the band it duplicates on Claude Code 2.1.288+ ({r.stdout.strip()!r})")
 
     print("2. install into a MISSING settings.json (and missing ~/.claude):")
     home2 = fresh_home(tmp, "home2")

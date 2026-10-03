@@ -7,6 +7,7 @@ import type { Register } from 'claude-code'
 
 import { registerAgents } from './agents'
 import { registerBand } from './band'
+import { registerCoexist } from './coexist'
 import { registerModel } from './model'
 import { registerPane } from './pane'
 
@@ -15,4 +16,5 @@ export const register: Register = on => {
   registerBand(on)
   registerAgents(on)
   registerPane(on)
+  registerCoexist(on)
 }

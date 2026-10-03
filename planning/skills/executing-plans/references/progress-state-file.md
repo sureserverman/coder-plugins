@@ -51,6 +51,14 @@ bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` not
 | `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
 | `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured context rule fired. Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block. |
 
+**Two front ends draw it.** On Claude Code 2.1.288 or later the plugin's mod
+(`../../../hooks/mod/`) draws the bars as a band above the prompt, sized to the band's own
+width, and `/plan-view` opens the whole plan in a pane. It needs no wiring. It runs
+`../scripts/plan-progress.py --json` — the same model the text bars come from, plus each
+line's text after its bar as `tail` — when this file or a plan file is written and every
+30 s, never while drawing. Everywhere else, and on older builds, the status-line bar below
+is the display. Both read this file exactly as written here.
+
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
 — the optional `Stop`-hook backstop, off unless the user sets `PLAN_CONTINUE=1` — reads
 `phase` to decide whether a plan is in flight, which is why this file's `phase` values are a
@@ -66,7 +74,8 @@ state: never commit it — during the git bootstrap, ensure
 already ignore it). For a master plan, the state file always points at the
 **sub-plan** currently executing.
 
-**One-time user setup** (only if asked to wire it): run `/planning:statusline install`.
+**One-time user setup** (only if asked to wire it, and only where the band is not
+available): run `/planning:statusline install`.
 That command is the invocation — do not hand a user a relative `../scripts/…` path, which
 resolves only when the shell's cwd happens to be this file's own directory and fails
 everywhere else. The command runs

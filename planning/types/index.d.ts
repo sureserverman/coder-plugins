@@ -62,6 +62,7 @@ declare module 'claude-code' {
     planning: {
       model: PlanModelState | null
       agents: AgentRecord[]
+      statuslineNoted: boolean
     }
   }
 }
