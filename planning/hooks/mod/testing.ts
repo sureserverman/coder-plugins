@@ -54,10 +54,10 @@ export function world(
     if (e.plugin === 'planning' && e.key === 'model') seen.last = e.value as PlanModelState
     return next(e)
   })
-  const hooks: { onTool?: (e: { tool: string }) => void } = {}
-  on('tool.call', (_$, e) => {
+  const hooks: { onTool?: (e: { tool: string }) => void | Promise<void> } = {}
+  on('tool.call', async (_$, e) => {
     order.push('tool')
-    hooks.onTool?.(e)
+    await hooks.onTool?.(e)
     return { result: 'ok' } as never
   })
   return { runs, order, seen, clock, hooks }

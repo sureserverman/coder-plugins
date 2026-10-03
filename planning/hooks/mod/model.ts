@@ -120,6 +120,8 @@ async function refreshOnce($: EngineInterface): Promise<void> {
 }
 
 export function registerModel(on: On): void {
+  // The module's one unmatched session.start (an event takes one hook per module
+  // without a matcher); other parts hook it under a matcher.
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     ensurePolling($)
