@@ -1458,7 +1458,8 @@ def pinned_row(state_file, state=None, width=0, label=None, text=None):
     done, total, stage_count = parse_plan(text, plan)
     name = label if label is not None else plan_name(plan)
     gate_mark = blocked_gate_marker(text, plan)
-    out = _bar_line(name, done, total, CYAN, width) + gate_mark
+    bar_line = _bar_line(name, done, total, CYAN, width)
+    out = bar_line + gate_mark
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -1480,6 +1481,10 @@ def pinned_row(state_file, state=None, width=0, label=None, text=None):
     out += staleness(state)
 
     fields = _group_fields(name, plan, done, total, "pinned", gate_mark)
+    # Everything the line shows after its bar, as plain text: a front end that
+    # draws its own bar (the Claude Code band) shows this verbatim rather than
+    # re-deriving the phase part and markers.
+    fields["tail"] = plain(ANSI_RE.sub("", out[len(bar_line):])).strip()
     fields["stage"], fields["stage_count"] = stage_pair(state, stage_count)
     task = state.get("task")
     fields["task"] = task if isinstance(task, str) and TASK_ID_RE.match(task) else None
@@ -1519,9 +1524,10 @@ def other_row(plan_path, width=0, label=None, text=None):
     name = label if label is not None else plan_name(plan_path)
     gate_mark = blocked_gate_marker(text, plan_path)
     role = "master" if pu.is_master_plan(text, plan_path) else "other"
+    fields = _group_fields(name, plan_path, done, total, role, gate_mark)
+    fields["tail"] = plain(ANSI_RE.sub("", gate_mark)).strip()
     return {"line": _bar_line(name, done, total, DIM, width) + gate_mark,
-            "fields": _group_fields(name, plan_path, done, total, role, gate_mark),
-            "text": text, "path": plan_path}
+            "fields": fields, "text": text, "path": plan_path}
 
 
 STAGE_NAME_RE = re.compile(r"^##\s+Stage\s+\d+\s*(?:[:—–-]\s*)?(.*?)\s*$", re.I)

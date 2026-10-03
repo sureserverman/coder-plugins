@@ -200,6 +200,20 @@ def json_parity(lines, json_text, where, rc=0):
             if child != (g.get("depth") == 1):
                 problems.append(f"line {i} tree glyph={child} vs json depth {g.get('depth')}")
             problems.extend(marker_disagreements(i, ln, g))
+            # `tail` is what the line shows after its bar, as plain text: the band
+            # draws it verbatim, so it must be exactly the text's own suffix.
+            # A width-clipped line ("…") shows only part of it.
+            tail = g.get("tail")
+            if not isinstance(tail, str):
+                problems.append(f"line {i} has no string `tail` ({tail!r})")
+            elif "…" not in ln:
+                shown_line = ANSI_RE.sub("", ln).rstrip()
+                # A bar line ends its counts at "(NN%)"; the tail is everything after.
+                expected = shown_line.split("%)", 1)[1].strip() if "%)" in shown_line else None
+                if expected is not None and tail != expected:
+                    problems.append(f"line {i} tail {tail!r} != the text after its bar {expected!r}")
+                elif expected is None and not shown_line.endswith(tail):
+                    problems.append(f"line {i} tail {tail!r} is not the end of {shown_line!r}")
     check(not problems,
           f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
           f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
@@ -2638,6 +2652,17 @@ def jdoc(r):
 def case_json_mode():
     """`--json` — one object, built from the same model as the text bars."""
     print("--json mode — the structured twin of the text bars:")
+    # `tail` on a discovered (non-pinned) plan: its only suffix is the blocked-
+    # gate marker, which no parity fixture renders on a non-pinned bar.
+    mod = load_module()
+    other_tmp = Path(tempfile.mkdtemp(prefix="pp-json-other-"))
+    other_plan = other_tmp / "2026-01-01-blocked-plan.md"
+    other_plan.write_text(BLOCKED_GATE_PLAN)
+    row = mod.other_row(other_plan, text=BLOCKED_GATE_PLAN)
+    shown = ANSI_RE.sub("", row["line"]).rstrip()
+    check(row["fields"].get("tail") == shown.split("%)", 1)[1].strip() and "GATE BLOCKED" in row["fields"]["tail"],
+          f"json: a discovered plan's tail is its text after the bar ({row['fields'].get('tail')!r} vs {shown!r})")
+    shutil.rmtree(other_tmp, ignore_errors=True)
     tmp = Path(tempfile.mkdtemp(prefix="pp-json-"))
     repo = tmp / "repo"
     (repo / "plans").mkdir(parents=True)

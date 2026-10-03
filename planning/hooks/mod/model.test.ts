@@ -1,49 +1,10 @@
-import type { On } from 'claude-code'
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
 import type { MockClock } from 'claude-code/testing'
 
-import type { PlanModelState } from '../../types'
+import { group, ran, world } from './testing'
 
-const FIXTURE = {
-  groups: [
-    { name: 'fixture-plan', done: 2, total: 5, role: 'pinned', stage: 1, stage_count: 2, task: '1.3', phase: 'task' },
-  ],
-  detail: null,
-}
+const FIXTURE = { groups: [group()], detail: null }
 const GOOD = JSON.stringify(FIXTURE)
-
-type Run = { argv: string[]; init: { cwd?: string; stdin?: string; timeoutMs?: number } | undefined }
-
-const ran = (stdout: string, exitCode = 0) => ({
-  value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
-})
-
-// The world beneath the mod: a session at /repo, a clock that moves only when the
-// test moves it, a process.run answered by `answer`, and the mod's state writes
-// observed on their way down (the test's $ has no state noun). The last write is
-// what a drawing would read.
-function world(on: On, answer: () => unknown | Promise<unknown> = () => ran(GOOD), stateDown: () => boolean = () => false) {
-  const runs: Run[] = []
-  const order: string[] = []
-  const seen: { last: PlanModelState | null } = { last: null }
-  const clock: MockClock = mock.clock(on, { now: 1_000 })
-  on('session.cwd', () => ({ value: '/repo' }))
-  on('process.run', async (_$, e) => {
-    runs.push({ argv: [...e.argv], init: e.init })
-    order.push('run')
-    return (await answer()) as never
-  })
-  on('state.set', (_$, e, next) => {
-    if (stateDown()) return { deny: 'state store down' } as never
-    if (e.plugin === 'planning' && e.key === 'model') seen.last = e.value as PlanModelState
-    return next(e)
-  })
-  on('tool.call', () => {
-    order.push('tool')
-    return { result: 'ok' } as never
-  })
-  return { runs, order, seen, clock }
-}
 
 test('a refresh runs the script with --json, the session cwd, statusline stdin and a 5 s bound', async ($, on) => {
   const w = world(on)

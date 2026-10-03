@@ -23,6 +23,8 @@ export type PlanGroup = {
   status_lag?: number | null
   task_not_in_plan?: boolean | null
   stage_order?: boolean | null
+  // What the text line shows after its bar, plain: drawn verbatim by the band.
+  tail?: string
   [field: string]: unknown
 }
 

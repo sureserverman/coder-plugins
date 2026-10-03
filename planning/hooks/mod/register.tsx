@@ -5,8 +5,10 @@
 
 import type { Register } from 'claude-code'
 
+import { registerBand } from './band'
 import { registerModel } from './model'
 
 export const register: Register = on => {
   registerModel(on)
+  registerBand(on)
 }
