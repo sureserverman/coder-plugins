@@ -1443,8 +1443,13 @@ def _group_fields(name, plan, done, total, role, gate_mark):
 
 
 def pinned_row(state_file, state=None, width=0, label=None, text=None):
-    """{"line", "fields", "text"} for the pinned plan — render_pinned()'s line
-    and its `--json` group, computed from ONE parse of one read."""
+    """{"line", "fields", "text", "path"} for the pinned plan.
+
+    `line` is render_pinned()'s line and `fields` its `--json` group. Both come
+    from one read of the plan, and done/total/stage count from one
+    parse_plan() call. The markers then re-scan that same text, once each, and
+    each JSON marker field comes from the same helper as its text marker.
+    """
     if state is None:
         state = json.loads(state_file.read_text())
     plan = pinned_plan_path(state, state_file)
@@ -1507,7 +1512,7 @@ def render_other(plan_path, width=0, label=None, text=None):
 
 
 def other_row(plan_path, width=0, label=None, text=None):
-    """{"line", "fields", "text"} for a discovered plan — see render_other()."""
+    """{"line", "fields", "text", "path"} for a discovered plan — see render_other()."""
     if text is None:
         text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
@@ -1538,7 +1543,7 @@ def plan_detail(text, path):
         if sh:
             num = int(sh.group(1))
             nm = STAGE_NAME_RE.match(line)
-            cur = {"number": num, "name": (nm.group(1) if nm else "") or None,
+            cur = {"number": num, "name": plain(nm.group(1) if nm else "") or None,
                    "gate_checked": 0, "gate_total": 0, "tasks": []}
             stages.append(cur)
             by_num.setdefault(num, cur)
@@ -1579,14 +1584,18 @@ def plan_detail(text, path):
     return {"plan": str(path), "name": plan_name(path), "stages": stages}
 
 
-def build_model(cwd):
+def build_model(cwd, with_detail=False):
     """THE model: {"groups": [row, ...], "detail": dict|None}.
 
     Both outputs are read off it -- render() takes each row's `line`,
     `--json` takes each row's `fields` -- so the text bars and the JSON groups
-    come from one discovery, one grouping and one parse per plan and cannot
-    disagree about which plans there are or what they count. `detail` is the
-    pinned plan's stage/task breakdown, None when no pinned bar rendered.
+    come from one discovery, one grouping and one read per plan, and cannot
+    disagree about which plans there are or what they count.
+
+    `detail` is the pinned plan's stage/task breakdown. It is built only when
+    `with_detail` asks for it, so a statusline redraw never pays for a scan
+    it would throw away. It is None otherwise, and None when no pinned bar
+    rendered.
 
     Every step degrades to "fewer rows", never to an exception -- see render().
     """
@@ -1654,7 +1663,8 @@ def build_model(cwd):
             if state is not None and pinned is not None and _same_file(path, pinned):
                 row = pinned_row(state_file, state, width=avail, label=label, text=text)
                 try:
-                    detail = plan_detail(row["text"], row["path"])
+                    if with_detail:
+                        detail = plan_detail(row["text"], row["path"])
                 except Exception:
                     detail = None   # the breakdown is extra; it never costs the bar
             else:
@@ -1702,7 +1712,7 @@ def render_json(cwd):
     ` ⊘ STAGE ORDER`. `status_lag` is the lagging task count or null, and
     `task_not_in_plan` is the text's ` ⚠ not in plan`.
     """
-    model = build_model(cwd)
+    model = build_model(cwd, with_detail=True)
     return json.dumps({"groups": [row["fields"] for row in model["groups"]],
                        "detail": model["detail"]}, ensure_ascii=False)
 
@@ -1967,9 +1977,13 @@ def main():
             status = 2
         sys.exit(status)
     if "--json" in sys.argv[1:]:
-        # Its own handler for the same reason as --dispatch-check: a consumer
-        # must be able to tell "nothing in flight" ({"groups": []}) from a
-        # crash, so a failure is a FAIL line and exit 2, never a silent 0.
+        # Its own handler, not the bottom-of-file one that exits 0: a crash
+        # outside build_model() -- unreadable stdin, a stdin that is not a JSON
+        # object -- is a FAIL line and exit 2 rather than a silent 0. It does
+        # NOT make an empty `groups` proof that nothing is in flight:
+        # build_model() degrades like the text bars do, so a broken vault, an
+        # unreadable state file or a plan that cannot be read costs rows
+        # silently and can leave `{"groups": [], "detail": null}`.
         extra = [a for a in sys.argv[1:] if a != "--json"]
         if extra:
             print(f"FAIL: --json takes no other arguments (got {' '.join(extra)})",

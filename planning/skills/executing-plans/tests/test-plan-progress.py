@@ -139,6 +139,25 @@ def name_agrees(shown, full, has_bar):
     return cut >= 0 and full.startswith(shown[:cut]) and len(full) > cut
 
 
+def marker_disagreements(i, line, g):
+    """Each text marker shows EXACTLY when its JSON field says it does.
+
+    Both directions, so a field hard-coded to its quiet value fails on every
+    fixture that renders the marker, and one stuck on fails everywhere else.
+    """
+    out = []
+    m = re.search(r"⚠ status lag (\d+)", line)
+    shown = int(m.group(1)) if m else None
+    if shown != g.get("status_lag"):
+        out.append(f"line {i} status lag text={shown} vs json {g.get('status_lag')!r}")
+    for text, key in (("⚠ not in plan", "task_not_in_plan"),
+                      ("⊘ STAGE ORDER", "stage_order"),
+                      ("⊘ GATE BLOCKED", "gate_blocked")):
+        if (text in line) != (g.get(key) is True):
+            out.append(f"line {i} {text!r} shown={text in line} vs json {key}={g.get(key)!r}")
+    return out
+
+
 JSON_PARITY_RUNS = []
 
 
@@ -180,6 +199,7 @@ def json_parity(lines, json_text, where, rc=0):
                                 f"{g.get('done')}/{g.get('total')}")
             if child != (g.get("depth") == 1):
                 problems.append(f"line {i} tree glyph={child} vs json depth {g.get('depth')}")
+            problems.extend(marker_disagreements(i, ln, g))
     check(not problems,
           f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
           f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
@@ -224,6 +244,7 @@ def _wrap_render_with_json_parity(mod):
                     f"in-process {Path(str(cwd)).name}")
         return lines
 
+    render.__wrapped__ = real
     mod.render = render
 
 
@@ -2699,7 +2720,82 @@ def case_json_mode():
     check(r.returncode == 2 and r.stdout == "" and "FAIL" in r.stderr,
           f"json: an unknown extra argument is refused, exit 2 "
           f"(rc={r.returncode}, err={r.stderr.strip()[:80]!r})")
+
+    # Every marker field in its NON-quiet state, each against its text marker.
+    def pinned_pair(**state):
+        write_state(repo, **state)
+        text = ANSI_RE.sub("", run_text(repo, env))
+        g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+        return text, g
+
+    text, g = pinned_pair(plan=str(plan), phase="task", stage=2, task="2.3")
+    check(g.get("status_lag") == 2 and "⚠ status lag 2" in text,
+          f"json: status_lag 2 when the text shows `⚠ status lag 2` "
+          f"({g.get('status_lag')!r}; {text.strip()!r})")
+    text, g = pinned_pair(plan=str(plan), phase="task", stage=2, task="9.9")
+    check(g.get("task_not_in_plan") is True and "⚠ not in plan" in text,
+          f"json: task_not_in_plan true when the text shows `⚠ not in plan` "
+          f"({g.get('task_not_in_plan')!r}; {text.strip()!r})")
+    soplan = repo / "plans" / "so-plan.md"
+    soplan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    text, g = pinned_pair(plan=str(soplan), phase="task", stage=4, task="4.1")
+    check(g.get("stage_order") is True and "⊘ STAGE ORDER" in text,
+          f"json: stage_order true when the text shows `⊘ STAGE ORDER` "
+          f"({g.get('stage_order')!r}; {text.strip()!r})")
+    bplan = repo / "plans" / "blocked-plan.md"
+    bplan.write_text(BLOCKED_GATE_PLAN)
+    text, g = pinned_pair(plan=str(bplan), phase="gate", stage=1)
+    check(g.get("gate_blocked") is True and "⊘ GATE BLOCKED" in text,
+          f"json: gate_blocked true when the text shows `⊘ GATE BLOCKED` "
+          f"({g.get('gate_blocked')!r}; {text.strip()!r})")
+
+    print("  a light plan (no `## Stage` heading) and a hostile stage name:")
+    lplan = repo / "plans" / "light-plan.md"
+    lplan.write_text("# Light plan: tiny\n\n### Task 1.1: only task\n- **Status:** [x]\n\n"
+                     "### Task 1.2: second\n- **Status:** [ ]\n")
+    write_state(repo, plan=str(lplan), phase="task", task="1.2")
+    stages = (jdoc(run_json(repo, env=env)).get("detail") or {}).get("stages")
+    got = [(s.get("number"), s.get("name"), [t.get("id") for t in s.get("tasks", [])])
+           for s in stages or []]
+    check(got == [(None, None, ["1.1", "1.2"])],
+          f"json: a light plan's tasks sit in one stage whose number and name are null ({got})")
+    hplan = repo / "plans" / "hostile-plan.md"
+    hplan.write_text("# Plan: h\n\n## Stage 1 — red\x1b[31mtext\n\n"
+                     "### Task 1.1: a\n- **Status:** [x]\n")
+    write_state(repo, plan=str(hplan), phase="task", stage=1, task="1.1")
+    stages = (jdoc(run_json(repo, env=env)).get("detail") or {}).get("stages") or [{}]
+    check(stages[0].get("name") == "red[31mtext",
+          f"json: a stage name has its control characters stripped ({stages[0].get('name')!r})")
+
+    print("  master + child roles, and detail stays off the text path:")
+    mod = load_module()
+    gtmp, grepo, _ = group_fixture(mod, FULL_GROUP)
+    gdoc = json.loads(mod.render_json(str(grepo)))
+    roles = [(x.get("role"), x.get("depth")) for x in gdoc.get("groups", [])]
+    check(roles == [("master", 0), ("child", 1), ("child", 1)],
+          f"json: a master renders role master, its sub-plans role child at depth 1 ({roles})")
+    calls = []
+    real_detail = mod.plan_detail
+    mod.plan_detail = lambda *a, **k: calls.append(a) or real_detail(*a, **k)
+    try:
+        write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2")
+        mod.render.__wrapped__(str(repo))
+        text_calls = len(calls)
+        mod.render_json(str(repo))
+        json_calls = len(calls) - text_calls
+    finally:
+        mod.plan_detail = real_detail
+    check(text_calls == 0 and json_calls == 1,
+          f"json: render() never builds detail, render_json() builds it once "
+          f"(text {text_calls}, json {json_calls})")
+    shutil.rmtree(gtmp, ignore_errors=True)
     shutil.rmtree(tmp, ignore_errors=True)
+
+
+def run_text(cwd_value, env):
+    return subprocess.run([sys.executable, str(SCRIPT)],
+                          input=json.dumps({"cwd": str(cwd_value)}),
+                          capture_output=True, text=True, env=env).stdout
 
 
 def main():
