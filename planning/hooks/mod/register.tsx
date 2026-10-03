@@ -5,6 +5,8 @@
 
 import type { Register } from 'claude-code'
 
+import { registerModel } from './model'
+
 export const register: Register = on => {
-  on('session.start', ($, e, next) => next(e))
+  registerModel(on)
 }
