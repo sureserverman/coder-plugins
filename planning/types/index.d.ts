@@ -21,7 +21,7 @@ export type PlanGroup = {
   remediation_budget?: number | null
   blocked_note?: string | null
   status_lag?: number | null
-  task_not_in_plan?: boolean
+  task_not_in_plan?: boolean | null
   stage_order?: boolean | null
   [field: string]: unknown
 }
@@ -29,9 +29,10 @@ export type PlanGroup = {
 // `status` is the plan parser's own word for the marker: done, partial ([~]) or open.
 export type PlanTask = { id: string; title: string; status: 'done' | 'partial' | 'open' | null }
 
+// A light plan has no `## Stage` heading: its one stage carries number and name null.
 export type PlanStage = {
-  number: number
-  name: string
+  number: number | null
+  name: string | null
   gate_checked: number
   gate_total: number
   tasks: PlanTask[]

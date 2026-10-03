@@ -4,7 +4,8 @@
 // The script is the one implementation of discovery, counting and grouping; this
 // file only decides WHEN to run it. A drawing never runs it: a render hook that
 // spawned a process would put a vault scan (BL-051's dead-mount stall) on the
-// redraw path. Refreshes come from the three triggers below instead.
+// redraw path. Refreshes come from session.start, a poll, and plan-touching tool
+// calls instead, each run detached from the hook that asked for it.
 
 import { atom, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
@@ -18,7 +19,11 @@ const TIMEOUT_MS = 5000
 const POLL_MS = 30000
 
 // A tool call that can have changed what the model shows: the state file the
-// executor mirrors, or a plan file whose Status markers the counts come from.
+// executor mirrors, or a plan file whose Status markers the counts come from. The
+// Bash match is by mention, so a read (`cat x-plan.md`) refreshes too: a wasted
+// scan, never wrong data, and it runs detached. A write it cannot see (a bare
+// `plan-progress.json` after `cd .claude`, a plan without the -plan.md suffix) is
+// picked up by the poll.
 const PLAN_STATE = /(^|\/)\.claude\/plan-progress\.json$/
 const PLAN_FILE = /-plan\.md$/
 const MENTIONS = /\.claude\/plan-progress\.json|-plan\.md/
@@ -52,6 +57,8 @@ function parseModel(stdout: string): PlanModel | null {
 let running: Promise<void> | null = null
 let again = false
 
+// Never rejects: a refresh is a cache fill, and a fault in it must not surface as
+// a failed tool call or an unhandled rejection in a timer.
 export function refresh($: EngineInterface): Promise<void> {
   if (running !== null) {
     again = true
@@ -60,12 +67,35 @@ export function refresh($: EngineInterface): Promise<void> {
   running = (async () => {
     do {
       again = false
-      await refreshOnce($)
+      try {
+        await refreshOnce($)
+      } catch {
+        // keep whatever the state holds; the next trigger tries again
+      }
     } while (again)
   })().finally(() => {
     running = null
   })
   return running
+}
+
+// Detached from the triggering hook: a slow scan (BL-051's dead vault mount, up to
+// TIMEOUT_MS) must hold neither the first prompt nor a tool result. A clock timer
+// is the documented home for work that outlives a dispatch.
+function schedule($: EngineInterface): void {
+  $.clock.after(0, () => void refresh($))
+}
+
+// $.clock timers end when the module reloads, and session.start does not fire
+// again after a reload, so the poll is re-armed lazily by whichever hook runs
+// first in each load. `polling` is a module variable on purpose: it resets with
+// the timers it tracks.
+let polling = false
+
+function ensurePolling($: EngineInterface): void {
+  if (polling) return
+  polling = true
+  $.clock.every(POLL_MS, () => void refresh($))
 }
 
 async function refreshOnce($: EngineInterface): Promise<void> {
@@ -92,14 +122,20 @@ async function refreshOnce($: EngineInterface): Promise<void> {
 export function registerModel(on: On): void {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
-    await refresh($)
-    $.clock.every(POLL_MS, () => void refresh($))
+    ensurePolling($)
+    schedule($)
     return started
+  })
+
+  on('turn.start', async ($, e, next) => {
+    ensurePolling($)
+    return next(e)
   })
 
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
-    if (touchesPlanState(e)) await refresh($)
+    ensurePolling($)
+    if (touchesPlanState(e)) schedule($)
     return result
   })
 }
