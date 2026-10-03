@@ -71,10 +71,21 @@ fi
 # The measured-handoff nudge tells the executor to run this script; resolved beside
 # the hook so a hook installed without it can fail open instead of sending the
 # executor after a file that is not there.
-CONTEXT_USAGE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/../skills/executing-plans/scripts/context-usage.py"
+# Located from the script's RESOLVED path, so a hook reached through a symlink still
+# finds its siblings instead of silently failing open; BASH_SOURCE is the fallback
+# where neither realpath nor readlink -f exists.
+SELF="${BASH_SOURCE[0]}"
+SELF="$(realpath -- "$SELF" 2>/dev/null || readlink -f -- "$SELF" 2>/dev/null || printf '%s' "$SELF")"
+HOOK_DIR="$(cd "$(dirname -- "$SELF")" 2>/dev/null && pwd)"
+CONTEXT_USAGE="$HOOK_DIR/../skills/executing-plans/scripts/context-usage.py"
+# The classifier is a sibling module; absent, the hook fails open.
+CLASSIFIER="$HOOK_DIR/plan_continue_classify.py"
 
-PLAN_CONTINUE_PAYLOAD="$PAYLOAD" PLAN_CONTINUE_CONTEXT_USAGE="$CONTEXT_USAGE" python3 - <<'PY'
-import json, os, sys, re, stat, hashlib, tempfile, datetime
+# -I (isolated): `python3 -` otherwise puts the cwd — the user's repo, possibly a
+# hostile clone — first on sys.path, so a planted hashlib.py would run as the user.
+PLAN_CONTINUE_PAYLOAD="$PAYLOAD" PLAN_CONTINUE_CONTEXT_USAGE="$CONTEXT_USAGE" \
+    PLAN_CONTINUE_CLASSIFIER="$CLASSIFIER" python3 -I - <<'PY'
+import json, os, sys, stat, hashlib, tempfile, datetime
 
 STALE_HOURS = 12
 try:
@@ -260,63 +271,21 @@ for line in reversed(lines):
 if not last_text:
     allow()
 
-# A promise about the next unit of plan work.
-PROMISE = re.compile(
-    r"\b(next(?: is| up)?[:,]?\s+(?:task|stage)"
-    r"|starting (?:now )?with (?:task|stage)"
-    r"|i'?ll (?:start|begin|move|run|do)"
-    r"|then (?:task|stage)\s*\d"
-    r"|moving (?:on )?to (?:task|stage)"
-    r"|proceeding to (?:task|stage)"
-    r"|follows? next)\b", re.I)
-
-# Asking permission to continue between green units — which SKILL.md § Run to
-# completion names as the failure mode the skill exists to prevent.
-ASK = re.compile(
-    r"\b(want me to (?:carry|continue|proceed|start|go)"
-    r"|ready to (?:start|begin|move)"
-    r"|shall i (?:carry|continue|proceed|start)"
-    r"|say the word"
-    r"|whenever you want me to"
-    r"|let me know (?:if|when) you"
-    r"|or (?:would you rather|do you want)"
-    r"|carry straight on)\b", re.I)
-
-# Genuinely parked on work that the harness will report. These turn ends are
-# correct on this host and are 30 of the 39 measured.
-WAIT = re.compile(
-    r"\b(waiting on|wait for"
-    r"|once (?:it|they|both|the)"
-    r"|when (?:it|they|both|the)\b.{0,30}\b(?:land|report|clear|finish|complete)"
-    r"|still running|holding|blocked on|the monitor will|until (?:it|they))\b", re.I)
-
-# The skill's own sanctioned ask. Checked over the WHOLE message: the block is
-# specified to come last, but a report that carries one is stopping on purpose
-# wherever it sits.
-if "ACTION NEEDED" in last_text:
+# --------------------------------------------------------------------------
+# The decision. PROMISE/ASK/WAIT/RESUME, the `ACTION NEEDED` and `reason:`
+# carve-outs, clean() and both reason builders live in plan_continue_classify.py
+# beside this script, shared with the planning mod. A missing or failing module
+# allows: this hook never traps a session on its own breakage.
+# --------------------------------------------------------------------------
+try:
+    import importlib.util
+    sys.dont_write_bytecode = True   # nothing written into the plugin directory
+    _spec = importlib.util.spec_from_file_location(
+        "plan_continue_classify", os.environ.get("PLAN_CONTINUE_CLASSIFIER", ""))
+    classifier = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(classifier)
+except Exception:
     allow()
-
-# A measured handoff (session-handoff.md) is a legal stop only when it carries
-# context-usage.py's `reason:` line — a RESUME HERE block without one is the
-# eyeball stop the rule replaced. Decided before the promise classifier, whose
-# `next: Task N` pattern would otherwise refuse a legitimate block's `next:` line.
-RESUME = re.compile(r"RESUME HERE", re.I)
-REASON_LINE = re.compile(r"^[\s>*`_-]*reason:\s*\S", re.I | re.M)
-bare_handoff = False
-m = RESUME.search(last_text)
-if m:
-    if REASON_LINE.search(last_text[m.start():]):
-        allow()
-    script = os.environ.get("PLAN_CONTINUE_CONTEXT_USAGE", "")
-    if not script or not os.path.isfile(script):
-        allow()
-    bare_handoff = True
-else:
-    tail = last_text[-400:]
-    if not (PROMISE.search(tail) or ASK.search(tail)):
-        allow()
-    if WAIT.search(tail):
-        allow()
 
 # --------------------------------------------------------------------------
 # No-progress guard. Keyed per session so it needs no file in the user's repo.
@@ -337,6 +306,22 @@ try:
 except Exception:
     pass
 
+# `count` is the continuations already forced at this key; the module releases the
+# turn (with a system_message) once it reaches MAX_NO_PROGRESS.
+try:
+    result = classifier.classify({"state": state, "last_text": last_text, "count": count,
+                                  "max": MAX_NO_PROGRESS,
+                                  "context_usage_path": os.environ.get("PLAN_CONTINUE_CONTEXT_USAGE", "")})
+    decision = result.get("decision")
+    reason = result.get("reason")
+    message = result.get("system_message")
+except Exception:
+    allow()
+
+if decision != "block" and not message:
+    allow()     # the classifier let it end; the counter is not touched
+
+# The classifier matched: count this continuation, whether or not the guard released it.
 count += 1
 try:
     # O_NOFOLLOW: the tmpdir is world-writable, and a symlink pre-planted here made
@@ -348,61 +333,8 @@ try:
 except Exception:
     pass    # a counter we cannot persist must not block the run
 
-if count > MAX_NO_PROGRESS:
-    allow("plan-continue: %d continuations with no movement past %s — letting the turn "
-          "end so you can look. Raise PLAN_CONTINUE_MAX or unset PLAN_CONTINUE if this "
-          "is wrong." % (count - 1, key))
-
-# EVERY INTERPOLATED FIELD IS BOUNDED AND FLATTENED. A repo can commit
-# .claude/plan-progress.json — the gitignore convention is advice, not enforcement
-# — so a cloned repo's state file is user-owned and still hostile. Newlines let
-# planted text escape the sentence it sits in; length turns a 100 KB field into a
-# 100 KB prompt. Neither is answered by validating who wrote the file.
-MAX_FIELD = 200
-
-
-def clean(value, default=""):
-    text = str(value if value is not None else default)
-    text = " ".join(text.split())
-    if len(text) > MAX_FIELD:
-        text = text[:MAX_FIELD] + "...(truncated)"
-    return text
-
-
-where = "phase %s, stage %s, task %s" % (clean(phase, "?"), clean(state.get("stage"), "?"),
-                                         clean(state.get("task"), "?"))
-desc = clean(state.get("task_desc"))
-if desc:
-    where += " (%s)" % desc
-
-if bare_handoff:
-    reason = (
-        "You ended that turn with a RESUME HERE block that has no `reason:` line, while "
-        "plan execution is in flight: %s — %s.\n\n"
-        "executing-plans § Context resets / session-handoff.md: a handoff is a legal stop "
-        "only on context-usage.py's verdict. Run it now, in its own Bash call:\n"
-        "  python3 %s --plan <plan> --next-stage <N>\n"
-        "On `handoff`, paste its reason: line into the RESUME HERE block verbatim and "
-        "stop. On `continue` or `unknown`, delete the block and start the next stage now."
-    ) % (clean(state.get("plan"), "the plan"), where,
-         clean(os.environ.get("PLAN_CONTINUE_CONTEXT_USAGE"), "context-usage.py"))
-    json.dump({"decision": "block", "reason": reason}, sys.stdout)
-    sys.exit(0)
-
-reason = (
-    "You ended that turn on an announcement or a question while plan execution is "
-    "still in flight: %s — %s.\n\n"
-    "executing-plans § Run to completion: stage boundaries are checkpoints, not "
-    "approval gates, and the tool call opening announced work goes in the SAME turn "
-    "as the sentence announcing it. Start the announced work now — do not re-plan, "
-    "do not re-verify finished work, and do not summarise what you have done.\n\n"
-    "If you genuinely need to stop, do it the documented ways rather than by "
-    "trailing off: write an `ACTION NEEDED:` block naming the decision that blocks "
-    "the next stage, write phase:\"blocked\" to .claude/plan-progress.json when a "
-    "documented Stop condition has fired, or hand off at a gate on context-usage.py's "
-    "`handoff` verdict with its reason: line. Waiting on a dispatched agent is not a "
-    "stop — say what you are waiting on and this hook will let the turn end."
-) % (clean(state.get("plan"), "the plan"), where)
+if decision != "block" or not isinstance(reason, str) or not reason:
+    allow(message if isinstance(message, str) else None)
 
 json.dump({"decision": "block", "reason": reason}, sys.stdout)
 sys.exit(0)
