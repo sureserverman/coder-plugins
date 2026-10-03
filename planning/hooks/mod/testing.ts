@@ -40,7 +40,7 @@ export function world(
 ) {
   const runs: Run[] = []
   const order: string[] = []
-  const seen: { last: PlanModelState | null } = { last: null }
+  const seen: { last: PlanModelState | null; keys: Record<string, unknown> } = { last: null, keys: {} }
   const clock: MockClock = mock.clock(on, { now: 1_000 })
   on('session.cwd', () => ({ value: '/repo' }))
   on('process.run', async (_$, e) => {
@@ -50,14 +50,17 @@ export function world(
   })
   on('state.set', (_$, e, next) => {
     if (stateDown()) return { deny: 'state store down' } as never
+    if (e.plugin === 'planning') seen.keys[e.key] = e.value
     if (e.plugin === 'planning' && e.key === 'model') seen.last = e.value as PlanModelState
     return next(e)
   })
-  on('tool.call', () => {
+  const hooks: { onTool?: (e: { tool: string }) => void } = {}
+  on('tool.call', (_$, e) => {
     order.push('tool')
+    hooks.onTool?.(e)
     return { result: 'ok' } as never
   })
-  return { runs, order, seen, clock }
+  return { runs, order, seen, clock, hooks }
 }
 
 // Puts `model` into planning.model the way a session does: a state-file write

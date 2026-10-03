@@ -48,10 +48,20 @@ export type PlanModel = { groups: PlanGroup[]; detail: PlanDetail | null }
 // (timeout, non-zero exit, unparseable output) and the previous model was kept.
 export type PlanModelState = { model: PlanModel | null; fetchedAt: number; stale: boolean }
 
+// One Agent dispatch this session made, for the plan pane's agents list.
+export type AgentRecord = {
+  id: string
+  description: string
+  subagentType: string
+  startedAt: number
+  isDone: boolean
+}
+
 declare module 'claude-code' {
   interface PluginState {
     planning: {
       model: PlanModelState | null
+      agents: AgentRecord[]
     }
   }
 }
