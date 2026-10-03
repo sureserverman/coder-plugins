@@ -75,9 +75,9 @@ status line invoked as a plain `bash <script>` is preserved and runs first; anyt
 is left alone unless you pass `--force`.
 
 On Claude Code 2.1.288 or later you need none of that: the planning plugin's mod draws
-the same bars as a **band above the prompt**, sized to the window, with no settings entry.
+the same plans and counts as a **band above the prompt**, sized to the window, with no settings entry.
 Its **Plan** button opens a pane with every stage, gate and task of the executing plan and
-the agents dispatched for it. The status-line bar stays for older builds
+every agent this session has dispatched. The status-line bar stays for older builds
 and other hosts; if both are wired the bars show twice, and `/planning:statusline remove`
 takes the status-line copy out.
 

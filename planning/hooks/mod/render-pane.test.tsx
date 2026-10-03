@@ -173,3 +173,63 @@ test('an interactive start registers /plan-view; a -p start does not', async ($,
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   expect(registered).toEqual(['plan-view'])
 })
+
+test('the pane never opens unasked: a start, a refresh and a band draw open nothing', async ($, on) => {
+  const opened = opens(on)
+  const w = world(on, withPlan)
+  on('command.register', () => ({ value: undefined }) as never)
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await w.clock.settle()
+  await seed($ as never, w.clock)
+  const ui = await $.ui.mount({ ...band, surface: 'terminal' })
+  await ui.unmount()
+  await w.clock.advance(30_000)
+  expect(opened).toEqual([])
+})
+
+test('a remediation round already in the tail is not repeated on its own line', async ($, on) => {
+  const gate = [group({ name: 'fixture-plan', role: 'pinned', phase: 'gate', task: null, remediation_round: 1, remediation_budget: 2, tail: '· S2/2 ◆ S2 gate ↻1/2' })]
+  const w = world(on, () => ran(JSON.stringify({ groups: gate, detail: DETAIL })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...pane(), surface })
+    const text = await shown(ui)
+    expect(text.split('↻1/2').length - 1).toBe(1)
+    await ui.unmount()
+  }
+})
+
+test('agents show their outcome: running first, then done, failed and denied', async ($, on) => {
+  const w = world(on, withPlan)
+  on('agent.list', () => ({ value: [{ id: 'bg1', description: 'bg', type: 'general-purpose', status: 'running' }] }) as never)
+  await seed($ as never, w.clock)
+  w.hooks.onTool = () => ({ deny: 'no' })
+  await $.tool.call({ tool: 'Agent', description: 'refused one', prompt: 'p', subagent_type: 'x' } as never)
+  w.hooks.onTool = () => ({ result: 'x', isError: true })
+  await $.tool.call({ tool: 'Agent', description: 'broken one', prompt: 'p', subagent_type: 'x' } as never)
+  w.hooks.onTool = () => ({ result: { status: 'async_launched', agentId: 'bg1', description: 'bg' } })
+  await $.tool.call({ tool: 'Agent', description: 'background one', prompt: 'p', subagent_type: 'x' } as never)
+  w.hooks.onTool = undefined
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...pane(), surface })
+    const text = await shown(ui)
+    expect(text).toMatch(/◌ background one/)
+    expect(text).toMatch(/✘ broken one/)
+    expect(text).toMatch(/⊘ refused one/)
+    expect(text.indexOf('background one')).toBeLessThan(text.indexOf('broken one'))
+    await ui.unmount()
+  }
+})
+
+test("plan-view says so when the surface cannot place the pane", async ($, on) => {
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'terminal is 80 columns; a pane needs 110' } }) as never)
+  world(on, withPlan)
+  const answer = (await $.command.run({
+    command: 'plan-view',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 80 },
+  } as never)) as { text?: string }
+  expect(answer.text).toContain('110')
+})

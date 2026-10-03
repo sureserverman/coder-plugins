@@ -54,11 +54,13 @@ export function world(
     if (e.plugin === 'planning' && e.key === 'model') seen.last = e.value as PlanModelState
     return next(e)
   })
-  const hooks: { onTool?: (e: { tool: string }) => void | Promise<void> } = {}
+  // onTool runs inside the tool stand-in; what it returns (if anything) is the
+  // tool's answer, else { result: 'ok' }.
+  const hooks: { onTool?: (e: { tool: string }) => unknown } = {}
   on('tool.call', async (_$, e) => {
     order.push('tool')
-    await hooks.onTool?.(e)
-    return { result: 'ok' } as never
+    const answer = await hooks.onTool?.(e)
+    return (answer ?? { result: 'ok' }) as never
   })
   return { runs, order, seen, clock, hooks }
 }

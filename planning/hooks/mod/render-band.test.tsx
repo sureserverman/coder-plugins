@@ -151,3 +151,121 @@ test('a stale model is marked', async ($, on) => {
     await ui.unmount()
   }
 })
+
+test('a long name is clipped before the counts: bar and done/total always show', async ($, on) => {
+  const long = [group({ name: '2026-09-11 coder-plugins Verification Cost Bounds and More', done: 3, total: 6 })]
+  const w = world(on, answering(long))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [40, 60]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const row = (await rowsOf(ui))[0]!.text
+      expect(row).toContain('3/6')
+      expect(row).toContain('▐')
+      await ui.unmount()
+    }
+  }
+})
+
+test('the stale marker survives a long tail', async ($, on) => {
+  let fail = false
+  const w = world(on, () => {
+    if (fail) throw new Error('timed out')
+    return ran(JSON.stringify({ groups: [group({ tail: `· S1/2 ▶ T1.3 ${'very long task description '.repeat(6)}` })], detail: null }))
+  })
+  await seed($ as never, w.clock)
+  fail = true
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(60), surface })
+    expect((await rowsOf(ui))[0]!.text).toContain('stale')
+    await ui.unmount()
+  }
+})
+
+test('maxRows 0 draws nothing of its own', async ($, on) => {
+  const w = world(on, answering(THREE))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>beneath: engine band</Text>
+  })
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80, 0), surface })
+    expect((await rowsOf(ui)).length).toBe(0)
+    expect(await ui.find({ type: 'Text', text: 'beneath:' })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
+test('the pinned plan stays visible when the rows run out', async ($, on) => {
+  const many = Array.from({ length: 12 }, (_, i) =>
+    group({ name: `plan-${i}`, role: i === 7 ? 'pinned' : 'other', depth: 0 }),
+  )
+  const w = world(on, answering(many))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const maxRows of [1, 4]) {
+      const ui = await $.ui.mount({ ...band(80, maxRows), surface })
+      const rows = await rowsOf(ui)
+      expect(rows.length).toBe(maxRows)
+      expect(rows.some(r => r.text.includes('plan-7'))).toBe(true)
+      await ui.unmount()
+    }
+  }
+})
+
+test('a pinned sub-plan keeps its master above it when rows run out', async ($, on) => {
+  const groups = [
+    group({ name: 'other-a', role: 'other', depth: 0 }),
+    group({ name: 'other-b', role: 'other', depth: 0 }),
+    group({ name: 'the-master', role: 'master', depth: 0 }),
+    group({ name: 'sub-1', role: 'child', depth: 1 }),
+    group({ name: 'sub-2', role: 'pinned', depth: 1 }),
+  ]
+  const w = world(on, answering(groups))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80, 3), surface })
+    const rows = (await rowsOf(ui)).map(r => r.text)
+    expect(rows[0]).toContain('the-master')
+    expect(rows[1]).toContain('sub-2')
+    expect(rows[1]).toContain('└ ')
+    expect(rows[2]).toContain('more')
+    await ui.unmount()
+  }
+})
+
+test('below 24 columns the Plan button is dropped and the row keeps the width', async ($, on) => {
+  const w = world(on, answering(THREE))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(20), surface })
+    expect(await ui.find({ key: 'open-plan' })).toBe(undefined)
+    for (const row of await rowsOf(ui)) expect([...row.text].length).toBeLessThanOrEqual(20)
+    await ui.unmount()
+  }
+})
+
+test('C1 controls (CSI U+009B) never reach a surface', async ($, on) => {
+  const w = world(on, answering([group({ name: 'evil\u009b31mred', tail: '· \u0085next' })]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80), surface })
+    for (const t of await ui.findAll({ type: 'Text' })) expect(/[\x00-\x1f\x7f-\x9f]/.test(t.text)).toBe(false)
+    await ui.unmount()
+  }
+})
+
+test('drawing the band runs no process', async ($, on) => {
+  const w = world(on, answering(THREE))
+  await seed($ as never, w.clock)
+  const before = w.runs.length
+  for (const surface of SURFACES) {
+    for (const cols of [40, 120]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      await ui.unmount()
+    }
+  }
+  expect(w.runs.length).toBe(before)
+})

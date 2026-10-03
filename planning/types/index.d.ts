@@ -48,13 +48,18 @@ export type PlanModel = { groups: PlanGroup[]; detail: PlanDetail | null }
 // (timeout, non-zero exit, unparseable output) and the previous model was kept.
 export type PlanModelState = { model: PlanModel | null; fetchedAt: number; stale: boolean }
 
-// One Agent dispatch this session made, for the plan pane's agents list.
+// One Agent call this session made, for the plan pane's agents list. A background
+// launch keeps `agentId` and stays `running` until $.agent.list() reports it ended.
+export type AgentOutcome = 'running' | 'done' | 'failed' | 'denied'
+
 export type AgentRecord = {
   id: string
+  agentId?: string
   description: string
   subagentType: string
   startedAt: number
   isDone: boolean
+  outcome: AgentOutcome
 }
 
 declare module 'claude-code' {

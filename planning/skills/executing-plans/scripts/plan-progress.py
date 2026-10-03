@@ -836,7 +836,8 @@ def visible_len(s):
 # Stripping rather than escaping, because there is no legitimate control
 # character in a plan name or a one-line task description, and a status line has
 # no way to display one usefully.
-CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+# C1 (U+0080-U+009F) as well: U+009B is a one-byte CSI to a terminal in 8-bit mode.
+CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 
 def plain(s):
@@ -1716,7 +1717,10 @@ def render_json(cwd):
     under a tree glyph. The phase-part fields are null except on the pinned
     group. `stage_order` is a boolean: true exactly when the text shows
     ` ⊘ STAGE ORDER`. `status_lag` is the lagging task count or null, and
-    `task_not_in_plan` is the text's ` ⚠ not in plan`.
+    `task_not_in_plan` is the text's ` ⚠ not in plan`. `tail` is the line's
+    own text after its bar, plain (no SGR, no control characters): a front end
+    that draws its own bar shows it verbatim instead of re-deriving the phase
+    part and markers.
     """
     model = build_model(cwd, with_detail=True)
     return json.dumps({"groups": [row["fields"] for row in model["groups"]],

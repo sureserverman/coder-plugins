@@ -15,9 +15,12 @@ import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
 const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
 const AGENTS = atom({ plugin: 'planning', key: 'agents' } as const, [] as AgentRecord[])
 
-const CONTROL = /[\x00-\x1f\x7f]/g
+// C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/g
 
 const GLYPH: Record<string, string> = { done: '✔', partial: '◐', open: '○' }
+
+const OUTCOME: Record<string, string> = { running: '◌', done: '✔', failed: '✘', denied: '⊘' }
 
 function plain(s: unknown): string {
   return typeof s === 'string' ? s.replace(CONTROL, '') : ''
@@ -53,9 +56,12 @@ export function paneLines(state: PlanModelState | null, agents: AgentRecord[]): 
     const indent = master !== undefined ? '└ ' : ''
     const tail = plain(pinned.tail)
     lines.push({ text: `${indent}${plain(pinned.name)}${counts(pinned)}${tail ? ` ${tail}` : ''}`, colour: 'cyan', bold: true })
-    if (typeof pinned.remediation_round === 'number') {
-      const budget = typeof pinned.remediation_budget === 'number' ? pinned.remediation_budget : 2
-      lines.push({ text: `remediation ↻${pinned.remediation_round}/${budget}`, colour: 'red' })
+    // The tail already shows ↻N/M during a gate; outside one, a recorded round
+    // gets its own line. Both numbers come from the script, never a default here.
+    const round = pinned.remediation_round
+    const budget = pinned.remediation_budget
+    if (typeof round === 'number' && typeof budget === 'number' && !tail.includes('↻')) {
+      lines.push({ text: `remediation ↻${round}/${budget}`, colour: 'yellow' })
     }
   }
   if (state?.stale === true) lines.push({ text: '(stale: the last refresh failed)', dim: true })
@@ -72,11 +78,13 @@ export function paneLines(state: PlanModelState | null, agents: AgentRecord[]): 
   if (agents.length > 0) {
     lines.push({ text: '' })
     lines.push({ text: 'Agents', bold: true })
-    const ordered = [...agents.filter(a => !a.isDone), ...agents.filter(a => a.isDone).reverse()]
-    for (const a of ordered) {
+    const running = agents.filter(a => a.outcome === 'running')
+    const ended = agents.filter(a => a.outcome !== 'running').reverse()
+    for (const a of [...running, ...ended]) {
       lines.push({
-        text: `${a.isDone ? '✔' : '◌'} ${plain(a.description)} · ${plain(a.subagentType)}`,
-        dim: a.isDone,
+        text: `${OUTCOME[a.outcome] ?? '·'} ${plain(a.description)} · ${plain(a.subagentType)}`,
+        dim: a.outcome === 'done',
+        colour: a.outcome === 'failed' || a.outcome === 'denied' ? 'red' : undefined,
       })
     }
   }
@@ -95,7 +103,8 @@ export function registerPane(on: On): void {
   })
 
   on('command.run', { command: 'plan-view' }, async $ => {
-    await $.ui.open({ id: PLAN_PANE, title: PLAN_PANE_TITLE })
+    const opened = await $.ui.open({ id: PLAN_PANE, title: PLAN_PANE_TITLE })
+    if (opened.isPlaced === false) return { text: `The plan pane is open but waits to be placed: ${opened.reason}` }
     return { text: 'Plan pane opened.' }
   })
 

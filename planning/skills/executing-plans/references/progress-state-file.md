@@ -55,8 +55,8 @@ bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` not
 (`../../../hooks/mod/`) draws the bars as a band over the prompt, sized to the band's own
 width, and `/plan-view` opens the whole plan in a pane. It needs no wiring. It runs
 `../scripts/plan-progress.py --json` — the same model the text bars come from, plus each
-line's text after its bar as `tail` — when this file or a plan file is written and every
-30 s, never while drawing. Everywhere else, and on older builds, the status-line bar
+line's text after its bar as `tail` — when a tool call in this session writes this file
+or a plan file, and every 30 s; never while drawing. Everywhere else, and on older builds, the status-line bar
 is the display. Both read this file exactly as written here.
 
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`

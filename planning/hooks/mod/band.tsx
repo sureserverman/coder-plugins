@@ -14,9 +14,15 @@ import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
 const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
 
 const BAR_CELLS = 10
-// "[ Plan ]" plus the space before it, kept off the first row's text budget.
-const BUTTON_CELLS = 9
-const CONTROL = /[\x00-\x1f\x7f]/g
+// "[ Plan ]", the space before it, and the collapse control the engine draws at
+// the band's right edge: kept off the first row's text budget.
+const BUTTON_CELLS = 12
+// Below this the button is not drawn at all; the row keeps the whole width.
+const BUTTON_MIN_COLUMNS = 24
+// A name is never clipped below this while the row has room for it.
+const NAME_MIN = 8
+// C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/g
 
 const COLOUR: Record<PlanGroup['role'], string | undefined> = {
   pinned: 'cyan',
@@ -36,26 +42,57 @@ function bar(done: number, total: number): string {
   return `▐${'█'.repeat(filled)}${'░'.repeat(BAR_CELLS - filled)}▌`
 }
 
+const cells = (text: string): number => [...text].length
+
 function clip(text: string, width: number): string {
-  const cells = [...text]
-  if (cells.length <= width) return text
-  return width <= 1 ? cells.slice(0, Math.max(0, width)).join('') : `${cells.slice(0, width - 1).join('')}…`
+  const chars = [...text]
+  if (chars.length <= width) return text
+  return width <= 1 ? chars.slice(0, Math.max(0, width)).join('') : `${chars.slice(0, width - 1).join('')}…`
 }
 
+// One row, fitted to `width` by priority: the indent, the counts and the stale
+// marker are kept whole; the name gives way next (down to NAME_MIN); the tail,
+// free text from the script, gives way first. Only a row too narrow for even
+// that is clipped as a whole.
 export function rowText(g: PlanGroup, width: number, stale: boolean): string {
   const indent = (g.depth ?? 0) > 0 ? '└ ' : ''
   const counts = g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : ''
+  const mark = stale ? ' (stale)' : ''
+  const name = plain(g.name)
   const tail = plain(g.tail)
-  const text = `${indent}${plain(g.name)}${counts}${tail ? ` ${tail}` : ''}${stale ? ' (stale)' : ''}`
-  return clip(text, width)
+  const fixed = cells(indent) + cells(counts) + cells(mark)
+  const nameRoom = Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
+  const shownName = clip(name, nameRoom)
+  const tailRoom = width - fixed - cells(shownName) - 1
+  const shownTail = tail !== '' && tailRoom >= 2 ? ` ${clip(tail, tailRoom)}` : ''
+  return clip(`${indent}${shownName}${counts}${mark}${shownTail}`, width)
 }
 
-// At most `maxRows` rows: when the groups do not fit, the last row counts the rest.
+// At most `maxRows` rows, and the executing plan is always one of them: when the
+// groups do not fit, the pinned group (with its master, when it is a sub-plan)
+// comes first and the last row counts the rest. None when maxRows is below 1.
 export function bandRows(groups: PlanGroup[], maxRows: number): (PlanGroup | number)[] {
-  const limit = Math.max(1, Math.floor(maxRows))
+  const limit = Math.floor(maxRows)
+  if (!(limit >= 1)) return []
   if (groups.length <= limit) return groups
-  if (limit === 1) return groups.slice(0, 1)
-  return [...groups.slice(0, limit - 1), groups.length - (limit - 1)]
+  const at = groups.findIndex(g => g.role === 'pinned')
+  const keep: PlanGroup[] = []
+  if (at >= 0) {
+    const pinned = groups[at]!
+    if ((pinned.depth ?? 0) > 0) {
+      for (let i = at - 1; i >= 0; i -= 1) {
+        if ((groups[i]!.depth ?? 0) === 0) {
+          keep.push(groups[i]!)
+          break
+        }
+      }
+    }
+    keep.push(pinned)
+  }
+  const room = limit === 1 ? 1 : limit - 1
+  const rest = groups.filter(g => !keep.includes(g))
+  const shown = [...keep, ...rest].slice(0, room)
+  return limit === 1 ? shown : [...shown, groups.length - shown.length]
 }
 
 export function registerBand(on: On): void {
@@ -63,11 +100,12 @@ export function registerBand(on: On): void {
     if (e.props.hasSurvey) return next(e)
     const state = await read($, MODEL)
     const groups = state?.model?.groups ?? []
-    if (groups.length === 0) return next(e)
+    const rows = bandRows(groups, e.props.maxRows)
+    if (rows.length === 0) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const cols = Math.max(1, Math.floor(e.props.bodyColumns))
-    const rows = bandRows(groups, e.props.maxRows)
+    const withButton = cols >= BUTTON_MIN_COLUMNS
 
     return (
       <Box flexDirection="column">
@@ -80,14 +118,14 @@ export function registerBand(on: On): void {
             )
           }
           const colour = COLOUR[row.role]
-          const width = i === 0 ? Math.max(1, cols - BUTTON_CELLS) : cols
+          const width = i === 0 && withButton ? cols - BUTTON_CELLS : cols
           const text = rowText(row, width, i === 0 && state?.stale === true)
           const line = (
             <Text color={colour} dimColor={colour === undefined} wrap="truncate">
               {text}
             </Text>
           )
-          if (i !== 0) return line
+          if (i !== 0 || !withButton) return line
           return (
             <Box key="first" flexDirection="row">
               {line}

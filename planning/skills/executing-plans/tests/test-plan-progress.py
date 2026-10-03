@@ -206,13 +206,17 @@ def json_parity(lines, json_text, where, rc=0):
             tail = g.get("tail")
             if not isinstance(tail, str):
                 problems.append(f"line {i} has no string `tail` ({tail!r})")
-            elif "…" not in ln:
+            else:
                 shown_line = ANSI_RE.sub("", ln).rstrip()
-                # A bar line ends its counts at "(NN%)"; the tail is everything after.
-                expected = shown_line.split("%)", 1)[1].strip() if "%)" in shown_line else None
-                if expected is not None and tail != expected:
-                    problems.append(f"line {i} tail {tail!r} != the text after its bar {expected!r}")
-                elif expected is None and not shown_line.endswith(tail):
+                # A bar line ends its counts at "(NN%)" after the bar's closing ▌; the
+                # tail is everything after. Only the NAME is width-clipped, so a "…"
+                # in a clipped note or task_desc is still compared exactly.
+                after_bar = shown_line.split("▌", 1)[1] if "▌" in shown_line else ""
+                m = re.match(r"\s*\d+/\d+ \(\d+%\)(.*)$", after_bar)
+                if m is not None:
+                    if tail != m.group(1).strip():
+                        problems.append(f"line {i} tail {tail!r} != the text after its bar {m.group(1).strip()!r}")
+                elif "…" not in ln and not shown_line.endswith(tail):
                     problems.append(f"line {i} tail {tail!r} is not the end of {shown_line!r}")
     check(not problems,
           f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
@@ -1480,6 +1484,9 @@ def case_handoff_phase():
           f"a long reason is clipped like a blocked note ({len(out)} chars)")
     out = mod.phase_part({"phase": "handoff", "reason": "a\x1b[31mb"})
     check("\x1b[31m" not in out, "an ESC in the reason is stripped, not passed to the terminal")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\u009b31mb\u0085c"})
+    check("\u009b" not in out and "\u0085" not in out,
+          "a C1 control (U+009B, a one-byte CSI) in the reason is stripped too")
     out = mod.phase_part({"phase": "HANDOFF-ish", "reason": "context 52% > 50%"})
     check(out == "", f"an unknown phase still renders \"\" ({out!r})")
 
