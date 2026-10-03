@@ -664,10 +664,8 @@ never commit it, and ensure `.claude/plan-progress.json` is gitignored during th
 bootstrap.
 
 Schema, the per-phase field table, and `remediation_round`:
-`references/progress-state-file.md`. On Claude Code 2.1.288+ the plugin's mod draws the bar
-as a band above the prompt with no wiring; elsewhere it is one command —
-`/planning:statusline install` — and is the user's to run, never something to hand-author a
-wrapper for.
+`references/progress-state-file.md`. Claude Code 2.1.288+ draws the bar as a band; elsewhere
+it is `/planning:statusline install`, the user's to run; never hand-write a wrapper.
 
 ---
 
