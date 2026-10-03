@@ -52,11 +52,11 @@ bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` not
 | `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured context rule fired. Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block. |
 
 **Two front ends draw it.** On Claude Code 2.1.288 or later the plugin's mod
-(`../../../hooks/mod/`) draws the bars as a band above the prompt, sized to the band's own
+(`../../../hooks/mod/`) draws the bars as a band over the prompt, sized to the band's own
 width, and `/plan-view` opens the whole plan in a pane. It needs no wiring. It runs
 `../scripts/plan-progress.py --json` — the same model the text bars come from, plus each
 line's text after its bar as `tail` — when this file or a plan file is written and every
-30 s, never while drawing. Everywhere else, and on older builds, the status-line bar below
+30 s, never while drawing. Everywhere else, and on older builds, the status-line bar
 is the display. Both read this file exactly as written here.
 
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
