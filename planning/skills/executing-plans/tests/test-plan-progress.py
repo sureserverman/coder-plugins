@@ -79,7 +79,110 @@ def run(cwd_value, extra_stdin=None):
     r = subprocess.run(
         [sys.executable, str(SCRIPT)], input=stdin, capture_output=True, text=True
     )
-    return r, ANSI_RE.sub("", r.stdout)
+    plain_out = ANSI_RE.sub("", r.stdout)
+    # Every fixture state the suite renders through the CLI is also rendered
+    # through `--json` with the SAME stdin, and the two must agree group for
+    # line. A stdin the text mode cannot parse is a crash in --json mode by
+    # design (exit 2), so parity is asserted only where the text mode had a
+    # valid statusline payload to read.
+    if _stdin_is_payload(stdin):
+        rj = subprocess.run([sys.executable, str(SCRIPT), "--json"],
+                            input=stdin, capture_output=True, text=True)
+        json_parity(plain_out.splitlines(), rj.stdout,
+                    f"cli {Path(str(cwd_value)).name}", rc=rj.returncode)
+    return r, plain_out
+
+
+def _stdin_is_payload(stdin):
+    try:
+        return isinstance(json.loads(stdin), dict) if stdin.strip() else True
+    except ValueError:
+        return False
+
+
+TREE_GLYPHS = ("├─ ", "└─ ")
+
+
+def text_line_fields(line):
+    """(shown_name, done, total, is_child) from one ANSI-stripped bar line.
+
+    `shown_name` is the name column with its alignment padding removed. A
+    0-total plan renders no bar, so its name cannot be cut out of the rest of
+    the line; done/total are None then and shown_name is the whole remainder.
+    """
+    child = line.startswith(TREE_GLYPHS)
+    body = line[3:] if child else line
+    if not body.startswith("⚙ "):
+        return None
+    body = body[2:]
+    if " ▐" in body:
+        name, rest = body.split(" ▐", 1)
+        m = re.search(r"▌ (\d+)/(\d+) \(", rest)
+        if not m:
+            return None
+        return name.rstrip(), int(m.group(1)), int(m.group(2)), child
+    return body, None, None, child
+
+
+def name_agrees(shown, full, has_bar):
+    """Whether the text's name column displays the JSON's full name.
+
+    The text clips to a width and ends the cut in `…`; the JSON never clips.
+    So: equal, or the shown text is a strict `…`-terminated prefix of it.
+    """
+    if has_bar:
+        return shown == full or (shown.endswith("…") and len(full) >= len(shown)
+                                 and full.startswith(shown[:-1]))
+    if shown.startswith(full):
+        return True
+    cut = shown.find("…")
+    return cut >= 0 and full.startswith(shown[:cut]) and len(full) > cut
+
+
+JSON_PARITY_RUNS = []
+
+
+def json_parity(lines, json_text, where, rc=0):
+    """--json must parse, carry one group per text line, and agree with each
+    line on name / done / total. One check per rendered fixture state."""
+    JSON_PARITY_RUNS.append(where)
+    problems = []
+    try:
+        doc = json.loads(json_text)
+    except (TypeError, ValueError) as e:
+        doc = None
+        problems.append(f"does not parse ({e}; rc={rc}; out={json_text[:80]!r})")
+    groups = doc.get("groups") if isinstance(doc, dict) else None
+    if doc is not None and not isinstance(groups, list):
+        problems.append(f"no groups[] list ({json_text[:80]!r})")
+    if isinstance(groups, list):
+        if "detail" not in doc:
+            problems.append("no `detail` key")
+        if len(groups) != len(lines):
+            problems.append(f"{len(groups)} groups vs {len(lines)} text lines")
+        for i, (ln, g) in enumerate(zip(lines, groups)):
+            f = text_line_fields(ln)
+            if f is None:
+                problems.append(f"line {i} unparseable: {ln!r}")
+                continue
+            shown, done, total, child = f
+            if not isinstance(g, dict):
+                problems.append(f"group {i} is not an object")
+                continue
+            if not name_agrees(shown, g.get("name"), done is not None):
+                problems.append(f"line {i} name {shown!r} vs json {g.get('name')!r}")
+            if done is None:
+                if (g.get("done"), g.get("total")) != (0, 0):
+                    problems.append(f"line {i} has no bar but json reads "
+                                    f"{g.get('done')}/{g.get('total')}")
+            elif (g.get("done"), g.get("total")) != (done, total):
+                problems.append(f"line {i} {done}/{total} vs json "
+                                f"{g.get('done')}/{g.get('total')}")
+            if child != (g.get("depth") == 1):
+                problems.append(f"line {i} tree glyph={child} vs json depth {g.get('depth')}")
+    check(not problems,
+          f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
+          f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
 
 
 def write_state(root, **kw):
@@ -94,7 +197,34 @@ def load_module():
     spec = importlib.util.spec_from_file_location("plan_progress", SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    _wrap_render_with_json_parity(mod)
     return mod
+
+
+def _wrap_render_with_json_parity(mod):
+    """Every in-process render() the suite performs is paired with the JSON
+    the `--json` mode would print for the same cwd, under the same module
+    state (config paths, monkeypatches), and the two are checked for parity.
+
+    PLAN_READS is restored around the JSON pass so the read-budget cases keep
+    measuring the text render alone.
+    """
+    real = mod.render
+
+    def render(cwd):
+        lines = real(cwd)
+        saved = getattr(mod, "PLAN_READS", 0)
+        try:
+            out = mod.render_json(cwd)
+        except Exception as e:
+            out = f"<render_json raised {type(e).__name__}: {e}>"
+        finally:
+            mod.PLAN_READS = saved
+        json_parity([ANSI_RE.sub("", ln) for ln in lines], out,
+                    f"in-process {Path(str(cwd)).name}")
+        return lines
+
+    mod.render = render
 
 
 def write_yaml(path, text):
@@ -222,6 +352,10 @@ def case_resolver_never_breaks_the_bar():
     check(r.returncode == 0, "rc 0 with no portfolio config on the machine")
     check(r.stderr == "", "stderr stays clean")
     check("3/5" in out, "the state-file bar still renders")
+    rj = subprocess.run([sys.executable, str(SCRIPT), "--json"],
+                        input=json.dumps({"cwd": str(repo)}),
+                        capture_output=True, text=True, env=env)
+    json_parity(out.splitlines(), rj.stdout, "cli no-portfolio HOME", rc=rj.returncode)
     shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -2465,6 +2599,109 @@ def case_palette_contrast():
     check(seen == 5, f"all 5 palette colours were measured (saw {seen})")
 
 
+def run_json(cwd_value, *extra, stdin=None, env=None):
+    stdin = stdin if stdin is not None else json.dumps({"cwd": str(cwd_value)})
+    return subprocess.run([sys.executable, str(SCRIPT), "--json", *extra],
+                          input=stdin, capture_output=True, text=True, env=env)
+
+
+def jdoc(r):
+    """The parsed `--json` object, or {} when stdout is not one."""
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        return {}
+    return doc if isinstance(doc, dict) else {}
+
+
+def case_json_mode():
+    """`--json` — one object, built from the same model as the text bars."""
+    print("--json mode — the structured twin of the text bars:")
+    tmp = Path(tempfile.mkdtemp(prefix="pp-json-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    home = tmp / "home"
+    home.mkdir()
+    env = dict(os.environ, HOME=str(home))     # no portfolio: pinned bar only
+
+    r = run_json(repo, env=env)
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        doc = None
+    check(r.returncode == 0 and doc == {"groups": [], "detail": None},
+          f"json: nothing in flight -> {{\"groups\": [], \"detail\": null}}, rc 0 "
+          f"(rc={r.returncode}, out={r.stdout.strip()!r}, err={r.stderr.strip()[:80]!r})")
+
+    plan = repo / "plans" / "demo-plan.md"
+    plan.write_text(PLAN + "\n### Stage 2 Gate\n- [x] suite green\n- [ ] corpus green\n")
+    write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2",
+                task_desc="render output")
+    r = run_json(repo, env=env)
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        doc = {}
+    g = (doc.get("groups") or [{}])[0] if isinstance(doc, dict) else {}
+    check(r.returncode == 0 and isinstance(doc, dict) and len(doc.get("groups") or []) == 1,
+          f"json: one pinned plan -> one group (rc={r.returncode}, out={r.stdout[:120]!r})")
+    want = {"name": "demo", "done": 3, "total": 5, "role": "pinned", "stage": 2,
+            "stage_count": 2, "task": "2.2", "phase": "task", "stale_hours": None,
+            "remediation_round": None, "blocked_note": None, "status_lag": None,
+            "stage_order": False}
+    got = {k: g.get(k, "<missing>") for k in want}
+    check(got == want, f"json: pinned group fields ({got})")
+    every = ("name", "done", "total", "role", "stage", "stage_count", "task", "phase",
+             "stale_hours", "remediation_round", "remediation_budget", "blocked_note",
+             "status_lag", "stage_order")
+    check(all(k in g for k in every),
+          f"json: every listed group key is present (missing {[k for k in every if k not in g]})")
+    detail = doc.get("detail") if isinstance(doc, dict) else None
+    stages = (detail or {}).get("stages") or []
+    check([(s.get("number"), s.get("name")) for s in stages]
+          == [(1, "groundwork"), (2, "behavior")],
+          f"json: detail.stages numbers and names "
+          f"({[(s.get('number'), s.get('name')) for s in stages]})")
+    s2 = stages[1] if len(stages) > 1 else {}
+    check((s2.get("gate_checked"), s2.get("gate_total")) == (1, 2)
+          and (stages[0].get("gate_checked"), stages[0].get("gate_total")) == (0, 0),
+          f"json: gate checked/total per stage (S2 {s2.get('gate_checked')}/"
+          f"{s2.get('gate_total')})")
+    tasks = [(t.get("id"), t.get("title"), t.get("status")) for t in s2.get("tasks") or []]
+    check(tasks == [("2.1", "parse entries", "done"), ("2.2", "render output", "open"),
+                    ("2.3", "edge cases", "open")],
+          f"json: detail tasks carry id, title and the parser's status word ({tasks})")
+
+    pplan = repo / "plans" / "partial-plan.md"
+    pplan.write_text(PARTIAL_PLAN)
+    write_state(repo, plan=str(pplan), phase="blocked", stage=1, task="1.2",
+                note="cycle budget exhausted " + "x" * 80)
+    doc = jdoc(run_json(repo, env=env))
+    g = (doc.get("groups") or [{}])[0]
+    check(g.get("phase") == "blocked"
+          and g.get("blocked_note") == "cycle budget exhausted " + "x" * 80,
+          f"json: blocked note carried in FULL, unclipped ({str(g.get('blocked_note'))[:40]!r})")
+    st = [t.get("status") for s in (doc.get("detail") or {}).get("stages", [])
+          for t in s.get("tasks", [])]
+    check(st == ["done", "partial", "open"], f"json: [~] reads as `partial` ({st})")
+
+    write_state(repo, plan=str(plan), phase="gate", stage=2, remediation_round=1)
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    check((g.get("phase"), g.get("remediation_round"), g.get("remediation_budget"))
+          == ("gate", 1, 2), f"json: gate round 1 of the default budget 2 ({g})")
+
+    write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2",
+                updated=(datetime.now(timezone.utc) - timedelta(hours=30)).isoformat())
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    check(g.get("stale_hours") == 30, f"json: stale_hours 30 ({g.get('stale_hours')!r})")
+
+    r = run_json(repo, "--bogus", env=env)
+    check(r.returncode == 2 and r.stdout == "" and "FAIL" in r.stderr,
+          f"json: an unknown extra argument is refused, exit 2 "
+          f"(rc={r.returncode}, err={r.stderr.strip()[:80]!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -2613,6 +2850,11 @@ def main():
     case_dispatch_check()
     case_stage_order()
     case_palette_contrast()
+    case_json_mode()
+    print(f"  --json parity asserted over {len(JSON_PARITY_RUNS)} rendered fixture states")
+    check(len(JSON_PARITY_RUNS) >= 50,
+          f"json: parity ran across the suite's fixture states, not a token few "
+          f"({len(JSON_PARITY_RUNS)})")
 
     print()
     if FAILURES:
