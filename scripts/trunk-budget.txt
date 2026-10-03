@@ -276,7 +276,15 @@ planning/skills/executing-plans/SKILL.md 49890
 # Raised 37479 -> 37895 (+416 B) 2026-09-22, executor-handoff plan Task 3.5: Phase 5 names
 #   validate-dispatch.py and the five things it fails; the checklist gains it as a fifth
 #   command-decided item; the Scope field line says a Dispatch: YES task always carries one.
-planning/skills/planning-projects/SKILL.md 37895
+# Raised 37895 -> 38848 (+953 B) 2026-10-03, planning 0.52.0: five authoring obligations,
+#   each found when Cursor executed a plan this skill wrote (metabrush-android Tasks 1.1-1.2).
+#   Each is a rule the plan author must follow while writing, so it belongs in the trunk; the
+#   incidents and worked examples went to task-fields.md and set-valued-checks.md. Phase 3:
+#   a Test asserts the outcome, each claim could go red, a preparing task tests its
+#   preparation. Write a set-valued check: a forbidden-call sweep matches the bare name.
+#   Task fields: a name used downstream is fixed by the creating task. Preflight: tools
+#   checked where the build looks; no task re-does the git bootstrap.
+planning/skills/planning-projects/SKILL.md 38848
 
 # derived-ceiling: 7728 — Stage 3 Task 3.0, from
 # planning/skills/portfolio/references/extraction-classification.md.

@@ -1,6 +1,16 @@
 # planning
 
-A fifteen-skill pipeline (v0.51.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.52.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.52.0
+
+Five planning-authoring rules, each from a flaw found when Cursor executed a metabrush-android plan written by this skill:
+
+- **A `Test:` asserts the outcome, and each claim could go red.** A test for "cleaned under the right temp folder" checked that no file was left in `/tmp`. The engine deletes its temp files anyway, so the test passed with the temp folder unset — while a silent metadata leak stayed possible. A task that prepares something for later tasks now tests that the preparation is there.
+- **A sweep that forbids a call matches the bare name.** A gate looking for `crate::forbidden(` passed a planted `use crate::forbidden;` plus a bare call. New `set-valued-checks.md` § The fifth error.
+- **A name a later task, gate or rollback uses is fixed by the task that creates it.** The executor named directories differently from the plan's Stage 4 gate and rollback, and nothing noticed until Stage 4.
+- **Tool checks look where the build looks.** Preflight verified an NDK in one Android SDK while the project's `local.properties` named another.
+- **No task re-does execution's Preflight** — no `git init` task; `executing-plans` bootstraps the repo.
 
 ## What's new in 0.51.0
 

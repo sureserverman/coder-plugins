@@ -176,6 +176,42 @@ a failure**, because no rule can tell which one you meant — 203 instances acro
 plans when it was measured, and the most frequent were secret scans. The note is a question, not
 a verdict: *is this about what the code does, or about what the bytes say?*
 
+### The fifth error: a sweep that matches one spelling of a call
+
+A gate that forbids a call — "the engine is reached only through its panic-isolated entry
+points" — is a sweep for the forbidden name. Written as the *qualified* spelling, it misses
+every other spelling. metabrush-android's Stage 1 gate was:
+
+```
+! (grep -rnE 'metabrush::[a-z_:]*(process_path|inspect_path)[a-z_]*\(' src | grep -v '_isolated(')
+```
+
+The bridge it checked starts with `use metabrush::{process_path_isolated, …};` and then calls
+the functions bare. A `use metabrush::process_path;` followed by `process_path(&p, &cfg)`
+would pass that gate: the forbidden call is there, and the sweep is looking for the `crate::`
+prefix that the import removed. The code happened to be right; the check could not have shown
+it was wrong.
+
+Measured on that bridge (2026-10-03): with `use metabrush::process_path;` and a bare
+`process_path(&p)` planted in it, the gate above still passed.
+
+So sweep for the **bare name** at a word boundary. `-w` treats `_` as part of a word, so the
+permitted `process_path_isolated` is a different word and needs no exclusion — and an
+exclusion such as `| grep -v '_isolated'` would be wrong, because it drops a line that
+imports both names:
+
+```
+! grep -rnwE '(process_path|inspect_path|process_path_with_config)' src
+```
+
+The same planted call fails this sweep on both lines, the import and the call.
+
+The same holds in every language with imports or aliases: Python `from x import f`, Kotlin
+imports, JavaScript destructuring. If the forbidden thing can be renamed on import
+(`use a::b as c`), a name sweep cannot prove its absence at all — sweep the imports
+(`use .*process_path\b`) as well, or make it structural (a test that the module exposes
+nothing else).
+
 ## Worked example — a sweep is not licence to sweep twice
 
 The rules pull in opposite directions and both are right. This one says *widen the check to

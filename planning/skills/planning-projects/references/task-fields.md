@@ -36,6 +36,35 @@ Omit the field entirely on every task the user did not name. An absent field mea
 the tier decide", which is the right answer for almost every task; `Review: run` is not a
 thing.
 
+### `Test:` — the outcome, and a way to go red
+
+A `Test:` is only evidence if it would fail when its claim is false. Two ways a test that
+runs and passes still proves nothing, both measured on one plan:
+
+**It asserts a side effect instead of the outcome.** metabrush-android Task 1.2 (2026-10-03)
+was planned with "a DOCX with an embedded TIFF cleans with `TMPDIR` pointed at a test dir and
+leaves no file in the real `/tmp`". The engine deletes its temp files as soon as it is done,
+so "no file left in `/tmp`" is true whatever `TMPDIR` says. Worse, when the temp folder is
+wrong, the engine skips the embedded image *silently* — it copies it through with its
+metadata and still reports success. The test passed with `TMPDIR` unset and with `TMPDIR`
+pointing at a folder that does not exist, while the defect it existed to catch — metadata
+leaking out of a "cleaned" file — stayed possible. The outcome was "the TIFF's metadata is
+gone"; the test should have planted metadata in the TIFF and asserted its absence.
+
+So write each claim as the property a user would care about, and when it is not obvious how
+the claim could fail, say so in the field: `— the planted Artist tag is gone (red if TMPDIR
+is unset)`. That clause is what an executor breaks to prove the test can fail; without it
+they break whatever is easiest. In that same task, the one claim broken was the size limit;
+the claim the task existed for was never tried.
+
+**It never checks what the task was for.** A task that exists to prepare something for later
+tasks — a scaffold that owns the build file so parallel siblings need not touch it — is done
+when that preparation is there, not when the build passes. metabrush-android Task 1.1's
+`Test:` was "`assembleDebug` succeeds", and the test libraries the next stage's parallel
+tasks needed were never added; both siblings would then have had to edit the one file the
+task existed to keep them out of. Its `Test:` should have checked the content:
+`grep -q 'ui-test-junit4' app/build.gradle.kts`.
+
 ### Scope marking (the set a task changes)
 
 A task that changes a **class** of artifact declares the set it must sweep, on a `Scope:`
@@ -129,6 +158,24 @@ to run side by side, rather than instructing the executor to dispatch.
 - **NO** if it's blocked — list which dependency is blocking it. (Once unblocked, `NO`
   runs in the main session — there is no executor discretion to delegate it — that
   outcome doesn't depend on having a concurrent sibling either.)
+
+### Names other tasks rely on
+
+When a later task, a gate check or a rollback note names something — a path, a directory, an
+API's behaviour — the task that **creates** it must name it too. Otherwise execution picks a
+name of its own, and the plan's downstream references break where nobody is looking.
+
+The incident: metabrush-android's plan said only that Task 1.2's `init` points the engine at
+"app-private dirs". Its Stage 4 gate read `files/xdg-state/metabrush/activity.log` and its
+rollback deleted `files/xdg-config/…`. The executor chose `files/state` and `files/config` —
+reasonable, and now wrong for both. In the same task, the config writer it built drops
+unknown TOML tables, while Task 4.1's `Test:` requires them to survive a write. Neither
+mismatch shows until Stage 4.
+
+So when a downstream line names it, write it into the creating task:
+"`init` sets `XDG_STATE_HOME` to `files/xdg-state`"; "`write_user_config` preserves tables it
+does not model". Sweep for it while authoring: every backticked path in a gate or rollback
+should appear in the task that produces it.
 
 ### Ordering rules
 
