@@ -314,5 +314,87 @@ rc, out, _ = run_cli(json.dumps(inp(BAD_STOPS[0])).encode())
 ok("CLI prints exactly one JSON object", rc == 0 and out.count("\n") <= 1 and
    isinstance(json.loads(out), dict))
 
+# --------------------------------------------------------------------------
+# Task 3.2: the parts the mod shares — the repo-root boundary, staleness, the
+# --root CLI mode — and the command hook's hand-off when the mod has answered.
+# --------------------------------------------------------------------------
+fr = getattr(pcc, "find_repo_root", None)
+ok("module exports find_repo_root", callable(fr))
+rw = tempfile.mkdtemp()
+nested = os.path.join(rw, "repo", "a", "b")
+os.makedirs(nested)
+os.makedirs(os.path.join(rw, "repo", ".git"))
+ok("find_repo_root walks up to the .git dir",
+   callable(fr) and fr(nested) == os.path.join(rw, "repo"), "got %r" % (fr(nested) if callable(fr) else None))
+wt = os.path.join(rw, "worktree")
+os.makedirs(wt)
+with open(os.path.join(wt, ".git"), "w") as fh:
+    fh.write("gitdir: /elsewhere\n")
+ok("a .git FILE (worktree) counts", callable(fr) and fr(wt) == wt)
+ww = os.path.join(rw, "shared")
+os.makedirs(os.path.join(ww, ".git"))
+os.makedirs(os.path.join(ww, "victim"))
+os.chmod(ww, 0o777)
+ok("a world-writable candidate root is refused", callable(fr) and fr(os.path.join(ww, "victim")) is None)
+os.chmod(ww, 0o755)
+lone = tempfile.mkdtemp()
+ok("no .git anywhere below the bound -> None", callable(fr) and fr(lone, max_depth=0) is None)
+
+
+def run_root(stdin_bytes):
+    p = subprocess.run([sys.executable, MODULE, "--root"], input=stdin_bytes,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+    try:
+        return p.returncode, json.loads(p.stdout), p.stderr.decode("utf-8", "replace")
+    except Exception:
+        return p.returncode, None, p.stderr.decode("utf-8", "replace")
+
+
+rc, got, err = run_root(json.dumps({"cwd": nested}).encode())
+ok("--root prints the repo root", rc == 0 and got == {"root": os.path.join(rw, "repo")}, "rc %d got %r err %r" % (rc, got, err[-200:]))
+os.chmod(ww, 0o777)
+rc, got, err = run_root(json.dumps({"cwd": os.path.join(ww, "victim")}).encode())
+os.chmod(ww, 0o755)
+ok("--root refuses a world-writable root", rc == 0 and got == {"root": None}, "got %r" % (got,))
+for bad in (b"", b"[1]", b'{"cwd": 5}', b"\xff\xfe"):
+    rc, got, err = run_root(bad)
+    ok("--root on %r -> null, exit 0, no traceback" % bad[:12],
+       rc == 0 and got == {"root": None} and "Traceback" not in err, "rc %d got %r" % (rc, got))
+
+sm = getattr(pcc, "stale_message", None)
+ok("module exports stale_message", callable(sm))
+iso = lambda h: (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=h)).isoformat().replace("+00:00", "Z")
+if callable(sm):
+    ok("fresh state -> no stale message", sm(dict(STATE, updated=iso(-1))) is None)
+    ok("13h-old state -> stale message", "stale" in (sm(dict(STATE, updated=iso(-13))) or ""))
+    ok("a FUTURE updated -> message", "FUTURE" in (sm(dict(STATE, updated=iso(2))) or ""))
+    ok("no updated -> message", "updated" in (sm({k: v for k, v in STATE.items() if k != "updated"}) or ""))
+    ok("a hostile updated never raises", isinstance(sm(dict(STATE, updated=["x"] * 5)), str))
+
+stale_state = dict(STATE, updated=iso(-13))
+r = both("check_updated + 13h-old state + a promise", dict(inp(BAD_STOPS[0], state=stale_state), check_updated=True), "allow")
+ok("  ... carries a notice, never a counted system_message",
+   "stale" in str(r.get("notice", "")) and "system_message" not in r, "got %r" % r)
+both("no check_updated + 13h-old state + a promise (caller checks staleness itself)",
+     inp(BAD_STOPS[0], state=stale_state), "block")
+both("check_updated + fresh state + a promise", dict(inp(BAD_STOPS[0]), check_updated=True), "block")
+
+
+def run_hook_payload(extra):
+    pl = dict({"session_id": "mod-%d" % os.getpid(), "cwd": repo, "transcript_path": transcript}, **extra)
+    env = dict(os.environ, PLAN_CONTINUE="1")
+    p = subprocess.run(["bash", HOOK], input=json.dumps(pl).encode(), stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE, cwd=repo, env=env, timeout=20)
+    try:
+        return p.returncode, json.loads(p.stdout).get("decision", "allow")
+    except Exception:
+        return p.returncode, "allow"
+
+
+rc, dec = run_hook_payload({"planning_mod_handled": True})
+ok("command hook steps aside when the mod answered (planning_mod_handled)", rc == 0 and dec == "allow", "rc %d dec %r" % (rc, dec))
+rc, dec = run_hook_payload({"planning_mod_handled": "yes"})
+ok("  ... only for a literal true", rc == 0 and dec == "block", "rc %d dec %r" % (rc, dec))
+
 print("\n%d passed, %d failed" % (passed, failed))
 sys.exit(0 if failed == 0 else 1)

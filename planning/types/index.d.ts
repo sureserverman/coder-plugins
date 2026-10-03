@@ -62,12 +62,16 @@ export type AgentRecord = {
   outcome: AgentOutcome
 }
 
+// The Stop check's no-progress count for one phase|stage|task.
+export type StopCounter = { key: string; count: number }
+
 declare module 'claude-code' {
   interface PluginState {
     planning: {
       model: PlanModelState | null
       agents: AgentRecord[]
       statuslineNoted: boolean
+      stopCounter: StopCounter | null
     }
   }
 }

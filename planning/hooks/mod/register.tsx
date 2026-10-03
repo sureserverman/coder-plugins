@@ -10,6 +10,7 @@ import { registerBand } from './band'
 import { registerCoexist } from './coexist'
 import { registerModel } from './model'
 import { registerPane } from './pane'
+import { registerStop } from './stop'
 
 export const register: Register = on => {
   registerModel(on)
@@ -17,4 +18,5 @@ export const register: Register = on => {
   registerAgents(on)
   registerPane(on)
   registerCoexist(on)
+  registerStop(on)
 }

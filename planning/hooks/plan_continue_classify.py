@@ -8,14 +8,19 @@ for the decision), and the planning mod, which runs it as a CLI:
     python3 plan_continue_classify.py  < {"state": {...}, "last_text": "...",
                                           "count": 0, "max": 3,
                                           "context_usage_path": "/.../context-usage.py"}
-    -> {"decision": "allow" | "block", "reason"?: "...", "system_message"?: "..."}
+    -> {"decision": "allow" | "block", "reason"?: "...", "system_message"?: "...",
+        "notice"?: "..."}
+
+    python3 plan_continue_classify.py --root  < {"cwd": "/some/dir"}
+    -> {"root": "/the/repo" | null}      (find_repo_root: the security boundary)
 
 `state` is the parsed .claude/plan-progress.json, `last_text` the last main-thread
 assistant message, `count` how many continuations this phase|stage|task has already
 been forced, `max` the limit (PLAN_CONTINUE_MAX). `system_message` is set only when
 the no-progress guard releases a turn the classifier would have blocked; a caller
 that keeps the counter advances it when the decision is `block` or that message is
-present, and on nothing else.
+present, and on nothing else. With `"check_updated": true` the module also applies the
+staleness rule (stale_message) and answers a stale state with an uncounted `notice`.
 
 THE CONTRACT IS FAIL-OPEN. Stdlib only. Malformed, non-object or oversized stdin, a
 wrong-typed field, or any internal error prints {"decision":"allow"} and exits 0 —
@@ -33,6 +38,7 @@ legitimate waits blocked) is in plan-continue.sh's header and
 ../skills/executing-plans/references/plan-continue-hook.md.
 """
 
+import datetime
 import json
 import os
 import re
@@ -165,6 +171,67 @@ def _bounded(build):
     return cut.decode("utf-8", "ignore") + "...(truncated)"
 
 
+# --------------------------------------------------------------------------
+# Repo root. THE HOOK'S SECURITY BOUNDARY, shared by both callers so it has one
+# implementation: the command hook imports it, the mod asks for it through
+# `--root`. The first version climbed to `/` for any `.git`, then put the state
+# file's `plan`/`task_desc` into a prompt the host replays, so a `.git` planted in
+# a shared ancestor made the hook submit attacker-chosen text. Depth-bounded,
+# `.git` FILES count (worktrees), and a world-writable candidate root is refused.
+# Every failure returns None, and None means allow.
+# --------------------------------------------------------------------------
+def find_repo_root(start, max_depth=16):
+    try:
+        probe = os.path.abspath(start)
+    except Exception:
+        return None
+    for _ in range(max_depth + 1):
+        marker = os.path.join(probe, ".git")
+        if os.path.isdir(marker) or os.path.isfile(marker):
+            try:
+                st = os.stat(probe)
+            except OSError:
+                return None
+            # WORLD-writable only, deliberately not group-writable: with umask 002
+            # an ordinary mkdir yields 775, so refusing group-writable disables the
+            # hook in normal users' own repos — hardening into a fail-closed hole.
+            if st.st_mode & 0o002:
+                return None
+            return probe
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            return None
+        probe = parent
+    return None
+
+
+STALE_HOURS = 12
+
+
+def stale_message(state, now=None):
+    """None when `updated` is fresh; else the one line that says why the turn may end.
+
+    An absent or unparseable `updated` counts as stale rather than fresh: it fails
+    open and makes the defect visible instead of silently blocking forever. A FUTURE
+    timestamp is garbage that would defeat the only time-based backstop.
+    """
+    try:
+        ts = datetime.datetime.fromisoformat(str(state.get("updated", "")).replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=datetime.timezone.utc)
+    except Exception:
+        return ("plan-continue: .claude/plan-progress.json has no parseable `updated` "
+                "timestamp; letting the turn end.")
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    age_h = (now - ts).total_seconds() / 3600.0
+    if age_h < -1.0:
+        return "plan-continue: `updated` is %.1fh in the FUTURE; letting the turn end." % -age_h
+    if age_h > STALE_HOURS:
+        return ("plan-continue: .claude/plan-progress.json is %.1fh stale; letting the turn "
+                "end rather than resuming a run that may be long dead." % age_h)
+    return None
+
+
 def classify(inp):
     """The decision for one turn end. Never raises; anything unexpected allows."""
     try:
@@ -184,6 +251,13 @@ def _classify(inp):
     phase = str(state.get("phase", "")).strip().lower()
     if phase not in ACTIVE_PHASES:
         return dict(ALLOW)
+
+    # A caller that has not checked `updated` itself (the mod) asks for it here.
+    # The line is a `notice`: shown, never counted as a forced continuation.
+    if inp.get("check_updated") is True:
+        notice = stale_message(state)
+        if notice is not None:
+            return {"decision": "allow", "notice": notice}
 
     # The skill's own sanctioned ask. Checked over the WHOLE message: the block is
     # specified to come last, but a report that carries one is stopping on purpose
@@ -228,7 +302,29 @@ def _classify(inp):
     return {"decision": "block", "reason": reason}
 
 
+def root_main():
+    """`--root`: {"cwd": "<dir>"} on stdin -> {"root": "<repo root>" | null}."""
+    result = {"root": None}
+    try:
+        raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
+        if len(raw) <= MAX_STDIN_BYTES:
+            inp = json.loads(raw.decode("utf-8", "replace"))
+            cwd = inp.get("cwd") if isinstance(inp, dict) else None
+            if isinstance(cwd, str) and cwd:
+                result = {"root": find_repo_root(cwd)}
+    except Exception:
+        result = {"root": None}
+    try:
+        sys.stdout.write(json.dumps(result) + "\n")
+        sys.stdout.flush()
+    except Exception:
+        pass
+    return 0
+
+
 def main():
+    if sys.argv[1:] == ["--root"]:
+        return root_main()
     result = dict(ALLOW)
     try:
         raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)

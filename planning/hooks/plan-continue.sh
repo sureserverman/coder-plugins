@@ -85,9 +85,8 @@ CLASSIFIER="$HOOK_DIR/plan_continue_classify.py"
 # hostile clone — first on sys.path, so a planted hashlib.py would run as the user.
 PLAN_CONTINUE_PAYLOAD="$PAYLOAD" PLAN_CONTINUE_CONTEXT_USAGE="$CONTEXT_USAGE" \
     PLAN_CONTINUE_CLASSIFIER="$CLASSIFIER" python3 -I - <<'PY'
-import json, os, sys, stat, hashlib, tempfile, datetime
+import json, os, sys, stat, hashlib, tempfile
 
-STALE_HOURS = 12
 try:
     MAX_NO_PROGRESS = int(os.environ.get("PLAN_CONTINUE_MAX", "3"))
 except (TypeError, ValueError):
@@ -101,37 +100,6 @@ def allow(msg=None):
     sys.exit(0)
 
 
-# --------------------------------------------------------------------------
-# Repo root. THIS IS THE HOOK'S SECURITY BOUNDARY, inherited verbatim in intent
-# from the port, where the first version was not: it climbed to `/` for any
-# `.git`, then put the state file's `plan`/`task_desc` into a prompt the host
-# replays. A `.git` planted in a shared ancestor made the hook submit
-# attacker-chosen text. Depth-bounded, `.git` FILES count (worktrees), and a
-# world-writable candidate root is refused. Every failure returns None -> allow.
-# --------------------------------------------------------------------------
-def find_repo_root(start, max_depth=16):
-    try:
-        probe = os.path.abspath(start)
-    except Exception:
-        return None
-    for _ in range(max_depth + 1):
-        marker = os.path.join(probe, ".git")
-        if os.path.isdir(marker) or os.path.isfile(marker):
-            try:
-                st = os.stat(probe)
-            except OSError:
-                return None
-            # WORLD-writable only, deliberately not group-writable: with umask 002
-            # an ordinary mkdir yields 775, so refusing group-writable disables the
-            # hook in normal users' own repos — hardening into a fail-closed hole.
-            if st.st_mode & 0o002:
-                return None
-            return probe
-        parent = os.path.dirname(probe)
-        if parent == probe:
-            return None
-        probe = parent
-    return None
 
 
 MAX_STATE_BYTES = 256 * 1024
@@ -172,6 +140,24 @@ def read_own_file(path, max_bytes, tail=False):
                 pass
 
 
+# --------------------------------------------------------------------------
+# plan_continue_classify.py, beside this script, is shared with the planning mod:
+# the repo-root boundary, the staleness rule, PROMISE/ASK/WAIT/RESUME, the
+# `ACTION NEEDED` and `reason:` carve-outs, clean() and both reason builders. A
+# missing or failing module allows: this hook never traps a session on its own
+# breakage.
+# --------------------------------------------------------------------------
+try:
+    import importlib.util
+    sys.dont_write_bytecode = True   # nothing written into the plugin directory
+    _spec = importlib.util.spec_from_file_location(
+        "plan_continue_classify", os.environ.get("PLAN_CONTINUE_CLASSIFIER", ""))
+    classifier = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(classifier)
+except Exception:
+    allow()
+
+
 try:
     payload = json.loads(os.environ.get("PLAN_CONTINUE_PAYLOAD", "") or "{}")
 except Exception:
@@ -183,7 +169,15 @@ if not isinstance(payload, dict):
 # it: a plan legitimately needs several in a row. The no-progress counter below is
 # the loop guard instead, and it is a better one because it measures whether the
 # run is actually moving rather than merely whether it was pushed.
-root = find_repo_root(payload.get("cwd") or os.getcwd())
+# On Claude Code 2.1.288+ the planning mod answers classic.Stop first and passes
+# the event on with this field set, so user Stop hooks still run but this one —
+# the same decision, from the same module — does not run twice.
+if payload.get("planning_mod_handled") is True:
+    allow()
+
+# The repo-root boundary (the module's find_repo_root): depth-bounded, `.git` files
+# count, a world-writable candidate root is refused; None means allow.
+root = classifier.find_repo_root(payload.get("cwd") or os.getcwd())
 if root is None:
     allow()
 
@@ -210,24 +204,10 @@ phase = str(state.get("phase", "")).strip().lower()
 if phase not in ("preflight", "task", "gate"):
     allow()
 
-# An absent or unparseable `updated` is treated as stale rather than fresh: fails
-# open, and makes the defect visible instead of silently blocking forever.
-try:
-    ts = datetime.datetime.fromisoformat(str(state.get("updated", "")).replace("Z", "+00:00"))
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=datetime.timezone.utc)
-except Exception:
-    allow("plan-continue: .claude/plan-progress.json has no parseable `updated` "
-          "timestamp; letting the turn end.")
-
-age_h = (datetime.datetime.now(datetime.timezone.utc) - ts).total_seconds() / 3600.0
-# A FUTURE timestamp is garbage and defeats the only time-based backstop: age_h
-# goes negative, so the staleness test can never fire and the state never expires.
-if age_h < -1.0:
-    allow("plan-continue: `updated` is %.1fh in the FUTURE; letting the turn end." % -age_h)
-if age_h > STALE_HOURS:
-    allow("plan-continue: .claude/plan-progress.json is %.1fh stale; letting the turn "
-          "end rather than resuming a run that may be long dead." % age_h)
+# Staleness — absent, garbage, FUTURE or >12h `updated` — is the module's rule.
+stale = classifier.stale_message(state)
+if stale is not None:
+    allow(stale)
 
 # --------------------------------------------------------------------------
 # The classifier. Applied to the LAST assistant message only, and its text is
@@ -271,21 +251,6 @@ for line in reversed(lines):
 if not last_text:
     allow()
 
-# --------------------------------------------------------------------------
-# The decision. PROMISE/ASK/WAIT/RESUME, the `ACTION NEEDED` and `reason:`
-# carve-outs, clean() and both reason builders live in plan_continue_classify.py
-# beside this script, shared with the planning mod. A missing or failing module
-# allows: this hook never traps a session on its own breakage.
-# --------------------------------------------------------------------------
-try:
-    import importlib.util
-    sys.dont_write_bytecode = True   # nothing written into the plugin directory
-    _spec = importlib.util.spec_from_file_location(
-        "plan_continue_classify", os.environ.get("PLAN_CONTINUE_CLASSIFIER", ""))
-    classifier = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(classifier)
-except Exception:
-    allow()
 
 # --------------------------------------------------------------------------
 # No-progress guard. Keyed per session so it needs no file in the user's repo.
