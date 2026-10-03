@@ -23,6 +23,7 @@
     "./skills/compass",
     "./skills/capability-router"
   ],
+  "types": "./types/index.d.ts",
   "license": "MIT",
   "keywords": [
     "planning",
