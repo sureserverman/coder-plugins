@@ -23,6 +23,8 @@ Run every item before showing the plan to the user.
 **Structure**
 
 - [ ] Every task has a concrete, runnable test — no "it should work" tests (`../SKILL.md` § Phase 3 — The Red-Green Loop)
+- [ ] Each `Test:` asserts the outcome the task promises, not a side effect of it; each claim would go red if false, with the break named where it is not obvious; a task that prepares something for later tasks tests that the preparation is there (`../SKILL.md` § Phase 3; `task-fields.md` § `Test:`)
+- [ ] No task re-does what execution's Preflight does — no `git init` task (`../SKILL.md` § Phase 1 — Preflight)
 - [ ] Tasks within each stage follow their dependency order
 - [ ] No task depends on something from a later stage
 - [ ] Every stage has a risk flag with a reason (`task-fields.md`)
@@ -36,6 +38,7 @@ Run every item before showing the plan to the user.
 - [ ] Every `(judgment)` line names what a reader decides that no command can; the plan carries as few as that allows — each buys an evaluator dispatch (`../SKILL.md` § Write a set-valued check as the sweep that proves it)
 - [ ] A `review-scope: high` declaration names, per bound task, the risk-listed path its diff touches, and binds no more than a third of the plan's tasks — otherwise it is `standard` with `Review: required` on the tasks that genuinely qualify (`../../executing-plans/references/review-scope.md` § Risk-listed names a path, not a project)
 - [ ] Every gate check asserting a property of a **set** is an executable sweep over that set, or carries the `(judgment)` marker naming why a reader must verify it, or — where one artifact genuinely *is* the whole set — the `(scoped)` marker saying why. No check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`../scripts/validate-gate-checks.py` reports zero INSTANCE-SHAPED; `set-valued-checks.md`)
+- [ ] A sweep that forbids a call matches the bare name at a word boundary, not one qualified spelling an import can bypass (`../SKILL.md` § Write a set-valued check; `set-valued-checks.md` § The fifth error)
 - [ ] **One owner per fact**: no gate check re-proves what a task's `Test:` already decides, unless it sweeps a strictly wider, nameable set; and no `(judgment)` line restates a fact an executable check in this plan already answers (`../SKILL.md` § Every fact has one owner)
 - [ ] **Every gate check can fail in the direction its hazard runs.** For each set-valued check, name what the defect would look like in the tree: an unwanted presence is a new line and an allow-list sweep catches it; a *missing* call adds nothing for a grep to find, so it needs an invariant asserted over every operation — a test the gate runs, not a sweep of the sites the plan chose. No validator can tell these apart, because the syntax is identical and only the hazard differs (`set-valued-checks.md` § The third error)
 - [ ] **Every gate check can pass as authored**: `validate-gate-checks.py` reports zero SELECTOR-UNMATCHED — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
@@ -43,7 +46,7 @@ Run every item before showing the plan to the user.
 **Research and Preflight**
 
 - [ ] The research summary has actual findings, not placeholders (`../SKILL.md` § Research summary)
-- [ ] Preflight checks cover all tools, deps, and access needed by the plan (`../SKILL.md` § Preflight checklist)
+- [ ] Preflight checks cover all tools, deps, and access needed by the plan, each checked where the build looks for it rather than at an assumed path (`../SKILL.md` § Preflight checklist)
 - [ ] If the project's full suite is expensive (>~5 min): the plan declares its stage-scope and plan-scope commands, only the final gate runs the full clean pass, and any single test >~2 min is quarantined behind an opt-in filter (`test-scope-tiers.md`)
 - [ ] The declared stage-scope command runs in under ~5 min — the trees the stages touch or depend on, not every tree the project owns; a stage-scope that is the full suite renamed pays plan-scope cost at every gate (`test-scope-tiers.md` § A declared stage-scope command is subject to the same cost threshold)
 
@@ -51,6 +54,7 @@ Run every item before showing the plan to the user.
 
 - [ ] Every task that changes more than one artifact carries a `Scope:` naming that set, derived from a command that was actually run rather than recalled; single-artifact tasks correctly omit it, except a `Dispatch: YES` task, which always carries one (`../SKILL.md` § Task and stage fields)
 - [ ] Every task has both `Depends on` and `Blocks` fields — and they're symmetric
+- [ ] Every path, directory or API that a later task, gate check or rollback names is named in the task that creates it (`../SKILL.md` § Task and stage fields; `task-fields.md` § Names other tasks rely on)
 - [ ] Every task has a `Dispatch` field (YES/NO) consistent with its dependencies — `../scripts/validate-dispatch.py <plan>` exits 0
 - [ ] No two parallel tasks modify the same files (`../SKILL.md` § Phase 5 — Dispatch)
 - [ ] On an expensive-suite project (>~5 min), every task's `Test:` is path- or suite-scoped, or the task carries `full-suite: accepted` with a reason — an **authoring-time** check, run once per authored plan and never per execution turn (`test-scope-tiers.md` § A task-level `Test:` is task-scope only when the author scoped it; `../scripts/validate-gate-checks.py` reports zero TASK-TEST-UNSCOPED)
@@ -76,7 +80,7 @@ Run every item before showing the plan to the user.
 For a **Light** plan (`../SKILL.md` § Phase -0.5 — Format triage selected it), verify only
 these eight — the Standard checklist does not apply:
 
-- [ ] Every task has a concrete, runnable `Test:` — the same bar as any plan
+- [ ] Every task has a concrete, runnable `Test:` that asserts the outcome and could go red — the same bar as any plan
 - [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
 - [ ] Exactly one stage, with 2–5 tasks (a 6th task or a second stage means re-issue as Standard)
 - [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a goal-level end-to-end check

@@ -265,7 +265,7 @@ Before Stage 1 begins, verify that everything needed to execute the plan is in p
 
 Verify each of these and report the result:
 
-- [ ] **Tools**: All CLI tools required by the plan are installed and at compatible versions
+- [ ] **Tools**: All CLI tools required by the plan are installed and at compatible versions — checked where the **build** looks for them (its own config, e.g. `local.properties`), not at a path assumed while planning
 - [ ] **Dependencies**: All libraries/packages are available and version-compatible with each other
 - [ ] **APIs**: Required endpoints are reachable, keys are valid, auth works
 - [ ] **Access**: Required permissions exist (repo write, service accounts, deploy targets)
@@ -277,6 +277,9 @@ Verify each of these and report the result:
 - [ ] **Test-scope commands**: for a project whose full test suite is expensive (`references/test-scope-tiers.md`), the plan's stage-scope and plan-scope commands are declared here in Preflight, so executors run known-good invocations instead of improvising scope mid-execution
 
 If any preflight check fails, stop. Fix it or flag it to the user before proceeding.
+
+Do not plan what execution's Preflight already does: it bootstraps a missing git repo itself
+(`../executing-plans/SKILL.md` § Git bootstrap), so no task runs `git init`.
 
 The dispatch checks are the *executor's* rules; the author's job is to carry them into the plan's Preflight so a run cannot skip them by never being asked. The reasoning lives at `../executing-plans/SKILL.md` § Dispatch roster and capability probe and is deliberately not repeated here.
 
@@ -344,6 +347,9 @@ Each task carries `Status`, `Depends on`, `Blocks`, `Dispatch`, `Test:` and
   reordering the plan.
 - **Every task carries `Dispatch` (YES/NO), consistent with its dependencies** — a task with
   an unsatisfied `Depends on` is not `Dispatch: YES` however independent it looks.
+- **A name a later task, gate or rollback relies on is fixed by the task that creates it** —
+  a path, directory or API used downstream is written into the creating task, so execution
+  cannot pick another (`references/task-fields.md` § Names other tasks rely on).
 
 Exact semantics for every field — including `Review: skip`, risk flags and rollback
 notes: `references/task-fields.md`. (Stage sizing is not there; it is § Stage sizing,
@@ -455,7 +461,9 @@ Every task carries a `Test:` and a `Red-Green max cycles:` because execution dri
 through a diagnose → fix → retest loop with a bounded budget. The loop itself is
 `executing-plans` Step 3.3 and is not restated here. What the plan owes it: a test that is a
 **runnable command or a checkable criterion**, never "should work", and a cycle budget
-(default 3).
+(default 3). The test asserts the **outcome** the task promises, not a side effect of it, and
+each claim in it would go red if that claim were false; a task that prepares something for
+later tasks tests that it did (`references/task-fields.md` § `Test:`).
 ## Phase 4 — Stage Gates
 
 After all tasks in a stage pass their individual tests, run a stage-level integration check before proceeding to the next stage. Individual tests prove each piece works. Stage gates prove the pieces work together.
@@ -491,7 +499,9 @@ The measured fact that was verified four times: `references/gate-authoring.md`.
 names one artifact where the goal is a property of many cannot fail on the siblings that make
 the defect class — they survive the gate, and each survivor costs another remediation round.
 So a check whose goal quantifies over a set is written as the command that sweeps it:
-`! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y".
+`! grep -rl '<the stale claim>' <scope>` rather than "file X no longer says Y". A sweep for
+a forbidden call matches the bare name, so an import cannot hide the call
+(`references/set-valued-checks.md` § The fifth error).
 
 A check that genuinely needs a reader carries the **(judgment)** marker and routes to the
 gate's evaluator — the sanctioned escape hatch, not a loophole. **Most gates carry none:**
