@@ -26,8 +26,11 @@ const CONTEXT_USAGE = 'skills/executing-plans/scripts/context-usage.py'
 const TIMEOUT_MS = 5000
 const MAX_TEXT_BYTES = 2048
 const DEFAULT_MAX = 3
-// Newlines stay (the reason's paragraphs); every other control character goes.
-const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f]/g
+// Newlines stay (the reason's paragraphs); every other control character goes, and
+// so do the invisible ones that reorder or hide text (bidi, zero-width). A lone
+// surrogate becomes U+FFFD.
+const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
 
 type Decision = { decision: string; reason?: unknown; system_message?: unknown; notice?: unknown }
 
@@ -38,7 +41,7 @@ type Verdict = { decision: Decision; counterKey: string | null; count: number }
 // Model-bound or user-visible text from the classifier, held again on this side:
 // control characters out, at most MAX_TEXT_BYTES of UTF-8, cut on a character.
 export function bounded(text: unknown): string {
-  const flat = (typeof text === 'string' ? text : '').replace(CONTROL, '')
+  const flat = (typeof text === 'string' ? text : '').replace(LONE_SURROGATE, '\ufffd').replace(CONTROL, '')
   const encoder = new TextEncoder()
   if (encoder.encode(flat).length <= MAX_TEXT_BYTES) return flat
   let out = ''

@@ -72,6 +72,8 @@ declare module 'claude-code' {
       agents: AgentRecord[]
       statuslineNoted: boolean
       stopCounter: StopCounter | null
+      // JSON [plan, stage] pairs this session has had a stage-boundary note for.
+      notedStages: string[]
     }
   }
 }

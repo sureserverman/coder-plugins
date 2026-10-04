@@ -11,8 +11,10 @@ import { atom, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
 import type { PlanModel, PlanModelState } from '../../types'
+import { clean, NOTE_MAX, NOTED_KEEP, noteFor } from './stage-note'
 
 export const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
+const NOTED = atom({ plugin: 'planning', key: 'notedStages' } as const, [] as string[])
 
 const SCRIPT = 'skills/executing-plans/scripts/plan-progress.py'
 const TIMEOUT_MS = 5000
@@ -117,6 +119,36 @@ async function refreshOnce($: EngineInterface): Promise<void> {
       ? { model, fetchedAt, stale: false }
       : { model: previous?.model ?? null, fetchedAt: previous?.fetchedAt ?? fetchedAt, stale: true },
   )
+  // Not awaited: an append that never settles must not hold `running`, which
+  // would leave every later refresh queued behind it and the model frozen.
+  if (model !== null) void noteStage($, model)
+}
+
+// The stage-boundary note (stage-note.ts builds it): once per (plan, stage) per
+// session. Marked before the append, so a refused or failing append is not retried
+// on every refresh. Never throws: the model is already stored.
+async function noteStage($: EngineInterface, model: PlanModel): Promise<void> {
+  try {
+    const wanted = noteFor(model)
+    if (wanted === null) return
+    let isNew = false
+    await update($, NOTED, previous => {
+      const list = Array.isArray(previous) ? previous : []
+      isNew = !list.includes(wanted.key)
+      return isNew ? [...list, wanted.key].slice(-NOTED_KEEP) : list
+    })
+    if (!isNew) return
+    let refused: string | null = null
+    try {
+      const stored = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: clean(wanted.note, NOTE_MAX) }] } })
+      if (stored.deny !== undefined) refused = stored.deny
+    } catch (err) {
+      refused = err instanceof Error ? err.message : String(err)
+    }
+    if (refused !== null) $.ui.log(`planning: stage note not delivered (${clean(refused, 120)})`)
+  } catch {
+    // no note this time
+  }
 }
 
 export function registerModel(on: On): void {

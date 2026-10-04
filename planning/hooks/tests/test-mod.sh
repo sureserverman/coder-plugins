@@ -28,6 +28,20 @@ if ! claude plugin validate "$PLUGIN"; then
   rc=1
 fi
 
+# The stage-boundary note goes through $.session.append, never a system-prompt
+# section: a prompt.compose hook would rewrite the whole cached prefix.
+echo "== no prompt.compose hook"
+if ! report="$(claude plugin validate "$PLUGIN" 2>&1)"; then
+  echo "FAIL: claude plugin validate (for the hook list)" >&2
+  rc=1
+elif grep -q 'prompt\.compose' <<<"$report"; then
+  echo "FAIL: the mod registers a prompt.compose hook" >&2
+  rc=1
+elif grep -rlE "['\"]prompt\.compose['\"]" "$PLUGIN/hooks/mod"; then
+  echo "FAIL: the mod's source names the prompt.compose event" >&2
+  rc=1
+fi
+
 echo "== claude plugin test $PLUGIN"
 if ! claude plugin test "$PLUGIN"; then
   echo "FAIL: claude plugin test" >&2

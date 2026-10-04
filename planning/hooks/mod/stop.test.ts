@@ -203,6 +203,11 @@ test('C1 controls are stripped from a short reason too', async ($, on) => {
   expect((await stop($ as never)).block).toBe('a2Jbc\nd')
 })
 
+test('bidi, zero-width and lone surrogate characters are stripped from a reason', async ($, on) => {
+  harness(on, { classify: () => ({ decision: 'block', reason: 'a\u202eb\u200bc\u2066d\ud800e' }) })
+  expect((await stop($ as never)).block).toBe('abcd\ufffde')
+})
+
 test('a stale state is released with the notice and nothing is counted', async ($, on) => {
   const w = harness(on, { classify: () => ({ decision: 'allow', notice: 'plan-continue: 13.0h stale' }) })
   await stop($ as never)
