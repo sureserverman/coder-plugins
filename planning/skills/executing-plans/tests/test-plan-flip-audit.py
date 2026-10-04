@@ -1940,6 +1940,44 @@ if f8 and f8[0]["severity"] == "blocking":
 else:
     bad("a reasonless claim deviation must be blocking (red if it is waived silently)", str(f8)[:400])
 
+# A claim deviation is bound like a proof: to its path, the plan's wording and
+# its commit's tree. Each of these is blocking, never a disclosed advisory.
+def claimdev_world(label, mutate):
+    plan, proj, env = rec_world(label)
+    subprocess.run(["git", "-C", str(proj), "add", "-A"], check=True, env=env)
+    prove_task(plan, proj)
+    fp = subprocess.run([sys.executable, str(PC), "fingerprint", "--repo", str(proj)],
+                        capture_output=True, text=True).stdout.strip()
+    rec = {"schema": 2, "kind": "claim-deviation", "plan": str(plan), "task": "1.1", "index": 1,
+           "text": "add returns the sum (red if add subtracts)",
+           "why": "the evidence lives outside the repo", "fingerprint": fp,
+           "created": "2026-10-04T00:00:00+00:00"}
+    mutate(rec, plan, proj)
+    (proj / "proof" / plan.stem / "1.1" / "claim-1.json").write_text(json.dumps(rec))
+    commit(proj, env, f"Stage 1 Task 1.1: {label}")
+    r, doc = run_json(str(plan), "--repo", str(proj))
+    return task_findings(doc, 8) if doc else []
+
+
+f8 = claimdev_world("claimdev-index", lambda rec, plan, proj: rec.update(index=2))
+if f8 and f8[0]["severity"] == "blocking" and "not Task 1.1 #1" in f8[0]["rule"]:
+    ok("a claim deviation stored at another claim's path is blocking")
+else:
+    bad("a claim deviation must match its path (red if task/index are not compared)", str(f8)[:400])
+f8 = claimdev_world("claimdev-wording", lambda rec, plan, proj: rec.update(text="add returns a total"))
+if f8 and f8[0]["severity"] == "blocking" and "different wording" in f8[0]["rule"]:
+    ok("a claim deviation recorded against other wording is blocking")
+else:
+    bad("a claim deviation must match the plan's wording (red if wording is not compared)",
+        str(f8)[:400])
+f8 = claimdev_world("claimdev-tree", lambda rec, plan, proj: (proj / "calc.py").write_text(
+    CALC + "# changed after the deviation was recorded\n"))
+if f8 and f8[0]["severity"] == "blocking" and "different tree" in f8[0]["rule"]:
+    ok("a claim deviation recorded on another tree than its commit's is blocking")
+else:
+    bad("a claim deviation must be bound to its commit (red if the fingerprint is not compared)",
+        str(f8)[:400])
+
 # Catches: unticked tasks audited. An open task with no commit is not a finding.
 plan, proj, env = rec_world("rec-open")
 plan.write_text(REC_PLAN.replace("**Status:** [x]", "**Status:** [ ]"))
