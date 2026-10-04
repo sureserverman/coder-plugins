@@ -26,11 +26,13 @@ const CONTEXT_USAGE = 'skills/executing-plans/scripts/context-usage.py'
 const TIMEOUT_MS = 5000
 const MAX_TEXT_BYTES = 2048
 const DEFAULT_MAX = 3
-// Newlines stay (the reason's paragraphs); every other control character goes, and
-// so do the invisible ones that reorder or hide text (bidi, zero-width). A lone
-// surrogate becomes U+FFFD.
-const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g
-const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
+// Newlines stay (the reason's paragraphs); every other character of the hidden
+// categories goes, as in plan_continue_classify.py's clean(): controls (Cc),
+// invisible format characters (Cf: bidi, zero-width, soft hyphen, tags) and lone
+// surrogates (Cs).
+const HIDDEN = /(?!\n)[\p{Cc}\p{Cf}\p{Cs}]/gu
+const COUNT_LOST =
+  'plan-continue: the no-progress count could not be stored, so there is no loop guard; letting the turn end.'
 
 type Decision = { decision: string; reason?: unknown; system_message?: unknown; notice?: unknown }
 
@@ -41,7 +43,7 @@ type Verdict = { decision: Decision; counterKey: string | null; count: number }
 // Model-bound or user-visible text from the classifier, held again on this side:
 // control characters out, at most MAX_TEXT_BYTES of UTF-8, cut on a character.
 export function bounded(text: unknown): string {
-  const flat = (typeof text === 'string' ? text : '').replace(LONE_SURROGATE, '\ufffd').replace(CONTROL, '')
+  const flat = (typeof text === 'string' ? text : '').replace(HIDDEN, '')
   const encoder = new TextEncoder()
   if (encoder.encode(flat).length <= MAX_TEXT_BYTES) return flat
   let out = ''
@@ -123,34 +125,64 @@ export function registerStop(on: On): void {
     }
     if (verdict === null) return next(e)
 
-    const below = await next({ ...e, planning_mod_handled: true } as typeof e)
-    const { decision } = verdict
-    const userBlocked = typeof below.block === 'string' && below.block !== ''
-
-    // The command hook's systemMessage: one dim transcript line, never sent to the model.
-    const note = typeof decision.system_message === 'string' ? decision.system_message : decision.notice
-    if (typeof note === 'string' && note !== '') {
-      try {
-        $.ui.log(bounded(note))
-      } catch {
-        // a notice that cannot be shown changes no decision
-      }
+    // The hooks below are the user's: one that fails must not make this one throw.
+    let below: Awaited<ReturnType<typeof next>>
+    try {
+      below = await next({ ...e, planning_mod_handled: true } as typeof e)
+    } catch {
+      return {}
     }
-
-    // Counted when the command hook counts — a block, or a guard release — except a
-    // block a user's own Stop hook pre-empted: that continuation was not ours.
-    const counted = (decision.decision === 'block' && !userBlocked) || typeof decision.system_message === 'string'
-    if (counted && verdict.counterKey !== null) {
-      const entry = { key: verdict.counterKey, count: verdict.count + 1 }
-      try {
-        await update($, COUNTER, () => entry)
-      } catch {
-        // a count that cannot be stored must not lose this block
-      }
+    if (!isObject(below)) return {}
+    try {
+      return await finish($, verdict, below)
+    } catch {
+      return below
     }
-
-    if (userBlocked) return below
-    if (decision.decision !== 'block' || typeof decision.reason !== 'string' || decision.reason === '') return below
-    return { ...below, block: bounded(decision.reason) }
   })
+}
+
+async function finish(
+  $: EngineInterface,
+  verdict: Verdict,
+  below: Record<string, unknown> & { block?: string },
+): Promise<typeof below> {
+  const { decision } = verdict
+  const userBlocked = typeof below.block === 'string' && below.block !== ''
+
+  // The command hook's systemMessage: one dim transcript line, never sent to the model.
+  const note = typeof decision.system_message === 'string' ? decision.system_message : decision.notice
+  if (typeof note === 'string' && note !== '') {
+    try {
+      $.ui.log(bounded(note))
+    } catch {
+      // a notice that cannot be shown changes no decision
+    }
+  }
+
+  // Counted when the command hook counts — a block, or a guard release — except a
+  // block a user's own Stop hook pre-empted: that continuation was not ours. A
+  // count that cannot be stored leaves no loop guard, so that block is not sent.
+  const counted = (decision.decision === 'block' && !userBlocked) || typeof decision.system_message === 'string'
+  let stored = true
+  if (counted && verdict.counterKey !== null) {
+    const entry = { key: verdict.counterKey, count: verdict.count + 1 }
+    try {
+      await update($, COUNTER, () => entry)
+    } catch {
+      stored = false
+    }
+  }
+
+  if (userBlocked) return below
+  if (decision.decision !== 'block' || typeof decision.reason !== 'string') return below
+  if (!stored) {
+    try {
+      $.ui.log(COUNT_LOST)
+    } catch {
+      // the allow stands without its notice
+    }
+    return below
+  }
+  const reason = bounded(decision.reason)
+  return reason === '' ? below : { ...below, block: bounded(decision.reason) }
 }

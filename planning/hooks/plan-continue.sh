@@ -139,7 +139,8 @@ root = classifier.find_repo_root(payload.get("cwd") or os.getcwd())
 if root is None:
     allow()
 
-# O_NOFOLLOW, FIFO-safe, owner-checked, 256 KB, realpath under the root.
+# Opened component by component under the root with O_NOFOLLOW, FIFO-safe,
+# owner-checked, 256 KB.
 state = classifier.read_state(root)
 if state is None:
     allow()
@@ -248,7 +249,11 @@ try:
     with os.fdopen(wfd, "w") as fh:
         json.dump({"key": key, "count": count}, fh)
 except Exception:
-    pass    # a counter we cannot persist must not block the run
+    # A count that cannot be stored leaves no loop guard, so this stop is allowed
+    # rather than blocked: a block now could repeat on every turn end.
+    allow(message if isinstance(message, str) and message else
+          "plan-continue: the no-progress count could not be stored, so there is no "
+          "loop guard; letting the turn end.")
 
 if decision != "block" or not isinstance(reason, str) or not reason:
     allow(message if isinstance(message, str) else None)

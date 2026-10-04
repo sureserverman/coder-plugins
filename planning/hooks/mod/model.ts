@@ -11,7 +11,7 @@ import { atom, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
 import type { PlanModel, PlanModelState } from '../../types'
-import { clean, NOTE_MAX, NOTED_KEEP, noteFor } from './stage-note'
+import { clean, NOTE_MAX, NOTED_KEEP, noteFor, noteMessage } from './stage-note'
 
 export const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
 const NOTED = atom({ plugin: 'planning', key: 'notedStages' } as const, [] as string[])
@@ -140,7 +140,7 @@ async function noteStage($: EngineInterface, model: PlanModel): Promise<void> {
     if (!isNew) return
     let refused: string | null = null
     try {
-      const stored = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: clean(wanted.note, NOTE_MAX) }] } })
+      const stored = await $.session.append(noteMessage(clean(wanted.note, NOTE_MAX)))
       if (stored.deny !== undefined) refused = stored.deny
     } catch (err) {
       refused = err instanceof Error ? err.message : String(err)

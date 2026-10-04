@@ -22,7 +22,9 @@ assistant message, `count` how many continuations this phase|stage|task has alre
 been forced, `max` the limit (PLAN_CONTINUE_MAX). `system_message` is set only when
 the no-progress guard releases a turn the classifier would have blocked; a caller
 that keeps the counter advances it when the decision is `block` or that message is
-present, and on nothing else. With `"check_updated": true` the module also applies the
+present, and on nothing else — except that the mod does not count a block another
+Stop hook's block pre-empted. A caller that cannot store the advanced count allows:
+without it the guard is gone. With `"check_updated": true` the module also applies the
 staleness rule (stale_message) and answers a stale state with an uncounted `notice`.
 
 THE CONTRACT IS FAIL-OPEN. Stdlib only. Malformed, non-object or oversized stdin, a
@@ -47,6 +49,7 @@ import os
 import re
 import stat
 import sys
+import unicodedata
 
 ALLOW = {"decision": "allow"}
 
@@ -97,13 +100,23 @@ RESUME = re.compile(r"RESUME HERE", re.I)
 REASON_LINE = re.compile(r"^[\s>*`_-]*reason:\s*\S", re.I | re.M)
 
 
+# Unicode categories no field may carry into model-bound text: controls (Cc), the
+# invisible format characters (Cf: bidi overrides and isolates, zero-width marks,
+# soft hyphen, the tag block used to smuggle hidden ASCII) and lone surrogates (Cs).
+# A category, not a list, so a code point added to one later is covered too.
+HIDDEN_CATEGORIES = ("Cc", "Cf", "Cs")
+
+
 def clean(value, default="", limit=MAX_FIELD):
     """Bound and flatten one untrusted field: newlines let planted text escape the
-    sentence it sits in; length turns a 100 KB field into a 100 KB prompt."""
+    sentence it sits in; invisible characters hide or reorder what the reader sees;
+    length turns a 100 KB field into a 100 KB prompt."""
     text = str(value if value is not None else default)
-    # A lone surrogate ("\ud800", legal in JSON) makes every later .encode() raise;
-    # scrubbed here so a would-be block is not turned into an allow by an exception.
-    text = text.encode("utf-8", "replace").decode("utf-8")
+    # Whitespace first (a newline becomes a space, not a joined word), then every
+    # hidden character goes. A lone surrogate ("\ud800", legal in JSON) made every
+    # later .encode() raise, turning a would-be block into an allow.
+    text = " ".join(text.split())
+    text = "".join(c for c in text if unicodedata.category(c) not in HIDDEN_CATEGORIES)
     text = " ".join(text.split())
     if len(text) > limit:
         text = text[:limit] + "...(truncated)"
@@ -212,7 +225,7 @@ def find_repo_root(start, max_depth=16):
 MAX_STATE_BYTES = 256 * 1024
 
 
-def read_own_file(path, max_bytes, tail=False):
+def read_own_file(path, max_bytes, tail=False, dir_fd=None):
     """Open ONCE and check the descriptor; return text, or None for any failure.
 
     O_NOFOLLOW  a symlinked state file leaked another repo's plan text.
@@ -224,7 +237,7 @@ def read_own_file(path, max_bytes, tail=False):
     """
     fd = None
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode):
             return None
@@ -250,21 +263,29 @@ def read_own_file(path, max_bytes, tail=False):
 def read_state(root):
     """The parsed <root>/.claude/plan-progress.json, or None.
 
-    O_NOFOLLOW covers only the last component, so a `.claude` directory symlinked
-    out of the repo would still be followed; the realpath must stay under the root
-    (with the separator, so /x/repo2 is not inside /x/repo).
+    O_NOFOLLOW covers only the last component of a path, so a `.claude` directory
+    symlinked out of the repo would still be followed. Opened one component at a
+    time instead — the root, then `.claude` with O_NOFOLLOW | O_DIRECTORY relative
+    to it, then the file relative to that — so no symlink below the root is
+    followed and nothing can be swapped between a check and the open.
     """
+    root_fd = dir_fd = None
     try:
-        path = os.path.join(root, ".claude", "plan-progress.json")
-        real_root = os.path.realpath(root)
-        if not os.path.realpath(path).startswith(real_root.rstrip(os.sep) + os.sep):
-            return None
-        raw = read_own_file(path, MAX_STATE_BYTES)
+        root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+        dir_fd = os.open(".claude", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd)
+        raw = read_own_file("plan-progress.json", MAX_STATE_BYTES, dir_fd=dir_fd)
         if raw is None:
             return None
         state = json.loads(raw)
     except Exception:
         return None
+    finally:
+        for fd in (dir_fd, root_fd):
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
     return state if isinstance(state, dict) else None
 
 

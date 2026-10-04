@@ -514,5 +514,53 @@ ok("command hook steps aside when the mod answered (planning_mod_handled)", rc =
 rc, dec = run_hook_payload({"planning_mod_handled": "yes"})
 ok("  ... only for a literal true", rc == 0 and dec == "block", "rc %d dec %r" % (rc, dec))
 
+# --------------------------------------------------------------------------
+# Stage 3 gate, round 1: hostile text is scrubbed by Unicode category in clean(),
+# so the shell path (which prints the reason unchanged) is as safe as the mod's.
+# --------------------------------------------------------------------------
+import unicodedata
+
+INVISIBLE = "\x01\x00\x1b[2J\x7f\x9b\u202e\u2066\u200b\u2060\u00ad\u061c\U000E0041\U000E007F\ud800"
+
+
+def hostile_chars(text, keep="\n"):
+    return [c for c in text if c not in keep and unicodedata.category(c) in ("Cc", "Cf", "Cs")]
+
+
+ok("clean() drops every Cc/Cf/Cs character", hostile_chars(pcc.clean("p" + INVISIBLE + "x"), keep="") == [],
+   repr(pcc.clean("p" + INVISIBLE + "x")))
+ok("clean() keeps the visible text around them", pcc.clean("a\u202eb\U000E0041c") == "abc", repr(pcc.clean("a\u202eb\U000E0041c")))
+r = pcc.classify(inp(BAD_STOPS[0], state=dict(STATE, plan="p" + INVISIBLE, task_desc=INVISIBLE * 3)))
+ok("a block reason built from hostile fields carries no Cc/Cf/Cs but newlines",
+   r.get("decision") == "block" and hostile_chars(r.get("reason", "\x01")) == [], repr(r.get("reason", ""))[:200])
+r = pcc.classify(inp(BAD_STOPS[0], state=dict(STATE, stage=INVISIBLE), count=3))
+ok("the guard message carries none either",
+   r.get("decision") == "allow" and hostile_chars(r.get("system_message", "\x01"), keep="") == [], repr(r)[:200])
+
+# A counter that cannot be stored leaves no loop guard: the shell hook allows.
+import hashlib
+
+ctmp = tempfile.mkdtemp()
+csid = "counter-down-%d" % os.getpid()
+blocker = os.path.join(ctmp, "claude-plan-continue-%s.json"
+                       % hashlib.sha1(("%s|%s" % (csid, repo)).encode()).hexdigest()[:16])
+os.makedirs(blocker)     # a directory where the counter file goes: every write fails
+pl = {"session_id": csid, "cwd": repo, "transcript_path": transcript}
+p_ = subprocess.run(["bash", HOOK], input=json.dumps(pl).encode(), stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, cwd=repo, env=dict(os.environ, PLAN_CONTINUE="1", TMPDIR=ctmp),
+                    timeout=20)
+try:
+    out_ = json.loads(p_.stdout or b"{}")
+except Exception:
+    out_ = {"decision": "unparseable"}
+ok("shell hook: a counter it cannot store -> allow, with a line saying why",
+   p_.returncode == 0 and out_.get("decision") != "block" and "count" in str(out_.get("systemMessage", "")),
+   "rc %d out %r" % (p_.returncode, out_))
+p_ = subprocess.run(["bash", HOOK], input=json.dumps(dict(pl, session_id=csid + "-ok")).encode(),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=repo,
+                    env=dict(os.environ, PLAN_CONTINUE="1", TMPDIR=ctmp), timeout=20)
+ok("  ... control: the same stop with a writable counter blocks",
+   p_.returncode == 0 and json.loads(p_.stdout or b"{}").get("decision") == "block", repr(p_.stdout[:120]))
+
 print("\n%d passed, %d failed" % (passed, failed))
 sys.exit(0 if failed == 0 else 1)

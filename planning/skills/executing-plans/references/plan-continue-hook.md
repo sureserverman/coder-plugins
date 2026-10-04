@@ -100,4 +100,4 @@ each). Transcript text is read to make a yes/no decision and never quoted back â
 commit `.claude/plan-progress.json`, so a cloned repo's state file is user-owned and still
 untrusted.
 
-Tests: `../tests/test-plan-continue.sh` (30 cases, decision-asserting).
+Tests: `../tests/test-plan-continue.sh` (35 cases, decision-asserting).

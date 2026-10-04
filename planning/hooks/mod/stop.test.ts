@@ -184,9 +184,30 @@ test("a user Stop hook's block wins, and that turn is not counted as ours", asyn
   expect(w.inputs.map(x => x.count)).toEqual([0, 0])
 })
 
-test('a counter that cannot be stored still blocks', async ($, on) => {
-  harness(on, { stateDown: true })
-  expect((await stop($ as never)).block).toBe('keep going')
+test('a counter that cannot be stored allows, saying why: no loop guard, no block', async ($, on) => {
+  const w = harness(on, { stateDown: true })
+  expect((await stop($ as never)).block).toBe(undefined)
+  expect(w.notices.some(n => n.includes('count'))).toBe(true)
+})
+
+test('a Stop hook below that throws never makes this hook throw', async ($, on) => {
+  harness(on, {
+    below: () => {
+      throw new Error('user hook broke')
+    },
+  })
+  const r = await stop($ as never)
+  expect(r.block === undefined || typeof r.block === 'string').toBe(true)
+})
+
+test('a reason that is empty once bounded is no block', async ($, on) => {
+  harness(on, { classify: () => ({ decision: 'block', reason: '\u0001\u200b\u202e' }) })
+  expect((await stop($ as never)).block).toBe(undefined)
+})
+
+test('format and tag characters (soft hyphen, ALM, word joiner, tags) are stripped from a reason', async ($, on) => {
+  harness(on, { classify: () => ({ decision: 'block', reason: 'a\u00adb\u061cc\u2060d\u{E0041}\u{E007F}e' }) })
+  expect((await stop($ as never)).block).toBe('abcde')
 })
 
 test('a hostile 100 KB reason is cut to at most 2 KB with no control characters but newlines', async ($, on) => {
@@ -205,7 +226,7 @@ test('C1 controls are stripped from a short reason too', async ($, on) => {
 
 test('bidi, zero-width and lone surrogate characters are stripped from a reason', async ($, on) => {
   harness(on, { classify: () => ({ decision: 'block', reason: 'a\u202eb\u200bc\u2066d\ud800e' }) })
-  expect((await stop($ as never)).block).toBe('abcd\ufffde')
+  expect((await stop($ as never)).block).toBe('abcde')
 })
 
 test('a stale state is released with the notice and nothing is counted', async ($, on) => {
