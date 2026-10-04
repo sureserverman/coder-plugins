@@ -269,3 +269,46 @@ test('drawing the band runs no process', async ($, on) => {
   }
   expect(w.runs.length).toBe(before)
 })
+
+// The live window as a main-loop turn's end reports it: `engineUsage` answers
+// beneath (registered before the test first calls $), `turnEnds` ends a turn, and
+// the context hook stores the figures for the band (no state file on disk here,
+// so no sidecar is written).
+function engineUsage(on: Parameters<typeof world>[0], percent: number) {
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1_000_000, tokens: 250_000, percent }, rateLimits: [] } }) as never)
+  on('turn.complete', () => ({ text: '' }))
+}
+
+const turnEnds = ($: unknown) =>
+  ($ as { turn: { complete: (i: never) => Promise<unknown> } }).turn.complete(
+    { answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never,
+  )
+
+test('the pinned row shows the context in use, and only the pinned row', async ($, on) => {
+  const w = world(on, answering(THREE))
+  engineUsage(on, 25)
+  await seed($ as never, w.clock)
+  await turnEnds($)
+  for (const surface of ['terminal', 'desktop'] as const) {
+    for (const cols of [60, 160]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows[1]!.text).toContain('context 25%')
+      expect(rows[1]!.text).toContain('2/5')
+      expect(rows[0]!.text).not.toContain('%')
+      expect(rows[2]!.text).not.toContain('context')
+      for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols)
+      await ui.unmount()
+    }
+  }
+})
+
+test('no context figure yet: the pinned row shows none', async ($, on) => {
+  const w = world(on, answering([group()]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    expect((await rowsOf(ui))[0]!.text).not.toContain('context')
+    await ui.unmount()
+  }
+})

@@ -65,6 +65,10 @@ export type AgentRecord = {
 // The Stop check's no-progress count for one phase|stage|task.
 export type StopCounter = { key: string; count: number }
 
+// The live context window as $.session.usage() last reported it on a main-loop
+// turn: `window` always a positive whole number; a figure the engine lacked is null.
+export type ContextFigures = { window: number; tokens: number | null; percent: number | null }
+
 declare module 'claude-code' {
   interface PluginState {
     planning: {
@@ -74,6 +78,7 @@ declare module 'claude-code' {
       stopCounter: StopCounter | null
       // JSON [plan, stage] pairs this session has had a stage-boundary note for.
       notedStages: string[]
+      context: ContextFigures | null
     }
   }
 }

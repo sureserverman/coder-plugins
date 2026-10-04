@@ -22,8 +22,10 @@ Window resolution — the transcript records no window, and the model id carries
 1M marker (a session running with the `opus[1m]` setting logs plain `claude-opus-…`):
 
     1. `--window N` wins.
-    2. The live session's window from <cwd>/.claude/plan-context.json, written by the
-       planning mod: used only when the file is a regular file owned by this user
+    2. The live session's window from <root>/.claude/plan-context.json, written by the
+       planning mod beside the state file: <root> is the nearest directory at or
+       above cwd holding .claude/plan-progress.json (plan-progress.py's rule), else
+       cwd. Used only when the file is a regular file owned by this user
        (no symlink at `.claude` or the file), at most 64 KiB, a JSON object whose
        `session_id` equals CLAUDE_CODE_SESSION_ID, whose `window` is a positive int
        (not a bool), and whose `updated` (ISO-8601, UTC) is under 15 min old and at
@@ -48,6 +50,7 @@ import datetime
 import glob
 import json
 import os
+import pathlib
 import re
 import stat
 import sys
@@ -319,10 +322,24 @@ def read_sidecar(cwd):
     return data if isinstance(data, dict) else None
 
 
+def sidecar_root(cwd):
+    """Where the mod writes the sidecar: the nearest directory at or above cwd holding
+    .claude/plan-progress.json, found as plan-progress.py's find_state() finds it,
+    else cwd. The executor may run this script from below the repo root."""
+    try:
+        start = pathlib.Path(cwd).resolve()
+        for d in (start, *start.parents):
+            if (d / ".claude" / "plan-progress.json").is_file():
+                return str(d)
+    except (OSError, ValueError):
+        pass
+    return cwd
+
+
 def live_window(env, cwd, now=None):
     """The window the live session reported in its sidecar, or None (see step 2)."""
     sid = env.get("CLAUDE_CODE_SESSION_ID")
-    data = read_sidecar(cwd) if sid else None
+    data = read_sidecar(sidecar_root(cwd)) if sid else None
     if not data or data.get("session_id") != sid:
         return None
     window = data.get("window")

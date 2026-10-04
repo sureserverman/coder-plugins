@@ -6,12 +6,13 @@
 import { atom, read } from 'claude-code'
 import type { On } from 'claude-code'
 
-import type { PlanGroup, PlanModelState } from '../../types'
+import type { ContextFigures, PlanGroup, PlanModelState } from '../../types'
 import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
 
 // Declared in each file that reads it: the engine's scan lists a module's state
 // reads from atoms written in the reading file itself.
 const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
+const CONTEXT = atom({ plugin: 'planning', key: 'context' } as const, null as ContextFigures | null)
 
 const BAR_CELLS = 10
 // "[ Plan ]", the space before it, and the collapse control the engine draws at
@@ -50,13 +51,20 @@ function clip(text: string, width: number): string {
   return width <= 1 ? chars.slice(0, Math.max(0, width)).join('') : `${chars.slice(0, width - 1).join('')}…`
 }
 
-// One row, fitted to `width` by priority: the indent, the counts and the stale
-// marker are kept whole; the name gives way next (down to NAME_MIN); the tail,
+// The pinned row's context figure, ` · context 25%`, from the live window the
+// context hook stored; empty when the engine has not reported a percentage yet.
+export function contextText(figures: ContextFigures | null): string {
+  const percent = figures?.percent
+  return typeof percent === 'number' && Number.isSafeInteger(percent) ? ` · context ${percent}%` : ''
+}
+
+// One row, fitted to `width` by priority: the indent, the counts, the context
+// figure and the stale marker are kept whole; the name gives way next (down to NAME_MIN); the tail,
 // free text from the script, gives way first. Only a row too narrow for even
 // that is clipped as a whole.
-export function rowText(g: PlanGroup, width: number, stale: boolean): string {
+export function rowText(g: PlanGroup, width: number, stale: boolean, context = ''): string {
   const indent = (g.depth ?? 0) > 0 ? '└ ' : ''
-  const counts = g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : ''
+  const counts = (g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : '') + context
   const mark = stale ? ' (stale)' : ''
   const name = plain(g.name)
   const tail = plain(g.tail)
@@ -99,6 +107,7 @@ export function registerBand(on: On): void {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const state = await read($, MODEL)
+    const context = contextText(await read($, CONTEXT))
     const groups = state?.model?.groups ?? []
     const rows = bandRows(groups, e.props.maxRows)
     if (rows.length === 0) return next(e)
@@ -119,7 +128,7 @@ export function registerBand(on: On): void {
           }
           const colour = COLOUR[row.role]
           const width = i === 0 && withButton ? cols - BUTTON_CELLS : cols
-          const text = rowText(row, width, i === 0 && state?.stale === true)
+          const text = rowText(row, width, i === 0 && state?.stale === true, row.role === 'pinned' ? context : '')
           const line = (
             <Text color={colour} dimColor={colour === undefined} wrap="truncate">
               {text}

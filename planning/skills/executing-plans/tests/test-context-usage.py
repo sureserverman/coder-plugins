@@ -530,6 +530,19 @@ try:
     sidecar(updated=stamp(-0.5))
     rc, j = live_run()
     check(j.get("window") == 400000, f"30 s in the future is within tolerance ({j.get('window')})")
+    # The mod writes the sidecar beside the state file it found walking up from the
+    # session's cwd; run from below that root, the reader finds the same file.
+    sub = live / "sub" / "deeper"
+    sub.mkdir(parents=True)
+    sidecar()
+    rc, j = live_run(cwd=sub)
+    check(j.get("window") is None,
+          f"no state file above: a subdirectory's own .claude is read, none there ({j.get('window')})")
+    (live / ".claude" / "plan-progress.json").write_text("{}", encoding="utf-8")
+    rc, j = live_run(cwd=sub)
+    check(j.get("window") == 400000 and "live session" in (j.get("reason") or ""),
+          f"run from below the state root -> the root's sidecar is read ({j.get('window')})")
+    (live / ".claude" / "plan-progress.json").unlink()
 
     sidecar(session_id="ffffffff-0000-0000-0000-000000000000")
     fell_through("session-id mismatch", *live_run())
