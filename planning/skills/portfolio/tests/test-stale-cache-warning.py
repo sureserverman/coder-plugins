@@ -357,6 +357,9 @@ WIRED = [
     # copy would audit, or write records, under an older claim-set rule.
     ("executing-plans", "plan-flip-audit.py"),
     ("executing-plans", "prove-claim.py"),
+    # Writes a shim that execs the hook by absolute path; a stale cached copy would
+    # point a project's commit gate at an older plugin's hook.
+    ("executing-plans", "proof-hooks-install.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

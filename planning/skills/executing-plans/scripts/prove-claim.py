@@ -791,7 +791,8 @@ def is_legacy(rec):
 
 
 def validate(rec, fingerprint=None, expect=None, allow_legacy=False):
-    """Problems with a record, [] when valid. Shared by the audit and the commit gate.
+    """Problems with a record, [] when valid. Shared by the audit and the commit gate
+    (hooks/git-ref-gate.sh).
 
     `expect` = (kind, task, index, text) from the record's PATH and the plan: a
     record copied to another name, or proven against a claim the plan has since
