@@ -18,7 +18,11 @@
 #     which no hook sees.
 # It parses no commands beyond those text rules: the Cursor port's parsers each
 # had a hole (a quoted `;`), and the ref hook does not need this guard to read a
-# commit. It is a rail against an agent switching the gate off, not a sandbox.
+# commit. It is a rail against an agent switching the gate off, not a sandbox:
+# shell quoting or globbing (`core.hooks""Path`, `rm .git/hook[s]/*`), deleting
+# .claude/plan-progress.json (no plan in flight, nothing gated — and the executor
+# deletes it legitimately at close-out) and the Write/Edit tools all get past it.
+# What it buys is that the gate is never switched off by an ordinary command.
 #
 # IT FAILS OPEN on its own errors: a payload it cannot read, a git it cannot run.
 set -uo pipefail
@@ -86,13 +90,19 @@ for s in starts:
 
 
 def opted_in(repo):
-    """Our shim is the repo's reference-transaction hook (the marker is enough:
-    an altered shim is still a repo that opted in)."""
+    """Our shim is the repo's reference-transaction hook, in a hooks directory the
+    repo owns — the installer's own tests: its second line (an altered shim is still
+    a repo that opted in), and not a shared core.hooksPath, which it refuses."""
     try:
         hooks = git(repo, "rev-parse", "--git-path", "hooks").stdout.strip()
-        hook = (Path(hooks) if os.path.isabs(hooks) else repo / hooks) / HOOK_NAME
-        with open(hook, errors="replace") as fh:
-            return MARK in fh.read(4096)
+        hd = Path(hooks) if os.path.isabs(hooks) else repo / hooks
+        common = git(repo, "rev-parse", "--git-common-dir").stdout.strip()
+        common = Path(common) if os.path.isabs(common) else repo / common
+        if not any(hd.resolve().is_relative_to(b.resolve()) for b in (repo, common)):
+            return False
+        with open(hd / HOOK_NAME, errors="replace") as fh:
+            lines = fh.read(4096).splitlines()
+        return len(lines) > 1 and lines[1].startswith(f"# {MARK} — installed by")
     except Exception:
         return False
 

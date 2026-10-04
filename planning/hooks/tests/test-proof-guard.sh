@@ -101,6 +101,14 @@ printf '#!/bin/sh\nexit 0\n' > "$FOREIGN/.git/hooks/reference-transaction"
 got="$(payload 'rm .git/hooks/reference-transaction' "$FOREIGN" | decide)"
 if [ "$got" = none ]; then ok "a foreign reference-transaction hook is not our opt-in"
 else bad "someone else's hook must not opt the repo in, got $got"; fi
+# Catches: a shim in a hooks directory outside the repo (a shared core.hooksPath)
+# counted as this repo's opt-in (Stage 3 review I2).
+SHR="$T/shared"; mkrepo "$SHR" plan; mkdir -p "$T/sharedhooks"
+cp "$REPO/.git/hooks/reference-transaction" "$T/sharedhooks/"
+git -C "$SHR" config core.hooksPath "$T/sharedhooks"
+got="$(payload 'git -c core.hooksPath=/x commit -m x' "$SHR" | decide)"
+if [ "$got" = none ]; then ok "our shim in a shared hooks directory outside the repo is not an opt-in"
+else bad "a shared hooks directory must not opt a repo in, got $got"; fi
 got="$(payload 'git -c core.hooksPath=/x commit -m x' "$T" | decide)"
 if [ "$got" = none ]; then ok "outside any repo: no decision"
 else bad "outside a repo must see no decision, got $got"; fi

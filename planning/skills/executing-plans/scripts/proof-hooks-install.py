@@ -16,7 +16,9 @@ the gate on by default.)
 
 WHERE THE SHIM GOES. `git rev-parse --git-path hooks`, which honours
 core.hooksPath and linked worktrees — the directory git will actually run from.
-The shim execs the hook by absolute path, so it follows the plugin copy that
+A hooks directory outside the repo (a global or shared core.hooksPath) is
+refused: a shim there would opt in every repo that uses it. The shim execs the
+hook by absolute path, so it follows the plugin copy that
 installed it. When that copy is gone (a plugin update can move it), the shim lets
 every update through and SAYS the gate is off on each one, rather than blocking
 every ref update in the repo or going quiet; `--status` reports it and re-running
@@ -82,14 +84,36 @@ def repo_hook(repo):
     hooks = subprocess.run(["git", "-C", str(r), "rev-parse", "--git-path", "hooks"],
                            capture_output=True, text=True).stdout.strip()
     hd = Path(hooks) if os.path.isabs(hooks) else r / hooks
-    return Path(top.stdout.strip()), hd, hd / HOOK_NAME
+    top = Path(top.stdout.strip())
+    common = subprocess.run(["git", "-C", str(r), "rev-parse", "--git-common-dir"],
+                            capture_output=True, text=True).stdout.strip()
+    common = Path(common) if os.path.isabs(common) else r / common
+    if not any(within(hd, base) for base in (top, common)):
+        die(f"{hd}, git's hooks directory for {top}, is outside the repo (a shared or "
+            "global core.hooksPath); a shim there would opt in every repo that uses it. "
+            "Refusing. Give this repo its own core.hooksPath, then re-run.")
+    return top, hd, hd / HOOK_NAME
+
+
+def within(path, base):
+    try:
+        Path(path).resolve().relative_to(Path(base).resolve())
+        return True
+    except ValueError:
+        return False
+
+
+SHIM_LINE2 = f"# {SHIM_MARK} — installed by proof-hooks-install.py"
 
 
 def shim_is_ours(hook):
+    """Our shim's own second line — not the marker anywhere, which a foreign hook
+    that merely mentions the gate would match, and be overwritten or deleted."""
     try:
-        return SHIM_MARK in hook.read_text(errors="replace")[:4096]
+        lines = hook.read_text(errors="replace")[:4096].splitlines()
     except OSError:
         return False
+    return len(lines) > 1 and lines[1].startswith(SHIM_LINE2)
 
 
 def shim_is_current(hook):
@@ -162,7 +186,10 @@ def remove(repo):
 
 def main():
     _warn_if_stale()
+    # allow_abbrev=False: `--rem` would otherwise run --remove past the PreToolUse
+    # guard, which matches the full flag.
     ap = argparse.ArgumentParser(
+        allow_abbrev=False,
         description="Opt one project repo into the proof-record commit gate "
                     "(a git reference-transaction hook).")
     g = ap.add_mutually_exclusive_group(required=True)

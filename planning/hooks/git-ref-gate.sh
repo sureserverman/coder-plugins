@@ -19,8 +19,10 @@
 # hook parses no commands: it reads the finished COMMIT.
 #
 # WHAT IT DOES. In the `prepared` phase, for each commit that an update of HEAD or
-# refs/heads/* adds (reachable from the new tip and from no branch yet), when the
-# commit's SUBJECT names a task of the plan in flight (.claude/plan-progress.json,
+# refs/heads/* adds (reachable from the new tip and from no local branch or
+# remote-tracking ref yet — a teammate's fetched commit is history to read, not
+# work being committed here), when the commit's SUBJECT names a task of the plan
+# in flight (.claude/plan-progress.json,
 # read with plan-continue.sh's hardening), it reads that commit's own proof records
 # and validates each against that commit's tree fingerprint, the record's path and
 # the plan's current wording. The claims a task must prove are upstream's claim
@@ -32,14 +34,22 @@
 # mandate): named on stderr, never refused. A file under proof/ that is not a
 # record is refused.
 #
-# IT FAILS OPEN on its own errors (no plan, unreadable state, git or import
-# failures) and says why on stderr. A record it cannot read is a problem with the
+# WHAT IT DOES NOT GATE. A commit whose subject names no task of the plan ("wip")
+# is not a task commit and is not checked; nor is a commit already reachable from
+# a remote-tracking ref, so one written there by hand (`update-ref refs/remotes/…`)
+# is exempt. The gate holds an agent to the plan's own commit convention; it is a
+# rail, not a sandbox.
+#
+# IT FAILS OPEN on its own errors (no python3, no plan, unreadable state, git or
+# import failures, any uncaught exception) and says why on stderr. A record it cannot read is a problem with the
 # record, not an error of the hook: it refuses. There is deliberately NO
 # environment escape — the committing command's environment is the agent's.
 # Rebasing or cherry-picking a task commit onto a new tree is refused until it is
 # re-proven: its records were bound to the old tree.
 set -uo pipefail
 [[ "${1:-}" == "prepared" ]] || exit 0
+command -v python3 >/dev/null 2>&1 || {
+    echo "commit gate: python3 not found — not checked; allowing" >&2; exit 0; }
 HOOK_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" 2>/dev/null && pwd)"
 UPDATES="$(cat)"
 COMMIT_GATE_SCRIPTS="${HOOK_DIR:-}/../skills/executing-plans/scripts" \
@@ -54,6 +64,16 @@ def allow(note=None):
     if note:
         sys.stderr.write(f"commit gate: {note}\n")
     sys.exit(0)
+
+
+def _fail_open(kind, exc, _tb):
+    # An uncaught exception would exit 1, which git reads as a refusal.
+    sys.stderr.write(f"commit gate: internal error ({kind.__name__}: {exc}); allowing\n")
+    sys.stderr.flush()
+    os._exit(0)
+
+
+sys.excepthook = _fail_open
 
 
 def refuse(text):
@@ -114,7 +134,9 @@ if not tips:
     allow()
 added = []
 for tip in sorted(tips):
-    r = git("rev-list", "--max-count=200", tip, "--not", "--branches")
+    r = git("rev-list", "--max-count=200", tip, "--not", "--branches", "--remotes")
+    if len(r.stdout.split()) >= 200:
+        sys.stderr.write("commit gate: over 200 commits added; only the newest 200 checked\n")
     for sha in r.stdout.split():
         if sha not in added:
             added.append(sha)

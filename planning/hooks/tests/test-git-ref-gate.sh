@@ -297,6 +297,45 @@ if [ $rc -eq 0 ] && [ "$(head_of)" != "$h" ]; then
     ok "only the commits being added are checked, not the branch's history"
 else bad "history already on a branch must not block a proven commit (rc=$rc)" "$err"; fi
 
+
+echo
+echo "it must not block reading someone else's history (Stage 3 review I3)"
+# Catches: every commit not on a LOCAL branch treated as one being added. A
+# teammate's task commit, fetched, must be checkable-out and fast-forwardable.
+TEAM="$T/team"; git clone -q --template= "$REPO" "$TEAM"
+printf '# teammate\n' >> "$TEAM/calc.py"; git -C "$TEAM" commit -q -am "Stage 1 Task 1.1: teammate"
+git -C "$REPO" fetch -q "$TEAM" main:refs/remotes/team/main 2>"$T/f.err" || bad "fixture: fetch failed" "$(cat "$T/f.err")"
+h=$(head_of)
+try_commit 'git checkout -q --detach team/main'
+if [ $rc -eq 0 ]; then ok "checking out a fetched task commit is not refused"
+else bad "a fetched commit must be checkable-out (rc=$rc)" "$err"; fi
+try_commit 'git checkout -q main && git merge -q --ff-only team/main'
+if [ $rc -eq 0 ] && [ "$(head_of)" != "$h" ]; then ok "fast-forwarding to fetched task commits is not refused"
+else bad "a fast-forward to fetched commits must land (rc=$rc)" "$err"; fi
+
+echo
+echo "it fails open on its own errors (Stage 3 review I4)"
+# Catches: a missing python3 aborting every ref update in an opted-in repo.
+NOPY="$T/nopy"; mkdir -p "$NOPY"
+for b in git bash sh cat readlink dirname env; do ln -s "$(command -v $b)" "$NOPY/$b"; done
+change
+( cd "$REPO" && PATH="$NOPY" git commit -q -m "Stage 1 Task 1.1: no python" ) >/dev/null 2>"$T/np.err"; rc=$?
+if [ $rc -eq 0 ] && grep -q 'python3' "$T/np.err"; then ok "no python3: the update goes through, saying why"
+else bad "a missing python3 must fail open with a note (rc=$rc)" "$(cat "$T/np.err")"; fi
+# Catches: an uncaught exception in the hook's own code refusing the update. The
+# git on PATH vanishes after its first use and PATH holds no other, so the next
+# call raises.
+FAKE="$T/fakegit"; mkdir -p "$FAKE"
+for b in python3 bash cat readlink dirname; do ln -s "$(command -v $b)" "$FAKE/$b"; done
+printf '#!/bin/sh\n%s -f "%s/git"\nexec %s "$@"\n' "$(command -v rm)" "$FAKE" "$(command -v git)" > "$FAKE/git"; chmod +x "$FAKE/git"
+change
+c=$(git -C "$REPO" commit-tree "$(git -C "$REPO" write-tree)" -p HEAD -m "Stage 1 Task 1.1: crash")
+( cd "$REPO" && printf '%s %s refs/heads/main\n' "$(git rev-parse HEAD)" "$c" \
+    | PATH="$FAKE" bash "$GIT_HOOK" prepared ) >/dev/null 2>"$T/x.err"; rc=$?
+if [ $rc -eq 0 ] && grep -q 'commit gate:.*allowing' "$T/x.err"; then ok "an internal error fails open, saying why"
+else bad "an uncaught error must fail open (rc=$rc)" "$(cat "$T/x.err")"; fi
+git -C "$REPO" reset -q
+
 echo
 echo "opt-in: a project without the shim is not gated"
 # Catches: the gate reaching a project that never opted in. The plugin's hook file
@@ -353,6 +392,31 @@ python3 "$INSTALL" --remove --repo "$F" >/dev/null 2>&1
 if cmp -s "$F/.git/hooks/reference-transaction" "$T/foreign.orig"; then
     ok "--remove leaves a foreign hook alone"
 else bad "--remove must remove only its own shim"; fi
+
+# Catches: argparse prefix abbreviation — `--rem` ran --remove past the guard's
+# text rule (Stage 3 review I1). Only the full flags are accepted.
+python3 "$INSTALL" --rem --repo "$REPO" >"$T/s.out" 2>&1; rc=$?
+if [ $rc -ne 0 ] && [ -x "$SHIM" ]; then ok "an abbreviated flag (--rem) is refused; the shim stays"
+else bad "--rem must not act as --remove (rc=$rc)" "$(cat "$T/s.out")"; fi
+
+# Catches: a foreign hook taken for ours because it mentions the marker (review S3).
+F2="$T/foreign2"; mkrepo "$F2"; mkdir -p "$F2/.git/hooks"
+printf '#!/bin/sh\n# chains the planning commit gate after its own checks\nexit 0\n' > "$F2/.git/hooks/reference-transaction"
+cp "$F2/.git/hooks/reference-transaction" "$T/foreign2.orig"
+python3 "$INSTALL" --install --repo "$F2" >"$T/s.out" 2>&1; rc=$?
+python3 "$INSTALL" --remove --repo "$F2" >>"$T/s.out" 2>&1
+if [ $rc -ne 0 ] && cmp -s "$F2/.git/hooks/reference-transaction" "$T/foreign2.orig"; then
+    ok "a foreign hook that merely mentions the marker is not ours"
+else bad "the marker must identify only our shim (rc=$rc)" "$(cat "$T/s.out")"; fi
+
+# Catches: a hooks directory shared by other repos (a global core.hooksPath) —
+# installing there opts in every repo that uses it (Stage 3 review I2).
+SH="$T/shared-hooks"; mkdir -p "$SH"
+SA="$T/sa"; mkrepo "$SA"; git -C "$SA" config core.hooksPath "$SH"
+python3 "$INSTALL" --install --repo "$SA" >"$T/s.out" 2>&1; rc=$?
+if [ $rc -ne 0 ] && [ ! -e "$SH/reference-transaction" ] && grep -q 'outside' "$T/s.out"; then
+    ok "a hooks directory outside the repo is refused, nothing written"
+else bad "a shared hooks directory must be refused (rc=$rc)" "$(cat "$T/s.out")"; fi
 
 # core.hooksPath and linked worktrees: the shim goes where git will look.
 HP="$T/hookspath"; mkrepo "$HP"; git -C "$HP" config core.hooksPath .githooks
