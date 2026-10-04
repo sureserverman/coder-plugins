@@ -7,6 +7,8 @@ name: validate-proof-tools
 # so their suites are mutation-graded — the battery that proves it
 # (tests/battery-proof-tools.py) runs at stage gates, not here: it runs a suite
 # once per guard. The two tools import each other, so either changing runs both.
+# The opt-in commit gate (hooks/git-ref-gate.sh, its installer and the PreToolUse
+# guard hooks/proof-guard.sh) loads prove-claim.py, so its suites run here too.
 
 on:
   push:
@@ -15,7 +17,13 @@ on:
       - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
       - 'planning/skills/executing-plans/tests/test-prove-claim.py'
       - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/scripts/proof-hooks-install.py'
       - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
+      - 'planning/hooks/git-ref-gate.sh'
+      - 'planning/hooks/proof-guard.sh'
+      - 'planning/hooks/hooks.json'
+      - 'planning/hooks/tests/test-git-ref-gate.sh'
+      - 'planning/hooks/tests/test-proof-guard.sh'
       - '.github/workflows/validate-proof-tools.yml'
   pull_request:
     paths:
@@ -23,7 +31,13 @@ on:
       - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
       - 'planning/skills/executing-plans/tests/test-prove-claim.py'
       - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/scripts/proof-hooks-install.py'
       - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
+      - 'planning/hooks/git-ref-gate.sh'
+      - 'planning/hooks/proof-guard.sh'
+      - 'planning/hooks/hooks.json'
+      - 'planning/hooks/tests/test-git-ref-gate.sh'
+      - 'planning/hooks/tests/test-proof-guard.sh'
       - '.github/workflows/validate-proof-tools.yml'
   workflow_dispatch:
 
@@ -44,5 +58,9 @@ jobs:
         run: |
           python3 planning/skills/executing-plans/tests/test-plan-flip-audit.py
           python3 planning/skills/executing-plans/tests/test-prove-claim.py
+      - name: Run the commit-gate suites (git hook, installer, PreToolUse guard)
+        run: |
+          bash planning/hooks/tests/test-git-ref-gate.sh
+          bash planning/hooks/tests/test-proof-guard.sh
       - name: Battery anchors still match (no mutation is run here)
         run: python3 planning/skills/executing-plans/tests/battery-proof-tools.py --anchors-only

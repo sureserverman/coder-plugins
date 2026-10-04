@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Mutation battery for the proof tools: plan-flip-audit.py and prove-claim.py.
+"""Mutation battery for the proof tools: plan-flip-audit.py and prove-claim.py,
+and the opt-in commit gate: hooks/git-ref-gate.sh, hooks/proof-guard.sh and
+proof-hooks-install.py.
 
     python3 planning/skills/executing-plans/tests/battery-proof-tools.py [-j N] [--anchors-only]
 
-Run it at a stage gate after ANY change to either tool — never inside a task.
+Run it at a stage gate after ANY change to one of them — never inside a task.
 Deliberately not named `test-*`, so `scripts/run-tests.sh` (DEC-006) does not
 discover it.
 
@@ -35,7 +37,8 @@ Green suites were not evidence in any of those cases. This is.
 Each entry weakens ONE guard. A guard is PINNED if the suite goes red; a
 SURVIVOR means the suite would stay green with that protection deleted.
 
-EACH MUTATION RUNS IN ITS OWN COPY of this skill directory, never in the
+EACH MUTATION RUNS IN ITS OWN COPY of the plugin's executing-plans skill and
+hooks directory (the layout the scripts find each other by), never in the
 repo. The Cursor original mutated the tracked scripts in place, so it had to
 run serially (121 suite runs, ~25 min) and a killed run left a weakened fraud
 detector in the working tree — found there twice. A copy per mutation makes
@@ -45,6 +48,7 @@ interrupted battery leaves nothing behind but temporary directories.
 import argparse
 import os
 import py_compile
+import re
 import shutil
 import subprocess
 import sys
@@ -52,9 +56,14 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[1]
-PY_S, PY_T = "scripts/plan-flip-audit.py", "tests/test-plan-flip-audit.py"
-PC_S, PC_T = "scripts/prove-claim.py", "tests/test-prove-claim.py"
+PLUGIN = Path(__file__).resolve().parents[3]   # planning/
+EP = "skills/executing-plans"
+PY_S, PY_T = f"{EP}/scripts/plan-flip-audit.py", f"{EP}/tests/test-plan-flip-audit.py"
+PC_S, PC_T = f"{EP}/scripts/prove-claim.py", f"{EP}/tests/test-prove-claim.py"
+PI_S = f"{EP}/scripts/proof-hooks-install.py"
+GR_S, GR_T = "hooks/git-ref-gate.sh", "hooks/tests/test-git-ref-gate.sh"
+PG_S, PG_T = "hooks/proof-guard.sh", "hooks/tests/test-proof-guard.sh"
+SUITES = [PY_T, PC_T, GR_T, PG_T]
 
 M = [
  # (label, target, old, new)
@@ -430,11 +439,139 @@ M = [
  ('replay: a claim deviation counted as a failed replay', PC_S,
   '        if isinstance(rec, dict) and rec.get("kind") == "claim-deviation":',
   '        if False:'),
+ # ---- hooks/git-ref-gate.sh: the opt-in commit gate (Task 3.1)
+ ('ref gate: acts in the committed phase, where a refusal aborts nothing', GR_S,
+  '[[ "${1:-}" == "prepared" ]] || exit 0',
+  '[[ "${1:-}" == "committed" ]] || exit 0'),
+ ('ref gate: a symlinked plan-progress.json trusted', GR_S,
+  'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK',
+  'os.O_RDONLY | os.O_NONBLOCK'),
+ ('ref gate: HEAD updates ignored (a detached HEAD commit lands)', GR_S,
+  'not (ref == "HEAD" or ref.startswith("refs/heads/"))',
+  'not ref.startswith("refs/heads/")'),
+ ('ref gate: commits already on a branch re-checked (old history blocks new work)', GR_S,
+  'tip, "--not", "--branches")',
+  'tip)'),
+ ('ref gate: records read from the index, not the commit', GR_S,
+  'r = git("show", f"{sha}:{rel}")',
+  'r = git("show", f":{rel}")'),
+ ('ref gate: the task read from the whole message, not the subject', GR_S,
+  'git("log", "-1", "--format=%s", sha)',
+  'git("log", "-1", "--format=%B", sha)'),
+ ('ref gate: stray files under proof/ allowed', GR_S,
+  'if p and not pc.RECORD_PATH.match(p):',
+  'if False:'),
+ ('ref gate: named-break claims not required (first claim only)', GR_S,
+  '                if k in required:',
+  '                if k == 1:'),
+ ('ref gate: every claim required (the Cursor rule, not upstream)', GR_S,
+  '                if k in required:',
+  '                if True:'),
+ ('ref gate: a present record validated only when required', GR_S,
+  '            if probs:\n                missing.append(f"{short} Task {t} claim {k}: {probs[0]}")',
+  '            if probs and k in required:\n                missing.append(f"{short} Task {t} claim {k}: {probs[0]}")'),
+ ('ref gate: a record not bound to the commit tree', GR_S,
+  'problems_of(rec, fp, ("claim", t, k, c))',
+  'problems_of(rec, None, ("claim", t, k, c))'),
+ ('ref gate: a record not bound to the plan wording', GR_S,
+  '("claim", t, k, c))',
+  '("claim", t, k, None))'),
+ ('ref gate: a claim deviation counted as proof', GR_S,
+  '            elif rec.get("kind") == "claim-deviation":',
+  '            elif False:'),
+ ('ref gate: covered-by not followed to a real proof', GR_S,
+  'if probs.get("req") == [] and cites is not None and not proven.get(cites):',
+  'if False:'),
+ ('ref gate: deviations not named at commit time', GR_S,
+  '    if deviations:\n        sys.stderr.write',
+  '    if False:\n        sys.stderr.write'),
+ ('ref gate: unaccounted requirements not named (finding 9 silent)', GR_S,
+  '    if advisory:',
+  '    if False:'),
+ ('ref gate: a refusal exits 0', GR_S,
+  '    sys.stderr.write(text.rstrip() + "\\n")\n    sys.exit(1)',
+  '    sys.stderr.write(text.rstrip() + "\\n")\n    sys.exit(0)'),
+ # ---- proof-hooks-install.py (Task 3.1)
+ ('installer: a foreign reference-transaction hook replaced', PI_S,
+  '        if not shim_is_ours(hook):\n            die(',
+  '        if False:\n            die('),
+ ('installer: --remove deletes a foreign hook', PI_S,
+  '    if not shim_is_ours(hook):\n        print(f"nothing to remove',
+  '    if False:\n        print(f"nothing to remove'),
+ ('installer: a shim without its exec bit counts as installed', PI_S,
+  'return os.access(hook, os.X_OK) and hook.read_text(errors="replace") == shim_text()',
+  'return hook.read_text(errors="replace") == shim_text()'),
+ ('installer: an edited shim counts as installed', PI_S,
+  'return os.access(hook, os.X_OK) and hook.read_text(errors="replace") == shim_text()',
+  'return os.access(hook, os.X_OK)'),
+ ('installer: core.hooksPath ignored', PI_S,
+  'hd = Path(hooks) if os.path.isabs(hooks) else r / hooks',
+  'hd = r / ".git" / "hooks"'),
+ ('installer: the shim is written without its exec bit', PI_S,
+  'os.chmod(tmp, 0o755)',
+  'os.chmod(tmp, 0o644)'),
+ ('installer: a dangling shim fails open in silence', PI_S,
+  'is missing — the commit gate is OFF;',
+  'is missing;'),
+ ('installer: re-install rewrites a current shim', PI_S,
+  '        if shim_is_current(hook):\n            print(f"already installed',
+  '        if False:\n            print(f"already installed'),
+ ('installer: a non-repo accepted', PI_S,
+  '    if top.returncode != 0:\n        die(f"{r} is not a git work tree")',
+  '    if False:\n        die(f"{r} is not a git work tree")'),
+ ('installer: --status reports a missing shim as installed', PI_S,
+  '        print(f"not installed — no {HOOK_NAME} hook in {top}")\n    return 1',
+  '        print(f"not installed — no {HOOK_NAME} hook in {top}")\n    return 0'),
+ # ---- hooks/proof-guard.sh: the PreToolUse guard (Task 3.2)
+ ('guard: the hooksPath rule off', PG_S,
+  'if re.search(r"hookspath", command, re.I):',
+  'if False:'),
+ ('guard: hooksPath matched case-sensitively', PG_S,
+  'command, re.I):',
+  'command):'),
+ ('guard: the hook-file rule off', PG_S,
+  'if re.search(rf"{HOOK_NAME}|\\.git/hooks", command):',
+  'if False:'),
+ ('guard: the installer --remove rule off', PG_S,
+  'if inst in command and re.search(r"--remove\\b", command):',
+  'if False:'),
+ ('guard: acts without opt-in', PG_S,
+  'gated = [r for r in repos if opted_in(r) and in_flight(r)]',
+  'gated = [r for r in repos if in_flight(r)]'),
+ ('guard: acts with no plan in flight', PG_S,
+  'gated = [r for r in repos if opted_in(r) and in_flight(r)]',
+  'gated = [r for r in repos if opted_in(r)]'),
+ ('guard: any reference-transaction hook counts as our opt-in', PG_S,
+  '            return MARK in fh.read(4096)',
+  '            return True'),
+ ('guard: a symlinked plan-progress.json trusted', PG_S,
+  'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK',
+  'os.O_RDONLY | os.O_NONBLOCK'),
+ ('guard: a repo reached by cd not considered', PG_S,
+  're.findall(r"\\bcd\\s+(',
+  're.findall(r"\\bcdXX\\s+('),
+ ('guard: a repo reached by git -C not considered', PG_S,
+  're.findall(r"\\bgit\\s+-C\\s+(',
+  're.findall(r"\\bgitXX\\s+-C\\s+('),
+ ('guard: the pre-filter drops hooksPath', PG_S,
+  "grep -qiE 'hookspath|reference-transaction|",
+  "grep -qiE 'reference-transaction|"),
+ ('guard: the pre-filter drops the hook file', PG_S,
+  "grep -qiE 'hookspath|reference-transaction|",
+  "grep -qiE 'hookspath|"),
+ ('guard: an unreadable payload denied (fails closed)', PG_S,
+  '    none("payload is not JSON")',
+  '    deny("payload is not JSON")'),
+ ('guard: the decision is "ask", not "deny"', PG_S,
+  '"permissionDecision": "deny"',
+  '"permissionDecision": "ask"'),
 ]
 
 
 def suites_for(target):
-    return {PY_S: [PY_T], PC_S: [PC_T]}[target]
+    # The installer's suite is the git hook's: one fixture installs the shim the
+    # hook runs from.
+    return {PY_S: [PY_T], PC_S: [PC_T], GR_S: [GR_T], PI_S: [GR_T], PG_S: [PG_T]}[target]
 
 
 SUITE_TIMEOUT = 900   # seconds; the slowest suite takes ~20 s alone
@@ -442,8 +579,9 @@ SUITE_TIMEOUT = 900   # seconds; the slowest suite takes ~20 s alone
 
 def run(root, suite):
     """(exit code, stdout) of one suite run; exit None on a timeout."""
+    cmd = ["bash"] if suite.endswith(".sh") else [sys.executable]
     try:
-        r = subprocess.run([sys.executable, str(root / suite)], capture_output=True,
+        r = subprocess.run(cmd + [str(root / suite)], capture_output=True,
                            text=True, timeout=SUITE_TIMEOUT)
     except subprocess.TimeoutExpired:
         return None, ""
@@ -451,10 +589,36 @@ def run(root, suite):
 
 
 def copy_skill():
-    """A private copy of the skill directory; the suites find the scripts beside them."""
+    """A private copy of the plugin's executing-plans skill and hooks directory,
+    at d/planning: the suites find the scripts and hooks where the plugin has them."""
     d = Path(tempfile.mkdtemp(prefix="battery-proof-tools-"))
-    shutil.copytree(SKILL, d / "skill", ignore=shutil.ignore_patterns("__pycache__"))
+    ignore = shutil.ignore_patterns("__pycache__", "mod", "node_modules")
+    shutil.copytree(PLUGIN / EP, d / "planning" / EP, ignore=ignore)
+    shutil.copytree(PLUGIN / "hooks", d / "planning" / "hooks", ignore=ignore)
     return d
+
+
+HEREDOC_PY = re.compile(r"<<'PY'\n(.*?)\nPY\n", re.S)
+
+
+def unparseable(f):
+    """Why the mutated file would not even run, or None. A shell hook is checked
+    with `bash -n` AND its embedded Python compiled: a hook that crashes fails
+    open, so its suite would go red having measured nothing about the guard."""
+    if f.suffix == ".py":
+        try:
+            py_compile.compile(str(f), cfile=str(f.parent / ".check.pyc"), doraise=True)
+        except py_compile.PyCompileError:
+            return "the mutation leaves the script unparseable"
+        return None
+    if subprocess.run(["bash", "-n", str(f)], capture_output=True).returncode != 0:
+        return "the mutation leaves the hook's shell unparseable"
+    for body in HEREDOC_PY.findall(f.read_text()):
+        try:
+            compile(body, str(f), "exec")
+        except SyntaxError:
+            return "the mutation leaves the hook's Python unparseable"
+    return None
 
 
 def trial(entry):
@@ -469,14 +633,13 @@ def trial(entry):
     d = None
     try:
         d = copy_skill()
-        f = d / "skill" / target
+        f = d / "planning" / target
         f.write_text(f.read_text().replace(old, new))
-        try:
-            py_compile.compile(str(f), cfile=str(d / "check.pyc"), doraise=True)
-        except py_compile.PyCompileError:
-            return label, "ERROR", "the mutation leaves the script unparseable"
+        why = unparseable(f)
+        if why:
+            return label, "ERROR", why
         for s in suites_for(target):
-            rc, out = run(d / "skill", s)
+            rc, out = run(d / "planning", s)
             if rc is None:
                 return label, "ERROR", f"{s} timed out after {SUITE_TIMEOUT}s"
             if rc != 0:
@@ -503,7 +666,7 @@ def main():
     # outcome anyway; finding it first costs a second rather than a battery.
     # An anchor at several sites is mutated at ALL of them: a guard emitted in
     # two places is only pinned if BOTH are covered.
-    gone = [label for label, target, old, _new in M if (SKILL / target).read_text().count(old) == 0]
+    gone = [label for label, target, old, _new in M if (PLUGIN / target).read_text().count(old) == 0]
     if gone:
         for label in gone:
             print(f"  SKIP     {label}  (anchor missing)")
@@ -517,7 +680,7 @@ def main():
     print("control: suites must be green before mutating")
     d = copy_skill()
     try:
-        red = [s for s in (PY_T, PC_T) if run(d / "skill", s)[0] != 0]
+        red = [s for s in SUITES if run(d / "planning", s)[0] != 0]
     finally:
         shutil.rmtree(d, ignore_errors=True)
     if red:

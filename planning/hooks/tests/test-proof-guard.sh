@@ -61,6 +61,7 @@ echo
 for c in 'git -c core.hooksPath=/dev/null commit -m x' 'git config core.HOOKSPATH /tmp/none' \
          'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit -m x' \
          'rm .git/hooks/reference-transaction' 'chmod -x .git/hooks/reference-transaction' \
+         'cd .git && rm hooks/reference-transaction' \
          "python3 $INSTALL --remove --repo $REPO"; do
     got="$(payload "$c" | decide)"
     if [ "$got" = deny ]; then ok "denied: ${c:0:70}"

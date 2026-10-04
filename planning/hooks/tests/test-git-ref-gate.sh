@@ -289,6 +289,13 @@ try_commit 'git commit -q -m "Stage 1 Task 1.1: symlinked state"'
 if [ $rc -eq 0 ]; then ok "a symlinked plan-progress.json is not trusted as a plan in flight"
 else bad "symlinked state must not gate (rc=$rc)" "$err"; fi
 rm "$REPO/.claude/plan-progress.json"; mv "$T/pp.json" "$REPO/.claude/plan-progress.json"
+# Catches: commits already on a branch re-checked. Two unproven task commits landed
+# above while no plan was in flight; a proven one now must not answer for them.
+change; prove && git -C "$REPO" add proof; h=$(head_of)
+try_commit 'git commit -q -m "Stage 1 Task 1.1: proven, after unproven history"'
+if [ $rc -eq 0 ] && [ "$(head_of)" != "$h" ]; then
+    ok "only the commits being added are checked, not the branch's history"
+else bad "history already on a branch must not block a proven commit (rc=$rc)" "$err"; fi
 
 echo
 echo "opt-in: a project without the shim is not gated"
