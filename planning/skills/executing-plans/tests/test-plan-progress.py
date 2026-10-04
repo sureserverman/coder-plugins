@@ -79,7 +79,148 @@ def run(cwd_value, extra_stdin=None):
     r = subprocess.run(
         [sys.executable, str(SCRIPT)], input=stdin, capture_output=True, text=True
     )
-    return r, ANSI_RE.sub("", r.stdout)
+    plain_out = ANSI_RE.sub("", r.stdout)
+    # Every fixture state the suite renders through the CLI is also rendered
+    # through `--json` with the SAME stdin, and the two must agree group for
+    # line. A stdin the text mode cannot parse is a crash in --json mode by
+    # design (exit 2), so parity is asserted only where the text mode had a
+    # valid statusline payload to read.
+    if _stdin_is_payload(stdin):
+        rj = subprocess.run([sys.executable, str(SCRIPT), "--json"],
+                            input=stdin, capture_output=True, text=True)
+        json_parity(plain_out.splitlines(), rj.stdout,
+                    f"cli {Path(str(cwd_value)).name}", rc=rj.returncode)
+    return r, plain_out
+
+
+def _stdin_is_payload(stdin):
+    try:
+        return isinstance(json.loads(stdin), dict) if stdin.strip() else True
+    except ValueError:
+        return False
+
+
+TREE_GLYPHS = ("├─ ", "└─ ")
+
+
+def text_line_fields(line):
+    """(shown_name, done, total, is_child) from one ANSI-stripped bar line.
+
+    `shown_name` is the name column with its alignment padding removed. A
+    0-total plan renders no bar, so its name cannot be cut out of the rest of
+    the line; done/total are None then and shown_name is the whole remainder.
+    """
+    child = line.startswith(TREE_GLYPHS)
+    body = line[3:] if child else line
+    if not body.startswith("⚙ "):
+        return None
+    body = body[2:]
+    if " ▐" in body:
+        name, rest = body.split(" ▐", 1)
+        m = re.search(r"▌ (\d+)/(\d+) \(", rest)
+        if not m:
+            return None
+        return name.rstrip(), int(m.group(1)), int(m.group(2)), child
+    return body, None, None, child
+
+
+def name_agrees(shown, full, has_bar):
+    """Whether the text's name column displays the JSON's full name.
+
+    The text clips to a width and ends the cut in `…`; the JSON never clips.
+    So: equal, or the shown text is a strict `…`-terminated prefix of it.
+    """
+    if has_bar:
+        return shown == full or (shown.endswith("…") and len(full) >= len(shown)
+                                 and full.startswith(shown[:-1]))
+    if shown.startswith(full):
+        return True
+    cut = shown.find("…")
+    return cut >= 0 and full.startswith(shown[:cut]) and len(full) > cut
+
+
+def marker_disagreements(i, line, g):
+    """Each text marker shows EXACTLY when its JSON field says it does.
+
+    Both directions, so a field hard-coded to its quiet value fails on every
+    fixture that renders the marker, and one stuck on fails everywhere else.
+    """
+    out = []
+    m = re.search(r"⚠ status lag (\d+)", line)
+    shown = int(m.group(1)) if m else None
+    if shown != g.get("status_lag"):
+        out.append(f"line {i} status lag text={shown} vs json {g.get('status_lag')!r}")
+    for text, key in (("⚠ not in plan", "task_not_in_plan"),
+                      ("⊘ STAGE ORDER", "stage_order"),
+                      ("⊘ GATE BLOCKED", "gate_blocked")):
+        if (text in line) != (g.get(key) is True):
+            out.append(f"line {i} {text!r} shown={text in line} vs json {key}={g.get(key)!r}")
+    return out
+
+
+JSON_PARITY_RUNS = []
+
+
+def json_parity(lines, json_text, where, rc=0):
+    """--json must parse, carry one group per text line, and agree with each
+    line on name / done / total. One check per rendered fixture state."""
+    JSON_PARITY_RUNS.append(where)
+    problems = []
+    try:
+        doc = json.loads(json_text)
+    except (TypeError, ValueError) as e:
+        doc = None
+        problems.append(f"does not parse ({e}; rc={rc}; out={json_text[:80]!r})")
+    groups = doc.get("groups") if isinstance(doc, dict) else None
+    if doc is not None and not isinstance(groups, list):
+        problems.append(f"no groups[] list ({json_text[:80]!r})")
+    if isinstance(groups, list):
+        if "detail" not in doc:
+            problems.append("no `detail` key")
+        if len(groups) != len(lines):
+            problems.append(f"{len(groups)} groups vs {len(lines)} text lines")
+        for i, (ln, g) in enumerate(zip(lines, groups)):
+            f = text_line_fields(ln)
+            if f is None:
+                problems.append(f"line {i} unparseable: {ln!r}")
+                continue
+            shown, done, total, child = f
+            if not isinstance(g, dict):
+                problems.append(f"group {i} is not an object")
+                continue
+            if not name_agrees(shown, g.get("name"), done is not None):
+                problems.append(f"line {i} name {shown!r} vs json {g.get('name')!r}")
+            if done is None:
+                if (g.get("done"), g.get("total")) != (0, 0):
+                    problems.append(f"line {i} has no bar but json reads "
+                                    f"{g.get('done')}/{g.get('total')}")
+            elif (g.get("done"), g.get("total")) != (done, total):
+                problems.append(f"line {i} {done}/{total} vs json "
+                                f"{g.get('done')}/{g.get('total')}")
+            if child != (g.get("depth") == 1):
+                problems.append(f"line {i} tree glyph={child} vs json depth {g.get('depth')}")
+            problems.extend(marker_disagreements(i, ln, g))
+            # `tail` is what the line shows after its bar, as plain text: the band
+            # draws it verbatim, so it must be exactly the text's own suffix.
+            # A width-clipped line ("…") shows only part of it.
+            tail = g.get("tail")
+            if not isinstance(tail, str):
+                problems.append(f"line {i} has no string `tail` ({tail!r})")
+            else:
+                shown_line = ANSI_RE.sub("", ln).rstrip()
+                # A bar line ends its counts at "(NN%)" after the bar's closing ▌; the
+                # tail is everything after. Only the NAME is width-clipped, so a "…"
+                # in a clipped note or task_desc is still compared exactly.
+                after_bar = shown_line.split("▌", 1)[1] if "▌" in shown_line else ""
+                m = re.match(r"\s*\d+/\d+ \(\d+%\)(.*)$", after_bar)
+                if m is not None:
+                    if tail != m.group(1).strip():
+                        problems.append(f"line {i} tail {tail!r} != the text after its bar {m.group(1).strip()!r}")
+                elif "…" not in ln and not shown_line.endswith(tail):
+                    problems.append(f"line {i} tail {tail!r} is not the end of {shown_line!r}")
+    check(not problems,
+          f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
+          f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
 
 
 def write_state(root, **kw):
@@ -94,7 +235,35 @@ def load_module():
     spec = importlib.util.spec_from_file_location("plan_progress", SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    _wrap_render_with_json_parity(mod)
     return mod
+
+
+def _wrap_render_with_json_parity(mod):
+    """Every in-process render() the suite performs is paired with the JSON
+    the `--json` mode would print for the same cwd, under the same module
+    state (config paths, monkeypatches), and the two are checked for parity.
+
+    PLAN_READS is restored around the JSON pass so the read-budget cases keep
+    measuring the text render alone.
+    """
+    real = mod.render
+
+    def render(cwd):
+        lines = real(cwd)
+        saved = getattr(mod, "PLAN_READS", 0)
+        try:
+            out = mod.render_json(cwd)
+        except Exception as e:
+            out = f"<render_json raised {type(e).__name__}: {e}>"
+        finally:
+            mod.PLAN_READS = saved
+        json_parity([ANSI_RE.sub("", ln) for ln in lines], out,
+                    f"in-process {Path(str(cwd)).name}")
+        return lines
+
+    render.__wrapped__ = real
+    mod.render = render
 
 
 def write_yaml(path, text):
@@ -222,6 +391,10 @@ def case_resolver_never_breaks_the_bar():
     check(r.returncode == 0, "rc 0 with no portfolio config on the machine")
     check(r.stderr == "", "stderr stays clean")
     check("3/5" in out, "the state-file bar still renders")
+    rj = subprocess.run([sys.executable, str(SCRIPT), "--json"],
+                        input=json.dumps({"cwd": str(repo)}),
+                        capture_output=True, text=True, env=env)
+    json_parity(out.splitlines(), rj.stdout, "cli no-portfolio HOME", rc=rj.returncode)
     shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -1311,6 +1484,12 @@ def case_handoff_phase():
           f"a long reason is clipped like a blocked note ({len(out)} chars)")
     out = mod.phase_part({"phase": "handoff", "reason": "a\x1b[31mb"})
     check("\x1b[31m" not in out, "an ESC in the reason is stripped, not passed to the terminal")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\u009b31mb\u0085c"})
+    check("\u009b" not in out and "\u0085" not in out,
+          "a C1 control (U+009B, a one-byte CSI) in the reason is stripped too")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\u202eb\u200bc\u2066d\udc00e"})
+    check(not any(ch in out for ch in "\u202e\u200b\u2066\udc00") and "abcde" in out,
+          f"bidi, zero-width and lone surrogate characters are stripped too ({out!r})")
     out = mod.phase_part({"phase": "HANDOFF-ish", "reason": "context 52% > 50%"})
     check(out == "", f"an unknown phase still renders \"\" ({out!r})")
 
@@ -2162,6 +2341,14 @@ def case_dispatch_check():
     unauthorised downgrade, and only a non-zero exit stops a close-out.
     """
     print("Task 4.1 — --dispatch-check reconciles the roster against the ledger:")
+    # The roster item ends at the next list item of any kind, not only the next
+    # checkbox: a plain `- **Probe results:**` bullet after it that names another
+    # task must not join the roster (2026-10-03 planning-mods plan, close-out).
+    got = load_module().parse_roster("- [x] Dispatch roster — `3 of 15 tasks`: Task 1.1 → a, Task 3.1 →\n"
+                           "  b, Task 4.1 → c\n"
+                           "- **Probe results:** consequence for Task 3.2: none\n")
+    check(got == (3, ["1.1", "3.1", "4.1"]),
+          f"a plain bullet after the roster ends it; a wrapped line still joins it ({got})")
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-dispatch-"))
     env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
@@ -2465,6 +2652,195 @@ def case_palette_contrast():
     check(seen == 5, f"all 5 palette colours were measured (saw {seen})")
 
 
+def run_json(cwd_value, *extra, stdin=None, env=None):
+    stdin = stdin if stdin is not None else json.dumps({"cwd": str(cwd_value)})
+    return subprocess.run([sys.executable, str(SCRIPT), "--json", *extra],
+                          input=stdin, capture_output=True, text=True, env=env)
+
+
+def jdoc(r):
+    """The parsed `--json` object, or {} when stdout is not one."""
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        return {}
+    return doc if isinstance(doc, dict) else {}
+
+
+def case_json_mode():
+    """`--json` — one object, built from the same model as the text bars."""
+    print("--json mode — the structured twin of the text bars:")
+    # `tail` on a discovered (non-pinned) plan: its only suffix is the blocked-
+    # gate marker, which no parity fixture renders on a non-pinned bar.
+    mod = load_module()
+    other_tmp = Path(tempfile.mkdtemp(prefix="pp-json-other-"))
+    other_plan = other_tmp / "2026-01-01-blocked-plan.md"
+    other_plan.write_text(BLOCKED_GATE_PLAN)
+    row = mod.other_row(other_plan, text=BLOCKED_GATE_PLAN)
+    shown = ANSI_RE.sub("", row["line"]).rstrip()
+    check(row["fields"].get("tail") == shown.split("%)", 1)[1].strip() and "GATE BLOCKED" in row["fields"]["tail"],
+          f"json: a discovered plan's tail is its text after the bar ({row['fields'].get('tail')!r} vs {shown!r})")
+    shutil.rmtree(other_tmp, ignore_errors=True)
+    tmp = Path(tempfile.mkdtemp(prefix="pp-json-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    home = tmp / "home"
+    home.mkdir()
+    env = dict(os.environ, HOME=str(home))     # no portfolio: pinned bar only
+
+    r = run_json(repo, env=env)
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        doc = None
+    check(r.returncode == 0 and doc == {"groups": [], "detail": None},
+          f"json: nothing in flight -> {{\"groups\": [], \"detail\": null}}, rc 0 "
+          f"(rc={r.returncode}, out={r.stdout.strip()!r}, err={r.stderr.strip()[:80]!r})")
+
+    plan = repo / "plans" / "demo-plan.md"
+    plan.write_text(PLAN + "\n### Stage 2 Gate\n- [x] suite green\n- [ ] corpus green\n")
+    write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2",
+                task_desc="render output")
+    r = run_json(repo, env=env)
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        doc = {}
+    g = (doc.get("groups") or [{}])[0] if isinstance(doc, dict) else {}
+    check(r.returncode == 0 and isinstance(doc, dict) and len(doc.get("groups") or []) == 1,
+          f"json: one pinned plan -> one group (rc={r.returncode}, out={r.stdout[:120]!r})")
+    want = {"name": "demo", "done": 3, "total": 5, "role": "pinned", "stage": 2,
+            "stage_count": 2, "task": "2.2", "phase": "task", "stale_hours": None,
+            "remediation_round": None, "blocked_note": None, "status_lag": None,
+            "stage_order": False}
+    got = {k: g.get(k, "<missing>") for k in want}
+    check(got == want, f"json: pinned group fields ({got})")
+    every = ("name", "done", "total", "role", "stage", "stage_count", "task", "phase",
+             "stale_hours", "remediation_round", "remediation_budget", "blocked_note",
+             "status_lag", "stage_order")
+    check(all(k in g for k in every),
+          f"json: every listed group key is present (missing {[k for k in every if k not in g]})")
+    detail = doc.get("detail") if isinstance(doc, dict) else None
+    stages = (detail or {}).get("stages") or []
+    check([(s.get("number"), s.get("name")) for s in stages]
+          == [(1, "groundwork"), (2, "behavior")],
+          f"json: detail.stages numbers and names "
+          f"({[(s.get('number'), s.get('name')) for s in stages]})")
+    s2 = stages[1] if len(stages) > 1 else {}
+    check((s2.get("gate_checked"), s2.get("gate_total")) == (1, 2)
+          and (stages[0].get("gate_checked"), stages[0].get("gate_total")) == (0, 0),
+          f"json: gate checked/total per stage (S2 {s2.get('gate_checked')}/"
+          f"{s2.get('gate_total')})")
+    tasks = [(t.get("id"), t.get("title"), t.get("status")) for t in s2.get("tasks") or []]
+    check(tasks == [("2.1", "parse entries", "done"), ("2.2", "render output", "open"),
+                    ("2.3", "edge cases", "open")],
+          f"json: detail tasks carry id, title and the parser's status word ({tasks})")
+
+    pplan = repo / "plans" / "partial-plan.md"
+    pplan.write_text(PARTIAL_PLAN)
+    write_state(repo, plan=str(pplan), phase="blocked", stage=1, task="1.2",
+                note="cycle budget exhausted " + "x" * 80)
+    doc = jdoc(run_json(repo, env=env))
+    g = (doc.get("groups") or [{}])[0]
+    check(g.get("phase") == "blocked"
+          and g.get("blocked_note") == "cycle budget exhausted " + "x" * 80,
+          f"json: blocked note carried in FULL, unclipped ({str(g.get('blocked_note'))[:40]!r})")
+    st = [t.get("status") for s in (doc.get("detail") or {}).get("stages", [])
+          for t in s.get("tasks", [])]
+    check(st == ["done", "partial", "open"], f"json: [~] reads as `partial` ({st})")
+
+    write_state(repo, plan=str(plan), phase="gate", stage=2, remediation_round=1)
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    check((g.get("phase"), g.get("remediation_round"), g.get("remediation_budget"))
+          == ("gate", 1, 2), f"json: gate round 1 of the default budget 2 ({g})")
+
+    write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2",
+                updated=(datetime.now(timezone.utc) - timedelta(hours=30)).isoformat())
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    check(g.get("stale_hours") == 30, f"json: stale_hours 30 ({g.get('stale_hours')!r})")
+
+    r = run_json(repo, "--bogus", env=env)
+    check(r.returncode == 2 and r.stdout == "" and "FAIL" in r.stderr,
+          f"json: an unknown extra argument is refused, exit 2 "
+          f"(rc={r.returncode}, err={r.stderr.strip()[:80]!r})")
+
+    # Every marker field in its NON-quiet state, each against its text marker.
+    def pinned_pair(**state):
+        write_state(repo, **state)
+        text = ANSI_RE.sub("", run_text(repo, env))
+        g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+        return text, g
+
+    text, g = pinned_pair(plan=str(plan), phase="task", stage=2, task="2.3")
+    check(g.get("status_lag") == 2 and "⚠ status lag 2" in text,
+          f"json: status_lag 2 when the text shows `⚠ status lag 2` "
+          f"({g.get('status_lag')!r}; {text.strip()!r})")
+    text, g = pinned_pair(plan=str(plan), phase="task", stage=2, task="9.9")
+    check(g.get("task_not_in_plan") is True and "⚠ not in plan" in text,
+          f"json: task_not_in_plan true when the text shows `⚠ not in plan` "
+          f"({g.get('task_not_in_plan')!r}; {text.strip()!r})")
+    soplan = repo / "plans" / "so-plan.md"
+    soplan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    text, g = pinned_pair(plan=str(soplan), phase="task", stage=4, task="4.1")
+    check(g.get("stage_order") is True and "⊘ STAGE ORDER" in text,
+          f"json: stage_order true when the text shows `⊘ STAGE ORDER` "
+          f"({g.get('stage_order')!r}; {text.strip()!r})")
+    bplan = repo / "plans" / "blocked-plan.md"
+    bplan.write_text(BLOCKED_GATE_PLAN)
+    text, g = pinned_pair(plan=str(bplan), phase="gate", stage=1)
+    check(g.get("gate_blocked") is True and "⊘ GATE BLOCKED" in text,
+          f"json: gate_blocked true when the text shows `⊘ GATE BLOCKED` "
+          f"({g.get('gate_blocked')!r}; {text.strip()!r})")
+
+    print("  a light plan (no `## Stage` heading) and a hostile stage name:")
+    lplan = repo / "plans" / "light-plan.md"
+    lplan.write_text("# Light plan: tiny\n\n### Task 1.1: only task\n- **Status:** [x]\n\n"
+                     "### Task 1.2: second\n- **Status:** [ ]\n")
+    write_state(repo, plan=str(lplan), phase="task", task="1.2")
+    stages = (jdoc(run_json(repo, env=env)).get("detail") or {}).get("stages")
+    got = [(s.get("number"), s.get("name"), [t.get("id") for t in s.get("tasks", [])])
+           for s in stages or []]
+    check(got == [(None, None, ["1.1", "1.2"])],
+          f"json: a light plan's tasks sit in one stage whose number and name are null ({got})")
+    hplan = repo / "plans" / "hostile-plan.md"
+    hplan.write_text("# Plan: h\n\n## Stage 1 — red\x1b[31mtext\n\n"
+                     "### Task 1.1: a\n- **Status:** [x]\n")
+    write_state(repo, plan=str(hplan), phase="task", stage=1, task="1.1")
+    stages = (jdoc(run_json(repo, env=env)).get("detail") or {}).get("stages") or [{}]
+    check(stages[0].get("name") == "red[31mtext",
+          f"json: a stage name has its control characters stripped ({stages[0].get('name')!r})")
+
+    print("  master + child roles, and detail stays off the text path:")
+    mod = load_module()
+    gtmp, grepo, _ = group_fixture(mod, FULL_GROUP)
+    gdoc = json.loads(mod.render_json(str(grepo)))
+    roles = [(x.get("role"), x.get("depth")) for x in gdoc.get("groups", [])]
+    check(roles == [("master", 0), ("child", 1), ("child", 1)],
+          f"json: a master renders role master, its sub-plans role child at depth 1 ({roles})")
+    calls = []
+    real_detail = mod.plan_detail
+    mod.plan_detail = lambda *a, **k: calls.append(a) or real_detail(*a, **k)
+    try:
+        write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2")
+        mod.render.__wrapped__(str(repo))
+        text_calls = len(calls)
+        mod.render_json(str(repo))
+        json_calls = len(calls) - text_calls
+    finally:
+        mod.plan_detail = real_detail
+    check(text_calls == 0 and json_calls == 1,
+          f"json: render() never builds detail, render_json() builds it once "
+          f"(text {text_calls}, json {json_calls})")
+    shutil.rmtree(gtmp, ignore_errors=True)
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def run_text(cwd_value, env):
+    return subprocess.run([sys.executable, str(SCRIPT)],
+                          input=json.dumps({"cwd": str(cwd_value)}),
+                          capture_output=True, text=True, env=env).stdout
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-test-"))
     repo = tmp / "repo"
@@ -2613,6 +2989,11 @@ def main():
     case_dispatch_check()
     case_stage_order()
     case_palette_contrast()
+    case_json_mode()
+    print(f"  --json parity asserted over {len(JSON_PARITY_RUNS)} rendered fixture states")
+    check(len(JSON_PARITY_RUNS) >= 50,
+          f"json: parity ran across the suite's fixture states, not a token few "
+          f"({len(JSON_PARITY_RUNS)})")
 
     print()
     if FAILURES:

@@ -87,6 +87,38 @@ there is nothing to install; it exits immediately unless opted in. Enable it per
 `phase|stage|task` does not move; past that it lets the turn end so you can look. Unset
 `PLAN_CONTINUE` or set it to `0` to switch it off.
 
+## On Claude Code 2.1.288+, the planning mod answers first
+
+The plugin's hooks module (`../../../hooks/mod/stop.ts`, DEC-027) runs the same check on
+`classic.Stop`, under the same opt-in (`PLAN_CONTINUE`, read with `$.env`). It decides
+nothing itself:
+
+- It takes the last assistant message from the event (`last_assistant_message`) instead of
+  tailing the transcript.
+- One `plan_continue_classify.py --inputs` run gathers everything else: the repo root, the
+  state file through the module's hardened reader (by directory fd, `O_NOFOLLOW`, FIFO-safe,
+  owner, size cap), the `phase|stage|task` counter key, and
+  `PLAN_CONTINUE_MAX` parsed by `parse_max()` — the same function the command hook uses.
+- A second run of the same module classifies. The no-progress count lives in `$.state`
+  (`planning.stopCounter`), keyed by root and `phase|stage|task`, so a hot reload keeps it.
+
+**Who decides.** When the module answered, the mod passes the event on marked
+`planning_mod_handled: true`; the user's own Stop hooks still run, and
+`../../../hooks/plan-continue.sh` sees the mark and exits 0 without deciding twice. A user
+hook's block wins over the mod's and is not counted. When the module did not answer — an
+empty or missing last message, a run that was refused, timed out, exited non-zero or printed
+garbage — the event passes on **unmarked** and the command hook decides from the transcript
+as before. The `Stop` entry stays in `hooks.json` for builds without mods.
+
+**Counter loss allows.** If the count cannot be stored, there is no loop guard, so the mod
+lets the turn end and logs why rather than block without one — the command hook does the
+same when its counter file cannot be written.
+
+**The stage note.** At each new `(plan, stage)` in `preflight`, `task` or `gate`, the mod
+appends one user-role note (at most 600 characters, every state field cleaned and quoted)
+restating the three run-to-completion rules. It is sent once per `(plan, stage)` per session
+and never goes into the system prompt.
+
 ## It fails open, always
 
 No state file, unreadable or unparseable transcript, garbage timestamp, stale state, a
@@ -100,4 +132,6 @@ each). Transcript text is read to make a yes/no decision and never quoted back �
 commit `.claude/plan-progress.json`, so a cloned repo's state file is user-owned and still
 untrusted.
 
-Tests: `../tests/test-plan-continue.sh` (30 cases, decision-asserting).
+Tests: `../tests/test-plan-continue.sh` (35 cases, decision-asserting),
+`../../../hooks/tests/test-plan-continue-classify.py` (the shared module), and the mod's
+`../../../hooks/mod/stop.test.ts` and `stage-note.test.ts` (`claude plugin test planning`).

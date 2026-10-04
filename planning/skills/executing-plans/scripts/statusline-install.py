@@ -788,6 +788,9 @@ def cmd_install(force):
                  f"as the base, set PLAN_STATUSLINE_BASE to a bash script path.")
     action = "Repaired" if current is not None else "Installed"
     print(f"{action} statusLine -> {merged['command']} in {path}")
+    print("Note: on Claude Code 2.1.288 or later the planning plugin already draws "
+          "these bars as a band above the prompt; this status-line bar is for older "
+          "builds and other hosts, and `--remove` takes it out again.")
     return 0
 
 

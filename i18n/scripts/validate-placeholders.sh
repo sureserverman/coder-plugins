@@ -79,7 +79,7 @@ fi
 build_workpacket() {
   local fw="$1" target="$2"
   DIFF_PY="$DIFF_PY" SOURCE_LOCALE="$SOURCE_LOCALE" FW="$fw" TARGET="$target" ROOT="$ROOT" \
-    python3 - <<'PY'
+    python3 -I - <<'PY'
 import importlib.util, json, os
 from pathlib import Path
 
@@ -111,7 +111,7 @@ PY
 list_target_locales() {
   local fw="$1"
   DIFF_PY="$DIFF_PY" SOURCE_LOCALE="$SOURCE_LOCALE" FW="$fw" ROOT="$ROOT" \
-    python3 - <<'PY'
+    python3 -I - <<'PY'
 import importlib.util, os
 from pathlib import Path
 

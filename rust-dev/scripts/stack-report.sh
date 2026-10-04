@@ -22,7 +22,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 3
 fi
 
-ROOT="$ROOT" JSON="$JSON" python3 - <<'PY'
+ROOT="$ROOT" JSON="$JSON" python3 -I - <<'PY'
 import json, os, re, sys
 from pathlib import Path
 

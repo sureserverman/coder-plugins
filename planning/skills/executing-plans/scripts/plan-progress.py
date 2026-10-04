@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 # Reuse the authoritative plan-parser pieces from the portfolio skill (stable
@@ -836,12 +837,24 @@ def visible_len(s):
 # Stripping rather than escaping, because there is no legitimate control
 # character in a plan name or a one-line task description, and a status line has
 # no way to display one usefully.
-CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+# C1 (U+0080-U+009F) as well: U+009B is a one-byte CSI to a terminal in 8-bit mode.
+CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+# Invisible format characters (Cf: bidi overrides that reorder what follows,
+# zero-width marks) and lone surrogates (Cs) are dropped too: the classes
+# plan_continue_classify.py's clean() drops, and the band's own scrub.
+HIDDEN_CATEGORIES = ("Cf", "Cs")
 
 
 def plain(s):
-    """`s` with control characters removed. Not optional — see CONTROL_RE."""
-    return CONTROL_RE.sub("", s) if isinstance(s, str) else ""
+    """`s` with control and hidden characters removed. Not optional — see CONTROL_RE."""
+    if not isinstance(s, str):
+        return ""
+    s = CONTROL_RE.sub("", s)
+    if s.isascii():
+        return s
+    return "".join(c for c in s if unicodedata.category(c) not in HIDDEN_CATEGORIES)
 
 
 def clip(s, width):
@@ -1002,13 +1015,23 @@ def stage_position(state, stage_count):
     over the count parsed from the plan: a sub-plan mid-master knows its own
     stage total, and a master's parsed count is 0 by design.
     """
+    idx, total = stage_pair(state, stage_count)
+    return (idx, total) if idx is not None and total is not None else None
+
+
+def stage_pair(state, stage_count):
+    """(index, total), each None when unknown — stage_position()'s two halves.
+
+    Split out so `--json` can report a stage whose total is unknown (and vice
+    versa) while the text keeps printing `S2/4` only when it has both.
+    """
     idx = _stage_int(state.get("stage_index"))
     if idx is None:
         idx = _stage_int(state.get("stage"))
     total = _stage_int(state.get("stage_total"))
     if total is None:
         total = _stage_int(stage_count)
-    return (idx, total) if idx is not None and total is not None else None
+    return idx, total
 
 
 def phase_part(state):
@@ -1031,15 +1054,9 @@ def phase_part(state):
                 else f"{PURPLE}◆ gate{RESET}")
         # Only present when a gate is being re-run after a failure; a gate on its
         # first round renders exactly as it always did.
-        rnd = state.get("remediation_round")
-        # `type(... ) is int`, not isinstance: bool subclasses int, so a malformed
-        # `"remediation_round": true` would otherwise render as round 1.
-        if type(rnd) is int and rnd > 0:
-            budget = state.get("remediation_budget")
-            # The fallback duplicates the default stated in ../SKILL.md ("Remediation
-            # budget — default 2 rounds per gate"); test-gate-remediation-contract.py
-            # asserts the two stay equal, so change both or neither.
-            total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
+        rem = remediation(state)
+        if rem is not None:
+            rnd, total = rem
             colour = RED if rnd >= total else YELLOW
             part += f" {colour}↻{rnd}/{total}{RESET}"
         return part
@@ -1081,14 +1098,35 @@ def phase_part(state):
     return f"{GREEN}▶ {label.rstrip()}{sep}{RESET}{desc}"
 
 
+def remediation(state):
+    """(round, budget) when a remediation round is recorded, else None."""
+    rnd = state.get("remediation_round")
+    # `type(... ) is int`, not isinstance: bool subclasses int, so a malformed
+    # `"remediation_round": true` would otherwise render as round 1.
+    if type(rnd) is not int or rnd <= 0:
+        return None
+    budget = state.get("remediation_budget")
+    # The fallback duplicates the default stated in ../SKILL.md ("Remediation
+    # budget — default 2 rounds per gate"); test-gate-remediation-contract.py
+    # asserts the two stay equal, so change both or neither.
+    total = budget if type(budget) is int and budget > 0 else DEFAULT_REMEDIATION_BUDGET
+    return rnd, total
+
+
 def staleness(state):
+    hours = stale_hours(state)
+    return f" {DIM}(stale {hours}h){RESET}" if hours is not None else ""
+
+
+def stale_hours(state):
+    """Whole hours since `updated` when that is STALE_AFTER_H or more, else None."""
     upd = state.get("updated")
     if not upd:
-        return ""
+        return None
     try:
         ts = datetime.datetime.fromisoformat(upd.replace("Z", "+00:00"))
     except (AttributeError, TypeError, ValueError):
-        return ""
+        return None
     # AttributeError covers a non-string `updated` (a number, a list) reaching
     # .replace(); the parse guard is total, so no junk in this optional field
     # can cost the bar.
@@ -1106,8 +1144,8 @@ def staleness(state):
     age = datetime.datetime.now(datetime.timezone.utc) - ts
     hours = age.total_seconds() / 3600
     if hours >= STALE_AFTER_H:
-        return f" {DIM}(stale {int(hours)}h){RESET}"
-    return ""
+        return int(hours)
+    return None
 
 
 LAG_TOLERANCE = 1   # tasks; one is a task in flight, two is a stall
@@ -1154,16 +1192,30 @@ def status_lag(state, text, plan_path):
     plan, or when nothing is flipped yet and the run is still in the first
     couple of tasks.
     """
+    lag, missing = lag_of(state, text)
+    if missing:
+        return f" {RED}⚠ not in plan{RESET}"
+    if lag is None:
+        return ""
+    return f" {YELLOW}⚠ status lag {lag}{RESET}"
+
+
+def lag_of(state, text):
+    """(lag, not_in_plan) — status_lag()'s finding as data, for both outputs.
+
+    lag is the task count when it exceeds LAG_TOLERANCE, else None;
+    not_in_plan is True when the state names a task the plan does not have.
+    """
     cur = state.get("task")
     if not isinstance(cur, str) or not cur.strip():
-        return ""
+        return None, False
     cur = cur.strip()
     # A `task` that is not schema-shaped is phase_part()'s problem, not a lag
     # signal: it already drops the label for exactly these values. Reporting
     # them here pasted a prose `task` back into the bar — the defect two
     # existing cases were written to prevent, reintroduced from a new direction.
     if not TASK_ID_RE.match(cur):
-        return ""
+        return None, False
     order, last_marked = [], -1
     for line in text.splitlines():
         tm = pu.TASK_RE.match(line)
@@ -1191,7 +1243,7 @@ def status_lag(state, text, plan_path):
         # THIS parser cannot read them, and saying "not in plan" about a task
         # sitting in the file the user is looking at is a warning that teaches
         # the reader to distrust the next one.
-        return ""
+        return None, False
     try:
         cur_i = [t["num"] for t in order].index(cur)
     except ValueError:
@@ -1199,7 +1251,7 @@ def status_lag(state, text, plan_path):
         # longer has is a WORSE divergence than an ordinary lag — the plan was
         # edited under a run whose markers had already stopped — and silence
         # made it indistinguishable from nothing to report.
-        return f" {RED}⚠ not in plan{RESET}"
+        return None, True
     # `Dispatch: YES` siblings (or the old `Parallel: YES`) are dispatched
     # together and do not finish in document order, so an unmarked one between
     # the last marker and the current task is the format's own first-class
@@ -1210,8 +1262,8 @@ def status_lag(state, text, plan_path):
     gap = [t for t in order[last_marked + 1:cur_i] if not t["parallel"]]
     lag = len(gap) + 1
     if lag <= LAG_TOLERANCE:
-        return ""
-    return f" {YELLOW}⚠ status lag {lag}{RESET}"
+        return None, False
+    return lag, False
 
 
 def pinned_plan_path(state, state_file):
@@ -1358,14 +1410,20 @@ def stage_order_marker(state, text):
     Blank if the parser cannot load: a redraw must never fail, and
     `--stage-order-check` — the gate — exits 2 on the same failure.
     """
+    return f" {RED}⊘ STAGE ORDER{RESET}" if stage_order_broken(state, text) else ""
+
+
+def stage_order_broken(state, text):
+    """Whether stage_order_marker() shows — the state's stage depends on a gate
+    that is not fully `[x]`. False wherever the marker is blank."""
     stage = state.get("stage")
     if not isinstance(stage, int) or isinstance(stage, bool):
-        return ""
+        return False
     try:
         bad = unpassed_dependencies(text, stage)
     except Exception:
-        return ""
-    return f" {RED}⊘ STAGE ORDER{RESET}" if bad else ""
+        return False
+    return bool(bad)
 
 
 def render_pinned(state_file, state=None, width=0, label=None, text=None):
@@ -1380,6 +1438,30 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
     structure and then threw it away, so each of the up-to-3 files was read
     TWICE per redraw — free to remove, and it closes a (tiny) window where the
     two reads could disagree about the same file.
+
+    The line itself is built by pinned_row(), which also returns the same
+    figures as data for `--json`.
+    """
+    return pinned_row(state_file, state, width=width, label=label, text=text)["line"]
+
+
+def _group_fields(name, plan, done, total, role, gate_mark):
+    """A `--json` group, every phase-part field null until a pinned row fills it."""
+    return {"name": name, "plan": str(plan), "done": done, "total": total,
+            "role": role, "depth": 0, "gate_blocked": bool(gate_mark),
+            "stage": None, "stage_count": None, "task": None, "phase": None,
+            "stale_hours": None, "remediation_round": None,
+            "remediation_budget": None, "blocked_note": None,
+            "status_lag": None, "task_not_in_plan": None, "stage_order": None}
+
+
+def pinned_row(state_file, state=None, width=0, label=None, text=None):
+    """{"line", "fields", "text", "path"} for the pinned plan.
+
+    `line` is render_pinned()'s line and `fields` its `--json` group. Both come
+    from one read of the plan, and done/total/stage count from one
+    parse_plan() call. The markers then re-scan that same text, once each, and
+    each JSON marker field comes from the same helper as its text marker.
     """
     if state is None:
         state = json.loads(state_file.read_text())
@@ -1387,8 +1469,10 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
     if text is None:
         text = plan.read_text(errors="ignore")
     done, total, stage_count = parse_plan(text, plan)
-    out = _bar_line(label if label is not None else plan_name(plan),
-                    done, total, CYAN, width) + blocked_gate_marker(text, plan)
+    name = label if label is not None else plan_name(plan)
+    gate_mark = blocked_gate_marker(text, plan)
+    bar_line = _bar_line(name, done, total, CYAN, width)
+    out = bar_line + gate_mark
 
     # Built as a list so the ` · ` separator is emitted only when something
     # actually follows it. The old form appended it unconditionally with the bar
@@ -1408,7 +1492,31 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
     out += status_lag(state, text, plan)
     out += stage_order_marker(state, text)
     out += staleness(state)
-    return out
+
+    fields = _group_fields(name, plan, done, total, "pinned", gate_mark)
+    # Everything the line shows after its bar, as plain text: a front end that
+    # draws its own bar (the Claude Code band) shows this verbatim rather than
+    # re-deriving the phase part and markers.
+    fields["tail"] = plain(ANSI_RE.sub("", out[len(bar_line):])).strip()
+    fields["stage"], fields["stage_count"] = stage_pair(state, stage_count)
+    task = state.get("task")
+    fields["task"] = task if isinstance(task, str) and TASK_ID_RE.match(task) else None
+    phase = state.get("phase", "task")
+    fields["phase"] = phase if isinstance(phase, str) and phase in KNOWN_PHASES else None
+    fields["stale_hours"] = stale_hours(state)
+    # The RECORDED round, whatever the phase -- what --budget-check reads. The
+    # text shows it inside the gate phase only.
+    rem = remediation(state)
+    if rem is not None:
+        fields["remediation_round"], fields["remediation_budget"] = rem
+    if fields["phase"] == "blocked":
+        # Unclipped: the text cuts it to NOTE_WIDTH, the JSON has no column.
+        fields["blocked_note"] = plain(state.get("note") or state.get("task_desc") or "") or None
+    fields["status_lag"], fields["task_not_in_plan"] = lag_of(state, text)
+    # true exactly when the text shows ` ⊘ STAGE ORDER`; never null on a pinned
+    # group, always null on the others (they have no state to read a stage from).
+    fields["stage_order"] = stage_order_broken(state, text)
+    return {"line": out, "fields": fields, "text": text, "path": plan}
 
 
 def render_other(plan_path, width=0, label=None, text=None):
@@ -1418,30 +1526,97 @@ def render_other(plan_path, width=0, label=None, text=None):
     session is driving, and nothing is driving these. Task 3.3 makes that
     distinction explicit; here it falls out of not having a state to read.
     """
+    return other_row(plan_path, width=width, label=label, text=text)["line"]
+
+
+def other_row(plan_path, width=0, label=None, text=None):
+    """{"line", "fields", "text", "path"} for a discovered plan — see render_other()."""
     if text is None:
         text = _read_plan(plan_path)
     done, total, _ = parse_plan(text, plan_path)
-    return _bar_line(label if label is not None else plan_name(plan_path),
-                     done, total, DIM, width) + blocked_gate_marker(text, plan_path)
+    name = label if label is not None else plan_name(plan_path)
+    gate_mark = blocked_gate_marker(text, plan_path)
+    role = "master" if pu.is_master_plan(text, plan_path) else "other"
+    fields = _group_fields(name, plan_path, done, total, role, gate_mark)
+    fields["tail"] = plain(ANSI_RE.sub("", gate_mark)).strip()
+    return {"line": _bar_line(name, done, total, DIM, width) + gate_mark,
+            "fields": fields, "text": text, "path": plan_path}
 
 
-def render(cwd):
-    """Every line the status line should carry, in order — possibly none.
+STAGE_NAME_RE = re.compile(r"^##\s+Stage\s+\d+\s*(?:[:—–-]\s*)?(.*?)\s*$", re.I)
 
-    The pinned plan (the one the state file names) keeps render_pinned()'s exact
-    byte-for-byte output, and its group leads. Other in-flight plans for the
-    same project follow, each master immediately above its own sub-plans.
-    Returning a LIST rather than a string is the whole of Task 3.1: main()
-    prints each element on its own line, so a second bar costs a line rather
-    than a rewrite.
 
-    Every step degrades to "fewer lines", never to an exception — this is still
-    the statusline. Note which corpus lane proves what: lane A (`python3
-    plan-progress.py`) comes through main() into here and so exercises the
-    guards below; lane B deliberately BYPASSES this function to call the
-    discovery surface raw, precisely so those guards cannot mask a function
-    that fails to degrade on its own. Reading lane B as evidence about this
-    function's exception safety gets it exactly backwards.
+def plan_detail(text, path):
+    """The pinned plan's stages, each with its gate tally and its tasks.
+
+    Same contract readers as the bar: pu.STAGEHDR_RE / TASK_RE / STATUS_RE /
+    GATEHDR_RE / GATE_ITEM_RE, and a task's `status` is pu.status_state()'s
+    word for its first Status line (`done`, `partial`, `open`), or null when it
+    has none the contract recognises. Tasks above the first `## Stage` heading
+    (a light plan has none) go in a stage whose number and name are null.
+    """
+    stages, by_num, gates = [], {}, {}
+    cur, task, gate = None, None, None
+    for line in text.splitlines():
+        sh = pu.STAGEHDR_RE.match(line)
+        if sh:
+            num = int(sh.group(1))
+            nm = STAGE_NAME_RE.match(line)
+            cur = {"number": num, "name": plain(nm.group(1) if nm else "") or None,
+                   "gate_checked": 0, "gate_total": 0, "tasks": []}
+            stages.append(cur)
+            by_num.setdefault(num, cur)
+            task, gate = None, None
+            continue
+        if line.startswith("#"):
+            gate = None
+            g = pu.GATEHDR_RE.match(line)
+            if g:
+                gate = int(g.group(1))
+                gates.setdefault(gate, [])
+                task = None
+                continue
+        tm = pu.TASK_RE.match(line)
+        if tm:
+            if cur is None:
+                cur = {"number": None, "name": None,
+                       "gate_checked": 0, "gate_total": 0, "tasks": []}
+                stages.append(cur)
+            task = {"id": tm.group(1), "title": plain(tm.group(2)).strip(), "status": None}
+            cur["tasks"].append(task)
+            continue
+        if line.startswith("#"):
+            task = None
+            continue
+        if gate is not None:
+            item = pu.GATE_ITEM_RE.match(line)
+            if item:
+                gates[gate].append(pu.gate_item_state(item.group(1)))
+            continue
+        sm = pu.STATUS_RE.match(line)
+        if sm and task is not None and task["status"] is None:
+            task["status"] = pu.status_state(sm.group(1))
+    for num, items in gates.items():
+        if num in by_num:
+            by_num[num]["gate_checked"] = sum(s == "done" for s in items)
+            by_num[num]["gate_total"] = len(items)
+    return {"plan": str(path), "name": plan_name(path), "stages": stages}
+
+
+def build_model(cwd, with_detail=False):
+    """THE model: {"groups": [row, ...], "detail": dict|None}.
+
+    Both outputs are read off it -- render() takes each row's `line`,
+    `--json` takes each row's `fields` -- so the text bars and the JSON groups
+    come from one discovery, one grouping and one read per plan, and cannot
+    disagree about which plans there are or what they count.
+
+    `detail` is the pinned plan's stage/task breakdown. It is built only when
+    `with_detail` asks for it, so a statusline redraw never pays for a scan
+    it would throw away. It is None otherwise, and None when no pinned bar
+    rendered.
+
+    Every step degrades to "fewer rows", never to an exception -- see render().
     """
     state_file = find_state(cwd)
     state = pinned = None
@@ -1494,7 +1669,7 @@ def render(cwd):
     except Exception:
         width = 0       # unaligned bars beat no bars -- see group_plans() above
 
-    lines = []
+    rows, detail = [], None
     for path, prefix, label, text in grouped:
         # `width - visible_len(prefix)` goes NEGATIVE when the width fallback
         # above fired. _bar_line() is what actually handles that (and is what
@@ -1505,14 +1680,63 @@ def render(cwd):
         # leaves its siblings standing.
         try:
             if state is not None and pinned is not None and _same_file(path, pinned):
-                lines.append(prefix + render_pinned(
-                    state_file, state, width=avail, label=label, text=text))
+                row = pinned_row(state_file, state, width=avail, label=label, text=text)
+                try:
+                    if with_detail:
+                        detail = plan_detail(row["text"], row["path"])
+                except Exception:
+                    detail = None   # the breakdown is extra; it never costs the bar
             else:
-                lines.append(prefix + render_other(
-                    path, width=avail, label=label, text=text))
+                row = other_row(path, width=avail, label=label, text=text)
         except Exception:
             continue
-    return lines
+        row["line"] = prefix + row["line"]
+        if prefix:
+            row["fields"]["depth"] = 1
+            if row["fields"]["role"] == "other":
+                row["fields"]["role"] = "child"
+        rows.append(row)
+    return {"groups": rows, "detail": detail}
+
+
+def render(cwd):
+    """Every line the status line should carry, in order — possibly none.
+
+    The pinned plan (the one the state file names) keeps render_pinned()'s exact
+    byte-for-byte output, and its group leads. Other in-flight plans for the
+    same project follow, each master immediately above its own sub-plans.
+    Returning a LIST rather than a string is the whole of Task 3.1: main()
+    prints each element on its own line, so a second bar costs a line rather
+    than a rewrite.
+
+    Every step degrades to "fewer lines", never to an exception — this is still
+    the statusline. Note which corpus lane proves what: lane A (`python3
+    plan-progress.py`) comes through main() into here and so exercises the
+    guards in build_model(); lane B deliberately BYPASSES this function to call
+    the discovery surface raw, precisely so those guards cannot mask a function
+    that fails to degrade on its own. Reading lane B as evidence about this
+    function's exception safety gets it exactly backwards.
+    """
+    return [row["line"] for row in build_model(cwd)["groups"]]
+
+
+def render_json(cwd):
+    """The `--json` document for `cwd`: build_model() with the lines left out.
+
+    `groups[]` is one object per text line, in the same order. Its `role` is
+    `pinned` (the state file's plan), else `master` (a master plan), else
+    `child` (a sub-plan under its master's bar), else `other`; `depth` is 1
+    under a tree glyph. The phase-part fields are null except on the pinned
+    group. `stage_order` is a boolean: true exactly when the text shows
+    ` ⊘ STAGE ORDER`. `status_lag` is the lagging task count or null, and
+    `task_not_in_plan` is the text's ` ⚠ not in plan`. `tail` is the line's
+    own text after its bar, plain (no SGR, no control characters): a front end
+    that draws its own bar shows it verbatim instead of re-deriving the phase
+    part and markers.
+    """
+    model = build_model(cwd, with_detail=True)
+    return json.dumps({"groups": [row["fields"] for row in model["groups"]],
+                       "detail": model["detail"]}, ensure_ascii=False)
 
 
 def budget_check(cwd):
@@ -1574,7 +1798,9 @@ def budget_check(cwd):
 
 
 ROSTER_ITEM_RE = re.compile(r"^\s*- \[.\] .*Dispatch roster")
-ROSTER_END_RE = re.compile(r"^\s*(- \[|#)")
+# Any list item ends the roster, not only a checkbox: a plain `- **Probe results:**`
+# bullet after it named another task, which then counted as rostered.
+ROSTER_END_RE = re.compile(r"^\s*(- |#)")
 ROSTER_COUNT_RE = re.compile(r"\b(\d+)\s+of\s+\d+\s+tasks\b|\b(0)\s+tasks\b")
 TASK_REF_RE = re.compile(r"\bTask\s+(\d+\.\d+)\b")
 # A commit belongs to the task its subject OPENS with (`Stage 4 Task 4.1: …`).
@@ -1588,7 +1814,7 @@ def parse_roster(text):
     """(count, [task ids]) from Preflight's `Dispatch roster` item, or None.
 
     The item wraps across continuation lines, so it runs until the next
-    checklist item, a heading, or a blank line."""
+    list item (checkbox or not), a heading, or a blank line."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if not ROSTER_ITEM_RE.match(line):
@@ -1774,6 +2000,29 @@ def main():
             print(f"FAIL: --dispatch-check crashed: {e!r}", file=sys.stderr)
             status = 2
         sys.exit(status)
+    if "--json" in sys.argv[1:]:
+        # Its own handler, not the bottom-of-file one that exits 0: a crash
+        # outside build_model() -- unreadable stdin, a stdin that is not a JSON
+        # object -- is a FAIL line and exit 2 rather than a silent 0. It does
+        # NOT make an empty `groups` proof that nothing is in flight:
+        # build_model() degrades like the text bars do, so a broken vault, an
+        # unreadable state file or a plan that cannot be read costs rows
+        # silently and can leave `{"groups": [], "detail": null}`.
+        extra = [a for a in sys.argv[1:] if a != "--json"]
+        if extra:
+            print(f"FAIL: --json takes no other arguments (got {' '.join(extra)})",
+                  file=sys.stderr)
+            sys.exit(2)
+        try:
+            raw = sys.stdin.read()
+            data = json.loads(raw) if raw.strip() else {}
+            cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."
+            out = render_json(cwd)
+        except Exception as e:
+            print(f"FAIL: --json crashed: {e!r}", file=sys.stderr)
+            sys.exit(2)
+        print(out)
+        sys.exit(0)
     raw = sys.stdin.read()
     data = json.loads(raw) if raw.strip() else {}
     cwd = data.get("cwd") or (data.get("workspace") or {}).get("current_dir") or "."

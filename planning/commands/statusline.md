@@ -24,6 +24,13 @@ command is what writes it, so you never hand-edit that file.
 Wiring is **global and one-time** — it applies in every project, not per repo. The bar
 prints nothing when no plan is executing.
 
+**On Claude Code 2.1.288 or later this command is optional.** The planning plugin's mod
+draws the same plans, counts and phase text as a band above the prompt (and `/plan-view` opens the full plan in a
+pane), with no settings entry at all. The status-line bar remains for older builds and
+other hosts. When both are present the bars show twice; if your user settings run
+`statusline-chain.sh`, the mod says so once per session, and `remove` takes the
+status-line copy out.
+
 ## Run
 
 The user invoked this with: `$ARGUMENTS`

@@ -40,7 +40,7 @@ fi
 while IFS=$'\t' read -r sev rule path line msg; do
   [ -n "$sev" ] || continue
   add_finding "$sev" "$rule" cargo "$path" "$line" "$msg"
-done < <(ROOT="$ROOT" python3 - <<'PY'
+done < <(ROOT="$ROOT" python3 -I - <<'PY'
 import os, re, sys
 from pathlib import Path
 

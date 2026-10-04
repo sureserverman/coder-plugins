@@ -19,6 +19,20 @@ python3 <planning>/skills/executing-plans/scripts/context-usage.py \
   --plan <plan path> --next-stage <N+1> [--sub-plan-boundary]
 ```
 
+**The window.** `--window N` wins. Next comes the live window: on Claude Code 2.1.288+ the
+planning mod has `.claude/plan-context.json` written beside the state file at the end of each
+main-loop turn, and just before a main-loop Bash call that runs this script, while the
+pinned plan is in `preflight`, `task` or `gate` and not stale
+(`../../../hooks/mod/context.ts`, through `context-usage.py --write-sidecar`, which never
+follows a link the repo planted). Gitignore it with the state file.
+The script uses it only when its `session_id` equals `CLAUDE_CODE_SESSION_ID`, its `window`
+is a positive integer, and its `updated` is under 15 minutes old. Below the state root the
+read refuses links and non-regular files. The `reason:` then says `window from live session`. Otherwise the model
+table decides as before, and an unlisted model is `unknown`. The sidecar supplies only the
+window: the tokens still come from the transcript, and § The four stop rules are the
+script's alone (DEC-026, DEC-027). The band's `context NN%` on the pinned row is a display of the
+same engine figure, never a verdict.
+
 **When.** Once per stage gate and once per sub-plan gate (DEC-017 positions), **after** the
 gate commit, **in a separate Bash call**. The turn that is running is not in the transcript
 until its tool returns, so a `context-usage.py` chained onto the `Stage N green` commit does
