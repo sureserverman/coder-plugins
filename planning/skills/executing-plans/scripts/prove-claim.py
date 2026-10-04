@@ -6,11 +6,11 @@
     prove-claim.py req       --repo R --plan P --task N.M --req K
                              (--check CMD --break PATCH (--build CMD | --no-build-step WHY)
                               | --covered-by-claim J) [--timeout S]
-    prove-claim.py deviation --repo R --plan P --task N.M --req K --why TEXT
+    prove-claim.py deviation --repo R --plan P --task N.M (--req K | --claim K) --why TEXT
     prove-claim.py replay    --repo R --plan P [--task N.M] [--timeout S]
     prove-claim.py fingerprint --repo R
 
-WHY THIS EXISTS. Nine metabrush-android tasks executed by Cursor shipped one
+WHY THIS EXISTS. Nine metabrush-android tasks executed by an agent shipped one
 defect over and over: a check that passed while measuring nothing (a /tmp check
 that could not see TMPDIR, a TIFF with no metadata to remove, a photo Android
 never redacts, an Error test that passed with the cleanup deleted), or a claim
@@ -37,11 +37,14 @@ proven only by this tool having watched it:
 `req` records that a requirement clause was checked — by a command that passes,
 and FAILS under a break of that requirement, through the same run as a claim
 (a check that cannot fail, like `echo ok`, is refused) — or is covered by a
-proven claim. `deviation` records one that could not be checked.
+proven claim. `deviation --req` records one that could not be checked.
+`deviation --claim` records a CLAIM no repo patch can break — its evidence lives
+outside the repo (a vault file, a device) — at claim-K.json as kind
+`claim-deviation`: disclosed, so the audit reports it, but never proof.
 `replay` re-runs every claim record's break against the tree as it stands.
 
 WHAT THIS DOES NOT DO. Whether a break, or a req check, is the one that matters
-is judgment — the verifier's (agents/claim-verifier.md). The plan's "red if …"
+is judgment — a reviewer's, reading the record. The plan's "red if …"
 is recorded as `named_break` so a reader can compare. A record written by hand
 is still possible; replay, the fingerprint binding and validate() make it a
 deliberate lie rather than an oversight. One run each: a flaky test can pass.
@@ -646,16 +649,23 @@ def req(repo, plan, task, index, check, covered_by, timeout, brk=None, build=Non
     return write_record(repo, plan, task, "req", index, rec)
 
 
-def deviation(repo, plan, task, index, why):
+def deviation(repo, plan, task, index, why, target="req"):
+    """A requirement (`target` "req") or a claim ("claim") recorded as not checkable
+    here, with the reason. A claim deviation replaces any proof at claim-K.json."""
     plan_text = read_plan(plan)
-    reqs = PFA.requirement_clauses(task_block(plan_text, task)["desc"])
-    text = pick(reqs, index, "requirement")
+    block = task_block(plan_text, task)
+    if target == "claim":
+        text = pick(PFA.claim_clauses(block["test"]), index, "claim")
+    else:
+        text = pick(PFA.requirement_clauses(block["desc"]), index, "requirement")
     if not why or len(why.strip()) < 10:
         raise Usage("--why must say what differs and why (10+ characters)")
-    rec = {"schema": SCHEMA, "kind": "deviation", "plan": str(Path(plan).resolve()),
+    kind = "claim-deviation" if target == "claim" else "deviation"
+    rec = {"schema": SCHEMA, "kind": kind, "plan": str(Path(plan).resolve()),
            "task": task, "index": index, "text": text, "why": why.strip(),
            "fingerprint": index_fingerprint(repo), "created": _now()}
-    return write_record(repo, plan, task, "deviation", index, rec)
+    return write_record(repo, plan, task, "claim" if target == "claim" else "deviation",
+                        index, rec)
 
 
 def replay(repo, plan, task, timeout):
@@ -667,6 +677,10 @@ def replay(repo, plan, task, timeout):
     for f in files:
         rec = load(f)
         m = re.match(r"claim-(\d+)\.json$", f.name)
+        if isinstance(rec, dict) and rec.get("kind") == "claim-deviation":
+            # No break to re-run: disclosed, not proven. Named, never a failure.
+            print(f"skip  {f.relative_to(repo)}: claim deviation — {rec.get('why', '')}")
+            continue
         try:
             text = PFA.claim_clauses(task_block(plan_text, f.parent.name)["test"])[int(m.group(1)) - 1]
         except (Usage, IndexError):
@@ -779,6 +793,11 @@ def validate(rec, fingerprint=None, expect=None, allow_legacy=False):
                  + (" — a schema-1 req check was never shown able to fail" if is_legacy(rec)
                     else ""))
     kind = rec.get("kind")
+    if kind == "claim-deviation" and (not expect or expect[0] == "claim"):
+        # A disclosed claim, stored where its proof would be. One validator for it,
+        # the audit's, so the audit and the commit hook cannot disagree.
+        return p + PFA.claim_deviation_problems(
+            rec, fingerprint, expect or ("claim", rec.get("task"), rec.get("index"), None))
     if expect:
         ekind, etask, eindex, etext = expect
         if kind != ekind:
@@ -846,7 +865,9 @@ def main():
     g2.add_argument("--build")
     g2.add_argument("--no-build-step", dest="no_build")
     d = sub.add_parser("deviation"); common(d)
-    d.add_argument("--req", type=int, required=True)
+    g = d.add_mutually_exclusive_group(required=True)
+    g.add_argument("--req", type=int)
+    g.add_argument("--claim", type=int)
     d.add_argument("--why", required=True)
     rp = sub.add_parser("replay"); common(rp, task_required=False)
     fpp = sub.add_parser("fingerprint")
@@ -873,7 +894,10 @@ def main():
                 raise Usage(f"--break file not found: {brk}")
         req(repo, a.plan, a.task, a.req, a.check, a.covered, a.timeout, brk, a.build, a.no_build)
     elif a.mode == "deviation":
-        deviation(repo, a.plan, a.task, a.req, a.why)
+        if a.claim is not None:
+            deviation(repo, a.plan, a.task, a.claim, a.why, target="claim")
+        else:
+            deviation(repo, a.plan, a.task, a.req, a.why)
     elif a.mode == "replay":
         replay(repo, a.plan, a.task, a.timeout)
     return 0
