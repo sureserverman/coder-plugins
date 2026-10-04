@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "  killed   finding 9 req records ignored\n  killed   finding 1: no task credited for its records\n  killed   finding 1: naming tasks buys credit\n  killed   audit: legacy req checks blocking\n  killed   audit: legacy req checks not reported\n  killed   audit: covered-by citation not followed\n  killed   audit: stray files under proof/ allowed\n  killed   prove: exit 126/127 counted as red\n  killed   prove: killed (128+n) counted as red\n  killed   validate: red exit 0 accepted\n  killed   validate: a bare schema-2 req check accepted\n  killed   validate: legacy accepted at commit\n  killed   req: --check without --break accepted\n  killed   req: the check is never run\n  killed   prove: recovery overwrites a moved repo\n  killed   prove: runs not exclusive\n  killed   prove: unparseable break counted (no build step)\n  killed   prove: the test runner may be broken\n  killed   prove: wider test trees not recognised\n  killed   subject_tasks: 1.10 read as 1.1\n  killed   subject_tasks: case-sensitive again\n  killed   subject_tasks: ranges not expanded\n  killed   subject_tasks: lists read as their first task\n  killed   validate: a non-dict run field crashes it\n  killed   audit: legacy has no cutoff\n  killed   finding 1: one proven claim credits a task\n  killed   required claims: the first claim not required\n  killed   required claims: named breaks not required\n  killed   required claims: every claim required\n  killed   claim deviation counted as proof\n  killed   claim deviation not reported\n  killed   claim deviation: reason not required (audit)\n  killed   claim deviation: task/index not compared\n  killed   claim deviation: wording not compared\n  killed   claim deviation: fingerprint not compared\n  killed   deviation --claim records requirement wording\n  killed   validate(): claim deviation not delegated to the audit\n  killed   replay: a claim deviation counted as a failed replay\n\nkilled 121  survived 0  skipped 0"
+ },
+ "break_patch": "diff --git a/planning/skills/executing-plans/scripts/plan-flip-audit.py b/planning/skills/executing-plans/scripts/plan-flip-audit.py\nindex 51722b0..b978262 100644\n--- a/planning/skills/executing-plans/scripts/plan-flip-audit.py\n+++ b/planning/skills/executing-plans/scripts/plan-flip-audit.py\n@@ -668,7 +668,7 @@ def required_claims(test):\n     that names its break \"(red if \u2026)\". A plan that names a break has said what the\n     proof is; an unnamed later claim is context the first claim's test covers.\"\"\"\n     claims = claim_clauses(test)\n-    return [k for k, c in enumerate(claims, 1)\n+    return [k for k, c in enumerate(claims, start=1)\n             if k == 1 or NAMED_BREAK.search(_masked(c))]\n \n \n",
+ "build": null,
+ "created": "2026-10-04T16:32:36+00:00",
+ "fingerprint": "33014fd6a8f681fe45282b5592a1c8ffca20781ba36f8820976c4bf99821bdfe",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "a guard survives or is skipped",
+ "no_build_reason": "python scripts, no build step; the break is syntax-checked",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-04-proof-by-tool-backport-plan.md",
+ "red": {
+  "exit": 4,
+  "tail": "\n1 mutation(s) SKIPPED \u2014 anchors gone, those guards are no longer pinned. Re-anchor them. Nothing was mutated.\n  SKIP     finding 8 claim counting collapsed to one  (anchor missing)"
+ },
+ "schema": 2,
+ "task": "1.3",
+ "test": "python3 planning/skills/executing-plans/tests/battery-proof-tools.py",
+ "text": "every guard is killed (red if a guard survives or is skipped)",
+ "touched": [
+  "planning/skills/executing-plans/scripts/plan-flip-audit.py"
+ ]
+}

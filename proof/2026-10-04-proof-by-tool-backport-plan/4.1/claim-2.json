@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "13 manifest/marketplace pair(s), 1 README lead(s) and 1 changelog(s) reconciled; 0 problem(s).\nOK \u2014 13 plugin(s): every shipped component is named in its README"
+ },
+ "break_patch": "diff --git a/planning/README.md b/planning/README.md\nindex 50ab58a..d74784a 100644\n--- a/planning/README.md\n+++ b/planning/README.md\n@@ -347,7 +347,7 @@ Reproduces **one** slice of a Claude Design handoff pack (a component or screen,\n \n ### `plan-continue` (since v0.45.0) \u2014 **off by default**\n \n-A `Stop` hook (`hooks/hooks.json` \u2192 `hooks/plan-continue.sh`) that refuses a turn ending on a\n+A `Stop` hook (`hooks/the-hooks-file` \u2192 `hooks/plan-continue.sh`) that refuses a turn ending on a\n promise or an approval question while a plan is in flight, so an authorized run doesn't sit\n waiting for you to say \"carry on\". It returns `{\"decision\":\"block\"}` only when the plan's\n `.claude/plan-progress.json` reads `preflight`/`task`/`gate` **and** the last assistant message\n@@ -390,7 +390,7 @@ python3 <planning>/skills/executing-plans/scripts/proof-hooks-install.py --insta\n `reference-transaction` hook, and refuses a hooks directory outside the repo (a shared or global\n `core.hooksPath`), since a shim there would gate every repo that uses it.\n \n-A `PreToolUse` hook on `Bash` (`hooks/hooks.json` \u2192 `hooks/proof-guard.sh`) keeps the gate on.\n+A `PreToolUse` hook on `Bash` (`hooks/the-hooks-file` \u2192 `hooks/proof-guard.sh`) keeps the gate on.\n In an opted-in repo with a plan in flight, it denies a command that mentions `hooksPath`, names\n the hook file or `.git/hooks`, or runs the installer's `--remove` \u2014 remove it yourself with\n `! python3 \u2026/proof-hooks-install.py --remove --repo .`. Everywhere else it does nothing. It is\n",
+ "build": null,
+ "created": "2026-10-04T18:00:41+00:00",
+ "fingerprint": "0d434dba062883d0d7bae353fdf28853bf9ea9efe6d9af53883e4b6260b4ef58",
+ "index": 2,
+ "kind": "claim",
+ "named_break": "one is not",
+ "no_build_reason": "JSON and Markdown only; the test command parses both",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-04-proof-by-tool-backport-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "13 manifest/marketplace pair(s), 1 README lead(s) and 1 changelog(s) reconciled; 0 problem(s).\n\ncoverage is a floor, not a quality bar \u2014 see docs/plugin-readme-contract.md\nFAIL planning: 1 component(s) not named in README.md\n       - hook hooks.json"
+ },
+ "schema": 2,
+ "task": "4.1",
+ "test": "python3 scripts/check-version-mirrors.py && python3 scripts/check-doc-coverage.py",
+ "text": "every new script and hook is documented (red if one is not)",
+ "touched": [
+  "planning/README.md"
+ ]
+}

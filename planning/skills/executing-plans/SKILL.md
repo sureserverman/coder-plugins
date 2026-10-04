@@ -432,20 +432,21 @@ write them.** The measured incident behind all three: `references/task-execution
 2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
-4a. **Prove it — one mutant per task, on the host.** Nothing in a finished artifact
-   distinguishes a test written first from one transcribed out of the fix; both are green.
-   So before flipping Status, **revert the fix (not the test), re-run the task's own
-   `Test:`, confirm RED, and record the mutation and count in the commit** — *"reverting
-   the `active` expression turns 3 checks red"*. Untiered (a re-run, not an agent), so it
-   runs at every scope including `none` — **but never on a device, VM or instrumented
-   suite**: on an expensive-suite project the mutant is proved against the host-side test
-   guarding the same line, or the commit records `mutation: not proved — device-only test`.
-   The per-guard *battery* belongs to verdict-producing checker scripts, not product tests.
-   Corollaries: enumerate the population **as a command, before patching**; **build
-   fixtures from the requirement, never from observed behavior**; and before writing a
-   CHECKER rather than a test, ask whether the mechanism can decide the property at all.
-   Rationale and the measured cost: `../honest-gates/SKILL.md` § *A test does not exist
-   until its mutant dies*.
+4a. **Prove it — by the tool, on the host.** With the work staged, before flipping Status,
+   run `prove-claim.py claim` for the task's **first claim
+   and each claim marked `(red if …)`** — `--test` a command from the task's `Test:`;
+   revert the fix (not the test) as `--break`, a patch file kept outside the repo. It writes
+   a record only after watching that test pass, go RED under the break and the tree come
+   back — `git add proof/` with the commit. A requirement may be recorded — checkable → `prove-claim.py req`, else `prove-claim.py
+   deviation`; finding 9 only reports the rest. Untiered (a re-run, not an agent), so it runs at every scope including
+   `none` — **but never on a device, VM or instrumented suite**: prove it against the
+   host-side test guarding the same line, or record the device-only claim with
+   `prove-claim.py deviation --claim`. A per-guard *battery* is for
+   verdict-producing checkers, not product tests. Corollaries: enumerate the
+   population **as a command, before patching**; **build fixtures from the requirement,
+   never from observed behavior**; and before writing a CHECKER rather than a test, ask
+   whether the mechanism can decide the property at all. Why:
+   `../honest-gates/SKILL.md` § *A test does not exist until its mutant dies*.
 
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.
 6. **Quick review gate (Tier 1) — `high` tier's risk-listed tasks and `Review: required` tasks only.** Whether it runs comes from `references/review-scope.md`; do not re-derive it. **At `none`, `light` and `standard` there is no per-task review**: a green task goes straight to its commit, and the stage's Tier-2 pass is where its diff is read. When it does run: after the test is green and Status is flipped but **before** the commit, dispatch `git-github:code-reviewer` (read-only) as a **fresh dispatch seeing only the task diff** — never the executor self-reviewing. A **Critical is blocking** (fix inline, sweep its class, re-run at fix-scope, re-dispatch — all against the same cycle budget); **Important / Suggestion are advisory**, appended to the plan as `**Review notes (Task N.M):** …` for the gate's deep review to triage. Trivial/non-code diffs skip it — but a docs change *asserting* a command, flag, exit code, default or path is not trivial. Full machinery: `references/task-execution.md`.
@@ -502,18 +503,20 @@ unread:
 
 When every task in the stage is green, run the stage gate:
 
-- Each gate check has a specific pass criterion (a command output, a test result, a manual verification)
-- Run them in order; stop at the first failure
+- Run each check against its specific pass criterion, in order; stop at the first failure
 - **Regressions check runs at stage-scope on intermediate gates:** cheap host-side checks in full, expensive suites (device/instrumented/e2e) restricted to the modules the stage's commits touched — never `clean`. Use the plan's declared `stage-scope:` command when its Preflight carries a "Test-scope commands" block; when the full suite is cheap (<~5 min), just run it in full. Policy: `../planning-projects/references/test-scope-tiers.md`.
 - **The final stage's gate runs at plan-scope**, together with close-out — the plan's one full clean pass.
 - **A review or remediation fix re-runs at `fix-scope` — never the full suite, and never a
   repeat of the gate's stage-scope command.** The gate stands on that fix-scope result *plus*
-  the stage-scope result already recorded; a full pass is not re-earned per fix. Stated here
-  because the pointer alone was measured unread: it cost six full passes where the policy
-  allows two (`references/stage-gate.md` § *A review fix does not re-earn the full pass*).
+  the stage-scope result already recorded; a full pass is not re-earned per fix (measured:
+  six full passes where the policy allows two — `references/stage-gate.md` § *A review fix
+  does not re-earn the full pass*).
+- **The record audit runs at every stage gate:** `plan-flip-audit.py <plan> --repo <repo-root>`
+  — exit 1, a `blocking` finding, fails the gate. Exit 2 is an error to fix first; name each
+  `advisory` finding (exit 4) in the report.
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`."
-- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Dispatch: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched everything it marked says `dispatch: 4 of 4` rather than saying nothing, so silence never has to be interpreted. **An empty trailer value is `unknown`, never `inline`.**
-- **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Do not report a tier-scoped absence as an opt-out; that is how a skipped mandate hides inside a legitimate tier. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
+- **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Dispatch: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched all it marked still says `dispatch: 4 of 4`; silence is never interpreted. **An empty trailer value is `unknown`, never `inline`.**
+- **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Never report a tier-scoped absence as an opt-out. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.
   **A mandated review the executor ran itself is a substitution, not a review**, legal only
   where the **user** authorised it — an undispatchable reviewer is a Stop condition, not a
   licence. The review line records it, quoting them; **with no recorded reason the gate

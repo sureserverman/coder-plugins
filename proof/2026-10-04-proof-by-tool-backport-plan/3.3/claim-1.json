@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "  killed   ref gate: commits already on a branch re-checked (old history blocks new work)\n  killed   ref gate: records read from the index, not the commit\n  killed   ref gate: the task read from the whole message, not the subject\n  killed   ref gate: stray files under proof/ allowed\n  killed   ref gate: named-break claims not required (first claim only)\n  killed   ref gate: every claim required (the Cursor rule, not upstream)\n  killed   ref gate: a present record validated only when required\n  killed   ref gate: a record not bound to the commit tree\n  killed   ref gate: a record not bound to the plan wording\n  killed   ref gate: a claim deviation counted as proof\n  killed   ref gate: covered-by not followed to a real proof\n  killed   ref gate: deviations not named at commit time\n  killed   ref gate: unaccounted requirements not named (finding 9 silent)\n  killed   ref gate: a refusal exits 0\n  killed   installer: a foreign reference-transaction hook replaced\n  killed   installer: --remove deletes a foreign hook\n  killed   installer: a shim without its exec bit counts as installed\n  killed   installer: an edited shim counts as installed\n  killed   installer: core.hooksPath ignored\n  killed   installer: the shim is written without its exec bit\n  killed   installer: a dangling shim fails open in silence\n  killed   installer: re-install rewrites a current shim\n  killed   installer: a non-repo accepted\n  killed   installer: --status reports a missing shim as installed\n  killed   guard: the hooksPath rule off\n  killed   guard: hooksPath matched case-sensitively\n  killed   guard: the hook-file rule off\n  killed   guard: the installer --remove rule off\n  killed   guard: acts without opt-in\n  killed   guard: acts with no plan in flight\n  killed   guard: any reference-transaction hook counts as our opt-in\n  killed   guard: a symlinked plan-progress.json trusted\n  killed   guard: a repo reached by cd not considered\n  killed   guard: a repo reached by git -C not considered\n  killed   guard: the pre-filter drops hooksPath\n  killed   guard: the pre-filter drops the hook file\n  killed   guard: an unreadable payload denied (fails closed)\n  killed   guard: the decision is \"ask\", not \"deny\"\n\nkilled 165  survived 0  errors 0  skipped 0"
+ },
+ "break_patch": "diff --git a/planning/hooks/proof-guard.sh b/planning/hooks/proof-guard.sh\nindex 610795f..f7488a8 100755\n--- a/planning/hooks/proof-guard.sh\n+++ b/planning/hooks/proof-guard.sh\n@@ -135,7 +135,7 @@ if re.search(rf\"{HOOK_NAME}|\\.git/hooks\", command):\n     deny(f\"Denied: a plan is in flight in {where}, and this command names the git \"\n          f\"{HOOK_NAME} hook or the hooks directory \u2014 the proof-record commit gate. Prove the \"\n          \"task with prove-claim.py instead; only the user switches the gate off.\")\n-if inst in command and re.search(r\"--remove\\b\", command):\n+if (inst in command) and re.search(r\"--remove\\b\", command):\n     deny(f\"Denied: a plan is in flight in {where}; removing the proof-record commit gate is \"\n          \"the user's decision, not the agent's. Ask the user. They can remove it themselves \"\n          f\"by typing `! python3 <planning>/skills/executing-plans/scripts/{inst} --remove \"\n",
+ "build": "bash -n planning/hooks/proof-guard.sh && python3 -c \"import ast; ast.parse(open('planning/skills/executing-plans/tests/battery-proof-tools.py').read())\"",
+ "created": "2026-10-04T17:47:54+00:00",
+ "fingerprint": "30acafc2970b5146299ef907e19dcb9cf3cf72b87b09345e8b050bc8333f2e91",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "a guard survives or is skipped",
+ "no_build_reason": null,
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-04-proof-by-tool-backport-plan.md",
+ "red": {
+  "exit": 4,
+  "tail": "\n1 mutation(s) SKIPPED \u2014 anchors gone, those guards are no longer pinned. Re-anchor them. Nothing was mutated.\n  SKIP     guard: the installer --remove rule off  (anchor missing)"
+ },
+ "schema": 2,
+ "task": "3.3",
+ "test": "python3 planning/skills/executing-plans/tests/battery-proof-tools.py",
+ "text": "every guard, old and new, is killed (red if a guard survives or is skipped)",
+ "touched": [
+  "planning/hooks/proof-guard.sh"
+ ]
+}

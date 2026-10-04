@@ -7,7 +7,7 @@ description: Use when executing-plans has Dispatch YES tasks from a planning-pro
 
 Fan out independent tasks from a `planning-projects` plan to concurrent sub-agents, collect their results, propagate the dependency graph, and return control to `executing-plans` (or the caller).
 
-This skill is the operational arm of `planning-projects` Phase 5 ("Dispatch") and is usually invoked by `executing-plans` rather than the user directly.
+This skill is the operational arm of `planning-projects` Phase 5 ("Dispatch"), usually invoked by `executing-plans`.
 
 **Announce at start:** "Using the dispatching-parallel-agents skill to fan out <N> independent tasks."
 
@@ -122,6 +122,10 @@ and follow it" — the same skill body, loaded from disk (see stack-routing.md �
 6. Run NOTHING WIDER than the Test above. No full suite, no regression sweep across other
    test trees, no "check I broke nothing else" — the main session runs that once at the
    stage gate. Running a whole test file instead of one filter is fine
+7. Stage your work, then prove it (executing-plans rule 4a): `python3 <absolute path of
+   executing-plans/scripts>/prove-claim.py claim` (`--help` lists its arguments) for the
+   first claim and each `(red if …)` claim — `--test` the Test command above, `--break` a
+   patch reverting your fix, kept outside the repo; then `git add proof/`
 
 ## Constraints
 - Do NOT modify files outside the Files list above
@@ -130,9 +134,7 @@ and follow it" — the same skill body, loaded from disk (see stack-routing.md �
 - Commit with message: "Stage <N> Task <N.M>: <description>", ending with the
   executor trailer on its own single physical line:
   `Executor: dispatched — <your subagent_type>`
-  (`../executing-plans/SKILL.md` Step 3.3 rule 7 — the trailer is the only
-  artifact that distinguishes a dispatched task from an inlined one, so a
-  dispatched run that omits it reads downstream as `unknown`, not as dispatched)
+  (executing-plans rule 7: without it the task reads as `unknown`)
 
 ## Return
 A structured report:

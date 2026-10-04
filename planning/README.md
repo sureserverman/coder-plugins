@@ -1,6 +1,15 @@
 # planning
 
-A fifteen-skill pipeline (v0.53.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.54.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.54.0
+
+**Proof by tool.** A task's mutation proof is now a record written by a tool, not a sentence in the commit. Measured on 2026-10-04: 26 self-reported mutants in 11 Claude-executed task commits across the portfolio were re-run by performing each stated break; 1 claimed break was caught by no test at all. It is a small sample — roughly 0.1–20% false at 95%.
+
+- **`prove-claim.py`** (`skills/executing-plans/scripts/`) writes `proof/<plan>/<task>/claim-K.json` only after it watched the plan's own `Test:` pass, fail under your break, and the tree come back exactly (one run each, so a flaky test can still pass). A requirement is recorded with `req` (its check must fail under a break too) or `deviation`. A claim no repo patch can break is recorded with `deviation --claim K --why …` — disclosed, never counted as proof.
+- **The rules use it.** `executing-plans` rule 4a, the dispatched-task brief and `honest-gates` prove a task's first claim and every claim that names its break `(red if …)` with the tool, and `git add proof/` with the task commit. The hand-written `mutation:` line is retired.
+- **`plan-flip-audit.py --repo`** runs at every stage gate (without `--repo`, its record findings report NOT RUN). A ticked task with a commit or a record whose required claims lack a valid record, a stale or forged record, or a bulk checkbox flip is blocking. A ticked task with no commit naming it and no record, one carrying only legacy `mutation:` lines, a claim deviation, and a requirement with no record are advisory. A record is checked against the commit that last wrote it, so a later commit that changes the proven code is not seen (engineering-skills BL-130).
+- **An opt-in commit gate** — see [Hooks](#hooks). Off unless you install it in a project.
 
 ## What's new in 0.53.0
 
@@ -360,6 +369,38 @@ Enable per project in `.claude/settings.json`:
 `PLAN_CONTINUE_MAX` (default 3) bounds continuations while the plan does not move. It fails
 open on every unexpected condition and always exits 0. Full contract:
 `skills/executing-plans/references/plan-continue-hook.md`.
+
+### Proof-record commit gate (since v0.54.0) — **opt-in per project**
+
+A git `reference-transaction` hook (`hooks/git-ref-gate.sh`) that refuses a task commit
+without valid `prove-claim.py` records, while a plan is in flight. A task commit is one whose
+subject names a task of the plan (*"Stage 2 Task 2.3: …"*). It reads the finished commit, so
+`--no-verify`, `-a`, `--amend`, `commit-tree` + `update-ref`, cherry-pick and a detached HEAD
+all pass through it. A record must match the commit's own tree and the plan's current wording.
+A file under `proof/` that is not a record is refused, and so is a requirement whose only records fail
+to validate (the audit only advises on requirements). A proven commit lands by
+any route. Not checked: a commit naming no task; a commit already reachable from a local branch
+or a remote-tracking ref (a fetched one, or one written there by hand); a ref other than `HEAD`
+and `refs/heads/*`; and past the newest 200 commits of one update, which it says on stderr.
+
+Nothing installs it. Opt a project in with:
+
+```bash
+python3 <planning>/skills/executing-plans/scripts/proof-hooks-install.py --install --repo .
+```
+
+`--status` reports it; `--remove` takes it out. The installer refuses to replace someone else's
+`reference-transaction` hook, and refuses a hooks directory outside the repo (a shared or global
+`core.hooksPath`), since a shim there would gate every repo that uses it.
+
+A `PreToolUse` hook on `Bash` (`hooks/hooks.json` → `hooks/proof-guard.sh`) keeps the gate on.
+In an opted-in repo with a plan in flight, it denies a command that mentions `hooksPath`, names
+the hook file or `.git/hooks`, or runs the installer's `--remove` — remove it yourself with
+`! python3 …/proof-hooks-install.py --remove --repo .`. Everywhere else it does nothing. It is
+a rail, not a sandbox: shell quoting, deleting `.claude/plan-progress.json` and the Write/Edit
+tools get past it. Both hooks fail open on their own errors, and the installed shim lets every
+update through, saying the gate is OFF, if the plugin copy it points at is gone — re-run
+`--install`.
 
 ## Where artifacts live
 

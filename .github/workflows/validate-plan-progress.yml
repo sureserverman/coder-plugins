@@ -18,11 +18,15 @@ on:
     paths:
       - 'planning/skills/executing-plans/scripts/plan-progress.py'
       - 'planning/skills/executing-plans/tests/**'
+      # The prose-contract suites here read the skills' SKILL.md: a prose edit alone
+      # must run them too.
+      - 'planning/skills/*/SKILL.md'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   pull_request:
     paths:
       - 'planning/skills/executing-plans/scripts/plan-progress.py'
       - 'planning/skills/executing-plans/tests/**'
+      - 'planning/skills/*/SKILL.md'
       - 'planning/skills/portfolio/scripts/portfolio-unify.py'
   workflow_dispatch:
 

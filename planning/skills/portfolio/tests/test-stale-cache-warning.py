@@ -353,6 +353,13 @@ WIRED = [
     # register against yesterday's rules and say nothing about it. Same reason as
     # resolve-plan-home.py above.
     ("executing-plans", "check-master-register.py"),
+    # The proof tools read a vault plan and decide what counts as proof; a stale cached
+    # copy would audit, or write records, under an older claim-set rule.
+    ("executing-plans", "plan-flip-audit.py"),
+    ("executing-plans", "prove-claim.py"),
+    # Writes a shim that execs the hook by absolute path; a stale cached copy would
+    # point a project's commit gate at an older plugin's hook.
+    ("executing-plans", "proof-hooks-install.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

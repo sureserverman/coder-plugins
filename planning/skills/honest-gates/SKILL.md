@@ -182,8 +182,8 @@ agent dispatch, so they are **untiered — they run at every review scope includ
 
 2. **Revert the fix; the suite must go red.** If it stays green you do not have a
    weak test, you have **no test** — and you cannot know which, because both look
-   identical from a passing run. Name the mutation and the count in the commit
-   ("reverting the `active` expression turns 3 checks red"). This is the whole
+   identical from a passing run. Record it with `prove-claim.py claim` (executing-plans
+   rule 4a). No red, no record. This is the whole
    rule: a check that cannot fail is not evidence, and it is indistinguishable
    from one that can until you try. One red proves one guard, so **each guard is
    independently reachable from a named test** — two guards that each keep the other's
@@ -194,9 +194,9 @@ agent dispatch, so they are **untiered — they run at every review scope includ
 
    **Cost bound: one mutant per task, on the host, at the task's own `Test:`.** A device,
    VM or instrumented run is never the mutant's proof — on an expensive-suite project prove
-   it against the host-side test guarding the same line, or record `mutation: not proved —
-   device-only test` in the commit. The battery is for verdict-producing checkers; a product
-   test gets one mutant. Measured 2026-09-09..11: about 56 labelled mutants in one Android
+   it against the host-side test guarding the same line, or record the device-only claim
+   with `prove-claim.py deviation --claim`. The battery is for verdict-producing checkers;
+   a product test gets one mutant. Measured 2026-09-09..11: about 56 labelled mutants in one Android
    sub-plan, four of them full connected-device runs.
 
 3. **Build fixtures from the requirement, never from observed behavior.** The

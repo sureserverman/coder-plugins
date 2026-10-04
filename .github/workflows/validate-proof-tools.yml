@@ -1,0 +1,66 @@
+name: validate-proof-tools
+
+# Guards the planning plugin's proof tools. prove-claim.py writes a proof record
+# only after it watched a task's own Test pass, fail under a break, and the tree
+# come back; plan-flip-audit.py reads those records (and the plan's checkboxes)
+# at every stage gate. Both are fraud detectors whose failure mode is silence,
+# so their suites are mutation-graded — the battery that proves it
+# (tests/battery-proof-tools.py) is run by hand, not here: it runs a suite once per
+# guard. No skill mandates it; plans that change these tools run it at their gates. The two tools import each other, so either changing runs both.
+# The opt-in commit gate (hooks/git-ref-gate.sh, its installer and the PreToolUse
+# guard hooks/proof-guard.sh) loads prove-claim.py, so its suites run here too.
+
+on:
+  push:
+    paths:
+      - 'planning/skills/executing-plans/scripts/prove-claim.py'
+      - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
+      - 'planning/skills/executing-plans/tests/test-prove-claim.py'
+      - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/scripts/proof-hooks-install.py'
+      - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
+      - 'planning/hooks/git-ref-gate.sh'
+      - 'planning/hooks/proof-guard.sh'
+      - 'planning/hooks/hooks.json'
+      - 'planning/hooks/tests/test-git-ref-gate.sh'
+      - 'planning/hooks/tests/test-proof-guard.sh'
+      - '.github/workflows/validate-proof-tools.yml'
+  pull_request:
+    paths:
+      - 'planning/skills/executing-plans/scripts/prove-claim.py'
+      - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
+      - 'planning/skills/executing-plans/tests/test-prove-claim.py'
+      - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/scripts/proof-hooks-install.py'
+      - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
+      - 'planning/hooks/git-ref-gate.sh'
+      - 'planning/hooks/proof-guard.sh'
+      - 'planning/hooks/hooks.json'
+      - 'planning/hooks/tests/test-git-ref-gate.sh'
+      - 'planning/hooks/tests/test-proof-guard.sh'
+      - '.github/workflows/validate-proof-tools.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Configure git for fixture repos
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.invalid
+          git config --global init.defaultBranch main
+      - name: Run the proof-tool suites
+        run: |
+          python3 planning/skills/executing-plans/tests/test-plan-flip-audit.py
+          python3 planning/skills/executing-plans/tests/test-prove-claim.py
+      - name: Run the commit-gate suites (git hook, installer, PreToolUse guard)
+        run: |
+          bash planning/hooks/tests/test-git-ref-gate.sh
+          bash planning/hooks/tests/test-proof-guard.sh
+      - name: Battery anchors still match (no mutation is run here)
+        run: python3 planning/skills/executing-plans/tests/battery-proof-tools.py --anchors-only
