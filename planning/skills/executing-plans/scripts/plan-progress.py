@@ -1798,7 +1798,9 @@ def budget_check(cwd):
 
 
 ROSTER_ITEM_RE = re.compile(r"^\s*- \[.\] .*Dispatch roster")
-ROSTER_END_RE = re.compile(r"^\s*(- \[|#)")
+# Any list item ends the roster, not only a checkbox: a plain `- **Probe results:**`
+# bullet after it named another task, which then counted as rostered.
+ROSTER_END_RE = re.compile(r"^\s*(- |#)")
 ROSTER_COUNT_RE = re.compile(r"\b(\d+)\s+of\s+\d+\s+tasks\b|\b(0)\s+tasks\b")
 TASK_REF_RE = re.compile(r"\bTask\s+(\d+\.\d+)\b")
 # A commit belongs to the task its subject OPENS with (`Stage 4 Task 4.1: …`).
@@ -1812,7 +1814,7 @@ def parse_roster(text):
     """(count, [task ids]) from Preflight's `Dispatch roster` item, or None.
 
     The item wraps across continuation lines, so it runs until the next
-    checklist item, a heading, or a blank line."""
+    list item (checkbox or not), a heading, or a blank line."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if not ROSTER_ITEM_RE.match(line):

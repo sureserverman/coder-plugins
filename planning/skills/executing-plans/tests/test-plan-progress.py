@@ -2341,6 +2341,14 @@ def case_dispatch_check():
     unauthorised downgrade, and only a non-zero exit stops a close-out.
     """
     print("Task 4.1 — --dispatch-check reconciles the roster against the ledger:")
+    # The roster item ends at the next list item of any kind, not only the next
+    # checkbox: a plain `- **Probe results:**` bullet after it that names another
+    # task must not join the roster (2026-10-03 planning-mods plan, close-out).
+    got = load_module().parse_roster("- [x] Dispatch roster — `3 of 15 tasks`: Task 1.1 → a, Task 3.1 →\n"
+                           "  b, Task 4.1 → c\n"
+                           "- **Probe results:** consequence for Task 3.2: none\n")
+    check(got == (3, ["1.1", "3.1", "4.1"]),
+          f"a plain bullet after the roster ends it; a wrapped line still joins it ({got})")
     tmp = Path(tempfile.mkdtemp(prefix="plan-progress-dispatch-"))
     env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
