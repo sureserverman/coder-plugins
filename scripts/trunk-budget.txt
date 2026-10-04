@@ -189,7 +189,12 @@
 #   when its Depends-on gates are fully [x], checked by plan-progress.py --stage-order-check.
 # Raised 49878 -> 49890 (+12 B) 2026-09-22, Stage 5 gate (evaluator Blocking): Step 3.1 passes
 #   --stage <N> so the check reads the stage being opened, not the one the state file still names.
-planning/skills/executing-plans/SKILL.md 49890
+# Lowered 49890 -> 49856 (-34 B) 2026-10-04, proof-by-tool Task 2.1: rule 4a records its
+#   proof with prove-claim.py (claim / req / deviation) instead of a hand-written sentence,
+#   and Step 3.5 runs plan-flip-audit.py --repo at every gate. Paid for inside the ceiling:
+#   4a's opening rationale sentence (honest-gates carries it) and three Step 3.5 bullets
+#   compressed with their rules intact; check-trunk-retention.py clean.
+planning/skills/executing-plans/SKILL.md 49856
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
