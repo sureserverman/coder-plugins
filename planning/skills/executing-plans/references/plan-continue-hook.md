@@ -97,7 +97,7 @@ nothing itself:
   tailing the transcript.
 - One `plan_continue_classify.py --inputs` run gathers everything else: the repo root, the
   state file through the module's hardened reader (by directory fd, `O_NOFOLLOW`, FIFO-safe,
-  owner, size cap, realpath under the root), the `phase|stage|task` counter key, and
+  owner, size cap), the `phase|stage|task` counter key, and
   `PLAN_CONTINUE_MAX` parsed by `parse_max()` — the same function the command hook uses.
 - A second run of the same module classifies. The no-progress count lives in `$.state`
   (`planning.stopCounter`), keyed by root and `phase|stage|task`, so a hot reload keeps it.

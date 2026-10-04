@@ -5,9 +5,11 @@
 //
 // This file only carries the engine's figures across. The verdict stays the
 // script's (DEC-026): the sidecar names the window, and the script still counts the
-// tokens from the transcript and applies its own rules. The sidecar is written at
-// the end of each main-loop turn while the pinned plan is in preflight, task or
-// gate, and never otherwise.
+// tokens from the transcript and applies its own rules. The sidecar is written,
+// while the pinned plan is in preflight, task or gate and never otherwise, at the
+// end of each main-loop turn and just before a main-loop Bash call that runs
+// context-usage.py: a run-to-completion stage is often one long turn, and the
+// verdict at its gate must not find a sidecar older than its 15-minute limit.
 //
 // The write itself is context-usage.py's (--write-sidecar): it finds the root the
 // way its reader does, and writes without following any link the repo planted
@@ -24,6 +26,7 @@ const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanMo
 const CONTEXT = atom({ plugin: 'planning', key: 'context' } as const, null as ContextFigures | null)
 
 const SCRIPT = 'skills/executing-plans/scripts/context-usage.py'
+const RUNS_CONTEXT_USAGE = /context-usage\.py/
 const TIMEOUT_MS = 5000
 
 const count = (v: unknown): number | null =>
@@ -66,19 +69,33 @@ async function writeSidecar($: EngineInterface, figures: ContextFigures): Promis
   })
 }
 
+// The engine's current figures into planning.context, and into the sidecar while a
+// plan is in flight. Never throws.
+async function capture($: EngineInterface): Promise<void> {
+  try {
+    const figures = figuresOf(await $.session.usage())
+    await update($, CONTEXT, () => figures)
+    if (figures !== null && inFlight(await read($, MODEL))) await writeSidecar($, figures)
+  } catch {
+    // no sidecar this time; context-usage.py falls back to its table
+  }
+}
+
 export function registerContext(on: On): void {
   // Main loop only: a subagent's turn reports its own loop, not the session's
-  // window. Never throws: the turn has already ended.
+  // window.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId !== undefined) return result
-    try {
-      const figures = figuresOf(await $.session.usage())
-      await update($, CONTEXT, () => figures)
-      if (figures !== null && inFlight(await read($, MODEL))) await writeSidecar($, figures)
-    } catch {
-      // no sidecar this turn; context-usage.py falls back to its table
-    }
+    if (e.agentId === undefined) await capture($)
     return result
+  })
+
+  // Before the tool runs, so the script it starts reads this moment's window.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const command = (e as { command?: unknown }).command
+    if (e.agentId === undefined && typeof command === 'string' && RUNS_CONTEXT_USAGE.test(command)) {
+      await capture($)
+    }
+    return next(e)
   })
 }

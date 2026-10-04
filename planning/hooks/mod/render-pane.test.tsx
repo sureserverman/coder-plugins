@@ -233,3 +233,24 @@ test("plan-view says so when the surface cannot place the pane", async ($, on) =
   } as never)) as { text?: string }
   expect(answer.text).toContain('110')
 })
+
+test('bidi, zero-width, lone surrogate and control characters never reach the pane', async ($, on) => {
+  const hostile: PlanDetail = {
+    ...DETAIL,
+    name: 'evil‮reversed​',
+    stages: DETAIL.stages.map(st => ({
+      ...st,
+      name: `${st.name ?? ''}⁦\x1b[31m`,
+      tasks: st.tasks.map(t => ({ ...t, title: `${t.title}\udc00\u009b` })),
+    })),
+  }
+  const w = world(on, () => ran(JSON.stringify({ groups: GROUPS, detail: hostile })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...pane(100), surface })
+    const texts = await ui.findAll({ type: 'Text' })
+    expect(texts.length).toBeGreaterThan(3)
+    for (const t of texts) expect(/[\p{Cc}\p{Cf}\p{Cs}]/u.test(t.text)).toBe(false)
+    await ui.unmount()
+  }
+})

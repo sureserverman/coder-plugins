@@ -2,7 +2,7 @@
 // classic.Stop, opt-in exactly like the command hook (PLAN_CONTINUE=1). Everything
 // that decides is plan_continue_classify.py's — the same module the command hook
 // imports: `--inputs` finds the repo root, reads .claude/plan-progress.json through
-// the hardened reader (O_NOFOLLOW, FIFO-safe, owner, size, realpath under the root),
+// the hardened reader (opened component by component with O_NOFOLLOW, FIFO-safe, owner, size),
 // parses PLAN_CONTINUE_MAX and names the counter key; the classifier then decides.
 // This file only carries the last assistant message (on the event, no transcript to
 // tail) and the no-progress count, kept in $.state so a hot reload does not reset it.

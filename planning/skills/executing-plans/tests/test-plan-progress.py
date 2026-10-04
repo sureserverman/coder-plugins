@@ -1487,6 +1487,9 @@ def case_handoff_phase():
     out = mod.phase_part({"phase": "handoff", "reason": "a\u009b31mb\u0085c"})
     check("\u009b" not in out and "\u0085" not in out,
           "a C1 control (U+009B, a one-byte CSI) in the reason is stripped too")
+    out = mod.phase_part({"phase": "handoff", "reason": "a\u202eb\u200bc\u2066d\udc00e"})
+    check(not any(ch in out for ch in "\u202e\u200b\u2066\udc00") and "abcde" in out,
+          f"bidi, zero-width and lone surrogate characters are stripped too ({out!r})")
     out = mod.phase_part({"phase": "HANDOFF-ish", "reason": "context 52% > 50%"})
     check(out == "", f"an unknown phase still renders \"\" ({out!r})")
 

@@ -72,7 +72,7 @@ wrong progress, only a wrong current-task label. The file is ephemeral session
 state: never commit it — during the git bootstrap, ensure
 `.claude/plan-progress.json` is gitignored (append it if the repo doesn't
 already ignore it), together with `.claude/plan-context.json`, the live-window
-sidecar the planning mod rewrites every turn (`session-handoff.md`). For a master plan, the state file always points at the
+sidecar the planning mod rewrites while a plan is in `preflight`, `task` or `gate` (`session-handoff.md`). For a master plan, the state file always points at the
 **sub-plan** currently executing.
 
 **One-time user setup** (only if asked to wire it, and only where the band is not

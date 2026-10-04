@@ -23,7 +23,10 @@ const BUTTON_MIN_COLUMNS = 24
 // A name is never clipped below this while the row has room for it.
 const NAME_MIN = 8
 // C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
-const CONTROL = /[\x00-\x1f\x7f-\x9f]/g
+// Controls (Cc: C0, DEL and C1, among them U+009B, a one-byte CSI), invisible
+// format characters (Cf: bidi overrides, zero-width marks) and lone surrogates
+// (Cs) — the classes plan_continue_classify.py's clean() drops.
+const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/gu
 
 const COLOUR: Record<PlanGroup['role'], string | undefined> = {
   pinned: 'cyan',

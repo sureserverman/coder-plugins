@@ -257,6 +257,18 @@ test('C1 controls (CSI U+009B) never reach a surface', async ($, on) => {
   }
 })
 
+test('bidi, zero-width and lone surrogate characters never reach a surface', async ($, on) => {
+  const w = world(on, answering([group({ name: 'evil\u202ereversed\u200b', tail: '· \u2066x\udc00y' })]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80), surface })
+    const texts = await ui.findAll({ type: 'Text' })
+    expect(texts.some(t => t.text.includes('evilreversed'))).toBe(true)
+    for (const t of texts) expect(/[\p{Cc}\p{Cf}\p{Cs}]/u.test(t.text)).toBe(false)
+    await ui.unmount()
+  }
+})
+
 test('drawing the band runs no process', async ($, on) => {
   const w = world(on, answering(THREE))
   await seed($ as never, w.clock)

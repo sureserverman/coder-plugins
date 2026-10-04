@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 # Reuse the authoritative plan-parser pieces from the portfolio skill (stable
@@ -840,9 +841,20 @@ def visible_len(s):
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 
+# Invisible format characters (Cf: bidi overrides that reorder what follows,
+# zero-width marks) and lone surrogates (Cs) are dropped too: the classes
+# plan_continue_classify.py's clean() drops, and the band's own scrub.
+HIDDEN_CATEGORIES = ("Cf", "Cs")
+
+
 def plain(s):
-    """`s` with control characters removed. Not optional — see CONTROL_RE."""
-    return CONTROL_RE.sub("", s) if isinstance(s, str) else ""
+    """`s` with control and hidden characters removed. Not optional — see CONTROL_RE."""
+    if not isinstance(s, str):
+        return ""
+    s = CONTROL_RE.sub("", s)
+    if s.isascii():
+        return s
+    return "".join(c for c in s if unicodedata.category(c) not in HIDDEN_CATEGORIES)
 
 
 def clip(s, width):

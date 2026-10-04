@@ -16,7 +16,10 @@ const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanMo
 const AGENTS = atom({ plugin: 'planning', key: 'agents' } as const, [] as AgentRecord[])
 
 // C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
-const CONTROL = /[\x00-\x1f\x7f-\x9f]/g
+// Controls (Cc: C0, DEL and C1, among them U+009B, a one-byte CSI), invisible
+// format characters (Cf: bidi overrides, zero-width marks) and lone surrogates
+// (Cs) — the classes plan_continue_classify.py's clean() drops.
+const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/gu
 
 const GLYPH: Record<string, string> = { done: '✔', partial: '◐', open: '○' }
 

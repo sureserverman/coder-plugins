@@ -120,6 +120,32 @@ test('a write run that fails leaves the turn to end normally', async ($, on) => 
   expect(w.seen.keys.context).toEqual(USAGE)
 })
 
+// A run-to-completion stage is often one long turn: the sidecar must not wait
+// for its end. The Bash call that runs context-usage.py gets a fresh one first.
+test('a main-loop Bash call running context-usage.py writes the sidecar before it runs', async ($, on) => {
+  const w = await setup($, on, [group({ phase: 'gate' })])
+  const before = writes(w).length
+  w.order.length = 0
+  await $.tool.call({ tool: 'Bash', command: 'python3 /p/skills/executing-plans/scripts/context-usage.py --plan x' } as never)
+  expect(writes(w).length).toBe(before + 1)
+  expect(w.order.indexOf('run')).toBeLessThan(w.order.indexOf('tool'))
+  expect(w.seen.keys.context).toEqual(USAGE)
+})
+
+test('other Bash calls, a subagent\'s context-usage.py, and no plan in flight write nothing', async ($, on) => {
+  const w = await setup($, on, [group({ phase: 'task' })])
+  const before = writes(w).length
+  await $.tool.call({ tool: 'Bash', command: 'git status' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'python3 context-usage.py', agentId: 'a1' } as never)
+  expect(writes(w).length).toBe(before)
+})
+
+test('context-usage.py with no plan in flight writes nothing', async ($, on) => {
+  const w = await setup($, on, [group({ phase: 'closeout' })])
+  await $.tool.call({ tool: 'Bash', command: 'python3 context-usage.py' } as never)
+  expect(writes(w).length).toBe(0)
+})
+
 test('figuresOf keeps only whole, non-negative figures and caps percent at 100', () => {
   expect(figuresOf({ context: { window: 200_000, tokens: -1, percent: 140 } })).toEqual({
     window: 200_000,
