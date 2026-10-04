@@ -26,8 +26,8 @@ The script uses it only when its `session_id` equals `CLAUDE_CODE_SESSION_ID`, i
 is a positive integer, and its `updated` is under 15 minutes old. The read refuses links and
 non-regular files. The `reason:` then says `window from live session`. Otherwise the model
 table decides as before, and an unlisted model is `unknown`. The sidecar supplies only the
-window: the tokens still come from the transcript, and the rules below are the script's
-alone (DEC-026, DEC-027). The band's `context NN%` on the pinned row is a display of the
+window: the tokens still come from the transcript, and § The four stop rules are the
+script's alone (DEC-026, DEC-027). The band's `context NN%` on the pinned row is a display of the
 same engine figure, never a verdict.
 
 **When.** Once per stage gate and once per sub-plan gate (DEC-017 positions), **after** the
