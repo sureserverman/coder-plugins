@@ -4,44 +4,16 @@ import type { On } from 'claude-code'
 import type { PlanGroup } from '../../types'
 import { figuresOf, isoSeconds } from './context'
 import { group, ran, seed, world } from './testing'
+import type { Run } from './testing'
 
 const SESSION = 'session-abc'
-const SIDECAR = '/repo/.claude/plan-context.json'
 const USAGE = { window: 1_000_000, tokens: 250_000, percent: 25 }
 
-type Entry = { kind: 'file' | 'dir' | 'other'; isLink?: boolean; realPath?: string }
-
-// The file system beneath the mod, as stat sees it: a repo at /repo holding the
-// state file, the session at /repo (testing.ts's world). `over` replaces or
-// removes entries; `writeFails` refuses every write.
-function disk(on: On, over: Record<string, Entry | null> = {}, writeFails = false) {
-  const entries: Record<string, Entry | null> = {
-    '/repo': { kind: 'dir' },
-    '/repo/sub': { kind: 'dir' },
-    '/repo/.claude': { kind: 'dir' },
-    '/repo/.claude/plan-progress.json': { kind: 'file' },
-    ...over,
-  }
-  const writes: { path: string; text: string }[] = []
-  on('fs.stat', (_$, e) => {
-    const entry = entries[e.path]
-    if (entry == null) throw new Error(`ENOENT: ${e.path}`)
-    return {
-      value: {
-        kind: entry.kind,
-        size: 1,
-        mtimeMs: 1,
-        isLink: entry.isLink ?? false,
-        ...(e.resolve ? { realPath: entry.realPath ?? e.path } : {}),
-      },
-    } as never
-  })
-  on('fs.write', (_$, e) => {
-    if (writeFails) return { deny: 'EACCES' } as never
-    writes.push({ path: e.path, text: e.text })
-    return { value: undefined } as never
-  })
-  return writes
+// The --write-sidecar runs the mod made, with the JSON it handed over.
+function writes(w: { runs: Run[] }) {
+  return w.runs
+    .filter(r => r.argv.includes('--write-sidecar'))
+    .map(r => ({ argv: r.argv, init: r.init, body: JSON.parse(r.init?.stdin ?? 'null') }))
 }
 
 function engine(on: On, context: unknown = USAGE) {
@@ -57,100 +29,94 @@ function planned(groups: PlanGroup[]) {
   return () => ran(JSON.stringify({ groups, detail: null }))
 }
 
-async function setup($: unknown, on: On, groups: PlanGroup[], over: Record<string, Entry | null> = {}, context?: unknown) {
+async function setup($: unknown, on: On, groups: PlanGroup[], context?: unknown) {
   const w = world(on, planned(groups))
-  const writes = disk(on, over)
   engine(on, context)
   await seed($ as never, w.clock)
-  return { w, writes }
+  return w
 }
 
-test('a pinned plan in task: the sidecar carries the engine figures and this session', async ($, on) => {
-  const { w, writes } = await setup($, on, [group({ phase: 'task' })])
+test('a pinned plan in task: the script is handed the engine figures and this session', async ($, on) => {
+  const w = await setup($, on, [group({ phase: 'task' })])
   await $.turn.complete(turn())
-  expect(writes.length).toBe(1)
-  expect(writes[0]!.path).toBe(SIDECAR)
-  const body = JSON.parse(writes[0]!.text)
+  const runs = writes(w)
+  expect(runs.length).toBe(1)
+  const { argv, init, body } = runs[0]!
+  expect(argv[0]).toBe('python3')
+  expect(argv).toContain('-I')
+  expect(argv.some(a => a.endsWith('skills/executing-plans/scripts/context-usage.py'))).toBe(true)
+  expect(init?.cwd).toBe('/repo')
+  expect(init?.timeoutMs).toBe(5000)
   expect(body.session_id).toBe(SESSION)
   expect(body.window).toBe(1_000_000)
   expect(body.tokens).toBe(250_000)
   expect(body.percent).toBe(25)
   expect(body.updated).toBe(isoSeconds(await w.clock.now()))
   expect(body.updated).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/)
+  expect(Object.keys(body).sort()).toEqual(['percent', 'session_id', 'tokens', 'updated', 'window'])
   expect(w.seen.keys.context).toEqual(USAGE)
 })
 
+for (const phase of ['preflight', 'gate', 'TASK']) {
+  test(`a pinned plan in ${phase}: written`, async ($, on) => {
+    const w = await setup($, on, [group({ phase })])
+    await $.turn.complete(turn())
+    expect(writes(w).length).toBe(1)
+  })
+}
+
 test('no plan in flight: nothing is written', async ($, on) => {
-  const { writes } = await setup($, on, [])
+  const w = await setup($, on, [])
   await $.turn.complete(turn())
-  expect(writes.length).toBe(0)
+  expect(writes(w).length).toBe(0)
 })
 
 test('a pinned plan outside preflight, task and gate: nothing is written', async ($, on) => {
-  const { writes } = await setup($, on, [group({ phase: 'closeout' }), group({ name: 'other', role: 'other' })])
+  const w = await setup($, on, [group({ phase: 'closeout' }), group({ name: 'other', role: 'other' })])
   await $.turn.complete(turn())
-  expect(writes.length).toBe(0)
+  expect(writes(w).length).toBe(0)
+})
+
+test('only another plan in task, none pinned: nothing is written', async ($, on) => {
+  const w = await setup($, on, [group({ role: 'other', phase: 'task' })])
+  await $.turn.complete(turn())
+  expect(writes(w).length).toBe(0)
 })
 
 test('a stale pinned plan: nothing is written', async ($, on) => {
-  const { writes } = await setup($, on, [group({ phase: 'gate', stale_hours: 30 })])
+  const w = await setup($, on, [group({ phase: 'gate', stale_hours: 30 })])
   await $.turn.complete(turn())
-  expect(writes.length).toBe(0)
+  expect(writes(w).length).toBe(0)
 })
 
-test('a subagent turn: nothing is written', async ($, on) => {
-  const { writes } = await setup($, on, [group({ phase: 'task' })])
+test('a subagent turn: nothing is written, nothing stored', async ($, on) => {
+  const w = await setup($, on, [group({ phase: 'task' })])
   await $.turn.complete(turn({ agentId: 'agent-1' }))
-  expect(writes.length).toBe(0)
-})
-
-// A link, and a directory that is not one yet resolves elsewhere (a junction,
-// a bind mount): each check stands on its own.
-for (const [what, entry] of [
-  ['a link out of the repo', { kind: 'dir', isLink: true, realPath: '/home/someone/.config' }],
-  ['no link, resolving out of the repo', { kind: 'dir', isLink: false, realPath: '/home/someone/.config' }],
-  ['a link back into itself', { kind: 'dir', isLink: true, realPath: '/repo/.claude' }],
-] as [string, Entry][]) {
-  test(`a .claude that is ${what}: nothing is written`, async ($, on) => {
-    const { writes } = await setup($, on, [group({ phase: 'task' })], { '/repo/.claude': entry })
-    await $.turn.complete(turn())
-    expect(writes.length).toBe(0)
-  })
-}
-
-for (const [what, entry] of [
-  ['a link', { kind: 'file', isLink: true, realPath: '/home/someone/.bashrc' }],
-  ['a directory', { kind: 'dir' }],
-] as [string, Entry][]) {
-  test(`a sidecar that is ${what}: nothing is written`, async ($, on) => {
-    const { writes } = await setup($, on, [group({ phase: 'task' })], { [SIDECAR]: entry })
-    await $.turn.complete(turn())
-    expect(writes.length).toBe(0)
-  })
-}
-
-test('an existing regular sidecar is rewritten', async ($, on) => {
-  const { writes } = await setup($, on, [group({ phase: 'preflight' })], { [SIDECAR]: { kind: 'file' } })
-  await $.turn.complete(turn())
-  expect(writes.length).toBe(1)
+  expect(writes(w).length).toBe(0)
+  expect('context' in w.seen.keys).toBe(false)
 })
 
 for (const context of [{ window: 0 }, {}, { window: 1.5 }, { window: '1000000' }]) {
   test(`no window from the engine (${JSON.stringify(context)}): nothing is written, no figures`, async ($, on) => {
-    const { w, writes } = await setup($, on, [group({ phase: 'task' })], {}, context)
+    const w = await setup($, on, [group({ phase: 'task' })], context)
     await $.turn.complete(turn())
-    expect(writes.length).toBe(0)
+    expect(writes(w).length).toBe(0)
     expect(w.seen.keys.context).toBe(null)
   })
 }
 
-test('a write that fails leaves the turn to end normally', async ($, on) => {
-  const w = world(on, planned([group({ phase: 'task' })]))
-  disk(on, {}, true)
+test('a write run that fails leaves the turn to end normally', async ($, on) => {
+  let calls = 0
+  const w = world(on, () => {
+    calls += 1
+    if (calls > 1) throw new Error('timed out')
+    return ran(JSON.stringify({ groups: [group({ phase: 'task' })], detail: null }))
+  })
   engine(on)
   await seed($ as never, w.clock)
   const done = await $.turn.complete(turn())
   expect(typeof done.text).toBe('string')
+  expect(writes(w).length).toBe(1)
   expect(w.seen.keys.context).toEqual(USAGE)
 })
 

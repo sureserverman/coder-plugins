@@ -58,16 +58,19 @@ export function contextText(figures: ContextFigures | null): string {
   return typeof percent === 'number' && Number.isSafeInteger(percent) ? ` · context ${percent}%` : ''
 }
 
-// One row, fitted to `width` by priority: the indent, the counts, the context
-// figure and the stale marker are kept whole; the name gives way next (down to NAME_MIN); the tail,
+// One row, fitted to `width` by priority: the indent, the counts and the stale
+// marker are kept whole; the context figure is shown whole or not at all, and
+// only while the name keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
 // free text from the script, gives way first. Only a row too narrow for even
 // that is clipped as a whole.
 export function rowText(g: PlanGroup, width: number, stale: boolean, context = ''): string {
   const indent = (g.depth ?? 0) > 0 ? '└ ' : ''
-  const counts = (g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : '') + context
+  const bare = g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : ''
   const mark = stale ? ' (stale)' : ''
   const name = plain(g.name)
   const tail = plain(g.tail)
+  const kept = cells(indent) + cells(bare) + cells(mark) + Math.min(cells(name), NAME_MIN)
+  const counts = kept + cells(context) <= width ? bare + context : bare
   const fixed = cells(indent) + cells(counts) + cells(mark)
   const nameRoom = Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
   const shownName = clip(name, nameRoom)

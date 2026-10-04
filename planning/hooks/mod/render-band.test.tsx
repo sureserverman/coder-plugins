@@ -312,3 +312,28 @@ test('no context figure yet: the pinned row shows none', async ($, on) => {
     await ui.unmount()
   }
 })
+
+test('the context figure gives way before the counts: done/total survives every width', async ($, on) => {
+  const w = world(on, answering([group({ name: 'fixture-plan', done: 12, total: 34 })]))
+  engineUsage(on, 25)
+  await seed($ as never, w.clock)
+  await turnEnds($)
+  for (const surface of SURFACES) {
+    let shown = 0
+    for (let cols = 12; cols <= 80; cols += 1) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const row = (await rowsOf(ui))[0]!.text
+      const width = cols >= 24 ? cols - 12 : cols
+      expect([...row].length).toBeLessThanOrEqual(width)
+      // NAME_MIN (8) + ' ▐██████████▌ 12/34' (19): the floor below which a row is cut whole.
+      if (width >= 27) expect(row).toContain('12/34')
+      if (row.includes('context')) {
+        expect(row).toContain('context 25%')
+        expect(row).toContain('12/34')
+        shown += 1
+      }
+      await ui.unmount()
+    }
+    expect(shown).toBeGreaterThan(0)
+  }
+})

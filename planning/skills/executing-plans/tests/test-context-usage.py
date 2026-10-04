@@ -479,7 +479,7 @@ try:
         check(str(j.get("pct")) in r and ("rule" in r or "unknown" in r),
               f"reason names the rule and the numbers ({r})")
 
-    print("group 15 — live-window sidecar <cwd>/.claude/plan-context.json")
+    print("group 15 — live-window sidecar <state root>/.claude/plan-context.json")
     LSID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
     live = pathlib.Path(tmp) / "live"
     (live / ".claude").mkdir(parents=True)
@@ -602,6 +602,89 @@ try:
         j = json.loads(r.stdout or "{}")
         check(j.get("window") == 400000 and "live session" in (j.get("window_source") or ""),
               f"the sidecar beats the model table ({j.get('window')}, {j.get('window_source')})")
+
+    print("group 16 — --write-sidecar: the mod's writer, at the reader's own root")
+    wr = pathlib.Path(tmp) / "wr"
+    (wr / ".claude").mkdir(parents=True)
+    (wr / "sub" / "deeper").mkdir(parents=True)
+    wside = wr / ".claude" / "plan-context.json"
+    good = {"session_id": LSID, "window": 400000, "tokens": 21004, "percent": 5,
+            "updated": stamp(0)}
+
+    def write_run(payload, cwd=wr, raw=None):
+        r = subprocess.run([sys.executable, SCRIPT, "--write-sidecar"], capture_output=True,
+                           text=True, cwd=str(cwd), env=env_for(home),
+                           input=json.dumps(payload) if raw is None else raw, timeout=20)
+        try:
+            return r.returncode, json.loads(r.stdout).get("written")
+        except (ValueError, AttributeError):
+            return r.returncode, ("raw", r.stdout + r.stderr)
+
+    rc, w = write_run(good)
+    check(rc == 0 and w is False and not wside.exists(),
+          f"no state file at or above cwd -> nothing written, exit 0 ({rc}, {w})")
+    (wr / ".claude" / "plan-progress.json").write_text("{}", encoding="utf-8")
+    rc, w = write_run(good, cwd=wr / "sub" / "deeper")
+    check(rc == 0 and w is True and wside.is_file() and not wside.is_symlink(),
+          f"run from below the root -> written at the root ({rc}, {w})")
+    body = json.loads(wside.read_text(encoding="utf-8")) if wside.is_file() else {}
+    check(body == good, f"exactly the validated fields are written ({body})")
+    spec = importlib.util.spec_from_file_location("cu_rt", SCRIPT)
+    cu = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cu)
+    check(cu.live_window({"CLAUDE_CODE_SESSION_ID": LSID}, str(wr / "sub")) == 400000,
+          "round trip: what --write-sidecar wrote, live_window reads back from a subdirectory")
+    check(not [n for n in os.listdir(wr / ".claude") if n.endswith(".tmp")],
+          "no temporary file is left behind")
+
+    # A planted link at the sidecar's name is replaced, never followed.
+    escape = pathlib.Path(tmp) / "escape" / "sub" / "pwned.json"
+    wside.unlink()
+    wside.symlink_to(escape)
+    rc, w = write_run(good)
+    check(w is True and not escape.exists() and not escape.parent.exists()
+          and wside.is_file() and not wside.is_symlink(),
+          f"a dangling link at the sidecar is replaced; its target is never created ({w})")
+    target = pathlib.Path(tmp) / "victim.txt"
+    target.write_text("keep", encoding="utf-8")
+    wside.unlink()
+    wside.symlink_to(target)
+    write_run(good)
+    check(target.read_text(encoding="utf-8") == "keep" and not wside.is_symlink(),
+          "a link to an existing file is replaced; the file it named is untouched")
+    other = pathlib.Path(tmp) / "hard.txt"
+    other.write_text("keep", encoding="utf-8")
+    wside.unlink()
+    os.link(other, wside)
+    write_run(good)
+    check(other.read_text(encoding="utf-8") == "keep",
+          "a hardlinked sidecar is replaced, not written through")
+
+    # A linked .claude is refused outright.
+    lr = pathlib.Path(tmp) / "lr"
+    lr.mkdir()
+    outside = pathlib.Path(tmp) / "outside-claude"
+    outside.mkdir()
+    (outside / "plan-progress.json").write_text("{}", encoding="utf-8")
+    (lr / ".claude").symlink_to(outside)
+    rc, w = write_run(good, cwd=lr)
+    check(rc == 0 and w is False and not (outside / "plan-context.json").exists(),
+          f"a .claude that is a link -> nothing written through it ({w})")
+
+    for label, bad in (("window 0", dict(good, window=0)), ("window true", dict(good, window=True)),
+                       ("window 1.5", dict(good, window=1.5)), ("no session", dict(good, session_id="")),
+                       ("session not a string", dict(good, session_id=5)),
+                       ("percent 140", dict(good, percent=140)), ("tokens -1", dict(good, tokens=-1)),
+                       ("updated a number", dict(good, updated=5)),
+                       ("a 10 KB session id", dict(good, session_id="x" * 10000))):
+        wside.unlink(missing_ok=True)
+        rc, w = write_run(bad)
+        check(rc == 0 and w is False and not wside.exists(), f"{label} -> nothing written, exit 0 ({rc}, {w})")
+    for label, raw in (("malformed stdin", "{nope"), ("a list", "[1]"), ("empty stdin", "")):
+        rc, w = write_run(None, raw=raw)
+        check(rc == 0 and w is False, f"{label} -> nothing written, exit 0 ({rc}, {w})")
+    rc, w = write_run(dict(good, tokens=None, percent=None))
+    check(w is True, f"tokens and percent may be null ({w})")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

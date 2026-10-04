@@ -111,3 +111,8 @@ sec-review-findings-*.jsonl
 # here so the intent is explicit rather than incidental to that rule.
 .claude/plan-progress.json
 .claude/plan-progress-cache.json
+# The planning mod's live-window sidecar (planning 0.53.0), same rule.
+.claude/plan-context.json
+
+# Written by `claude --plugin-dir planning` for editors (an engine artifact).
+planning/tsconfig.json

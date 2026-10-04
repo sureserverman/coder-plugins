@@ -23,7 +23,8 @@ import type { PlanDetail, PlanGroup, PlanModel } from '../../types'
 export const NOTE_MAX = 600
 export const NOTED_KEEP = 50
 const FIELD_MAX = 80
-const ACTIVE_PHASES = ['preflight', 'task', 'gate']
+// The phases the executor writes while it works; context.ts reads the same list.
+export const ACTIVE_PHASES = ['preflight', 'task', 'gate']
 // The hidden categories plan_continue_classify.py's clean() drops: controls (Cc),
 // invisible format characters (Cf: bidi, zero-width, soft hyphen, tags) and lone
 // surrogates (Cs). Whitespace among them becomes a space first.

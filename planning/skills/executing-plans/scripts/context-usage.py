@@ -28,7 +28,7 @@ Window resolution — the transcript records no window, and the model id carries
        cwd. Used only when the file is a regular file owned by this user
        (no symlink at `.claude` or the file), at most 64 KiB, a JSON object whose
        `session_id` equals CLAUDE_CODE_SESSION_ID, whose `window` is a positive int
-       (not a bool), and whose `updated` (ISO-8601, UTC) is under 15 min old and at
+       (not a bool), and whose `updated` (ISO-8601 with a zone) is under 15 min old and at
        most 60 s in the future. Anything else falls through silently.
     3. The base window from MODEL_WINDOWS, by exact model id (a dated `-YYYYMMDD`
        suffix is also accepted).
@@ -280,7 +280,9 @@ def configured_model(env, cwd, home):
         try:
             with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK), encoding="utf-8") as fh:
                 data = json.load(fh)
-        except (OSError, ValueError):
+        except Exception:
+            # OSError, ValueError, and the TypeError a non-blocking text read raises
+            # on a FIFO with a writer and no data: all the same answer.
             continue
         if isinstance(data, dict) and isinstance(data.get("model"), str) and data["model"]:
             return path, data["model"]
@@ -288,7 +290,8 @@ def configured_model(env, cwd, home):
 
 
 def read_sidecar(cwd):
-    """The parsed <cwd>/.claude/plan-context.json as a dict, or None for any failure.
+    """The parsed <cwd>/.claude/plan-context.json as a dict, or None for any failure;
+    live_window() passes sidecar_root(cwd) as `cwd`.
 
     The same hardened read as planning/hooks/plan_continue_classify.py (read_state,
     read_own_file): opened one component at a time — cwd, then `.claude` with
@@ -322,10 +325,12 @@ def read_sidecar(cwd):
     return data if isinstance(data, dict) else None
 
 
-def sidecar_root(cwd):
-    """Where the mod writes the sidecar: the nearest directory at or above cwd holding
-    .claude/plan-progress.json, found as plan-progress.py's find_state() finds it,
-    else cwd. The executor may run this script from below the repo root."""
+def sidecar_root(cwd, require_state=False):
+    """Where the sidecar lives: the nearest directory at or above cwd holding
+    .claude/plan-progress.json, found as plan-progress.py's find_state() finds it;
+    else cwd, or None with `require_state`. The executor may run this script from
+    below the repo root, and the writer (--write-sidecar) uses this same function,
+    so the two cannot disagree about where the file is."""
     try:
         start = pathlib.Path(cwd).resolve()
         for d in (start, *start.parents):
@@ -333,7 +338,73 @@ def sidecar_root(cwd):
                 return str(d)
     except (OSError, ValueError):
         pass
-    return cwd
+    return None if require_state else cwd
+
+
+def _count(v, top=None):
+    """A non-negative int (no bool) at most `top`, else the sentinel False."""
+    if type(v) is not int or v < 0 or (top is not None and v > top):
+        return False
+    return v
+
+
+def write_sidecar(cwd, payload):
+    """--write-sidecar: store the live window the planning mod hands over on stdin.
+
+    Only `{session_id, window, tokens, percent, updated}` is written, each checked;
+    anything else is dropped and a bad field writes nothing. Written at
+    sidecar_root(cwd, require_state=True), never without a state file. The
+    directory is a cloned repo's, so nothing is followed: `.claude` opens
+    O_NOFOLLOW | O_DIRECTORY and must be this user's, the bytes go to a fresh
+    O_EXCL | O_NOFOLLOW temporary beside it, and a rename puts it in place — a
+    rename replaces whatever link or hardlink sat at the name instead of writing
+    through it. Returns whether the file was written; never raises.
+    """
+    if not isinstance(payload, dict):
+        return False
+    sid, updated = payload.get("session_id"), payload.get("updated")
+    window = payload.get("window")
+    tokens = None if payload.get("tokens") is None else _count(payload.get("tokens"))
+    percent = None if payload.get("percent") is None else _count(payload.get("percent"), 100)
+    if (not isinstance(sid, str) or not 0 < len(sid) <= 200
+            or type(window) is not int or window <= 0
+            or tokens is False or percent is False
+            or not isinstance(updated, str) or not 0 < len(updated) <= 40):
+        return False
+    body = json.dumps({"session_id": sid, "window": window, "tokens": tokens,
+                       "percent": percent, "updated": updated}) + "\n"
+    root = sidecar_root(cwd, require_state=True)
+    if root is None:
+        return False
+    fds, tmp = [], f".{SIDECAR}.{os.getpid()}.tmp"
+    try:
+        fds.append(os.open(root, os.O_RDONLY | os.O_DIRECTORY))
+        fds.append(os.open(".claude", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                           dir_fd=fds[0]))
+        if os.fstat(fds[1]).st_uid != os.getuid():
+            return False
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
+                     dir_fd=fds[1])
+        try:
+            os.write(fd, body.encode("utf-8"))
+        finally:
+            os.close(fd)
+        os.replace(tmp, SIDECAR, src_dir_fd=fds[1], dst_dir_fd=fds[1])
+        tmp = None
+        return True
+    except Exception:
+        return False
+    finally:
+        if tmp is not None and len(fds) == 2:
+            try:
+                os.unlink(tmp, dir_fd=fds[1])
+            except OSError:
+                pass
+        for fd in fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 def live_window(env, cwd, now=None):
@@ -537,7 +608,18 @@ def main(argv=None):
                     help="stage about to open (default: last stage green here + 1)")
     ap.add_argument("--sub-plan-boundary", action="store_true",
                     help="a master plan's sub-plan just closed: handoff unless pct < 25")
+    ap.add_argument("--write-sidecar", action="store_true",
+                    help="store the live window JSON on stdin as the sidecar (the planning "
+                         "mod's writer); prints {\"written\": bool}, always exits 0")
     args = ap.parse_args(argv)
+
+    if args.write_sidecar:
+        try:
+            payload = json.loads(sys.stdin.read(MAX_SIDECAR_BYTES + 1) or "null")
+        except Exception:
+            payload = None
+        print(json.dumps({"written": write_sidecar(os.getcwd(), payload)}))
+        return 0
 
     res = build(args, os.environ, os.getcwd(), os.path.expanduser("~"))
     res["verdict"], res["reason"] = verdict(res)

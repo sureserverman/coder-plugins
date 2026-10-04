@@ -9,24 +9,22 @@
 // the end of each main-loop turn while the pinned plan is in preflight, task or
 // gate, and never otherwise.
 //
-// The sidecar lives in a repo-controlled directory, so the write refuses a path it
-// cannot vouch for: a `.claude` that resolves anywhere but inside the repo, or a
-// sidecar that is a link or not a regular file. A swap between that check and the
-// write is not closed here; the reader opens the file without following links.
+// The write itself is context-usage.py's (--write-sidecar): it finds the root the
+// way its reader does, and writes without following any link the repo planted
+// (`.claude` opened O_NOFOLLOW, a fresh temporary, a rename over the name). This
+// file only hands it the engine's figures and this session's id.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
 import type { ContextFigures, PlanModelState } from '../../types'
+import { ACTIVE_PHASES } from './stage-note'
 
 const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
 const CONTEXT = atom({ plugin: 'planning', key: 'context' } as const, null as ContextFigures | null)
 
-const STATE = '.claude/plan-progress.json'
-const SIDECAR = '.claude/plan-context.json'
-const ACTIVE_PHASES = ['preflight', 'task', 'gate']
-// No repo is this deep; the walk stops here whatever it finds.
-const MAX_DEPTH = 64
+const SCRIPT = 'skills/executing-plans/scripts/context-usage.py'
+const TIMEOUT_MS = 5000
 
 const count = (v: unknown): number | null =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : null
@@ -53,45 +51,7 @@ export function inFlight(state: PlanModelState | null): boolean {
 // `2026-10-04T08:00:00Z`, the state file's own spelling of a time.
 export const isoSeconds = (ms: number): string => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-const parentOf = (dir: string): string | null => {
-  const cut = dir.lastIndexOf('/')
-  if (cut < 0 || dir === '/') return null
-  return cut === 0 ? '/' : dir.slice(0, cut)
-}
-
-const join = (dir: string, rest: string): string => (dir === '/' ? `/${rest}` : `${dir}/${rest}`)
-
-// The repo root plan-progress.py reads the state from: the nearest directory at or
-// above the working directory holding .claude/plan-progress.json. Resolved, so the
-// checks below compare like with like.
-async function stateRoot($: EngineInterface): Promise<string | null> {
-  const cwd = (await $.fs.stat(await $.session.cwd(), { resolve: true })).realPath
-  let dir: string | null = typeof cwd === 'string' && cwd.startsWith('/') ? cwd : null
-  for (let depth = 0; dir !== null && depth < MAX_DEPTH; depth += 1) {
-    const found = await $.fs.stat(join(dir, STATE)).catch(() => undefined)
-    if (found?.kind === 'file') return dir
-    dir = parentOf(dir)
-  }
-  return null
-}
-
-// Where the sidecar may be written, or null: `.claude` is the repo's own
-// directory, and the sidecar, when there, is a regular file and no link.
-async function sidecarPath($: EngineInterface, root: string): Promise<string | null> {
-  const claude = await $.fs.stat(join(root, '.claude'), { resolve: true }).catch(() => undefined)
-  if (claude === undefined || claude.isLink || claude.kind !== 'dir') return null
-  if (claude.realPath !== join(root, '.claude')) return null
-  const path = join(root, SIDECAR)
-  const existing = await $.fs.stat(path).catch(() => undefined)
-  if (existing !== undefined && (existing.isLink || existing.kind !== 'file')) return null
-  return path
-}
-
 async function writeSidecar($: EngineInterface, figures: ContextFigures): Promise<void> {
-  const root = await stateRoot($)
-  if (root === null) return
-  const path = await sidecarPath($, root)
-  if (path === null) return
   const sidecar = {
     session_id: await $.session.id(),
     window: figures.window,
@@ -99,7 +59,11 @@ async function writeSidecar($: EngineInterface, figures: ContextFigures): Promis
     percent: figures.percent,
     updated: isoSeconds(await $.clock.now()),
   }
-  await $.fs.write(path, `${JSON.stringify(sidecar)}\n`)
+  await $.process.run(['python3', '-I', `${$.plugin.root}/${SCRIPT}`, '--write-sidecar'], {
+    cwd: await $.session.cwd(),
+    stdin: JSON.stringify(sidecar),
+    timeoutMs: TIMEOUT_MS,
+  })
 }
 
 export function registerContext(on: On): void {
