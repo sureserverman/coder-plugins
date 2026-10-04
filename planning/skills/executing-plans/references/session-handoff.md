@@ -21,7 +21,8 @@ python3 <planning>/skills/executing-plans/scripts/context-usage.py \
 
 **The window.** `--window N` wins. Next comes the live window: on Claude Code 2.1.288+ the
 planning mod has `.claude/plan-context.json` written beside the state file at the end of each
-main-loop turn while the pinned plan is in `preflight`, `task` or `gate` and not stale
+main-loop turn, and just before a main-loop Bash call that runs this script, while the
+pinned plan is in `preflight`, `task` or `gate` and not stale
 (`../../../hooks/mod/context.ts`, through `context-usage.py --write-sidecar`, which never
 follows a link the repo planted). Gitignore it with the state file.
 The script uses it only when its `session_id` equals `CLAUDE_CODE_SESSION_ID`, its `window`
