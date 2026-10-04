@@ -79,6 +79,11 @@ def section(text, start, end, label):
     return flat(text[m.start(): m.end() + e.start()])
 
 
+# A hand-written proof line in any of its phrasings — the retired `mutation:` field, or
+# "record/name the mutation and (the) count" — not only the two verbatim sentences.
+HAND_WRITTEN = re.compile(r"mutation:|mutation,? and (?:the )?count|count in the commit", re.I)
+
+
 def main():
     print("executing-plans — rule 4a and the stage gate use the proof tools:")
     ep = EP.read_text()
@@ -86,20 +91,31 @@ def main():
     check("rule 4a records the proof with `prove-claim.py claim`",
           affirms_claim(r4a, r"prove-claim\.py claim"))
     check("rule 4a names the claim set: the first claim and each `(red if …)` claim",
-          affirms_claim(r4a, r"first claim") and "(red if" in r4a)
+          affirms_claim(r4a, r"first claim") and affirms_claim(r4a, r"each claim marked `\(red if"))
+    check("rule 4a: the work is staged before the tool runs",
+          affirms_claim(r4a, r"work staged"))
+    check("rule 4a: `--test` is a command from the task's `Test:`; the break patch lives outside the repo",
+          affirms_claim(r4a, r"`--test` a command from the task's `Test:`")
+          and affirms_claim(r4a, r"patch file kept outside the repo"))
     check("rule 4a stages the records with the task commit (`git add proof/`)",
           affirms_claim(r4a, r"git add proof/"))
     check("rule 4a no longer asks for a hand-written mutation sentence",
-          not re.search(r"record the mutation and count in the commit", r4a, re.I))
+          not HAND_WRITTEN.search(r4a))
     check("rule 4a routes a checkable requirement to `prove-claim.py req`",
           affirms_claim(r4a, r"prove-claim\.py req"))
-    check("rule 4a routes an uncheckable one, and the device-only case, to a deviation",
-          affirms_claim(r4a, r"prove-claim\.py deviation") and re.search(r"device", r4a))
+    check("rule 4a routes an uncheckable requirement to `prove-claim.py deviation`",
+          affirms_claim(r4a, r"else `prove-claim\.py deviation`"))
+    check("rule 4a routes the device-only claim to `prove-claim.py deviation --claim`",
+          affirms_claim(r4a, r"prove-claim\.py deviation --claim"))
     gate = section(ep, r"### Step 3\.5", r"\n## Context resets", "Step 3.5")
-    check("Step 3.5 runs `plan-flip-audit.py … --repo` at the stage gate",
-          affirms_claim(gate, r"plan-flip-audit\.py[^.;]{0,60}--repo"))
-    check("Step 3.5: a blocking audit finding fails the gate",
-          affirms_claim(gate, r"blocking[^.;]{0,40}fails the gate"))
+    check("Step 3.5 runs `plan-flip-audit.py … --repo` at EVERY stage gate",
+          affirms_claim(gate, r"record audit runs at every stage gate")
+          and affirms_claim(gate, r"plan-flip-audit\.py[^.;]{0,60}--repo"))
+    check("Step 3.5: exit 1, a blocking finding, fails the gate",
+          affirms_claim(gate, r"exit 1, a `blocking` finding, fails the gate"))
+    check("Step 3.5: exit 2 is an error, never read as clean; advisory is exit 4",
+          affirms_claim(gate, r"Exit 2 is an error to fix first")
+          and affirms_claim(gate, r"`advisory` finding \(exit 4\)"))
 
 
     print("dispatching-parallel-agents and honest-gates say the same:")
@@ -108,14 +124,19 @@ def main():
           affirms_claim(brief, r"prove-claim\.py claim"))
     check("the dispatch brief stages the records (`git add proof/`)",
           affirms_claim(brief, r"git add proof/"))
+    check("the dispatch brief: stage the work first, `--test` from the Test, the patch outside the repo",
+          affirms_claim(brief, r"Stage your work, then prove it")
+          and affirms_claim(brief, r"`--test` the Test command above")
+          and affirms_claim(brief, r"kept outside the repo"))
+    check("the dispatch brief names where the tool lives (not an undefined placeholder)",
+          affirms_claim(brief, r"executing-plans/scripts>/prove-claim\.py"))
     hg = section(HG.read_text(), r"A test does not exist until its mutant dies", r"\n## ", "honest-gates mutant")
     check("honest-gates records the mutant's proof with `prove-claim.py`",
           affirms_claim(hg, r"prove-claim\.py claim"))
     check("honest-gates' device-only line is a deviation",
           affirms_claim(hg, r"prove-claim\.py deviation --claim"))
     check("neither skill still asks for a hand-written mutation sentence",
-          not re.search(r"Name the mutation and the count in the commit", hg, re.I)
-          and not re.search(r"record the mutation and count in the commit", brief, re.I))
+          not HAND_WRITTEN.search(hg) and not HAND_WRITTEN.search(brief))
 
     print()
     if FAILED:

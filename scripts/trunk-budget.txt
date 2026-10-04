@@ -194,7 +194,12 @@
 #   and Step 3.5 runs plan-flip-audit.py --repo at every gate. Paid for inside the ceiling:
 #   4a's opening rationale sentence (honest-gates carries it) and three Step 3.5 bullets
 #   compressed with their rules intact; check-trunk-retention.py clean.
-planning/skills/executing-plans/SKILL.md 49856
+# Raised 49856 -> 50036 (+180 B) 2026-10-04, proof-by-tool Stage 2 gate (Tier-2 Importants):
+#   rule 4a names the tool's preconditions — the work staged first, `--test` a command from
+#   the task's `Test:`, the break patch kept outside the repo, `--help` for the arguments —
+#   each a refusal an executor otherwise meets at run time; Step 3.5 gives the audit's exit
+#   codes (1 fails, 2 is an error, 4 advisory). Obligations, not argument.
+planning/skills/executing-plans/SKILL.md 50036
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -487,7 +492,11 @@ planning/skills/backlog/SKILL.md 17333
 # Lowered 17482 -> 17480 (-2 B) 2026-10-04, proof-by-tool Task 2.2: the prompt template's step 7
 #   has a dispatched task prove its claims with prove-claim.py and `git add proof/` before it
 #   commits. Paid for by compressing the trailer's rationale and the intro line.
-planning/skills/dispatching-parallel-agents/SKILL.md 17480
+# Raised 17480 -> 17626 (+146 B) 2026-10-04, proof-by-tool Stage 2 gate (Tier-2 Important): the
+#   brief's step 7 was not runnable by a dispatched agent — it now says to stage the work
+#   first, where the tool lives, that `--test` is the Test command and the patch stays
+#   outside the repo, and that `--help` lists the arguments.
+planning/skills/dispatching-parallel-agents/SKILL.md 17626
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file

@@ -1599,6 +1599,62 @@ else:
     bad(f"foreign baseline must exit 2, got {r.returncode}", r.stdout[:300] + r.stderr[:300])
 
 
+# Finding 1 counts a stage's gate boxes only while that stage has no `Stage N green`
+# commit in the range. Five task commits, five Status ticks and two gate boxes is an
+# honest stage — counting the gate boxes made it 7 > 6, a blocking bulk flip, at every
+# plan's second gate. The same ticks with no green commit are still a bulk flip.
+def gated_plan(label, n_tasks=5):
+    vault = newdir(f"{label}-vault")
+    lines = ["# Plan", "", "## Stage 1", ""]
+    for i in range(1, n_tasks + 1):
+        lines += [f"### Task 1.{i}: thing {i}", "- **Status:** [ ]", ""]
+    lines += ["### Stage 1 Gate", "", "- [ ] `make test` exits 0", "- [ ] `make lint` exits 0", ""]
+    plan = vault / "plan.md"
+    plan.write_text("\n".join(lines))
+    return plan
+
+
+def tick_all(plan):
+    plan.write_text(plan.read_text().replace("- [ ]", "- [x]").replace("**Status:** [ ]", "**Status:** [x]"))
+
+
+for label, green, want in (("bl-gate-green", True, False), ("bl-gate-nogreen", False, True)):
+    plan = gated_plan(label)
+    proj, env = newrepo(f"{label}-proj")
+    (proj / "README").write_text("x\n"); commit(proj, env, "chore: initial commit")
+    snap(plan, proj)
+    for i in range(1, 6):
+        (proj / f"f{i}.txt").write_text(f"{i}\n"); commit(proj, env, f"Stage 1 Task 1.{i}: work")
+    if green:
+        (proj / "gate.txt").write_text("gate report\n"); commit(proj, env, "Stage 1 green")
+    tick_all(plan)
+    r, doc = run_json(str(plan), "--repo", str(proj))
+    f1 = findings_of(doc, 1) if doc else []
+    if bool(f1) == want:
+        ok("baseline: 5 task ticks + 2 gate boxes " + ("with" if green else "without")
+           + " a `Stage 1 green` commit " + ("fires finding 1" if want else "is not a bulk flip"))
+    else:
+        bad("a stage's gate boxes are backed only by its green commit (red if gate boxes "
+            "count, or count as backed with no green commit)", json.dumps(f1)[:400])
+
+for label, green, want in (("hist-gate-green", True, False), ("hist-gate-nogreen", False, True)):
+    repo, env = newrepo(label)
+    plan = repo / "p.md"
+    plan.write_text(gated_plan(f"{label}-src").read_text())
+    base = commit(repo, env, "authored")
+    for i in range(1, 6):
+        (repo / f"f{i}.txt").write_text(f"{i}\n"); commit(repo, env, f"Stage 1 Task 1.{i}: work")
+    tick_all(plan)
+    commit(repo, env, "Stage 1 green" if green else "progress")
+    r, doc = run_json(str(plan), "--since", base, cwd=repo)
+    f1 = findings_of(doc, 1) if doc else []
+    if bool(f1) == want:
+        ok("history: the gate ticked " + ("in its `Stage 1 green` commit is not a bulk flip"
+                                          if green else "in an ordinary commit still fires finding 1"))
+    else:
+        bad("history mode must back gate boxes by the green commit alone", json.dumps(f1)[:400])
+
+
 # ------------------------------- findings 8 and 9: proof is a record, not a line
 # metabrush-android: executors wrote `mutation:` and `req:` lines that were
 # false (a substituted break, a cleanup that was never exercised). A line is a

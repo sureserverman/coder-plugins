@@ -432,11 +432,12 @@ write them.** The measured incident behind all three: `references/task-execution
 2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
-4a. **Prove it — by the tool, on the host.** Before flipping Status, run `prove-claim.py
-   claim` for the task's **first claim and each claim marked `(red if …)`** —
-   revert the fix (not the test) as `--break`: it writes a record only after watching the task's own
-   `Test:` pass, go RED under the break and the tree come back — `git add proof/` with the
-   commit. A requirement it can check → `prove-claim.py req`, else `prove-claim.py
+4a. **Prove it — by the tool, on the host.** With the work staged, before flipping Status,
+   run `prove-claim.py claim` (`--help` lists its arguments) for the task's **first claim
+   and each claim marked `(red if …)`** — `--test` a command from the task's `Test:`;
+   revert the fix (not the test) as `--break`, a patch file kept outside the repo. It writes
+   a record only after watching that test pass, go RED under the break and the tree come
+   back — `git add proof/` with the commit. A requirement it can check → `prove-claim.py req`, else `prove-claim.py
    deviation`. Untiered (a re-run, not an agent), so it runs at every scope including
    `none` — **but never on a device, VM or instrumented suite**: prove it against the
    host-side test guarding the same line, or record the device-only claim with
@@ -511,7 +512,8 @@ When every task in the stage is green, run the stage gate:
   six full passes where the policy allows two — `references/stage-gate.md` § *A review fix
   does not re-earn the full pass*).
 - **The record audit runs at every stage gate:** `plan-flip-audit.py <plan> --repo <repo-root>`
-  — a `blocking` finding fails the gate; name each `advisory` one in the report.
+  — exit 1, a `blocking` finding, fails the gate. Exit 2 is an error to fix first; name each
+  `advisory` finding (exit 4) in the report.
 - A scoped gate report states what scope actually ran (honest-gates disclosure) — e.g. "gate green — stage-scope: `:features` instrumented + full `check`."
 - **The gate report states the stage's dispatched-vs-inline counts, and a reason for every inlined `Dispatch: YES` task** — read off the executor trailers rather than from memory, and reconciled against the roster Preflight declared. A stage that dispatched all it marked still says `dispatch: 4 of 4`; silence is never interpreted. **An empty trailer value is `unknown`, never `inline`.**
 - **The gate report names every review that ran, the agent that ran it, and the diff it saw** — and, for one that did not, which of the **three** reasons applies: the declared tier never mandated it (a *scope* statement, needing no excuse), or, where the tier did mandate it, an evidenced opt-out or a trivial/non-code diff. Never report a tier-scoped absence as an opt-out. Name the agent by a type dispatch can actually take — `goal-evaluator` is a **role**, not a registered agent.

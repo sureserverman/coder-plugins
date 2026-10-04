@@ -122,9 +122,10 @@ and follow it" — the same skill body, loaded from disk (see stack-routing.md �
 6. Run NOTHING WIDER than the Test above. No full suite, no regression sweep across other
    test trees, no "check I broke nothing else" — the main session runs that once at the
    stage gate. Running a whole test file instead of one filter is fine
-7. Before committing, prove it (executing-plans rule 4a): `python3 <dir>/prove-claim.py
-   claim` for the first claim and each `(red if …)` claim, `--break` reverting your
-   fix; `git add proof/`
+7. Stage your work, then prove it (executing-plans rule 4a): `python3 <absolute path of
+   executing-plans/scripts>/prove-claim.py claim` (`--help` lists its arguments) for the
+   first claim and each `(red if …)` claim — `--test` the Test command above, `--break` a
+   patch reverting your fix, kept outside the repo; then `git add proof/`
 
 ## Constraints
 - Do NOT modify files outside the Files list above

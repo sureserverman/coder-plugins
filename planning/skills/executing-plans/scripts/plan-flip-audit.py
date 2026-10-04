@@ -10,7 +10,9 @@ Reports nine patterns, each reconstructed from a real session that shipped a
 green gate over work that had not happened:
 
   1. more than N (default 6) boxes becoming `[x]` in one commit, with fewer than
-     N task commits in the range behind them — the bulk regex flip
+     N task commits in the range behind them — the bulk regex flip. The boxes
+     under a `### Stage N Gate` heading are not counted once a `Stage N green`
+     commit is in the range: ticking a gate with its commit is the procedure.
   2. a ticked box whose own text carries what voids it. Two tiers: a STRONG
      phrase voids alone and is `blocking` (no CM4 / soft residual / exit 2 /
      exit 78 / stubbed / mocked / waived / Not done: / shouted BLOCKED); a WEAK
@@ -35,8 +37,9 @@ green gate over work that had not happened:
      req-K.json nor a deviation-K.json record — `advisory`, always: requirement
      accounting carries no blocking mandate until it is measured. Needs --repo.
 
-Exit 0 = no findings, 1 = findings, 2 = usage/IO error, 3 = no findings but some
-checks could not run (only with --require-all-checks). A crash must never be
+Exit 0 = no findings, 1 = a blocking finding, 4 = advisory findings only, 2 =
+usage/IO error (never clean), 3 = no findings but some checks could not run (only
+with --require-all-checks). A crash must never be
 readable as "clean", which is why 2 is reserved rather than reusing 1, and why
 main() is wrapped so an unexpected exception exits 2 rather than letting
 Python's default exit 1 masquerade as "findings". (That handler prints to
@@ -220,7 +223,9 @@ REVIEW_PATH = re.compile(
 
 COMPLETED = re.compile(r"^\s*\*\*Completed:\*\*", re.I)
 JUDGMENT = re.compile(r"\(judgment\)", re.I)
-STAGE_GREEN = re.compile(r"^Stage\s+\d+\s+green\b", re.I)
+STAGE_GREEN = re.compile(r"^Stage\s+(\d+)\s+green\b", re.I)
+# A stage's gate checklist as planning-projects writes it: `### Stage N Gate`.
+GATE_HEAD = re.compile(r"^\s*#{1,5}\s+Stage\s+(\d+)\b[^\n]*\bGate\b", re.I)
 MD_LINK = re.compile(r"\(([^()]+?\.md)\)")
 BARE_MD = re.compile(r"([A-Za-z0-9._\-/]+\.md)")
 
@@ -1144,6 +1149,34 @@ def tick_delta(before, after):
     return res
 
 
+def gate_box_stages(text):
+    """{line number: stage} for every box under a `### Stage N Gate` heading."""
+    out, stage = {}, None
+    for i, line in enumerate(text.splitlines(), 1):
+        if re.match(r"^\s*#{1,5}\s", line):
+            m = GATE_HEAD.match(line)
+            stage = m.group(1) if m else None
+            continue
+        if stage and (BULLET_BOX.match(line) or LABELED_BOX.match(line)):
+            out[i] = stage
+    return out
+
+
+def green_stages(subjects):
+    """Stage numbers that have a `Stage N green` commit among `subjects`."""
+    return {m.group(1) for s in subjects for m in [STAGE_GREEN.match(s.strip())] if m}
+
+
+def unbacked(entries, text, green):
+    """Flips finding 1 counts: all but the gate boxes of a stage whose `Stage N green`
+    commit is in the range. A gate's boxes are ticked together with that commit —
+    that is the procedure, not a bulk flip — and counting them made every honest
+    plan trip finding 1 at its second gate (5 task flips + 2 gate boxes = 7 > 6),
+    and then never again once task commits reached the threshold."""
+    gates = gate_box_stages(text)
+    return [e for e in entries if gates.get(e[2]) not in green]
+
+
 def preflight_keys(text):
     out, inside = set(), False
     for line in text.splitlines():
@@ -1190,6 +1223,8 @@ def history_findings(repo, rel, path, text, since, threshold):
     task_commits = max(task_commits, len(task_numbers(task_ids) & proven_tasks(repo, path)))
 
     pre = preflight_keys(text)
+    green = green_stages(row.split("\x00", 1)[1] for row in (subj_out or "").split("\n")
+                         if "\x00" in row)
     out, errors, total_flips = [], [], 0
 
     for sha in shas:
@@ -1200,14 +1235,15 @@ def history_findings(repo, rel, path, text, since, threshold):
             continue
         if not entries:
             continue
-        total_flips += len(entries)
+        counted = unbacked(entries, file_at(repo, sha, rel) or "", green)
+        total_flips += len(counted)
         short = sha[:8]
         msg = gout(repo, "log", "-1", "--format=%s%n%b", sha) or ""
 
-        if len(entries) > threshold and task_commits < threshold:
+        if len(counted) > threshold and task_commits < threshold:
             out.append({
                 "finding": 1, "severity": "blocking",
-                "rule": (f"{len(entries)} boxes became [x] in one commit with only "
+                "rule": (f"{len(counted)} boxes became [x] in one commit with only "
                          f"{task_commits} task commit(s) in the range"),
                 "file": str(path), "line": None, "commit": short,
                 "text": msg.splitlines()[0] if msg else "",
@@ -1341,8 +1377,10 @@ def baseline_findings(root, path, text, base, threshold):
 
     task_ids, task_commits = set(), 0
     probed = reviewed = False
+    subjects = []
     for sha in shas:
         msg = gout(root, "log", "-1", "--format=%s%n%b", sha) or ""
+        subjects.append(msg.splitlines()[0] if msg else "")
         am, _rows = touched_paths(root, sha)
         ids = sorted(subject_tasks(msg.splitlines()[0] if msg else ""))
         if ids and am:
@@ -1356,10 +1394,11 @@ def baseline_findings(root, path, text, base, threshold):
     task_commits = max(task_commits, len(task_numbers(task_ids) & proven_tasks(root, path)))
 
     out, where = [], "baseline..HEAD"
-    if len(flips) > threshold and task_commits < threshold:
+    counted = unbacked(flips, text, green_stages(subjects))
+    if len(counted) > threshold and task_commits < threshold:
         out.append({
             "finding": 1, "severity": "blocking",
-            "rule": (f"{len(flips)} boxes became [x] since the baseline with "
+            "rule": (f"{len(counted)} boxes became [x] since the baseline with "
                      f"only {task_commits} task commit(s) in {root.name}"),
             "file": str(path), "line": None, "commit": where,
             "text": f"baseline captured {base.get('captured_at')}",
