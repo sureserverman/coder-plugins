@@ -1,6 +1,15 @@
 # planning
 
-A fifteen-skill pipeline (v0.52.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.53.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.53.0
+
+On Claude Code 2.1.288+, the plugin ships a mod (`hooks/mod/`) — the Claude Code layer over the shared scripts, which stay the only place anything is decided (DEC-027):
+
+- **A progress band above the prompt** draws `plan-progress.py --json`, fitted to the band's width, with no status-line wiring. `/plan-view` (or the band's `[ Plan ]` button) opens a pane with every stage, gate, task and dispatched agent. `/planning:statusline` still wires the status-line bar for other setups.
+- **The run-to-completion Stop check runs in the mod** when `PLAN_CONTINUE=1`, reading the last assistant message from the event and classifying it with `hooks/plan_continue_classify.py` — the same module `plan-continue.sh` now imports. The command hook steps aside when the mod answered.
+- **A short note at each stage boundary** restates the run-to-completion rules once per stage, as a user-role row, never in the system prompt.
+- **The live context window.** The band's pinned row shows `context NN%`, and `context-usage.py` takes the window from the session (`.claude/plan-context.json`, checked against `CLAUDE_CODE_SESSION_ID` and 15 minutes of freshness) before its model table, so an unlisted model no longer reads `unknown`.
 
 ## What's new in 0.52.0
 
