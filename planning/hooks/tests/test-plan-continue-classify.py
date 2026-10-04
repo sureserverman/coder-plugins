@@ -316,7 +316,7 @@ ok("CLI prints exactly one JSON object", rc == 0 and out.count("\n") <= 1 and
 
 # --------------------------------------------------------------------------
 # Task 3.2: the parts the mod shares — the repo-root boundary, staleness, the
-# --root CLI mode — and the command hook's hand-off when the mod has answered.
+# --inputs CLI mode — and the command hook's hand-off when the mod has answered.
 # --------------------------------------------------------------------------
 fr = getattr(pcc, "find_repo_root", None)
 ok("module exports find_repo_root", callable(fr))
@@ -341,25 +341,143 @@ lone = tempfile.mkdtemp()
 ok("no .git anywhere below the bound -> None", callable(fr) and fr(lone, max_depth=0) is None)
 
 
-def run_root(stdin_bytes):
-    p = subprocess.run([sys.executable, MODULE, "--root"], input=stdin_bytes,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+def run_inputs(stdin_bytes):
+    try:
+        p = subprocess.run([sys.executable, MODULE, "--inputs"], input=stdin_bytes,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    except subprocess.TimeoutExpired:
+        return -1, None, "timed out (a read that blocks)"
     try:
         return p.returncode, json.loads(p.stdout), p.stderr.decode("utf-8", "replace")
     except Exception:
         return p.returncode, None, p.stderr.decode("utf-8", "replace")
 
 
-rc, got, err = run_root(json.dumps({"cwd": nested}).encode())
-ok("--root prints the repo root", rc == 0 and got == {"root": os.path.join(rw, "repo")}, "rc %d got %r err %r" % (rc, got, err[-200:]))
+# --inputs: everything the mod gathers before it classifies — the repo root, the
+# state file read through the SAME hardened reader the command hook uses, the
+# counter key, and PLAN_CONTINUE_MAX parsed by Python int() — so the mod never
+# re-implements a read or a parse.
+ir = os.path.join(rw, "repo")
+os.makedirs(os.path.join(ir, ".claude"))
+istate = dict(STATE, stage=2, task="2.1")
+with open(os.path.join(ir, ".claude", "plan-progress.json"), "w") as fh:
+    json.dump(istate, fh)
+rc, got, err = run_inputs(json.dumps({"cwd": nested, "max": "5"}).encode())
+ok("--inputs: root, state, key and max", rc == 0 and got == {
+    "root": ir, "state": istate, "key": "task|2|2.1", "max": 5}, "rc %d got %r err %r" % (rc, got, err[-200:]))
 os.chmod(ww, 0o777)
-rc, got, err = run_root(json.dumps({"cwd": os.path.join(ww, "victim")}).encode())
+rc, got, err = run_inputs(json.dumps({"cwd": os.path.join(ww, "victim")}).encode())
 os.chmod(ww, 0o755)
-ok("--root refuses a world-writable root", rc == 0 and got == {"root": None}, "got %r" % (got,))
+ok("--inputs refuses a world-writable root", rc == 0 and got is not None and got.get("root") is None
+   and got.get("state") is None, "got %r" % (got,))
 for bad in (b"", b"[1]", b'{"cwd": 5}', b"\xff\xfe"):
-    rc, got, err = run_root(bad)
-    ok("--root on %r -> null, exit 0, no traceback" % bad[:12],
-       rc == 0 and got == {"root": None} and "Traceback" not in err, "rc %d got %r" % (rc, got))
+    rc, got, err = run_inputs(bad)
+    ok("--inputs on %r -> no root, no state, default max, exit 0" % bad[:12],
+       rc == 0 and got == {"root": None, "state": None, "key": None, "max": 3} and "Traceback" not in err,
+       "rc %d got %r" % (rc, got))
+
+
+def inputs_for(make):
+    """A fresh repo shaped by make(repo); returns what --inputs read as its state."""
+    base = tempfile.mkdtemp()
+    repo_ = os.path.join(base, "repo")
+    os.makedirs(os.path.join(repo_, ".git"))
+    make(base, repo_)
+    rc_, got_, _ = run_inputs(json.dumps({"cwd": repo_}).encode())
+    return rc_, got_
+
+
+def state_of(got):
+    """--inputs' state, or a sentinel when the answer is not the --inputs shape."""
+    return got.get("state", "MISSING") if isinstance(got, dict) else "MISSING"
+
+
+def write_state_at(path, state=None):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        json.dump(state or istate, fh)
+
+
+rc, got = inputs_for(lambda b, r: write_state_at(os.path.join(r, ".claude", "plan-progress.json")))
+ok("--inputs reads an ordinary state file", rc == 0 and state_of(got) == istate, "got %r" % (got,))
+
+
+def symlinked_file(b, r):
+    write_state_at(os.path.join(b, "elsewhere.json"))
+    os.makedirs(os.path.join(r, ".claude"))
+    os.symlink(os.path.join(b, "elsewhere.json"), os.path.join(r, ".claude", "plan-progress.json"))
+
+
+rc, got = inputs_for(symlinked_file)
+ok("--inputs refuses a symlinked state file (O_NOFOLLOW)", rc == 0 and state_of(got) is None, "got %r" % (got,))
+
+
+def symlinked_dir(b, r):
+    write_state_at(os.path.join(b, "other", ".claude", "plan-progress.json"))
+    os.symlink(os.path.join(b, "other", ".claude"), os.path.join(r, ".claude"))
+
+
+rc, got = inputs_for(symlinked_dir)
+ok("--inputs refuses a .claude dir whose realpath leaves the repo", rc == 0 and state_of(got) is None,
+   "got %r" % (got,))
+
+
+def sibling_prefix(b, r):
+    # /base/repo2 starts with the string /base/repo: a prefix test without the
+    # trailing separator would take it for inside the repo.
+    write_state_at(os.path.join(b, "repo2", ".claude", "plan-progress.json"))
+    os.symlink(os.path.join(b, "repo2", ".claude"), os.path.join(r, ".claude"))
+
+
+rc, got = inputs_for(sibling_prefix)
+ok("--inputs refuses a sibling directory sharing the root's prefix", rc == 0 and state_of(got) is None,
+   "got %r" % (got,))
+
+
+def fifo(b, r):
+    os.makedirs(os.path.join(r, ".claude"))
+    os.mkfifo(os.path.join(r, ".claude", "plan-progress.json"))
+
+
+rc, got = inputs_for(fifo)
+ok("--inputs on a FIFO state file -> no state, no hang", rc == 0 and state_of(got) is None, "got %r" % (got,))
+
+
+def oversized(b, r):
+    os.makedirs(os.path.join(r, ".claude"))
+    with open(os.path.join(r, ".claude", "plan-progress.json"), "w") as fh:
+        fh.write(json.dumps(istate) + " " * (256 * 1024))
+
+
+rc, got = inputs_for(oversized)
+ok("--inputs on a >256 KB state file -> no state", rc == 0 and state_of(got) is None, "got %r" % (got,))
+rc, got = inputs_for(lambda b, r: (os.makedirs(os.path.join(r, ".claude")),
+                                   open(os.path.join(r, ".claude", "plan-progress.json"), "w").write("[1, 2]")))
+ok("--inputs on a non-object state -> no state", rc == 0 and state_of(got) is None, "got %r" % (got,))
+
+pm = getattr(pcc, "parse_max", None)
+ok("module exports parse_max", callable(pm))
+def safe(fn, *a):
+    try:
+        return fn(*a)
+    except Exception as exc:
+        return "raised %r" % exc
+
+
+if callable(pm):
+    # Python int() is the definition, shared by both callers.
+    for raw, want in (("3", 3), (" 4 ", 4), ("+2", 2), ("-1", -1), ("1_0", 10), ("0", 0),
+                      ("3abc", 3), ("3.5", 3), ("", 3), (None, 3), ("0x10", 3), (5, 3)):
+        ok("parse_max(%r) == %r" % (raw, want), safe(pm, raw) == want, "got %r" % (safe(pm, raw),))
+    ok("parse_max clamps a 400-digit value so it survives a JSON round trip to JS",
+       safe(pm, "9" * 400) == 10 ** 6 and safe(pm, "-" + "9" * 400) == -(10 ** 6))
+
+ck = getattr(pcc, "counter_key", None)
+ok("module exports counter_key", callable(ck))
+if callable(ck):
+    ok("counter_key is phase|stage|task as the command hook writes it",
+       ck({"phase": "task", "stage": 2, "task": "2.1"}) == "task|2|2.1" and ck({}) == "||")
+ok("module exports read_own_file", callable(getattr(pcc, "read_own_file", None)))
 
 sm = getattr(pcc, "stale_message", None)
 ok("module exports stale_message", callable(sm))

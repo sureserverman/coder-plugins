@@ -1,15 +1,18 @@
 // The run-to-completion Stop check on Claude Code 2.1.288+: the mod's answer to
-// classic.Stop, opt-in exactly like the command hook (PLAN_CONTINUE=1). The decision
-// is plan_continue_classify.py's — the same module the command hook imports — and
-// so is the repo-root boundary (`--root`). This file only gathers the inputs: the
-// last assistant message (on the event, no transcript to tail), the state file
-// (read only when its realPath lies under that root) and the no-progress count,
-// kept in $.state so a hot reload does not reset it.
+// classic.Stop, opt-in exactly like the command hook (PLAN_CONTINUE=1). Everything
+// that decides is plan_continue_classify.py's — the same module the command hook
+// imports: `--inputs` finds the repo root, reads .claude/plan-progress.json through
+// the hardened reader (O_NOFOLLOW, FIFO-safe, owner, size, realpath under the root),
+// parses PLAN_CONTINUE_MAX and names the counter key; the classifier then decides.
+// This file only carries the last assistant message (on the event, no transcript to
+// tail) and the no-progress count, kept in $.state so a hot reload does not reset it.
 //
-// It always passes the event on, marked planning_mod_handled: the user's own Stop
-// hooks still run (answering without next would skip them all), and the command
-// hook, seeing the mark, steps aside instead of deciding twice. Every failure
-// allows: a Stop hook that fails closed traps the session.
+// When the module answered, the event passes on marked planning_mod_handled: the
+// user's own Stop hooks still run (answering without next would skip them all), and
+// the command hook, seeing the mark, steps aside instead of deciding twice. When it
+// did not answer — no last message on the event, a run refused, failed or garbled —
+// the event passes on unmarked and the command hook decides from the transcript.
+// Every failure allows: a Stop hook that fails closed traps the session.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
@@ -21,7 +24,6 @@ const COUNTER = atom({ plugin: 'planning', key: 'stopCounter' } as const, null a
 const CLASSIFIER = 'hooks/plan_continue_classify.py'
 const CONTEXT_USAGE = 'skills/executing-plans/scripts/context-usage.py'
 const TIMEOUT_MS = 5000
-const MAX_STATE_BYTES = 256 * 1024
 const MAX_TEXT_BYTES = 2048
 const DEFAULT_MAX = 3
 // Newlines stay (the reason's paragraphs); every other control character goes.
@@ -29,7 +31,9 @@ const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f]/g
 
 type Decision = { decision: string; reason?: unknown; system_message?: unknown; notice?: unknown }
 
-const ALLOW: Decision = { decision: 'allow' }
+// What the module answered for one Stop, and the counter entry it is counted under
+// (null when there was no state to count against).
+type Verdict = { decision: Decision; counterKey: string | null; count: number }
 
 // Model-bound or user-visible text from the classifier, held again on this side:
 // control characters out, at most MAX_TEXT_BYTES of UTF-8, cut on a character.
@@ -48,62 +52,53 @@ export function bounded(text: unknown): string {
   return `${out}…`
 }
 
-function parse(stdout: string): unknown {
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+// The module's JSON answer, or null when it did not give one (refused, timed out,
+// non-zero exit, unparseable output).
+async function runPython($: EngineInterface, args: string[], input: unknown): Promise<Record<string, unknown> | null> {
   try {
-    return JSON.parse(stdout)
+    const ran = await $.process.run(['python3', '-I', `${$.plugin.root}/${CLASSIFIER}`, ...args], {
+      stdin: JSON.stringify(input),
+      timeoutMs: TIMEOUT_MS,
+    })
+    if (ran.exitCode !== 0) return null
+    const parsed: unknown = JSON.parse(ran.stdout)
+    return isObject(parsed) ? parsed : null
   } catch {
     return null
   }
 }
 
-async function runPython($: EngineInterface, args: string[], input: unknown): Promise<unknown> {
-  const ran = await $.process.run(['python3', '-I', `${$.plugin.root}/${CLASSIFIER}`, ...args], {
-    stdin: JSON.stringify(input),
-    timeoutMs: TIMEOUT_MS,
-  })
-  return ran.exitCode === 0 ? parse(ran.stdout) : null
-}
-
-function under(path: string, root: string): boolean {
-  return path.startsWith(root.endsWith('/') ? root : `${root}/`)
-}
-
-async function decide($: EngineInterface, lastText: unknown): Promise<Decision> {
-  if (typeof lastText !== 'string' || lastText.trim() === '') return ALLOW
-
+// null: the module did not answer, so the command hook is left to decide.
+async function decide($: EngineInterface, lastText: string): Promise<Verdict | null> {
   const cwd = await $.session.cwd()
-  const found = (await runPython($, ['--root'], { cwd })) as { root?: unknown } | null
-  if (typeof found?.root !== 'string' || found.root === '') return ALLOW
-  const root = (await $.fs.stat(found.root, { resolve: true })).realPath
-  if (root === undefined) return ALLOW
+  const max = (await $.env.get('PLAN_CONTINUE_MAX')) ?? null
+  const got = await runPython($, ['--inputs'], { cwd, max })
+  if (got === null) return null
+  const { root, state, key } = got
+  if (typeof root !== 'string' || root === '' || !isObject(state) || typeof key !== 'string') {
+    return { decision: { decision: 'allow' }, counterKey: null, count: 0 }
+  }
 
-  const file = await $.fs.stat(`${root}/.claude/plan-progress.json`, { resolve: true })
-  if (file.kind !== 'file' || file.size > MAX_STATE_BYTES) return ALLOW
-  if (file.realPath === undefined || !under(file.realPath, root)) return ALLOW
-  const state = parse(await $.fs.read(file.realPath))
-  if (state === null || typeof state !== 'object' || Array.isArray(state)) return ALLOW
-
-  const s = state as Record<string, unknown>
-  const key = ['phase', 'stage', 'task'].map(k => String(s[k] ?? '')).join('|')
+  // Keyed by root too, as the command hook's counter file is: two repos in one
+  // session never share a count.
+  const counterKey = JSON.stringify([root, key])
   const counter = await read($, COUNTER)
-  const count = counter !== null && counter.key === key ? counter.count : 0
-  const max = Number.parseInt((await $.env.get('PLAN_CONTINUE_MAX')) ?? '', 10)
+  const count = counter !== null && counter.key === counterKey ? counter.count : 0
 
-  const result = (await runPython($, [], {
+  const result = await runPython($, [], {
     state,
     last_text: lastText,
     count,
-    max: Number.isFinite(max) ? max : DEFAULT_MAX,
+    max: typeof got.max === 'number' && Number.isInteger(got.max) ? got.max : DEFAULT_MAX,
     context_usage_path: `${$.plugin.root}/${CONTEXT_USAGE}`,
     check_updated: true,
-  })) as Decision | null
-  if (result === null || typeof result !== 'object') return ALLOW
-
-  // Counted exactly when the command hook counts: a block, or a guard release.
-  if (result.decision === 'block' || typeof result.system_message === 'string') {
-    await update($, COUNTER, () => ({ key, count: count + 1 }))
-  }
-  return result
+  })
+  if (result === null || typeof result.decision !== 'string') return null
+  return { decision: result as Decision, counterKey, count }
 }
 
 export function registerStop(on: On): void {
@@ -114,16 +109,20 @@ export function registerStop(on: On): void {
     } catch {
       optedIn = false
     }
-    if (!optedIn) return next(e)
+    const lastText = e.last_assistant_message
+    if (!optedIn || typeof lastText !== 'string' || lastText.trim() === '') return next(e)
 
-    let decision: Decision = ALLOW
+    let verdict: Verdict | null = null
     try {
-      decision = await decide($, e.last_assistant_message)
+      verdict = await decide($, lastText)
     } catch {
-      decision = ALLOW
+      verdict = null
     }
+    if (verdict === null) return next(e)
 
     const below = await next({ ...e, planning_mod_handled: true } as typeof e)
+    const { decision } = verdict
+    const userBlocked = typeof below.block === 'string' && below.block !== ''
 
     // The command hook's systemMessage: one dim transcript line, never sent to the model.
     const note = typeof decision.system_message === 'string' ? decision.system_message : decision.notice
@@ -135,8 +134,20 @@ export function registerStop(on: On): void {
       }
     }
 
+    // Counted when the command hook counts — a block, or a guard release — except a
+    // block a user's own Stop hook pre-empted: that continuation was not ours.
+    const counted = (decision.decision === 'block' && !userBlocked) || typeof decision.system_message === 'string'
+    if (counted && verdict.counterKey !== null) {
+      const entry = { key: verdict.counterKey, count: verdict.count + 1 }
+      try {
+        await update($, COUNTER, () => entry)
+      } catch {
+        // a count that cannot be stored must not lose this block
+      }
+    }
+
+    if (userBlocked) return below
     if (decision.decision !== 'block' || typeof decision.reason !== 'string' || decision.reason === '') return below
-    if (typeof below.block === 'string' && below.block !== '') return below
     return { ...below, block: bounded(decision.reason) }
   })
 }

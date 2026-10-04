@@ -85,12 +85,7 @@ CLASSIFIER="$HOOK_DIR/plan_continue_classify.py"
 # hostile clone — first on sys.path, so a planted hashlib.py would run as the user.
 PLAN_CONTINUE_PAYLOAD="$PAYLOAD" PLAN_CONTINUE_CONTEXT_USAGE="$CONTEXT_USAGE" \
     PLAN_CONTINUE_CLASSIFIER="$CLASSIFIER" python3 -I - <<'PY'
-import json, os, sys, stat, hashlib, tempfile
-
-try:
-    MAX_NO_PROGRESS = int(os.environ.get("PLAN_CONTINUE_MAX", "3"))
-except (TypeError, ValueError):
-    MAX_NO_PROGRESS = 3
+import json, os, sys, hashlib, tempfile
 
 
 def allow(msg=None):
@@ -100,49 +95,10 @@ def allow(msg=None):
     sys.exit(0)
 
 
-
-
-MAX_STATE_BYTES = 256 * 1024
-
-
-def read_own_file(path, max_bytes, tail=False):
-    """Open ONCE and check the descriptor; return text, or None for any failure.
-
-    O_NOFOLLOW  a symlinked state file leaked another repo's plan text.
-    O_NONBLOCK  os.open on a FIFO BLOCKS until a writer appears, so S_ISREG below
-                is never reached and the hook hangs until the host kills it — on
-                every single turn end.
-    fstat       ownership and regular-file checked on the open fd, not by path,
-                so the name cannot be swapped in between.
-    """
-    fd = None
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-        st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode):
-            return None
-        if st.st_uid != os.getuid():
-            return None
-        if not tail and st.st_size > max_bytes:
-            return None
-        if tail and st.st_size > max_bytes:
-            os.lseek(fd, st.st_size - max_bytes, os.SEEK_SET)
-        with os.fdopen(fd, "r", errors="replace") as fh:
-            fd = None
-            return fh.read(max_bytes + 1)
-    except Exception:
-        return None
-    finally:
-        if fd is not None:
-            try:
-                os.close(fd)
-            except OSError:
-                pass
-
-
 # --------------------------------------------------------------------------
 # plan_continue_classify.py, beside this script, is shared with the planning mod:
-# the repo-root boundary, the staleness rule, PROMISE/ASK/WAIT/RESUME, the
+# the repo-root boundary, the hardened file reads (read_own_file, read_state),
+# PLAN_CONTINUE_MAX parsing, the counter key, the staleness rule, PROMISE/ASK/WAIT/RESUME, the
 # `ACTION NEEDED` and `reason:` carve-outs, clean() and both reason builders. A
 # missing or failing module allows: this hook never traps a session on its own
 # breakage.
@@ -157,6 +113,7 @@ try:
 except Exception:
     allow()
 
+MAX_NO_PROGRESS = classifier.parse_max(os.environ.get("PLAN_CONTINUE_MAX", "3"))
 
 try:
     payload = json.loads(os.environ.get("PLAN_CONTINUE_PAYLOAD", "") or "{}")
@@ -169,9 +126,10 @@ if not isinstance(payload, dict):
 # it: a plan legitimately needs several in a row. The no-progress counter below is
 # the loop guard instead, and it is a better one because it measures whether the
 # run is actually moving rather than merely whether it was pushed.
-# On Claude Code 2.1.288+ the planning mod answers classic.Stop first and passes
-# the event on with this field set, so user Stop hooks still run but this one —
-# the same decision, from the same module — does not run twice.
+# On Claude Code 2.1.288+ the planning mod answers classic.Stop first and, when the
+# module gave it an answer, passes the event on with this field set, so user Stop
+# hooks still run but this one — the same decision, from the same module — does
+# not run twice. Unset (no last message on the event, a failed run), this decides.
 if payload.get("planning_mod_handled") is True:
     allow()
 
@@ -181,15 +139,9 @@ root = classifier.find_repo_root(payload.get("cwd") or os.getcwd())
 if root is None:
     allow()
 
-raw_state = read_own_file(os.path.join(root, ".claude", "plan-progress.json"),
-                          MAX_STATE_BYTES)
-if raw_state is None:
-    allow()
-try:
-    state = json.loads(raw_state)
-except Exception:
-    allow()
-if not isinstance(state, dict):
+# O_NOFOLLOW, FIFO-safe, owner-checked, 256 KB, realpath under the root.
+state = classifier.read_state(root)
+if state is None:
     allow()
 
 phase = str(state.get("phase", "")).strip().lower()
@@ -219,7 +171,7 @@ MAX_TRANSCRIPT_TAIL = 512 * 1024
 transcript = payload.get("transcript_path")
 if not isinstance(transcript, str) or not transcript:
     allow()
-blob = read_own_file(transcript, MAX_TRANSCRIPT_TAIL, tail=True)
+blob = classifier.read_own_file(transcript, MAX_TRANSCRIPT_TAIL, tail=True)
 if not blob:
     allow()
 
@@ -255,7 +207,7 @@ if not last_text:
 # --------------------------------------------------------------------------
 # No-progress guard. Keyed per session so it needs no file in the user's repo.
 # --------------------------------------------------------------------------
-key = "|".join(str(state.get(k, "")) for k in ("phase", "stage", "task"))
+key = classifier.counter_key(state)
 # Hashed, never interpolated raw: session_id is host-supplied and this is a
 # filename. Folding the root in stops two repos in one session sharing a counter.
 sid = hashlib.sha1(("%s|%s" % (payload.get("session_id") or "", root)).encode()).hexdigest()[:16]

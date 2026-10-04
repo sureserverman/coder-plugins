@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """plan_continue_classify.py — the decision half of the `plan-continue` Stop hook.
 
-Two callers share it: plan-continue.sh (the command hook, which keeps the repo-root
-boundary, the hardened file reads and the no-progress counter, and imports this file
-for the decision), and the planning mod, which runs it as a CLI:
+Two callers share it: plan-continue.sh (the command hook, which imports this file
+and keeps only the transcript tail and the counter file), and the planning mod,
+which runs it as a CLI:
 
     python3 plan_continue_classify.py  < {"state": {...}, "last_text": "...",
                                           "count": 0, "max": 3,
@@ -11,8 +11,11 @@ for the decision), and the planning mod, which runs it as a CLI:
     -> {"decision": "allow" | "block", "reason"?: "...", "system_message"?: "...",
         "notice"?: "..."}
 
-    python3 plan_continue_classify.py --root  < {"cwd": "/some/dir"}
-    -> {"root": "/the/repo" | null}      (find_repo_root: the security boundary)
+    python3 plan_continue_classify.py --inputs  < {"cwd": "/some/dir", "max": "<PLAN_CONTINUE_MAX>"}
+    -> {"root": "/the/repo" | null, "state": {...} | null, "key": "phase|stage|task" | null,
+        "max": 3}
+       (find_repo_root, the hardened read_state, counter_key and parse_max: what a
+        caller gathers before it classifies, each with one implementation here)
 
 `state` is the parsed .claude/plan-progress.json, `last_text` the last main-thread
 assistant message, `count` how many continuations this phase|stage|task has already
@@ -42,6 +45,7 @@ import datetime
 import json
 import os
 import re
+import stat
 import sys
 
 ALLOW = {"decision": "allow"}
@@ -174,7 +178,7 @@ def _bounded(build):
 # --------------------------------------------------------------------------
 # Repo root. THE HOOK'S SECURITY BOUNDARY, shared by both callers so it has one
 # implementation: the command hook imports it, the mod asks for it through
-# `--root`. The first version climbed to `/` for any `.git`, then put the state
+# `--inputs`. The first version climbed to `/` for any `.git`, then put the state
 # file's `plan`/`task_desc` into a prompt the host replays, so a `.git` planted in
 # a shared ancestor made the hook submit attacker-chosen text. Depth-bounded,
 # `.git` FILES count (worktrees), and a world-writable candidate root is refused.
@@ -203,6 +207,85 @@ def find_repo_root(start, max_depth=16):
             return None
         probe = parent
     return None
+
+
+MAX_STATE_BYTES = 256 * 1024
+
+
+def read_own_file(path, max_bytes, tail=False):
+    """Open ONCE and check the descriptor; return text, or None for any failure.
+
+    O_NOFOLLOW  a symlinked state file leaked another repo's plan text.
+    O_NONBLOCK  os.open on a FIFO BLOCKS until a writer appears, so S_ISREG below
+                is never reached and the hook hangs until the host kills it — on
+                every single turn end.
+    fstat       ownership and regular-file checked on the open fd, not by path,
+                so the name cannot be swapped in between.
+    """
+    fd = None
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            return None
+        if st.st_uid != os.getuid():
+            return None
+        if not tail and st.st_size > max_bytes:
+            return None
+        if tail and st.st_size > max_bytes:
+            os.lseek(fd, st.st_size - max_bytes, os.SEEK_SET)
+        with os.fdopen(fd, "r", errors="replace") as fh:
+            fd = None
+            return fh.read(max_bytes + 1)
+    except Exception:
+        return None
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def read_state(root):
+    """The parsed <root>/.claude/plan-progress.json, or None.
+
+    O_NOFOLLOW covers only the last component, so a `.claude` directory symlinked
+    out of the repo would still be followed; the realpath must stay under the root
+    (with the separator, so /x/repo2 is not inside /x/repo).
+    """
+    try:
+        path = os.path.join(root, ".claude", "plan-progress.json")
+        real_root = os.path.realpath(root)
+        if not os.path.realpath(path).startswith(real_root.rstrip(os.sep) + os.sep):
+            return None
+        raw = read_own_file(path, MAX_STATE_BYTES)
+        if raw is None:
+            return None
+        state = json.loads(raw)
+    except Exception:
+        return None
+    return state if isinstance(state, dict) else None
+
+
+def parse_max(raw, default=DEFAULT_MAX):
+    """PLAN_CONTINUE_MAX as Python int() reads it; anything else is the default.
+
+    Clamped to +-MAX_SHOWN_COUNT: a 400-digit value is a legal int here but turns
+    into Infinity, then null, on a JSON round trip through the mod.
+    """
+    if not isinstance(raw, str):
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(-MAX_SHOWN_COUNT, min(value, MAX_SHOWN_COUNT))
+
+
+def counter_key(state):
+    """The no-progress counter's key: the guard resets when any part moves."""
+    return "|".join(str(state.get(k, "")) for k in ("phase", "stage", "task"))
 
 
 STALE_HOURS = 12
@@ -302,18 +385,25 @@ def _classify(inp):
     return {"decision": "block", "reason": reason}
 
 
-def root_main():
-    """`--root`: {"cwd": "<dir>"} on stdin -> {"root": "<repo root>" | null}."""
-    result = {"root": None}
+def inputs_main():
+    """`--inputs`: {"cwd": "<dir>", "max": "<raw>"} on stdin -> the gathered inputs."""
+    result = {"root": None, "state": None, "key": None, "max": DEFAULT_MAX}
     try:
         raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
         if len(raw) <= MAX_STDIN_BYTES:
             inp = json.loads(raw.decode("utf-8", "replace"))
-            cwd = inp.get("cwd") if isinstance(inp, dict) else None
-            if isinstance(cwd, str) and cwd:
-                result = {"root": find_repo_root(cwd)}
+            if isinstance(inp, dict):
+                result["max"] = parse_max(inp.get("max"))
+                cwd = inp.get("cwd")
+                root = find_repo_root(cwd) if isinstance(cwd, str) and cwd else None
+                if root is not None:
+                    result["root"] = root
+                    state = read_state(root)
+                    if state is not None:
+                        result["state"] = state
+                        result["key"] = counter_key(state)
     except Exception:
-        result = {"root": None}
+        result = {"root": None, "state": None, "key": None, "max": DEFAULT_MAX}
     try:
         sys.stdout.write(json.dumps(result) + "\n")
         sys.stdout.flush()
@@ -323,8 +413,8 @@ def root_main():
 
 
 def main():
-    if sys.argv[1:] == ["--root"]:
-        return root_main()
+    if sys.argv[1:] == ["--inputs"]:
+        return inputs_main()
     result = dict(ALLOW)
     try:
         raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
