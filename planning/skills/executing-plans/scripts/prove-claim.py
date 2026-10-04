@@ -41,7 +41,8 @@ proven claim. `deviation --req` records one that could not be checked.
 `deviation --claim` records a CLAIM no repo patch can break — its evidence lives
 outside the repo (a vault file, a device) — at claim-K.json as kind
 `claim-deviation`: disclosed, so the audit reports it, but never proof.
-`replay` re-runs every claim record's break against the tree as it stands.
+`replay` re-runs every claim record's break against the tree as it stands; a
+claim deviation has no break and is listed as skipped.
 
 WHAT THIS DOES NOT DO. Whether a break, or a req check, is the one that matters
 is judgment — a reviewer's, reading the record. The plan's "red if …"
@@ -89,6 +90,21 @@ RECORD_PATH = re.compile(rf"^{PROOF_DIR}/[^/]+/\d+\.\d+/(claim|req|deviation)-[1
 NAMED_BREAK = re.compile(r"\(red if (.+?)\)\s*$", re.S)
 TRIVIAL_BUILD = {"", "true", ":", "exit 0", "/bin/true", "/usr/bin/true"}
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+
+# The staleness probe lives beside portfolio-unify.py, not beside this file: loaded by
+# explicit path, as in check-master-register.py, so a stale plugin-cache copy says so
+# before it audits or proves anything under yesterday's rules.
+_STALE = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "_staleness.py"
+
+
+def _warn_if_stale():
+    try:
+        spec = importlib.util.spec_from_file_location("_staleness", _STALE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.warn_if_stale(__file__)
+    except Exception:  # noqa: BLE001 — a probe that cannot load must never stop the command
+        pass
 
 
 class Refused(Exception):
@@ -631,8 +647,13 @@ def req(repo, plan, task, index, check, covered_by, timeout, brk=None, build=Non
         if not 1 <= covered_by <= len(claims):
             raise Refused(f"claim {covered_by} does not exist in Task {task}")
         claim = record_path(repo, plan, task, "claim", covered_by)
-        problems = (validate(load(claim), fp, ("claim", task, covered_by, claims[covered_by - 1]))
+        crec = load(claim) if claim.exists() else None
+        problems = (validate(crec, fp, ("claim", task, covered_by, claims[covered_by - 1]))
                     if claim.exists() else [f"{claim} does not exist"])
+        if not problems and crec.get("kind") != "claim":
+            # validate() accepts a reasoned claim deviation as a RECORD; it is still
+            # a disclosure, not a proof, and covers no requirement.
+            problems = ["it is recorded as a claim deviation, not proven"]
         if problems:
             raise Refused(f"claim {covered_by} is not a valid proof for this tree: "
                           + "; ".join(problems))
@@ -839,6 +860,7 @@ def validate(rec, fingerprint=None, expect=None, allow_legacy=False):
 # ------------------------------------------------------------------- main
 
 def main():
+    _warn_if_stale()
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="mode", required=True)
 

@@ -270,10 +270,11 @@ STALE_EXEMPT = re.compile(r"\bwas:|\bamended\b|\bhistorical(ly)?\b", re.I)
 # the thing it claims is broken. metabrush-android Task 1.2 (2026-10-03) shipped
 # a TMPDIR test that passed with TMPDIR unset and with TMPDIR pointing nowhere;
 # its commit recorded one `mutation:` line, for the easiest of its four claims.
-# So each claim in a ticked task's Test gets a `mutation:` line in the task's
-# commit, naming the break that turned it red (or `mutation: none — <why>`,
-# which is a disclosure a reader can judge). Claims are counted the way plans in
-# this portfolio write them: `<command>` — claim; claim; claim.
+# So a ticked task's required claims — its first, and each naming its break
+# "(red if …)" — need a prove-claim.py record (see required_claims); the
+# self-reported `mutation:` line is the retired form, read only as legacy.
+# Claims are counted the way plans in this portfolio write them:
+# `<command>` — claim; claim; claim.
 TASK_HEAD = re.compile(r"^\s*#{2,5}\s+Task\s+(\d+\.\d+)\b", re.I)
 ANY_HEAD = re.compile(r"^\s*#{1,5}\s")
 STATUS_TICKED = re.compile(r"^\s*[-*+]\s*\*\*Status:\*\*\s*\[[xX]\]")
@@ -321,6 +322,21 @@ REQ_LINE = re.compile(r"^\s*(req|deviation)\s*:\s*\S", re.I | re.M)
 FIELD_BULLET = re.compile(r"^\s*[-*+]\s*\*\*[^*]+:\*\*")
 PLAIN_BULLET = re.compile(r"^\s*[-*+]\s+(\S.*)$")
 CLAUSE_SPLIT = re.compile(r";|\.\s+(?=[A-Z`(*])")
+
+# The staleness probe lives beside portfolio-unify.py, not beside this file: loaded by
+# explicit path, as in check-master-register.py, so a stale plugin-cache copy says so
+# before it audits or proves anything under yesterday's rules.
+_STALE = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "_staleness.py"
+
+
+def _warn_if_stale():
+    try:
+        spec = importlib.util.spec_from_file_location("_staleness", _STALE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.warn_if_stale(__file__)
+    except Exception:  # noqa: BLE001 — a probe that cannot load must never stop the command
+        pass
 
 
 class Bail(Exception):
@@ -810,9 +826,11 @@ def task_numbers(ids):
     return {m.group(0) for i in ids for m in [re.search(r"\d+\.\d+", str(i))] if m}
 
 
-# Schema 2 (a req check proven by a break) arrived in engineering-skills e0a8cdb. A schema-1 req
-# check is legacy only when the commit that first added it is older than that;
-# one added later is what a hand-written record would look like.
+# Schema 2 (a req check proven by a break) arrived in the engineering-skills Cursor
+# port (its commit e0a8cdb). A schema-1 req check is legacy only when the commit
+# that first added it is older than that; one added later is what a hand-written
+# record would look like. Upstream never wrote schema 1, so here every schema-1
+# req record is in the second group.
 LEGACY_CUTOFF = "2026-10-04T10:07:25+00:00"
 
 
@@ -860,7 +878,7 @@ def stray_proof(repo):
 
 
 def scan_task_mutations(path, text, repo):
-    """Finding 8 — a ticked task whose Test claims are not proven.
+    """Finding 8 — a ticked task whose required Test claims are not proven.
 
     A claim is proven by a prove-claim.py record: the tool watched the test pass,
     fail under the break, and the tree come back. `mutation:` lines in commit
@@ -1565,6 +1583,7 @@ def report(doc, args):
 
 
 def main():
+    _warn_if_stale()
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("plan")
     ap.add_argument("--since")

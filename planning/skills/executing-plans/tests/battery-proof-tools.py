@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mutation battery for the proof tools: plan-flip-audit.py and prove-claim.py.
 
-    python3 planning/skills/executing-plans/tests/battery-proof-tools.py [-j N]
+    python3 planning/skills/executing-plans/tests/battery-proof-tools.py [-j N] [--anchors-only]
 
 Run it at a stage gate after ANY change to either tool — never inside a task.
 Deliberately not named `test-*`, so `scripts/run-tests.sh` (DEC-006) does not
@@ -15,6 +15,13 @@ because the required response to each differs:
     2   the control suites were already red before mutating; nothing was run
     4   a mutation was SKIPPED because its anchor text is gone. Coverage
         silently shrank; the guard it pinned is now unpinned. Re-anchor it.
+    5   a trial ERRORED: it could not run, timed out, the mutation left the
+        script unparseable, or the suite went red without reporting a failing
+        check. None of those is a kill — a red that measured nothing is the
+        failure this battery exists to catch. Fix the entry or the environment.
+
+--anchors-only checks the anchors (exit 0 or 4) and runs nothing — cheap enough
+for CI, which runs the suites but not the battery.
 
 WHY IT EXISTS. Both tools are fraud detectors, so their failure mode is silence
 — a weakened guard changes no output anyone looks at, and the suite stays green.
@@ -37,6 +44,7 @@ interrupted battery leaves nothing behind but temporary directories.
 """
 import argparse
 import os
+import py_compile
 import shutil
 import subprocess
 import sys
@@ -410,6 +418,9 @@ M = [
  ('validate(): claim deviation not delegated to the audit', PC_S,
   '    if kind == "claim-deviation" and (not expect or expect[0] == "claim"):',
   '    if False:'),
+ ('req: covered-by accepts a claim deviation as proof', PC_S,
+  '        if not problems and crec.get("kind") != "claim":',
+  '        if False:'),
  ('replay: a claim deviation counted as a failed replay', PC_S,
   '        if isinstance(rec, dict) and rec.get("kind") == "claim-deviation":',
   '        if False:'),
@@ -420,9 +431,17 @@ def suites_for(target):
     return {PY_S: [PY_T], PC_S: [PC_T]}[target]
 
 
+SUITE_TIMEOUT = 900   # seconds; the slowest suite takes ~20 s alone
+
+
 def run(root, suite):
-    return subprocess.run([sys.executable, str(root / suite)], capture_output=True,
-                          text=True).returncode
+    """(exit code, stdout) of one suite run; exit None on a timeout."""
+    try:
+        r = subprocess.run([sys.executable, str(root / suite)], capture_output=True,
+                           text=True, timeout=SUITE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return None, ""
+    return r.returncode, r.stdout
 
 
 def copy_skill():
@@ -433,22 +452,46 @@ def copy_skill():
 
 
 def trial(entry):
-    """(label, verdict) for one mutation, run in its own copy."""
+    """(label, verdict) for one mutation, run in its own copy.
+
+    killed: a suite reported a failing check (`  FAIL` on stdout, both suites'
+    marker). SURVIVED: every suite passed. ERROR: anything else — never counted
+    as a kill. Exceptions are caught here, so a worker's crash cannot escape as
+    Python's exit 1, which this file defines as "survived".
+    """
     label, target, old, new = entry
-    d = copy_skill()
+    d = None
     try:
+        d = copy_skill()
         f = d / "skill" / target
         f.write_text(f.read_text().replace(old, new))
-        red = any(run(d / "skill", s) != 0 for s in suites_for(target))
-        return label, "killed" if red else "SURVIVED"
+        try:
+            py_compile.compile(str(f), cfile=str(d / "check.pyc"), doraise=True)
+        except py_compile.PyCompileError:
+            return label, "ERROR", "the mutation leaves the script unparseable"
+        for s in suites_for(target):
+            rc, out = run(d / "skill", s)
+            if rc is None:
+                return label, "ERROR", f"{s} timed out after {SUITE_TIMEOUT}s"
+            if rc != 0:
+                if "  FAIL" in out:
+                    return label, "killed", ""
+                return label, "ERROR", f"{s} exited {rc} without reporting a failing check"
+        return label, "SURVIVED", ""
+    except Exception as e:  # noqa: BLE001
+        return label, "ERROR", f"{e.__class__.__name__}: {e}"
     finally:
-        shutil.rmtree(d, ignore_errors=True)
+        if d is not None:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1)
-    jobs = max(1, ap.parse_args().jobs)
+    ap.add_argument("--anchors-only", action="store_true",
+                    help="check every anchor still matches, run nothing")
+    args = ap.parse_args()
+    jobs = max(1, args.jobs)
 
     # Every anchor is checked BEFORE anything runs. A missing one is the exit-4
     # outcome anyway; finding it first costs a second rather than a battery.
@@ -461,11 +504,14 @@ def main():
         sys.stderr.write(f"\n{len(gone)} mutation(s) SKIPPED — anchors gone, those guards are "
                          "no longer pinned. Re-anchor them. Nothing was mutated.\n")
         return 4
+    if args.anchors_only:
+        print(f"anchors: all {len(M)} present")
+        return 0
 
     print("control: suites must be green before mutating")
     d = copy_skill()
     try:
-        red = [s for s in (PY_T, PC_T) if run(d / "skill", s) != 0]
+        red = [s for s in (PY_T, PC_T) if run(d / "skill", s)[0] != 0]
     finally:
         shutil.rmtree(d, ignore_errors=True)
     if red:
@@ -473,16 +519,16 @@ def main():
         return 2
     print(f"  ok\n\nrunning {len(M)} mutations, {jobs} at a time")
 
-    killed = survived = 0
+    counts = {"killed": 0, "SURVIVED": 0, "ERROR": 0}
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        for label, verdict in pool.map(trial, M):
-            print(f"  {verdict:<8} {label}", flush=True)
-            if verdict == "killed":
-                killed += 1
-            else:
-                survived += 1
-    print(f"\nkilled {killed}  survived {survived}  skipped 0")
-    return 1 if survived else 0
+        for label, verdict, why in pool.map(trial, M):
+            print(f"  {verdict:<8} {label}" + (f"  ({why})" if why else ""), flush=True)
+            counts[verdict] += 1
+    print(f"\nkilled {counts['killed']}  survived {counts['SURVIVED']}  "
+          f"errors {counts['ERROR']}  skipped 0")
+    if counts["SURVIVED"]:
+        return 1
+    return 5 if counts["ERROR"] else 0
 
 
 if __name__ == "__main__":

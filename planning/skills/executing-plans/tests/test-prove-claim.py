@@ -567,6 +567,13 @@ if r.returncode == 2:
     ok("deviation needs --req or --claim")
 else:
     bad(f"deviation with no target must be a usage error, exit {r.returncode}", r.stderr)
+# Catches: a claim deviation used as proof. A requirement "covered by" claim 2,
+# which is only disclosed, is not covered.
+r = run("req", *base_d, "--req", "2", "--covered-by-claim", "2")
+if r.returncode == 1 and "claim deviation" in r.stderr and not rec(repo_d, plan_d, "req", 2).exists():
+    ok("req --covered-by-claim refuses a claim recorded as a deviation")
+else:
+    bad(f"a claim deviation must not cover a requirement, exit {r.returncode}", r.stderr)
 # Replay re-runs breaks; a claim deviation has none and is not a failure.
 r = run("replay", "--repo", str(repo_d), "--plan", str(plan_d), "--task", "1.1")
 if r.returncode == 0 and "claim deviation" in r.stdout:

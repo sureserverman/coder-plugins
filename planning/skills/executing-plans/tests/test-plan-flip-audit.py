@@ -90,8 +90,7 @@ def newrepo(label):
     # fixture repo created the ordinary way cannot make one — the suite would
     # fail for a reason having nothing to do with the code under test, and only
     # on machines carrying that template. Same guard as
-    # skills/portfolio/tests/test-plan-status-audit.py and
-    # bin/tests/test-skill-port-drift.sh.
+    # skills/portfolio/tests/test-plan-status-audit.py.
     subprocess.run(["git", "init", "-q", "-b", "main", "--template=", str(d)],
                    check=True, env=env)
     subprocess.run(["git", "-C", str(d), "config", "core.hooksPath", "/dev/null"],
@@ -757,7 +756,9 @@ def multi_task_world(label, proven, two_claims=False):
     d = subprocess.run(["git", "-C", str(repo), "diff", "--", "calc.py"],
                        capture_output=True, text=True).stdout
     f.write_text(orig)
-    brk = repo.parent / f"{label}-break.patch"
+    # In a directory of our own: repo.parent is the shared temp root, where a fixed
+    # name collided between concurrent suite runs (the parallel battery).
+    brk = newdir(f"{label}-brk") / "break.patch"
     brk.write_text(d)
     for i in proven:
         r = subprocess.run([sys.executable, str(PCD), "claim", "--repo", str(repo), "--plan",
@@ -1360,7 +1361,7 @@ else:
 
 
 # ------------------------------------------------- finding 6: owner attestation
-# Reconstructed from metabrush-android 2026-10-02: a Cursor executor ticked
+# Reconstructed from metabrush-android 2026-10-02: an executor ticked
 # "Owner confirms the DEC-MB-006 acceptance extends to …" with no trace of the
 # owner ever being asked. The owner's words are the only evidence such a box can
 # have, so a tick without them is the executor's say-so.
@@ -1638,7 +1639,7 @@ def prove_task(plan, proj, req_kind="covered"):
     d = subprocess.run(["git", "-C", str(proj), "diff", "--", "calc.py"],
                        capture_output=True, text=True).stdout
     f.write_text(orig)
-    brk = proj.parent / f"{proj.name}-break.patch"
+    brk = newdir(f"{proj.name}-brk") / "break.patch"
     brk.write_text(d)
     base = ["--repo", str(proj), "--plan", str(plan), "--task", "1.1"]
     r1 = subprocess.run([sys.executable, str(PC), "claim", *base, "--claim", "1", "--break",
@@ -1650,6 +1651,7 @@ def prove_task(plan, proj, req_kind="covered"):
         extra = ["deviation", *base, "--req", "1", "--why", "add is not separately checkable here"]
     r2 = subprocess.run([sys.executable, str(PC), *extra], capture_output=True, text=True)
     assert r1.returncode == 0 and r2.returncode == 0, (r1.stderr, r2.stderr)
+    return brk
 
 
 def task_findings(doc, n):
@@ -1887,13 +1889,9 @@ plan, proj, env = rec_world("rec-first")
 plan.write_text(REC_PLAN.replace("add returns the sum (red if add subtracts)\n",
                                  "add is defined; add returns the sum (red if add subtracts)\n"))
 subprocess.run(["git", "-C", str(proj), "add", "-A"], check=True, env=env)
-prove_task(plan, proj)
-rd = proj / "proof" / plan.stem / "1.1"
-c1 = json.loads((rd / "claim-1.json").read_text())
-(rd / "claim-1.json").unlink()
-# prove_task proved claim 1 under the old numbering; prove claim 2 for real here.
-f = proj / "calc.py"
-brk = proj.parent / f"{proj.name}-break.patch"
+brk = prove_task(plan, proj)
+# prove_task records claim 1; drop it, and prove claim 2 with the same break.
+(proj / "proof" / plan.stem / "1.1" / "claim-1.json").unlink()
 r2 = subprocess.run([sys.executable, str(PC), "claim", "--repo", str(proj), "--plan", str(plan),
                      "--task", "1.1", "--claim", "2", "--break", str(brk), "--test",
                      "python3 tests/test_calc.py", "--build", BUILD], capture_output=True, text=True)

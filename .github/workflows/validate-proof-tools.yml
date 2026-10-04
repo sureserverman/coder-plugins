@@ -15,6 +15,7 @@ on:
       - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
       - 'planning/skills/executing-plans/tests/test-prove-claim.py'
       - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
       - '.github/workflows/validate-proof-tools.yml'
   pull_request:
     paths:
@@ -22,6 +23,7 @@ on:
       - 'planning/skills/executing-plans/scripts/plan-flip-audit.py'
       - 'planning/skills/executing-plans/tests/test-prove-claim.py'
       - 'planning/skills/executing-plans/tests/test-plan-flip-audit.py'
+      - 'planning/skills/executing-plans/tests/battery-proof-tools.py'
       - '.github/workflows/validate-proof-tools.yml'
   workflow_dispatch:
 
@@ -42,3 +44,5 @@ jobs:
         run: |
           python3 planning/skills/executing-plans/tests/test-plan-flip-audit.py
           python3 planning/skills/executing-plans/tests/test-prove-claim.py
+      - name: Battery anchors still match (no mutation is run here)
+        run: python3 planning/skills/executing-plans/tests/battery-proof-tools.py --anchors-only
