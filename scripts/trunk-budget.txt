@@ -459,7 +459,10 @@ planning/skills/portfolio/SKILL.md 13718
 #   discriminator (narrowing drops only trees the stage neither touched nor depends on), the
 #   substrate rule became an application of Proxy data, two cross-references and one
 #   overclaim fix. Still under the 15802 origin.
-planning/skills/honest-gates/SKILL.md 15417
+# Lowered 15417 -> 15401 (-16 B) 2026-10-04, proof-by-tool Task 2.2: the mutant's proof is a
+#   prove-claim.py record, not a sentence in the commit; the device-only case is a
+#   `deviation --claim`. Same rule, fewer bytes.
+planning/skills/honest-gates/SKILL.md 15401
 android-dev/skills/android-play-publish/SKILL.md 18018
 # Raised 42 B at the Stage 2 gate: this stage moved the `Review opt-out` section
 # out of the executing-plans trunk, leaving a citation here pointing at a section
@@ -481,7 +484,10 @@ planning/skills/backlog/SKILL.md 17333
 #   `Parallel:` and are treated identically — the compat note a reader of an old plan needs.
 # Raised 17460 -> 17482 (+22 B) 2026-09-22, Stage 3 gate: the compat sentence names
 #   `Parallel:` as "the retired spelling", the marker the gate's rename sweep excludes on.
-planning/skills/dispatching-parallel-agents/SKILL.md 17482
+# Lowered 17482 -> 17480 (-2 B) 2026-10-04, proof-by-tool Task 2.2: the prompt template's step 7
+#   has a dispatched task prove its claims with prove-claim.py and `git add proof/` before it
+#   commits. Paid for by compressing the trailer's rationale and the intro line.
+planning/skills/dispatching-parallel-agents/SKILL.md 17480
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file

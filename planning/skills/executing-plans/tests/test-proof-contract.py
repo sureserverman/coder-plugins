@@ -22,6 +22,15 @@ What it pins (Task 2.1 — executing-plans):
      `prove-claim.py deviation`, and the device-only case to a deviation.
   4. Step 3.5 runs `plan-flip-audit.py … --repo` at every stage gate, and a
      blocking finding fails the gate.
+
+What it pins (Task 2.2 — the two skills that must say the same):
+  5. dispatching-parallel-agents' prompt template tells the dispatched task to
+     run `prove-claim.py claim` and `git add proof/` before it commits — a
+     dispatched task that may still hand-write its proof is the gap rule 4a closed
+     for inline tasks only.
+  6. honest-gates § *A test does not exist until its mutant dies* records the
+     mutant's proof with `prove-claim.py`, and its device-only line is a
+     deviation; neither skill still asks for the hand-written sentence.
 """
 import importlib.util
 import re
@@ -31,6 +40,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SKILLS = HERE.parents[1]
 EP = SKILLS / "executing-plans" / "SKILL.md"
+DPA = SKILLS / "dispatching-parallel-agents" / "SKILL.md"
+HG = SKILLS / "honest-gates" / "SKILL.md"
 
 
 def _load_helper():
@@ -89,6 +100,22 @@ def main():
           affirms_claim(gate, r"plan-flip-audit\.py[^.;]{0,60}--repo"))
     check("Step 3.5: a blocking audit finding fails the gate",
           affirms_claim(gate, r"blocking[^.;]{0,40}fails the gate"))
+
+
+    print("dispatching-parallel-agents and honest-gates say the same:")
+    brief = section(DPA.read_text(), r"### Prompt template", r"\*\*Prompt discipline:", "prompt template")
+    check("the dispatch brief tells the task to run `prove-claim.py claim` before committing",
+          affirms_claim(brief, r"prove-claim\.py claim"))
+    check("the dispatch brief stages the records (`git add proof/`)",
+          affirms_claim(brief, r"git add proof/"))
+    hg = section(HG.read_text(), r"A test does not exist until its mutant dies", r"\n## ", "honest-gates mutant")
+    check("honest-gates records the mutant's proof with `prove-claim.py`",
+          affirms_claim(hg, r"prove-claim\.py claim"))
+    check("honest-gates' device-only line is a deviation",
+          affirms_claim(hg, r"prove-claim\.py deviation --claim"))
+    check("neither skill still asks for a hand-written mutation sentence",
+          not re.search(r"Name the mutation and the count in the commit", hg, re.I)
+          and not re.search(r"record the mutation and count in the commit", brief, re.I))
 
     print()
     if FAILED:
