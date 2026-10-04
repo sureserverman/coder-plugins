@@ -433,19 +433,19 @@ write them.** The measured incident behind all three: `references/task-execution
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
 4a. **Prove it — by the tool, on the host.** With the work staged, before flipping Status,
-   run `prove-claim.py claim` (`--help` lists its arguments) for the task's **first claim
+   run `prove-claim.py claim` for the task's **first claim
    and each claim marked `(red if …)`** — `--test` a command from the task's `Test:`;
    revert the fix (not the test) as `--break`, a patch file kept outside the repo. It writes
    a record only after watching that test pass, go RED under the break and the tree come
-   back — `git add proof/` with the commit. A requirement it can check → `prove-claim.py req`, else `prove-claim.py
-   deviation`. Untiered (a re-run, not an agent), so it runs at every scope including
+   back — `git add proof/` with the commit. A requirement may be recorded — checkable → `prove-claim.py req`, else `prove-claim.py
+   deviation`; finding 9 only reports the rest. Untiered (a re-run, not an agent), so it runs at every scope including
    `none` — **but never on a device, VM or instrumented suite**: prove it against the
    host-side test guarding the same line, or record the device-only claim with
-   `prove-claim.py deviation --claim`. The per-guard *battery* belongs to
-   verdict-producing checker scripts, not product tests. Corollaries: enumerate the
+   `prove-claim.py deviation --claim`. A per-guard *battery* is for
+   verdict-producing checkers, not product tests. Corollaries: enumerate the
    population **as a command, before patching**; **build fixtures from the requirement,
    never from observed behavior**; and before writing a CHECKER rather than a test, ask
-   whether the mechanism can decide the property at all. Rationale:
+   whether the mechanism can decide the property at all. Why:
    `../honest-gates/SKILL.md` § *A test does not exist until its mutant dies*.
 
 5. **Flip the task's Status to `[x]` the moment its test is green**, in the same change as the work — except for a plan the repo does not contain, where rule 7 says what happens instead. It is the authoritative done-marker; downstream tools (`portfolio unify`) read it rather than guessing from gates or git. **The flip records that the task is done, never who did it** — an inlined task and a dispatched one write the identical `[x]`, so rule 7's trailer is the only artifact carrying that.

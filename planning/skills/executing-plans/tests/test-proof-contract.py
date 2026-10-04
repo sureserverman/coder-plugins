@@ -105,6 +105,11 @@ def main():
           affirms_claim(r4a, r"prove-claim\.py req"))
     check("rule 4a routes an uncheckable requirement to `prove-claim.py deviation`",
           affirms_claim(r4a, r"else `prove-claim\.py deviation`"))
+    # Evaluator M2 (Stage 4 gate): finding 9 is advisory, so a requirement record is
+    # optional — rule 4a must not read as a per-sentence mandate whose cost nothing argues.
+    check("rule 4a says a requirement MAY be recorded and finding 9 only reports the rest",
+          affirms_claim(r4a, r"requirement may be recorded")
+          and affirms_claim(r4a, r"finding 9 only reports"))
     check("rule 4a routes the device-only claim to `prove-claim.py deviation --claim`",
           affirms_claim(r4a, r"prove-claim\.py deviation --claim"))
     gate = section(ep, r"### Step 3\.5", r"\n## Context resets", "Step 3.5")

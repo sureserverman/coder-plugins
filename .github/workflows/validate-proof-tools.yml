@@ -5,8 +5,8 @@ name: validate-proof-tools
 # come back; plan-flip-audit.py reads those records (and the plan's checkboxes)
 # at every stage gate. Both are fraud detectors whose failure mode is silence,
 # so their suites are mutation-graded — the battery that proves it
-# (tests/battery-proof-tools.py) runs at stage gates, not here: it runs a suite
-# once per guard. The two tools import each other, so either changing runs both.
+# (tests/battery-proof-tools.py) is run by hand, not here: it runs a suite once per
+# guard. No skill mandates it; plans that change these tools run it at their gates. The two tools import each other, so either changing runs both.
 # The opt-in commit gate (hooks/git-ref-gate.sh, its installer and the PreToolUse
 # guard hooks/proof-guard.sh) loads prove-claim.py, so its suites run here too.
 

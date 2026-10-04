@@ -5,7 +5,8 @@
 # the plugin; there is no per-hook opt-in, so this hook decides for itself to do
 # nothing. It acts only in a repo whose git `reference-transaction` hook is the
 # shim proof-hooks-install.py writes (the project opted in) AND which has a plan
-# in flight (.claude/plan-progress.json, read with plan-continue.sh's hardening).
+# in flight (.claude/plan-progress.json, read by plan_continue_classify.read_state;
+# any phase counts).
 # Everywhere else it prints nothing and exits 0 — no decision at all.
 #
 # WHAT IT DENIES. The git ref hook (hooks/git-ref-gate.sh) refuses an unproven
@@ -31,6 +32,7 @@ PAYLOAD="$(cat)"
 # Python starts — this runs on every Bash call of every user.
 printf '%s' "$PAYLOAD" | grep -qiE 'hookspath|reference-transaction|\.git/hooks|proof-hooks-install' \
     || exit 0
+PROOF_GUARD_HOOKS="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" 2>/dev/null && pwd)" \
 PROOF_GUARD_PAYLOAD="$PAYLOAD" python3 - <<'PY' || exit 0
 import json, os, re, stat, subprocess, sys
 from pathlib import Path
@@ -52,6 +54,15 @@ def deny(reason):
     sys.exit(0)
 
 
+try:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "plan_continue_classify",
+        Path(os.environ.get("PROOF_GUARD_HOOKS", "")) / "plan_continue_classify.py")
+    pcc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pcc)
+except Exception as e:
+    none(f"cannot load plan_continue_classify.py ({e})")
 try:
     payload = json.loads(os.environ.get("PROOF_GUARD_PAYLOAD") or "")
 except Exception:
@@ -108,24 +119,10 @@ def opted_in(repo):
 
 
 def in_flight(repo):
-    """True when a plan is in flight (same hardening as plan-continue.sh's read_state)."""
-    try:
-        fd = os.open(repo / ".claude" / "plan-progress.json",
-                     os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    except OSError:
-        return False
-    try:
-        st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > 256 * 1024:
-            return False
-        with os.fdopen(fd, "r", errors="replace") as fh:
-            fd = None
-            state = json.load(fh)
-    except Exception:
-        return False
-    finally:
-        if fd is not None:
-            os.close(fd)
+    """True when the repo's state file names a plan, read by the Stop hook's own
+    reader (plan_continue_classify.read_state: no symlink below the repo root is
+    followed). Any phase counts, as in git-ref-gate.sh."""
+    state = pcc.read_state(repo)
     plan = state.get("plan") if isinstance(state, dict) else None
     return isinstance(plan, str) and bool(plan)
 

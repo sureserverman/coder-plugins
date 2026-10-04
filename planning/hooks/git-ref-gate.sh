@@ -23,7 +23,7 @@
 # remote-tracking ref yet — a teammate's fetched commit is history to read, not
 # work being committed here), when the commit's SUBJECT names a task of the plan
 # in flight (.claude/plan-progress.json,
-# read with plan-continue.sh's hardening), it reads that commit's own proof records
+# read by plan_continue_classify.read_state), it reads that commit's own proof records
 # and validates each against that commit's tree fingerprint, the record's path and
 # the plan's current wording. The claims a task must prove are upstream's claim
 # set — its FIRST claim and every claim that names its break "(red if …)"
@@ -53,6 +53,7 @@ command -v python3 >/dev/null 2>&1 || {
 HOOK_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" 2>/dev/null && pwd)"
 UPDATES="$(cat)"
 COMMIT_GATE_SCRIPTS="${HOOK_DIR:-}/../skills/executing-plans/scripts" \
+COMMIT_GATE_HOOKS="${HOOK_DIR:-}" \
 COMMIT_GATE_UPDATES="$UPDATES" python3 - <<'PY'
 import importlib.util, json, os, stat, subprocess, sys
 from pathlib import Path
@@ -94,24 +95,21 @@ if top.returncode != 0:
     allow()  # a bare repo, or not a work tree: no plan can be in flight here
 repo = Path(top.stdout.strip())
 
-# ---- the plan in flight (same hardening as plan-continue.sh's read_state)
-state_path = repo / ".claude" / "plan-progress.json"
+# ---- the plan in flight: read by the Stop hook's own reader, plan_continue_classify's
+# read_state (one component at a time, no symlink below the repo root followed, a
+# regular file we own). Any phase counts — wider than the Stop check's ACTIVE_PHASES
+# on purpose: a plan handed off or blocked still owns its task numbers.
 try:
-    fd = os.open(state_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-except OSError:
-    allow()  # no plan in flight: not ours to gate
-try:
-    st = os.fstat(fd)
-    if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > 256 * 1024:
-        allow("plan-progress.json is not a regular file we own; allowing")
-    with os.fdopen(fd, "r", errors="replace") as fh:
-        fd = None
-        state = json.load(fh)
-except Exception:
-    allow("plan-progress.json unreadable; allowing")
-finally:
-    if fd is not None:
-        os.close(fd)
+    spec = importlib.util.spec_from_file_location(
+        "plan_continue_classify",
+        Path(os.environ.get("COMMIT_GATE_HOOKS", "")) / "plan_continue_classify.py")
+    pcc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pcc)
+except Exception as e:
+    allow(f"cannot load plan_continue_classify.py ({e}); allowing")
+state = pcc.read_state(repo)
+if state is None:
+    allow()  # no plan in flight, or a state file we do not trust: not ours to gate
 plan = state.get("plan") if isinstance(state, dict) else None
 if not isinstance(plan, str) or not plan:
     allow("no plan named in plan-progress.json")

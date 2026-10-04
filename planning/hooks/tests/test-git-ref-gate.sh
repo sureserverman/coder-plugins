@@ -289,6 +289,14 @@ try_commit 'git commit -q -m "Stage 1 Task 1.1: symlinked state"'
 if [ $rc -eq 0 ]; then ok "a symlinked plan-progress.json is not trusted as a plan in flight"
 else bad "symlinked state must not gate (rc=$rc)" "$err"; fi
 rm "$REPO/.claude/plan-progress.json"; mv "$T/pp.json" "$REPO/.claude/plan-progress.json"
+# Catches: O_NOFOLLOW guarding only the last path component (evaluator M1): a
+# `.claude` DIRECTORY symlinked elsewhere must not be read as a plan in flight.
+mv "$REPO/.claude" "$T/claude-dir"; ln -s "$T/claude-dir" "$REPO/.claude"
+change
+try_commit 'git commit -q -m "Stage 1 Task 1.1: symlinked .claude dir"'
+if [ $rc -eq 0 ]; then ok "a symlinked .claude directory is not trusted as a plan in flight"
+else bad "a symlinked .claude dir must not gate (rc=$rc)" "$err"; fi
+rm "$REPO/.claude"; mv "$T/claude-dir" "$REPO/.claude"
 # Catches: commits already on a branch re-checked. Two unproven task commits landed
 # above while no plan was in flight; a proven one now must not answer for them.
 change; prove && git -C "$REPO" add proof; h=$(head_of)

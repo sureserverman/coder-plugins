@@ -121,6 +121,12 @@ got="$(payload 'git -c core.hooksPath=/x commit -m x' | decide)"
 if [ "$got" = none ]; then ok "a symlinked plan-progress.json is not a plan in flight"
 else bad "symlinked state must not count, got $got"; fi
 rm "$REPO/.claude/plan-progress.json"; mv "$T/pp.json" "$REPO/.claude/plan-progress.json"
+# Catches: O_NOFOLLOW guarding only the last path component (evaluator M1).
+mv "$REPO/.claude" "$T/claude-dir"; ln -s "$T/claude-dir" "$REPO/.claude"
+got="$(payload 'git -c core.hooksPath=/x commit -m x' | decide)"
+if [ "$got" = none ]; then ok "a symlinked .claude directory is not a plan in flight"
+else bad "a symlinked .claude dir must not count, got $got"; fi
+rm "$REPO/.claude"; mv "$T/claude-dir" "$REPO/.claude"
 
 echo
 echo "fails open"
