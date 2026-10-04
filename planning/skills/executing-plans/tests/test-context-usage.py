@@ -14,6 +14,7 @@ ANTHROPIC_MODEL stripped, so the suite never reads the real ~/.claude.
 
 Stdlib only.
 """
+import datetime
 import importlib.util
 import json
 import os
@@ -293,6 +294,17 @@ try:
               "ANTHROPIC_MODEL beats every settings file")
         (c / ".claude" / "settings.local.json").write_text('not json')
         check(cm({}, str(c), str(h))[1] == "proj", "malformed settings file is skipped")
+        (c / ".claude" / "settings.local.json").unlink()
+        os.mkfifo(c / ".claude" / "settings.local.json")
+        try:
+            r = subprocess.run([sys.executable, SCRIPT, "--transcript", FIXTURE],
+                               capture_output=True, text=True, timeout=20, cwd=str(c),
+                               env=env_for(h))
+            check(r.returncode == 0 and "verdict=" in r.stdout,
+                  f"a FIFO settings.local.json is skipped, no hang (rc={r.returncode})")
+        except subprocess.TimeoutExpired:
+            check(False, "a FIFO settings.local.json hangs the script")
+        (c / ".claude" / "settings.local.json").unlink()
 
     print("group 10 — end-to-end [1m] evidence from $HOME settings")
     if "claude-haiku-4-5" in TABLE:
@@ -466,6 +478,117 @@ try:
         r = j.get("reason") or ""
         check(str(j.get("pct")) in r and ("rule" in r or "unknown" in r),
               f"reason names the rule and the numbers ({r})")
+
+    print("group 15 — live-window sidecar <cwd>/.claude/plan-context.json")
+    LSID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    live = pathlib.Path(tmp) / "live"
+    (live / ".claude").mkdir(parents=True)
+    side = live / ".claude" / "plan-context.json"
+    unl = str(transcript_for(tmp, "claude-unlisted-test"))   # now = 21004
+
+    def stamp(minutes_ago, ms=False):
+        t = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=minutes_ago)
+        return t.strftime("%Y-%m-%dT%H:%M:%S") + (".%03dZ" % (t.microsecond // 1000) if ms else "Z")
+
+    def sidecar(window=400000, session_id=LSID, updated=None, raw=None):
+        if side.is_symlink() or side.exists():
+            side.unlink()
+        if raw is None:
+            raw = json.dumps({"session_id": session_id, "window": window,
+                              "updated": stamp(1) if updated is None else updated})
+        side.write_text(raw, encoding="utf-8")
+
+    def live_run(*extra, sid=LSID, cwd=live, timeout=None):
+        env = {} if sid is None else {"CLAUDE_CODE_SESSION_ID": sid}
+        r = subprocess.run([sys.executable, SCRIPT, "--format", "json", "--transcript", unl,
+                            *extra], capture_output=True, text=True, timeout=timeout,
+                           env=env_for(home, **env), cwd=str(cwd))
+        try:
+            return r.returncode, json.loads(r.stdout)
+        except ValueError:
+            return r.returncode, {"_raw": r.stdout + r.stderr}
+
+    def fell_through(label, rc, j):
+        check(rc == 0 and j.get("verdict") == "unknown" and j.get("window") is None
+              and "live session" not in (j.get("reason") or ""),
+              f"{label} -> ignored, unlisted model stays unknown, exit 0 "
+              f"(rc={rc}, {j.get('verdict')}, {j.get('window')})")
+
+    sidecar()
+    rc, j = live_run()
+    check(rc == 0 and j.get("verdict") not in (None, "unknown") and j.get("window") == 400000
+          and j.get("pct") == round(21004 / 400000 * 100, 1),
+          f"unknown model + matching fresh sidecar -> window 400000, a real verdict "
+          f"({j.get('verdict')}, {j.get('window')}, {j.get('pct')})")
+    check("live session" in (j.get("reason") or "")
+          and "live session" in (j.get("window_source") or ""),
+          f"reason says the window came from the live session ({j.get('reason')})")
+    sidecar(updated=stamp(1, ms=True))
+    rc, j = live_run()
+    check(j.get("window") == 400000,
+          f"JS toISOString shape (milliseconds + Z) is accepted ({j.get('window')})")
+    sidecar(updated=stamp(-0.5))
+    rc, j = live_run()
+    check(j.get("window") == 400000, f"30 s in the future is within tolerance ({j.get('window')})")
+
+    sidecar(session_id="ffffffff-0000-0000-0000-000000000000")
+    fell_through("session-id mismatch", *live_run())
+    sidecar()
+    fell_through("CLAUDE_CODE_SESSION_ID unset", *live_run(sid=None))
+    sidecar(session_id="")
+    fell_through("empty session_id with an empty env var", *live_run(sid=""))
+    sidecar(updated=stamp(20))
+    fell_through("sidecar 20 min old", *live_run())
+    sidecar(updated=stamp(-10))
+    fell_through("`updated` 10 min in the future", *live_run())
+    for bad in ("yesterday", 1759564800, None, stamp(1)[:-1]):
+        sidecar(raw=json.dumps({"session_id": LSID, "window": 400000, "updated": bad}))
+        fell_through(f"`updated` = {bad!r}", *live_run())
+    sidecar(raw=json.dumps({"session_id": LSID, "window": 400000}))
+    fell_through("no `updated`", *live_run())
+    for bad in (0, -5, True, "400000", 400000.5, None):
+        sidecar(window=bad)
+        fell_through(f"window = {bad!r}", *live_run())
+    for label, raw in (("malformed JSON", "{not json"), ("a JSON list", "[1, 2]"),
+                       # Valid JSON padded past the cap with whitespace, so a cut read
+                       # still parses: only the size check rejects it.
+                       ("an oversized file", json.dumps({"session_id": LSID, "window": 400000,
+                                                         "updated": stamp(1)})
+                        + " " * (128 * 1024))):
+        sidecar(raw=raw)
+        fell_through(label, *live_run())
+
+    real = pathlib.Path(tmp) / "elsewhere.json"
+    real.write_text(json.dumps({"session_id": LSID, "window": 400000, "updated": stamp(1)}))
+    side.unlink()
+    side.symlink_to(real)
+    fell_through("symlinked sidecar", *live_run())
+    side.unlink()
+    linked = pathlib.Path(tmp) / "linked-cwd"
+    linked.mkdir()
+    (linked / ".claude").symlink_to(live / ".claude")
+    sidecar()
+    fell_through("symlinked .claude directory", *live_run(cwd=linked))
+    side.unlink()
+    os.mkfifo(side)
+    try:
+        fell_through("a FIFO sidecar (no hang)", *live_run(timeout=20))
+    except subprocess.TimeoutExpired:
+        check(False, "a FIFO sidecar hangs the script")
+    side.unlink()
+
+    sidecar()
+    rc, j = live_run("--window", "300000")
+    check(j.get("window") == 300000 and j.get("window_source") == "--window",
+          f"--window beats the sidecar ({j.get('window')}, {j.get('window_source')})")
+    if "claude-haiku-4-5" in TABLE:
+        hk = str(transcript_for(tmp, "claude-haiku-4-5"))
+        r = subprocess.run([sys.executable, SCRIPT, "--format", "json", "--transcript", hk],
+                           capture_output=True, text=True, cwd=str(live),
+                           env=env_for(home, CLAUDE_CODE_SESSION_ID=LSID))
+        j = json.loads(r.stdout or "{}")
+        check(j.get("window") == 400000 and "live session" in (j.get("window_source") or ""),
+              f"the sidecar beats the model table ({j.get('window')}, {j.get('window_source')})")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

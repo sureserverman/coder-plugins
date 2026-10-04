@@ -22,14 +22,20 @@ Window resolution — the transcript records no window, and the model id carries
 1M marker (a session running with the `opus[1m]` setting logs plain `claude-opus-…`):
 
     1. `--window N` wins.
-    2. The base window from MODEL_WINDOWS, by exact model id (a dated `-YYYYMMDD`
+    2. The live session's window from <cwd>/.claude/plan-context.json, written by the
+       planning mod: used only when the file is a regular file owned by this user
+       (no symlink at `.claude` or the file), at most 64 KiB, a JSON object whose
+       `session_id` equals CLAUDE_CODE_SESSION_ID, whose `window` is a positive int
+       (not a bool), and whose `updated` (ISO-8601, UTC) is under 15 min old and at
+       most 60 s in the future. Anything else falls through silently.
+    3. The base window from MODEL_WINDOWS, by exact model id (a dated `-YYYYMMDD`
        suffix is also accepted).
-    3. Upgraded to 1M only when the table says the model supports 1M AND there is
+    4. Upgraded to 1M only when the table says the model supports 1M AND there is
        evidence: a `[1m]` suffix on the configured model (ANTHROPIC_MODEL, then
        `model` in <cwd>/.claude/settings.local.json, <cwd>/.claude/settings.json,
        $HOME/.claude/settings.json — first found wins), or a context already
        observed in this transcript above the base window.
-    4. A model not in the table has no window → verdict `unknown`.
+    5. A model not in the table has no window → verdict `unknown`.
 
 Verdicts: `handoff` when pct > 50, else `continue`; `unknown` for anything the
 script cannot prove. Every verdict carries a `reason` naming the rule and numbers.
@@ -38,10 +44,12 @@ An `unknown` verdict never stops a run: exit 0. Exit 2 only on bad CLI usage.
 Stdlib only.
 """
 import argparse
+import datetime
 import glob
 import json
 import os
 import re
+import stat
 import sys
 
 # Source: /home/user/.claude/plugins/marketplaces/anthropic-agent-skills/skills/claude-api/
@@ -67,6 +75,12 @@ MODEL_WINDOWS = {
     "claude-haiku-4-5": (200_000, False),
 }
 ONE_M = 1_000_000
+
+# The live-window sidecar (Window resolution step 2).
+SIDECAR = "plan-context.json"
+MAX_SIDECAR_BYTES = 64 * 1024
+SIDECAR_MAX_AGE_S = 15 * 60
+SIDECAR_FUTURE_S = 60
 
 HANDOFF_PCT = 50.0
 # Floor under the dead-weight and sub-plan-boundary rules: below it a fresh session buys
@@ -257,14 +271,76 @@ def configured_model(env, cwd, home):
     for path in (os.path.join(cwd, ".claude", "settings.local.json"),
                  os.path.join(cwd, ".claude", "settings.json"),
                  os.path.join(home, ".claude", "settings.json")):
+        # O_NONBLOCK: a FIFO in a cloned repo's .claude/ would block open() forever;
+        # this way it reads empty and is skipped as malformed. Links are still
+        # followed: dotfile managers link settings.json.
         try:
-            with open(path, encoding="utf-8") as fh:
+            with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK), encoding="utf-8") as fh:
                 data = json.load(fh)
         except (OSError, ValueError):
             continue
         if isinstance(data, dict) and isinstance(data.get("model"), str) and data["model"]:
             return path, data["model"]
     return None
+
+
+def read_sidecar(cwd):
+    """The parsed <cwd>/.claude/plan-context.json as a dict, or None for any failure.
+
+    The same hardened read as planning/hooks/plan_continue_classify.py (read_state,
+    read_own_file): opened one component at a time — cwd, then `.claude` with
+    O_NOFOLLOW | O_DIRECTORY, then the file with O_NOFOLLOW | O_NONBLOCK (a FIFO
+    would otherwise block the open) — and checked on the open fd: regular file,
+    owned by this user, at most MAX_SIDECAR_BYTES.
+    """
+    fds = []
+    try:
+        fds.append(os.open(cwd, os.O_RDONLY | os.O_DIRECTORY))
+        fds.append(os.open(".claude", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                           dir_fd=fds[-1]))
+        fds.append(os.open(SIDECAR, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                           dir_fd=fds[-1]))
+        st = os.fstat(fds[-1])
+        if (not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid()
+                or st.st_size > MAX_SIDECAR_BYTES):
+            return None
+        fh = os.fdopen(fds[-1], "r", encoding="utf-8", errors="replace")
+        fds.pop()
+        with fh:
+            data = json.loads(fh.read(MAX_SIDECAR_BYTES + 1))
+    except Exception:
+        return None
+    finally:
+        for fd in fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+    return data if isinstance(data, dict) else None
+
+
+def live_window(env, cwd, now=None):
+    """The window the live session reported in its sidecar, or None (see step 2)."""
+    sid = env.get("CLAUDE_CODE_SESSION_ID")
+    data = read_sidecar(cwd) if sid else None
+    if not data or data.get("session_id") != sid:
+        return None
+    window = data.get("window")
+    if type(window) is not int or window <= 0:
+        return None
+    updated = data.get("updated")
+    if not isinstance(updated, str):
+        return None
+    try:
+        ts = datetime.datetime.fromisoformat(updated.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        return None
+    age = ((now or datetime.datetime.now(datetime.timezone.utc)) - ts).total_seconds()
+    if not -SIDECAR_FUTURE_S <= age < SIDECAR_MAX_AGE_S:
+        return None
+    return window
 
 
 def table_entry(model):
@@ -276,10 +352,12 @@ def table_entry(model):
     return MODEL_WINDOWS.get(DATED.sub("", base))
 
 
-def resolve_window(model, window_arg, max_seen, configured):
+def resolve_window(model, window_arg, max_seen, configured, live=None):
     """Return (window or None, window_source)."""
     if window_arg:
         return window_arg, "--window"
+    if live:
+        return live, "window from live session"
     entry = table_entry(model)
     if entry is None:
         return None, "unlisted model"
@@ -398,7 +476,7 @@ def build(args, env, cwd, home):
     if m["stage_costs"]:
         res["last_stage_cost"] = m["stage_costs"][-1]["cost"]
     window, source = resolve_window(m["model"], args.window, m["max_seen"],
-                                    configured_model(env, cwd, home))
+                                    configured_model(env, cwd, home), live_window(env, cwd))
     res["window_source"] = source
     if window is None:
         res["_unknown"] = (f"model {m['model']!r} is not in MODEL_WINDOWS and no --window "
