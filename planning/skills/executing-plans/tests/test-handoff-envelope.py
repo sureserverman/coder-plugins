@@ -120,6 +120,7 @@ try:
     r2 = pathlib.Path(tmp) / "keys"
     r2.mkdir()
     hid = "h-" + "a" * 20
+    fid = "h-" + "f" * 20       # fail's own id: accept already claimed `hid`
     plan_rel = "plan.md"
     hdir = r2 / ".claude" / "handoffs"
     cases = (
@@ -129,9 +130,10 @@ try:
          BASE_KEYS | {"failure_code"}),
     )
     for cmd, extra, suffix, event, keys in cases:
-        rc, out, err = run([cmd, "--root", str(r2), "--handoff-id", hid, *extra], sid=SID,
+        cid = fid if cmd == "fail" else hid
+        rc, out, err = run([cmd, "--root", str(r2), "--handoff-id", cid, *extra], sid=SID,
                            cwd=str(r2))
-        f = hdir / f"{hid}.{suffix}.json"
+        f = hdir / f"{cid}.{suffix}.json"
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -141,7 +143,7 @@ try:
               f"({rc}, {sorted(data) if isinstance(data, dict) else data}, {err})")
         if isinstance(data, dict):
             check(data.get("protocol") == "remote-agents-handoff" and data.get("version") == 1
-                  and data.get("event") == event and data.get("handoff_id") == hid
+                  and data.get("event") == event and data.get("handoff_id") == cid
                   and data.get("managed_session_id") == SID
                   and data.get("plan") == str(r2 / plan_rel)
                   and isinstance(data.get("timestamp"), str)
@@ -150,7 +152,7 @@ try:
                   f"{cmd} values: protocol/version/event/id/session/absolute plan/UTC timestamp "
                   f"({data})")
     try:
-        fdata = json.loads((hdir / f"{hid}.failed.json").read_text(encoding="utf-8"))
+        fdata = json.loads((hdir / f"{fid}.failed.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         fdata = {}
     check(fdata.get("failure_code") == "cwd-mismatch", "fail records its failure_code")
@@ -170,6 +172,24 @@ try:
     gi = hdir / ".gitignore"
     check(gi.is_file() and gi.read_text(encoding="utf-8") == "*\n",
           "the first write creates .claude/handoffs/.gitignore containing '*'")
+
+    print("one outcome per handoff")
+    acc = hdir / f"{hid}.accepted.json"
+    before = acc.read_bytes()
+    for cmd, extra in (("accept", ["--plan", plan_rel]), ("fail", ["--code", "no-ready"])):
+        rc, _o, err = run([cmd, "--root", str(r2), "--handoff-id", hid, *extra], sid="other_1")
+        check(rc == 1 and "already accepted or failed" in err and acc.read_bytes() == before
+              and not (hdir / f"{hid}.failed.json").exists(),
+              f"a second {cmd} of an accepted id is refused and changes nothing "
+              f"(red if accept is not exclusive) ({rc}, {err[:80]!r})")
+    rc, _o, err = run(["accept", "--root", str(r2), "--handoff-id", fid, "--plan", plan_rel],
+                      sid=SID)
+    check(rc == 1 and not (hdir / f"{fid}.accepted.json").exists(),
+          f"accept after fail is refused ({rc})")
+    rc, out, _e = run(["accept", "--root", str(r2), "--handoff-id", "h-" + "9" * 20,
+                       "--plan", plan_rel])
+    check(rc == 0 and out == "unsupervised" and not (hdir / (".h-" + "9" * 20 + ".claim")).exists(),
+          "unsupervised accept claims nothing")
     leftovers = [n for n in tree(hdir) if n.endswith(".tmp")]
     check(not leftovers, f"no temp files left behind ({leftovers})")
 
@@ -290,6 +310,18 @@ try:
     rc, out, err = verify(p_noise2)
     check(rc == 0, f"a fenced template, a prose mention and an indented copy after the real "
                    f"block are not blocks (red if BLOCK_START matches them) ({rc}, {out!r})")
+    rc, out, _e = run(["plan", "--root", str(repo), "--handoff-id", good])
+    check(rc == 0 and out == str(plans / "good.md"),
+          f"plan prints the plan the ready envelope names ({rc}, {out!r})")
+    rc, out, _e = run(["plan", "--root", str(repo), "--handoff-id", "h-" + "e" * 20])
+    check(rc == 3 and out == "no-ready", f"plan with no ready -> exit 3 no-ready ({rc}, {out!r})")
+    p_reason = plan_with(plans / "reason.md",
+                         block(good, repo, "feat/handoff").replace(
+                             "reason: rule context:",
+                             "reason: [~] `branch: main` and `cwd: /elsewhere` hold — rule context:"))
+    rc, out, err = verify(p_reason)
+    check(rc == 0, f"cwd:/branch: quoted in the reason: line are not read as the block's "
+                   f"(red if the reason line is searched) ({rc}, {out!r})")
     fifo_plan = plans / "fifo.md"
     os.mkfifo(fifo_plan)
     rc, out, _err = verify(fifo_plan)

@@ -13,6 +13,7 @@ Subcommands, each with `--root <repo>`:
     ready            write <id>.ready.json     (event HANDOFF_READY)
     accept           write <id>.accepted.json  (event HANDOFF_ACCEPTED)
     fail             write <id>.failed.json    (event HANDOFF_FAILED, --code required)
+    plan             print the `plan` a valid <id>.ready.json names, else print no-ready, exit 3
     verify           exit 0 when the handoff checks out, else print a failure code, exit 3
     request-pending  exit 0 when request.json asks this managed session to hand off, else 1
 
@@ -35,6 +36,12 @@ managed session id is checked with remote-agents' own rule
 Unsupervised. `ready`, `accept` and `fail` write nothing, print `unsupervised` and exit
 0 when REMOTE_AGENTS_SESSION_ID is unset or empty. Set but invalid: nothing written,
 exit 1.
+
+One outcome per handoff. `accept` and `fail` first claim the id by creating
+handoffs/.<id>.claim with O_EXCL; when it exists — this id was already accepted or
+failed, by this session or another — they write nothing, print `refused` to stderr and
+exit 1. So two sessions given one id cannot both own the plan, and a late `fail` cannot
+overwrite an `accepted`.
 
 Writes follow context-usage.py's write_sidecar. The root opens as a directory; then
 `.claude` and `handoffs` each open O_NOFOLLOW | O_DIRECTORY relative to the parent fd
@@ -63,14 +70,16 @@ verify --handoff-id ID --plan PATH checks, in this order, and prints the first f
     branch-mismatch  the block's `branch:` value != `git -C <root> branch --show-current`
 
 A block starts at a line beginning, in column 0, with `**RESUME HERE (` — the
-template's heading, `**RESUME HERE (<date>):**`, so prose that merely mentions the
-block, an indented copy, and a demoted `**Earlier RESUME HERE` are not blocks. Lines
-inside a ``` or ~~~ fence are never a block start: a quoted template is an example.
-A block runs to the next block start, the next markdown heading, or end of file. Within it the first `handoff_id:`, `cwd:` and
-`branch:` fields are read wherever they sit on a line (the template puts `plan:`,
-`cwd:` and `branch:` on one line); the value is the next whitespace-free token with
-backticks stripped, so list markers, backticks and a trailing `(at abc1234)` note are
-tolerated. A path containing spaces is not supported.
+template's heading, `**RESUME HERE (<date>):**`, with `handoff_id: <id>` on the next
+line; so prose that merely mentions the block, an indented copy, and a demoted
+`**Earlier RESUME HERE` are not blocks. Lines inside a ``` or ~~~ fence are never a
+block start: a quoted template is an example. A block runs to the next block start,
+the next markdown heading, or end of file. Within it the first `handoff_id:`, `cwd:`
+and `branch:` fields are read wherever they sit on a line (the template puts `plan:`,
+`cwd:` and `branch:` on one line), skipping the `reason:` line, which quotes a verdict
+or a gate check verbatim and may contain either word; the value is the next
+whitespace-free token with backticks stripped, so list markers, backticks and a
+trailing `(at abc1234)` note are tolerated. A path containing spaces is not supported.
 
 Importable: request_pending(root, env) -> bool, for context-usage.py to load through
 importlib (the hyphenated filename prevents a plain import).
@@ -125,6 +134,7 @@ def _warn_if_stale():
         mod.warn_if_stale(__file__)
     except Exception:  # noqa: BLE001 — a probe that cannot load must never stop the command
         pass
+REASON_LINE = re.compile(r"^\s*(?:[-*]\s+)?`?reason:")
 FIELD_RE = {k: re.compile(r"(?<![\w-])" + k + r":\s*`?([^\s`]+)")
             for k in ("handoff_id", "cwd", "branch")}
 
@@ -248,9 +258,10 @@ def _gitignore_ok(hfd):
         os.close(fd)
 
 
-def write_handoff_file(root, name, body):
+def write_handoff_file(root, name, body, claim=None):
     """Write `body` (bytes) to <root>/.claude/handoffs/<name>, first making sure
-    handoffs/.gitignore is exactly `*`. Returns whether it was written; never raises."""
+    handoffs/.gitignore is exactly `*`. With `claim`, first create that file with O_EXCL
+    and refuse when it exists. Returns whether it was written; never raises."""
     fds = []
     try:
         fds.append(os.open(root, os.O_RDONLY | os.O_DIRECTORY))
@@ -258,6 +269,9 @@ def write_handoff_file(root, name, body):
         fds.append(_open_owned_dir(HANDOFF_DIR, fds[-1]))
         if not _gitignore_ok(fds[-1]):
             _replace_at(fds[-1], GITIGNORE, GITIGNORE_BODY)
+        if claim is not None:
+            os.close(os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                             0o600, dir_fd=fds[-1]))
         _replace_at(fds[-1], name, body)
         return True
     except Exception:
@@ -298,6 +312,8 @@ def last_block(text):
 
 def block_field(lines, key):
     for line in lines:
+        if REASON_LINE.match(line):
+            continue
         m = FIELD_RE[key].search(line)
         if m:
             return m.group(1)
@@ -341,11 +357,18 @@ def read_plan(plan):
         os.close(fd)
 
 
-def verify(root, handoff_id, plan):
-    """None when the handoff checks out, else the failure code."""
+def read_ready(root, handoff_id):
+    """The valid HANDOFF_READY envelope for this id, or None."""
     ready = read_handoff_file(root, f"{handoff_id}.ready.json")
     if (ready is None or ready.get("event") != "HANDOFF_READY"
             or ready.get("handoff_id") != handoff_id):
+        return None
+    return ready
+
+
+def verify(root, handoff_id, plan):
+    """None when the handoff checks out, else the failure code."""
+    if read_ready(root, handoff_id) is None:
         return "no-ready"
     text = read_plan(plan)
     if text is None:
@@ -383,6 +406,9 @@ def main(argv=None):
     p.add_argument("--handoff-id", required=True, type=handoff_id_arg)
     p.add_argument("--code", required=True, choices=FAILURE_CODES)
     p.add_argument("--plan", help="plan file (recorded as null when omitted)")
+    p = sub.add_parser("plan", help="print the plan <id>.ready.json names; exit 3 no-ready")
+    p.add_argument("--root", required=True)
+    p.add_argument("--handoff-id", required=True, type=handoff_id_arg)
     p = sub.add_parser("verify", help="check a handoff; exit 3 with a failure code")
     p.add_argument("--root", required=True)
     p.add_argument("--handoff-id", required=True, type=handoff_id_arg)
@@ -397,6 +423,14 @@ def main(argv=None):
         return 0
     if args.cmd == "request-pending":
         return 0 if request_pending(args.root, os.environ) else 1
+    if args.cmd == "plan":
+        ready = read_ready(args.root, args.handoff_id)
+        plan = ready.get("plan") if ready else None
+        if not isinstance(plan, str) or not os.path.isabs(plan):
+            print("no-ready")
+            return 3
+        print(plan)
+        return 0
     if args.cmd == "verify":
         code = verify(args.root, args.handoff_id, args.plan)
         if code is None:
@@ -414,8 +448,11 @@ def main(argv=None):
     event, suffix = EVENTS[args.cmd]
     body = envelope(event, args.handoff_id, sid, args.plan, getattr(args, "code", None))
     name = f"{args.handoff_id}.{suffix}.json"
-    if not write_handoff_file(args.root, name, (json.dumps(body) + "\n").encode("utf-8")):
-        print(f"refused: could not write {name} under {args.root}/.claude/handoffs",
+    claim = f".{args.handoff_id}.claim" if args.cmd in ("accept", "fail") else None
+    if not write_handoff_file(args.root, name, (json.dumps(body) + "\n").encode("utf-8"),
+                              claim):
+        print(f"refused: could not write {name} under {args.root}/.claude/handoffs"
+              + (" (this handoff was already accepted or failed)" if claim else ""),
               file=sys.stderr)
         return 1
     print(os.path.join(os.path.abspath(args.root), CLAUDE_DIR, HANDOFF_DIR, name))

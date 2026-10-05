@@ -91,6 +91,7 @@ What it pins:
      is added to make them pretend harder.
 """
 import os
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -1440,12 +1441,37 @@ def main():
           _hdr >= 0 and _fence_end > _hdr and _hdr < _hid < _fence_end,
           "the RESUME HERE template carries no `handoff_id: <id>` line between its heading "
           "and its closing fence — a successor's verify would fail id-mismatch")
-    check("session-handoff: step 0 mints the id with `handoff-envelope.py new-id`",
-          "handoff-envelope.py new-id" in _ho,
-          "the handoff no longer mints its id before the handoff commit")
-    check("session-handoff: the handoff writes the `ready` envelope",
-          "handoff-envelope.py ready" in _ho,
-          "the handoff no longer tells a supervisor it is ready")
+    _mint = _on_ho_raw.find("handoff-envelope.py new-id")
+    check("session-handoff: step 0 mints the id with `handoff-envelope.py new-id`, before the block",
+          0 <= _mint < _hdr,
+          f"§ On `handoff` must mint the id before the RESUME HERE template (new-id@{_mint}, "
+          f"block@{_hdr})")
+    _state = _on_ho_raw.find('`phase: "handoff"`')
+    _ready = _on_ho_raw.find("handoff-envelope.py ready")
+    check("session-handoff: the `ready` envelope is written after the state-file step",
+          0 <= _state < _ready,
+          f"§ On `handoff` must write `ready` after phase \"handoff\" (state@{_state}, "
+          f"ready@{_ready})")
+    # The template parses as `verify` reads it: fill it, dedent it to column 0 as step 1
+    # says to write it, and run handoff-envelope.py's own block parser over it.
+    _he = None
+    try:
+        _spec = importlib.util.spec_from_file_location(
+            "handoff_envelope", SKILL.parent / "scripts" / "handoff-envelope.py")
+        _he = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_he)
+    except Exception:  # noqa: BLE001 — reported by the check below
+        _he = None
+    _tpl = _on_ho_raw[_hdr:_fence_end] if 0 <= _hdr < _fence_end else ""
+    _filled = "\n".join(l.strip() for l in _tpl.replace("<YYYY-MM-DD>", "2026-10-05")
+                         .replace("<id>", "h-" + "0" * 20).replace("<repo root>", "/r")
+                         .replace("<branch>", "feat/x").splitlines())
+    _blk = _he.last_block(_filled) if _he else None
+    check("session-handoff: the filled template parses as verify reads it",
+          _blk is not None and _he.block_field(_blk, "handoff_id") == "h-" + "0" * 20
+          and _he.block_field(_blk, "cwd") == "/r" and _he.block_field(_blk, "branch") == "feat/x",
+          "handoff-envelope.py's block parser does not read handoff_id/cwd/branch from the "
+          "RESUME HERE template — a successor's verify would fail")
     check("session-handoff: from the state-file step on, the session owns nothing",
           "owns nothing" in _on_ho,
           "the ownership-surrender rule is gone from § On `handoff`")
@@ -1463,15 +1489,22 @@ def main():
           "session-handoff.md has no `## Adopting a handoff (`--adopt-handoff <id>`)` section")
     _vi = _adopt.find("handoff-envelope.py verify")
     _ai = _adopt.find("handoff-envelope.py accept")
-    check("session-handoff: adoption runs `verify` before `accept`",
-          0 <= _vi < _ai,
-          f"verify must come before accept in the adoption section (verify@{_vi}, accept@{_ai})")
+    _pi = _adopt.find("handoff-envelope.py plan")
+    check("session-handoff: adoption runs `plan`, then `verify`, then `accept`",
+          0 <= _pi < _vi < _ai,
+          f"plan, verify, accept must come in that order in the adoption section "
+          f"(plan@{_pi}, verify@{_vi}, accept@{_ai})")
+    check("session-handoff: accept and fail are one-shot per id",
+          re.search(_ws(r"one-shot per id"), _adopt) is not None,
+          "the adoption section does not say a second accept/fail of an id is refused")
     check("session-handoff: the manual resume path runs no verify",
           re.search(_ws(r"manual path.{0,200}no `verify`"), _adopt, re.S) is not None,
           "the adoption section does not say the manual path is unchanged and runs no verify")
-    # SKILL.md itself: `text` joins the references, where the section already says it.
-    check("trunk: SKILL.md names `--adopt-handoff`",
-          "--adopt-handoff" in SKILL.read_text(encoding="utf-8"),
+    # SKILL.md's Phase 1 itself — the entry path a started session follows. `text` joins
+    # the references, where the section already says it.
+    _phase1 = section(SKILL.read_text(encoding="utf-8"), r"## Phase 1", r"## Phase 2")
+    check("trunk: Phase 1 routes `--adopt-handoff` to the adoption section",
+          "--adopt-handoff" in _phase1 and "Adopting a handoff" in _phase1,
           "the trunk carries no pointer to adopting a handoff")
     _resets = section(text, r"## Context resets at stage boundaries", r"## Progress state file")
     check("trunk: the context-reset section points at session-handoff.md and names the rules",

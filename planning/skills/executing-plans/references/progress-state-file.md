@@ -57,7 +57,7 @@ the `RESUME HERE` block and the `ready` envelope carry:
 | `⚠ not in plan` | this file names a task the plan does not contain. A worse divergence than a lag: the plan was edited under a run whose markers had already stopped. |
 | `⊘ STAGE ORDER` | this file's `stage` depends (its `**Depends on:**` line) on a stage whose gate is not fully `[x]` — an open `[ ]` or a blocked `[~]`. The stage opened too early; `plan-progress.py --stage-order-check` exits 2 on the same condition. |
 | `↻N/M` | a gate being re-run after a failure; see `remediation_round`. |
-| `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured context rule fired. Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block. |
+| `⏸ HANDOFF` | the executor stopped on purpose at a stage gate because a measured stop rule fired (or the owner asked, `rule requested`). Followed by `reason`. Not a failure: the next session resumes from the plan's `**RESUME HERE (<date>):**` block, whose `handoff_id: <id>` line names the handoff. |
 
 **Two front ends draw it.** On Claude Code 2.1.288 or later the plugin's mod
 (`../../../hooks/mod/`) draws the bars as a band over the prompt, sized to the band's own

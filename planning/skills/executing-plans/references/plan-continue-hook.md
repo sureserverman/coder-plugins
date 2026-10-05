@@ -65,7 +65,8 @@ fourth:
 - Write **`phase: "blocked"`** to the progress state file when a documented Stop condition
   fires (`progress-state-file.md`).
 - Hand off on **`context-usage.py`'s `handoff` verdict**: a `RESUME HERE` block carrying the
-  script's `reason:` line, and `phase: "handoff"` (`session-handoff.md`). A `RESUME HERE`
+  script's `reason:` line and the `handoff_id:` line, and `phase: "handoff"`
+  (`session-handoff.md` § On `handoff`). A `RESUME HERE`
   with no `reason:` line is the eyeball stop that rule replaced: the hook blocks it and names
   the script to run — and fails open when that script is not installed beside the hook,
   since it cannot send the executor after a file that is not there. A legitimate block is

@@ -52,7 +52,8 @@ Evaluated in this order; the script names the rule that fired and its numbers in
    `handoff-envelope.py`'s reader, and its `reason:` is `rule requested: owner asked for a
    rollover`. It wins over the first-stage exception and over an `unknown` measurement, but
    it is still evaluated only at a gate: a request that arrives mid-stage waits for the
-   stage's gate commit.
+   stage's gate commit. At the final gate there is no next task to hand off: the run goes
+   on to close-out, which writes no `RESUME HERE`, and its report says the request arrived.
 2. **Sub-plan boundary** (master plans, `--sub-plan-boundary`): handoff, unless the context is
    under 25% of the window. A sub-plan boundary is the natural reset point; below 25% the fresh
    session buys too little to be worth the resume.
@@ -98,6 +99,9 @@ vault-resident plan rides none).
 
 ## On `handoff`
 
+`<repo root>` below is the git top level (`git rev-parse --show-toplevel`) — where
+remote-agents writes its request and reads the envelopes.
+
 0. Mint the handoff id once, before the handoff commit, and keep it for steps 1, 3 and 4:
 
    ```
@@ -133,13 +137,16 @@ vault-resident plan rides none).
    ```
 
    With no supervisor present (`REMOTE_AGENTS_SESSION_ID` unset) it writes nothing, prints
-   `unsupervised` and exits 0, so the manual path is unchanged.
+   `unsupervised` and exits 0: the id still rides the block and the state file, and the
+   manual resume works exactly as before. If it exits 1 (`refused`), no supervisor will
+   act on this handoff — say so in step 5's line, so the user resumes by hand.
 5. End the turn with the reason and one line telling the user to resume in a fresh session
    pointed at the plan path. That line is not an `ACTION NEEDED:` block — nothing is being
    decided.
 
-**From step 3 on, the session owns nothing.** It starts no task or gate, flips no `Status:`,
-edits no decision, and does nothing past step 4's envelope but end its turn (step 5). The
+**From step 3 on, the session owns nothing.** Its only remaining actions are step 4's
+envelope and step 5's last line. It starts no task or gate, flips no `Status:`, and edits no
+decision. The
 plan now belongs to whoever resumes it; a supervisor may start that session as soon as the
 `ready` envelope lands, and two sessions writing one plan would race.
 
@@ -155,7 +162,20 @@ A supervisor (remote-agents) starts the next session by typing
 handoff it was sent **before it owns anything**: no state file, no task, no `Status:` flip
 until step 5.
 
-1. **Find the plan.** Read `plan` from `<repo root>/.claude/handoffs/<id>.ready.json`.
+**Any exit other than the ones named below** — 2 for a malformed id, 1 for a refused
+write, a missing interpreter — ends the turn with one `ACTION NEEDED:` line naming the
+command and its exit, and no state file.
+
+1. **Find the plan.**
+
+   ```
+   python3 <planning>/skills/executing-plans/scripts/handoff-envelope.py plan \
+     --root <repo root> --handoff-id <id>
+   ```
+
+   It prints the plan the `ready` envelope names. On exit 3 (`no-ready`) run `fail --root
+   <repo root> --handoff-id <id> --code no-ready` (no `--plan`: none is known) and end the
+   turn as step 2 does.
 2. **Verify.**
 
    ```
@@ -185,7 +205,9 @@ until step 5.
    ```
 
    Only then write `phase: "preflight"` and continue with the normal Preflight. The
-   supervisor stops the predecessor only after this envelope lands.
+   supervisor stops the predecessor only after this envelope lands. `accept` and `fail` are
+   one-shot per id: exit 1 here means another session already accepted or failed this
+   handoff, so this one owns nothing — `ACTION NEEDED:`, no state file.
 
 The manual path (**Resuming**, above) is unchanged: a session the user points at the plan
 runs no `verify` and writes no envelope.

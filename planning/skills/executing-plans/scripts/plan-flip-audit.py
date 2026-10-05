@@ -13,7 +13,8 @@ green gate over work that had not happened:
      N task commits in the range behind them — the bulk regex flip. The boxes
      under a `### Stage N Gate` heading are not counted once a `Stage N green`
      commit is in the range: ticking a gate with its commit is the procedure.
-     Nor are Preflight boxes once a probe artefact backs them (finding 3's evidence).
+     Nor are up to N Preflight boxes once a probe artefact backs them (finding 3's
+     evidence) in that commit or earlier; more than N is a bulk flip whatever is committed.
   2. a ticked box whose own text carries what voids it. Two tiers: a STRONG
      phrase voids alone and is `blocking` (no CM4 / soft residual / exit 2 /
      exit 78 / stubbed / mocked / waived / Not done: / shouted BLOCKED); a WEAK
@@ -1168,19 +1169,39 @@ def green_stages(subjects):
     return {m.group(1) for s in subjects for m in [STAGE_GREEN.match(s.strip())] if m}
 
 
-def unbacked(entries, text, green, probed=False):
+def preflight_lines(text):
+    """Line numbers (1-based, as boxes() reports them) inside the `## Preflight` section."""
+    out, inside = set(), False
+    for i, line in enumerate(text.splitlines(), 1):
+        if re.match(r"^\s*#{1,4}\s", line):
+            inside = bool(re.match(r"^\s*#{1,4}\s+Preflight\b", line, re.I))
+            continue
+        if inside:
+            out.add(i)
+    return out
+
+
+def unbacked(entries, text, green, probed=False, cap=0):
     """Flips finding 1 counts: all but the gate boxes of a stage whose `Stage N green`
     commit is in the range. A gate's boxes are ticked together with that commit —
     that is the procedure, not a bulk flip — and counting them made every honest
     plan trip finding 1 at its second gate (5 task flips + 2 gate boxes = 7 > 6),
     and then never again once task commits reached the threshold.
 
-    Likewise a Preflight box once a probe artefact backs it (`probed`: the same
-    evidence that clears finding 3). Six Preflight boxes and three task ticks made an
-    honest first gate 9 > 6 (2026-10-05). An unprobed Preflight box still counts."""
+    Likewise the Preflight boxes once a probe artefact backs them (`probed`: the same
+    evidence that clears finding 3) — but only up to `cap` of them. Six Preflight boxes
+    and three task ticks made an honest first gate 9 > 6 (2026-10-05); a probe file is
+    blind to which box it backs, so it may not clear more Preflight boxes than the
+    threshold would tolerate with no evidence at all. Membership is by line, never by
+    text: a gate box repeating a Preflight line verbatim is not a Preflight box."""
     gates = gate_box_stages(text)
-    pre = preflight_keys(text) if probed else set()
-    return [e for e in entries if gates.get(e[2]) not in green and e[0] not in pre]
+    out = [e for e in entries if gates.get(e[2]) not in green]
+    if probed:
+        pre = preflight_lines(text)
+        pf = [e for e in out if e[2] in pre]
+        if len(pf) <= cap:
+            out = [e for e in out if e[2] not in pre]
+    return out
 
 
 def preflight_keys(text):
@@ -1232,6 +1253,12 @@ def history_findings(repo, rel, path, text, since, threshold):
     green = green_stages(row.split("\x00", 1)[1] for row in (subj_out or "").split("\n")
                          if "\x00" in row)
     out, errors, total_flips = [], [], 0
+    # Finding 1's probe evidence: a probe artefact in this commit or any earlier one in
+    # the range (baseline mode reads the whole range; this is the same rule, ordered).
+    order = (gout(repo, "rev-list", "--reverse", f"{since}..HEAD") or "").split()
+    first_probe = next((i for i, c in enumerate(order)
+                        if any(PROBE_PATH.search(p) for p in touched_paths(repo, c)[0])), None)
+    position = {c: i for i, c in enumerate(order)}
 
     for sha in shas:
         touched, rows = touched_paths(repo, sha)
@@ -1242,7 +1269,8 @@ def history_findings(repo, rel, path, text, since, threshold):
         if not entries:
             continue
         probed = any(PROBE_PATH.search(p) for p in touched)
-        counted = unbacked(entries, file_at(repo, sha, rel) or "", green, probed)
+        probed_by = first_probe is not None and position.get(sha, -1) >= first_probe
+        counted = unbacked(entries, file_at(repo, sha, rel) or "", green, probed_by, threshold)
         total_flips += len(counted)
         short = sha[:8]
         msg = gout(repo, "log", "-1", "--format=%s%n%b", sha) or ""
@@ -1401,7 +1429,7 @@ def baseline_findings(root, path, text, base, threshold):
     task_commits = max(task_commits, len(task_numbers(task_ids) & proven_tasks(root, path)))
 
     out, where = [], "baseline..HEAD"
-    counted = unbacked(flips, text, green_stages(subjects), probed)
+    counted = unbacked(flips, text, green_stages(subjects), probed, threshold)
     if len(counted) > threshold and task_commits < threshold:
         out.append({
             "finding": 1, "severity": "blocking",
