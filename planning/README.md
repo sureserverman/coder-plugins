@@ -1,6 +1,15 @@
 # planning
 
-A fifteen-skill pipeline (v0.54.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.55.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.55.0
+
+**Supervised handoff protocol.** A plan run under a supervisor (remote-agents, which sets `REMOTE_AGENTS_SESSION_ID` in the panes it manages) can now be rolled over to a fresh session without the owner retyping anything. Unsupervised, nothing changes.
+
+- **`handoff-envelope.py`** (`skills/executing-plans/scripts/`) is the one writer and reader of `<repo>/.claude/handoffs/`: `new-id`, `ready`, `accept`, `fail`, `verify`, `request-pending`. Envelopes follow protocol v1 (DEC-029); the directory ignores itself.
+- **A handoff carries an id.** The `RESUME HERE` block gains `handoff_id: <id>`, the state file gains `handoff_id`, and a `ready` envelope tells the supervisor. From the state-file step on, the old session owns nothing.
+- **The owner can ask for a rollover.** `context-usage.py` gains a fifth stop rule, `rule requested`: remote-agents' request names this session, so the next gate hands off. It is still evaluated only at a gate (DEC-026, amended).
+- **Adoption verifies before it owns.** A session started with `/planning:executing-plans --adopt-handoff <id>` runs `verify` (the `ready` envelope, the plan's last block, the repo root and the branch), then `accept`, and only then Preflight.
 
 ## What's new in 0.54.0
 
@@ -157,6 +166,8 @@ The prior version of this table was reachable only in theory — `light` require
 **On Claude Code 2.1.288+ — the band and `/plan-view`.** The plugin also ships a mod (`hooks/mod/`, a Claude Code hooks module) that draws the same plans, counts and phase text as a band above the prompt, sized to the window rather than the status line's unbounded width, with no settings entry to write. It reads the same `plan-progress.py --json` model, refreshed when a tool call in this session touches the state file or a plan file, and every 30 s — never while drawing. The band's **Plan** button, or `/plan-view`, opens a pane with the master, every stage with its gate count, every task with its status, the remediation round, and every agent this session has dispatched, with its outcome. On these builds `/planning:statusline` is optional: with both wired the bars show twice, and when your user settings run `statusline-chain.sh` the mod says so once per session.
 
 **Wiring it — `/planning:statusline`.** The bar needs one entry in your global `~/.claude/settings.json`, and that entry is the one piece a plugin cannot ship: `statusLine` is not a plugin contribution point (a plugin's `settings.json` supports only `agent` and `subagentStatusLine`). So the plugin ships the parts — `scripts/statusline-chain.sh`, which runs your existing statusline first and appends the bar on the next line, resolving the renderer as its own sibling so it carries no absolute path — and `/planning:statusline install` generates the pointer. `status` reports what is wired, and the installer refuses to clobber a third-party `statusLine` without `--force`. What it can preserve as that base is a plain `bash <script>` entry; anything else (a `node` command, a pipeline, arguments of its own) is replaced under `--force`, reported on stderr, and kept in the timestamped backup. `remove` takes the bar back out — restoring a preserved base if there was one, otherwise clearing the key. Wiring is **global and one-time**, not per project. Hand-authoring a wrapper instead is what this replaces: a hand-written one hard-codes a checkout path and keeps running that copy after the plugin moves, so the shipped renderer and the running one drift apart with nothing to catch it.
+
+**Running under remote-agents (v0.55.0).** When remote-agents manages the pane, `REMOTE_AGENTS_SESSION_ID` is set and a handoff also writes a `ready` envelope to `<repo>/.claude/handoffs/` (through `skills/executing-plans/scripts/handoff-envelope.py`). remote-agents launches a fresh session of the same project and profile and types `/planning:executing-plans --adopt-handoff <id>`. That session verifies the handoff, writes `accepted` or `failed`, and only after `accepted` does remote-agents stop the old one. The owner's "Rollover now" writes `request.json`; the running session honours it at its next gate as the `rule requested` stop. Unset, every one of these steps is a no-op and the manual "resume in a fresh session" path is unchanged. Protocol and bounds: DEC-029; the handoff steps: `skills/executing-plans/references/session-handoff.md`.
 
 **Triggers:** "execute this plan", "run the plan", "drive this plan to green", "work the plan in plan.md".
 
