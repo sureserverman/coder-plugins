@@ -160,6 +160,11 @@ for ph in ("closeout", "blocked", "handoff", "harvesting", ""):
 for ph in ("preflight", "gate", " GATE "):
     st = dict(STATE, phase=ph)
     both("phase %r" % ph, inp(BAD_STOPS[0], state=st), "block")
+# The handoff protocol's state file: `handoff` stays terminal with `handoff_id` present.
+HANDOFF_STATE = dict(STATE, phase="handoff", handoff_id="h-0123456789abcdef0123",
+                     reason="context 52% > 50%")
+both("phase 'handoff' with handoff_id + promise", inp(BAD_STOPS[0], state=HANDOFF_STATE), "allow")
+both("phase 'handoff' with handoff_id + bare RESUME HERE", inp(RESUME_BARE, state=HANDOFF_STATE), "allow")
 
 print("── no-progress guard")
 for c in (0, 1, 2):
