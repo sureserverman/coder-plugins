@@ -13,6 +13,7 @@ green gate over work that had not happened:
      N task commits in the range behind them — the bulk regex flip. The boxes
      under a `### Stage N Gate` heading are not counted once a `Stage N green`
      commit is in the range: ticking a gate with its commit is the procedure.
+     Nor are Preflight boxes once a probe artefact backs them (finding 3's evidence).
   2. a ticked box whose own text carries what voids it. Two tiers: a STRONG
      phrase voids alone and is `blocking` (no CM4 / soft residual / exit 2 /
      exit 78 / stubbed / mocked / waived / Not done: / shouted BLOCKED); a WEAK
@@ -1167,14 +1168,19 @@ def green_stages(subjects):
     return {m.group(1) for s in subjects for m in [STAGE_GREEN.match(s.strip())] if m}
 
 
-def unbacked(entries, text, green):
+def unbacked(entries, text, green, probed=False):
     """Flips finding 1 counts: all but the gate boxes of a stage whose `Stage N green`
     commit is in the range. A gate's boxes are ticked together with that commit —
     that is the procedure, not a bulk flip — and counting them made every honest
     plan trip finding 1 at its second gate (5 task flips + 2 gate boxes = 7 > 6),
-    and then never again once task commits reached the threshold."""
+    and then never again once task commits reached the threshold.
+
+    Likewise a Preflight box once a probe artefact backs it (`probed`: the same
+    evidence that clears finding 3). Six Preflight boxes and three task ticks made an
+    honest first gate 9 > 6 (2026-10-05). An unprobed Preflight box still counts."""
     gates = gate_box_stages(text)
-    return [e for e in entries if gates.get(e[2]) not in green]
+    pre = preflight_keys(text) if probed else set()
+    return [e for e in entries if gates.get(e[2]) not in green and e[0] not in pre]
 
 
 def preflight_keys(text):
@@ -1235,7 +1241,8 @@ def history_findings(repo, rel, path, text, since, threshold):
             continue
         if not entries:
             continue
-        counted = unbacked(entries, file_at(repo, sha, rel) or "", green)
+        probed = any(PROBE_PATH.search(p) for p in touched)
+        counted = unbacked(entries, file_at(repo, sha, rel) or "", green, probed)
         total_flips += len(counted)
         short = sha[:8]
         msg = gout(repo, "log", "-1", "--format=%s%n%b", sha) or ""
@@ -1250,7 +1257,7 @@ def history_findings(repo, rel, path, text, since, threshold):
                 "evidence": f"threshold {threshold}",
             })
 
-        if not any(PROBE_PATH.search(p) for p in touched):
+        if not probed:
             for key, body, line in entries:
                 if key in pre or ACCESS_VOCAB.search(body):
                     out.append({
@@ -1394,7 +1401,7 @@ def baseline_findings(root, path, text, base, threshold):
     task_commits = max(task_commits, len(task_numbers(task_ids) & proven_tasks(root, path)))
 
     out, where = [], "baseline..HEAD"
-    counted = unbacked(flips, text, green_stages(subjects))
+    counted = unbacked(flips, text, green_stages(subjects), probed)
     if len(counted) > threshold and task_commits < threshold:
         out.append({
             "finding": 1, "severity": "blocking",
