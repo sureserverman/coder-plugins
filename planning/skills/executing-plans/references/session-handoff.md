@@ -99,8 +99,9 @@ vault-resident plan rides none).
 
 ## On `handoff`
 
-`<repo root>` below is the git top level (`git rev-parse --show-toplevel`) — where
-remote-agents writes its request and reads the envelopes.
+`<repo root>` below is the git top level (`git rev-parse --show-toplevel`) — the one
+handoff root (DEC-029): where every envelope is written and where `context-usage.py` reads
+the owner's request. A supervisor must resolve its project directory to the same root.
 
 0. Mint the handoff id once, before the handoff commit, and keep it for steps 1, 3 and 4:
 
@@ -194,7 +195,9 @@ command and its exit, and no state file.
    Then end the turn with one `ACTION NEEDED:` line naming the code. Write no state file and
    run no task: a session that cannot prove which handoff it holds must not touch the plan.
 3. **Run Phase 1 in full**: the Research Summary, the `Status:` flips, `## Decisions in
-   force`, and the last `RESUME HERE` block.
+   force`, and the last `RESUME HERE` block. A concern Phase 1 raises about the plan does not
+   fail the adoption — the handoff is already proven yours: run step 5's `accept`, then
+   surface the concern as Phase 1 step 4 does, before Preflight.
 4. **Re-ground the task that block names** — read its fields and the files in its `Scope:`
    as they stand now, not as the block remembers them.
 5. **Accept, then own.**

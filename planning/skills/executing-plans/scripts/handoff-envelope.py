@@ -41,7 +41,10 @@ One outcome per handoff. `accept` and `fail` first claim the id by creating
 handoffs/.<id>.claim with O_EXCL; when it exists — this id was already accepted or
 failed, by this session or another — they write nothing, print `refused` to stderr and
 exit 1. So two sessions given one id cannot both own the plan, and a late `fail` cannot
-overwrite an `accepted`.
+overwrite an `accepted`. A claim whose envelope then fails to write is removed again.
+
+Root. `--root` is the handoff root DEC-029 names: the git top level of the project
+(session-handoff.md's `<repo root>`), the same root context-usage.py reads a request at.
 
 Writes follow context-usage.py's write_sidecar. The root opens as a directory; then
 `.claude` and `handoffs` each open O_NOFOLLOW | O_DIRECTORY relative to the parent fd
@@ -272,7 +275,15 @@ def write_handoff_file(root, name, body, claim=None):
         if claim is not None:
             os.close(os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                              0o600, dir_fd=fds[-1]))
-        _replace_at(fds[-1], name, body)
+        try:
+            _replace_at(fds[-1], name, body)
+        except BaseException:
+            if claim is not None:      # no outcome was written: free the id for a retry
+                try:
+                    os.unlink(claim, dir_fd=fds[-1])
+                except OSError:
+                    pass
+            raise
         return True
     except Exception:
         return False

@@ -44,8 +44,8 @@ script cannot prove. An owner's rollover request — remote-agents' request file
 naming this session's REMOTE_AGENTS_SESSION_ID, read only by handoff-envelope.py's
 reader (no second parser) — is `handoff` whatever else holds (rule requested); the
 executor runs this script only at a gate, so the request still lands at one. The
-request is looked up at the state root (above), else the git top level, else cwd —
-the repo root remote-agents writes it under. A reader that cannot load says so on
+request is looked up at the git top level, else the state root (above), else cwd —
+the one handoff root DEC-029 names, where remote-agents writes it. A reader that cannot load says so on
 stderr and changes no verdict. Every verdict carries a `reason` naming the rule and numbers.
 An `unknown` verdict never stops a run: exit 0. Exit 2 only on bad CLI usage.
 
@@ -440,11 +440,9 @@ def live_window(env, cwd, now=None):
 
 
 def request_root(cwd):
-    """The repo root a rollover request lives under: the state root when a state file
-    exists, else the git top level, else cwd."""
-    root = sidecar_root(cwd, require_state=True)
-    if root:
-        return root
+    """The handoff root (DEC-029) a rollover request lives under: the git top level —
+    the same `<repo root>` session-handoff.md writes envelopes under — else the state
+    root, else cwd."""
     try:
         r = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
                            capture_output=True, text=True, timeout=30)
@@ -452,7 +450,7 @@ def request_root(cwd):
             return r.stdout.strip()
     except (OSError, subprocess.SubprocessError):
         pass
-    return cwd
+    return sidecar_root(cwd, require_state=True) or cwd
 
 
 def owner_requested(env, cwd):

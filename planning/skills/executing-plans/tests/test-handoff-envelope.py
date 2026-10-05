@@ -413,6 +413,22 @@ try:
         print(f"  import error: {e!r}")
     fn = getattr(mod, "request_pending", None)
     check(callable(fn), "request_pending is importable via importlib")
+    if mod is not None:
+        r9 = pathlib.Path(tmp) / "claimfree"
+        r9.mkdir()
+        real = mod._replace_at
+
+        def boom(hfd, name, body):
+            if name.endswith(".accepted.json"):
+                raise OSError("disk full")
+            return real(hfd, name, body)
+        mod._replace_at = boom
+        hid9 = "h-" + "7" * 20
+        wrote = mod.write_handoff_file(str(r9), f"{hid9}.accepted.json", b"{}", f".{hid9}.claim")
+        mod._replace_at = real
+        check(wrote is False and not (r9 / ".claude" / "handoffs" / f".{hid9}.claim").exists(),
+              "a claim whose envelope fails to write is removed, so a retry is not refused "
+              "(red if the claim outlives the failed write)")
     if callable(fn):
         check(fn(str(r7), {ENV_VAR: SID}) is True, "request_pending(root, env) -> True on a match")
         check(fn(str(r7), {ENV_VAR: "x"}) is False, "request_pending -> False on a mismatch")

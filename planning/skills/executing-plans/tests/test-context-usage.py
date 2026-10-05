@@ -753,6 +753,14 @@ try:
     j = j or {}
     check(j.get("verdict") == "handoff",
           f"with no state file the git top level is the request root ({j.get('verdict')})")
+    (grepo / "src" / ".claude").mkdir()
+    (grepo / "src" / ".claude" / "plan-progress.json").write_text("{}", encoding="utf-8")
+    rc, j, err = run_json(["--transcript", unlisted], home, grepo / "src",
+                          REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "handoff",
+          f"the git top level wins over a state root below it — one handoff root, where the "
+          f"envelopes are written (red if the state root is read first) ({j.get('verdict')})")
     lone = pathlib.Path(tmp) / "lone"
     lone.mkdir()
     shutil.copy(SCRIPT, lone / "context-usage.py")
