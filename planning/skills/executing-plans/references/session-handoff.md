@@ -162,7 +162,7 @@ A supervisor (remote-agents) starts the next session by typing
 handoff it was sent **before it owns anything**: no state file, no task, no `Status:` flip
 until step 5.
 
-**Any exit other than the ones named below** — 2 for a malformed id, 1 for a refused
+**Any exit other than the ones each step names** — 2 for a malformed id, 1 for a refused
 write, a missing interpreter — ends the turn with one `ACTION NEEDED:` line naming the
 command and its exit, and no state file.
 
