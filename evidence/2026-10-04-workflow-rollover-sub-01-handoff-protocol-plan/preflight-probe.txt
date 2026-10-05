@@ -1,0 +1,21 @@
+# Preflight probe output — sub-01 handoff protocol
+# Baseline: captured 2026-10-05 on main at b19f1dd, before branching (verbatim run-tests.sh log tail)
+entries run: 72
+
+OK — 59 suite(s) and 13 validator(s) passed.
+rc=0
+
+# Discovery and trunk budget: re-run 2026-10-05T11:41:40Z at 1f8cd3a; no commit since b19f1dd touches the runner or a trunk SKILL.md (git diff --stat b19f1dd..HEAD -- scripts/ '*/SKILL.md' is empty: [])
+$ bash scripts/run-tests.sh --list | grep test-context-usage
+planning/skills/executing-plans/tests/test-context-usage.py
+planning/skills/executing-plans/tests/test-handoff-envelope.py
+$ python3 scripts/check-trunk-budget.py | head -3
+24 budgeted trunk(s); 0 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.
+  unmeasured headroom: 162719 B (0 B stale ceilings + 162719 B under the 10000 B floor).
+  ok         50036 /   50036 B  (+0)  planning/skills/executing-plans/SKILL.md
+rc=0
+
+# Dispatch probe: one general-purpose subagent (haiku) asked to reply DISPATCH-OK; its reply, 2026-10-05:
+DISPATCH-OK
+
+# Review scope and roster are declarations, not probes: review-scope standard; roster 3 of 6 (Task 1.1, 1.3, 2.1 -> general-purpose); Review: skip annotations at b19f1dd — 0 tasks
