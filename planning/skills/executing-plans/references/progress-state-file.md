@@ -15,7 +15,7 @@ Write the full file (overwrite, don't patch) at each transition:
 | A stage gate runs | `phase: "gate"`, `stage`, and on a re-run `remediation_round` (+ `remediation_budget` if the plan overrode the default 2) |
 | Close-out starts | `phase: "closeout"` |
 | A Stop condition halts execution | `phase: "blocked"`, `stage`/`task` if known, `note` (one line, e.g. "cycle budget exhausted") |
-| The executor stops at a stage gate on a `handoff` verdict from `context-usage.py` | `phase: "handoff"`, `stage`, `reason` (that script's `reason:` text verbatim, e.g. "context 52% > 50%") |
+| The executor stops at a stage gate on a `handoff` verdict from `context-usage.py` | `phase: "handoff"`, `stage`, `reason` (that script's `reason:` text verbatim, e.g. "context 52% > 50%"), `handoff_id` (the id minted in `session-handoff.md` § On `handoff` step 0, verbatim) |
 | Close-out finishes (last step) | **delete the file** |
 
 Schema (all on one line is fine):
@@ -36,10 +36,18 @@ than inferred. Omit it on a gate's first run. `remediation_budget` is likewise
 optional and only changes the denominator; with neither field the gate renders
 exactly as before.
 
-`reason` is only meaningful with `phase: "handoff"`. Copy it verbatim from the
-`reason:` line `context-usage.py` printed with its `handoff` verdict — do not
-paraphrase it, because it is the one record of which measured rule fired. The
+`reason` and `handoff_id` are only meaningful with `phase: "handoff"`. Copy `reason`
+verbatim from the `reason:` line `context-usage.py` printed with its `handoff` verdict — do
+not paraphrase it, because it is the one record of which measured rule fired. The
 bar renders it after `⏸ HANDOFF`, clipped to the same width as a `blocked` note.
+Copy `handoff_id` verbatim from step 0's `handoff-envelope.py new-id` output — the same id
+the `RESUME HERE` block and the `ready` envelope carry:
+
+```json
+{"plan": "plans/foo-plan.md", "phase": "handoff", "stage": 2,
+ "reason": "rule requested: owner asked for a rollover",
+ "handoff_id": "h-0123456789abcdef0123", "updated": "<ISO-8601 UTC now>"}
+```
 **Markers the bar can append**, so an operator who sees one has somewhere to read:
 
 | Marker | Means |

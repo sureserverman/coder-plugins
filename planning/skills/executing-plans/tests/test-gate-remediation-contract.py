@@ -1387,11 +1387,17 @@ def main():
     #     that quietly brought back the eyeball stop have to delete?"
     _ho_path = SKILL.parent / "references" / "session-handoff.md"
     _ho = flat(_ho_path.read_text(encoding="utf-8")) if _ho_path.is_file() else ""
-    _rules = section(_ho, r"## The four stop rules", r"## The bounds")
-    check("session-handoff: the four stop rules are named",
+    _rules = section(_ho, r"## The five stop rules", r"## The bounds")
+    check("session-handoff: the five stop rules are named",
           all(re.search(_ws(r"\*\*" + n + r"\*\*"), _rules) for n in
-              (r"Sub-plan boundary", r"Context", r"Dead weight", r"Dated external wait")),
-          "a stop rule is missing from session-handoff.md § The four stop rules")
+              (r"Owner request", r"Sub-plan boundary", r"Context", r"Dead weight",
+               r"Dated external wait")),
+          "a stop rule is missing from session-handoff.md § The five stop rules")
+    # (workflow-rollover sub-01, Task 2.1) The owner's rollover request is a stop rule
+    # named by the script's own reason prefix, so the rule and the verdict line match.
+    check("session-handoff: the owner request is `rule requested`",
+          "rule requested" in _rules,
+          "the owner-request stop rule is not named by the script's `rule requested` reason")
     check("session-handoff: the context rule is `now > 50`, or now plus last_stage_cost past 50%",
           affirms_claim(_rules, r"handoff when `now > 50`")
           and re.search(_ws(r"`last_stage_cost` would pass 50%"), _rules) is not None,
@@ -1421,6 +1427,32 @@ def main():
           "the handoff block no longer carries the script's reason verbatim")
     check('session-handoff: a handoff writes phase: "handoff"',
           'phase: "handoff"' in _on_ho, "the state-file phase is not named")
+    # (workflow-rollover sub-01, Task 2.1) The handoff id rides the RESUME HERE block, the
+    # state file and the `ready` envelope. Position, not presence: `handoff-envelope.py
+    # verify` reads `handoff_id:` from the block, so a copy outside the template does not
+    # count. Read from the raw text — the fence is a line structure `flat` erases.
+    _on_ho_raw = section(_ho_path.read_text(encoding="utf-8") if _ho_path.is_file() else "",
+                         r"## On `handoff`", r"\Z")
+    _hdr = _on_ho_raw.find("**RESUME HERE (<YYYY-MM-DD>):**")
+    _fence_end = _on_ho_raw.find("```", _hdr) if _hdr >= 0 else -1
+    _hid = _on_ho_raw.find("handoff_id: <id>", _hdr) if _hdr >= 0 else -1
+    check("session-handoff: `handoff_id: <id>` sits inside the RESUME HERE block template",
+          _hdr >= 0 and _fence_end > _hdr and _hdr < _hid < _fence_end,
+          "the RESUME HERE template carries no `handoff_id: <id>` line between its heading "
+          "and its closing fence — a successor's verify would fail id-mismatch")
+    check("session-handoff: step 0 mints the id with `handoff-envelope.py new-id`",
+          "handoff-envelope.py new-id" in _ho,
+          "the handoff no longer mints its id before the handoff commit")
+    check("session-handoff: the handoff writes the `ready` envelope",
+          "handoff-envelope.py ready" in _ho,
+          "the handoff no longer tells a supervisor it is ready")
+    check("session-handoff: from the state-file step on, the session owns nothing",
+          "owns nothing" in _on_ho,
+          "the ownership-surrender rule is gone from § On `handoff`")
+    _psf_path = SKILL.parent / "references" / "progress-state-file.md"
+    check("progress-state-file: the schema carries `handoff_id`",
+          _psf_path.is_file() and "handoff_id" in _psf_path.read_text(encoding="utf-8"),
+          "the state file schema does not name `handoff_id`")
     _resets = section(text, r"## Context resets at stage boundaries", r"## Progress state file")
     check("trunk: the context-reset section points at session-handoff.md and names the rules",
           "session-handoff.md" in _resets and "context-usage.py" in _resets
