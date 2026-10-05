@@ -18,8 +18,8 @@ Commands:
   clear             — drop all task overlays (keep tech)
   reset             — drop tech baseline AND overlays
   detect            — auto-pick a tech baseline from cwd signals (no-op if already set)
-  unpin [--dry-run] — remove this project's local install records that a user-scope
-                      install makes redundant, then re-apply the loadout
+  unpin [--dry-run] — remove this project's local install records for plugins the
+                      user scope loads (installed and on there), then re-apply the loadout
 """
 from __future__ import annotations
 
@@ -177,16 +177,19 @@ def apply(project: Path, state: dict) -> dict[str, bool]:
 
 
 # ── unpin ─────────────────────────────────────────────────────────────────────
-def local_records(project: Path) -> tuple[list[str], list[str]]:
-    """This project's local install records, split into (redundant, local_only).
+def local_records(project: Path) -> tuple[list[str], dict[str, str]]:
+    """This project's local install records, split into (redundant, kept).
 
-    Redundant: the same plugin also has a user-scope install, so removing the
-    local record lets the project load the user's (current) version. Local-only:
-    no user-scope install exists, so removing it would take the plugin away.
+    Redundant: the user scope loads the same plugin (installed there AND turned
+    on, `user_enabled`), so removing the local record lets the project load the
+    user's current version. Kept, with the reason: anything else, because
+    removing its record would take the plugin away from this project.
     """
     plugins = read_json(INSTALLED_PLUGINS).get("plugins") or {}
+    loads_for_user = user_enabled()
+    installed_for_user = user_installed()
     redundant: list[str] = []
-    local_only: list[str] = []
+    kept: dict[str, str] = {}
     for key, entries in sorted(plugins.items()):
         mine = any(
             e.get("scope") == "local"
@@ -196,33 +199,50 @@ def local_records(project: Path) -> tuple[list[str], list[str]]:
         )
         if not mine:
             continue
-        if any(e.get("scope") == "user" for e in entries):
+        if key in loads_for_user:
             redundant.append(key)
+        elif key in installed_for_user:
+            kept[key] = "off in user settings"
         else:
-            local_only.append(key)
-    return redundant, local_only
+            kept[key] = "no user-scope install"
+    return redundant, kept
 
 
 def unpin(project: Path, dry_run: bool) -> int:
-    redundant, local_only = local_records(project)
+    redundant, kept = local_records(project)
     for key in redundant:
         print(f"{'would unpin' if dry_run else 'unpin'}: {key}")
-    for key in local_only:
-        print(f"kept (no user-scope install): {key}")
+    for key, why in kept.items():
+        print(f"kept ({why}): {key}")
     if dry_run:
         return 0
     failed: list[str] = []
     for key in redundant:
         # A local record belongs to the project it was made in, so the
         # uninstall runs from there.
-        r = subprocess.run(
-            ["claude", "plugin", "uninstall", key, "--scope", "local"], cwd=project
-        )
-        if r.returncode != 0:
+        try:
+            r = subprocess.run(
+                ["claude", "plugin", "uninstall", key, "--scope", "local"], cwd=project
+            )
+            code = r.returncode
+        except OSError as err:
+            code = f"not run: {err.strerror}"
+        if code != 0:
             failed.append(key)
-            print(f"loadout: uninstall of {key} failed (exit {r.returncode})", file=sys.stderr)
+            print(f"loadout: uninstall of {key} failed ({code})", file=sys.stderr)
     if (project / STATE_FILE).exists():
         apply(project, load_state(project))
+    else:
+        # No loadout to re-apply: drop a local `true` for each key just
+        # unpinned, or the next session would pin it again.
+        settings_path = project / SETTINGS_LOCAL
+        settings = read_json(settings_path)
+        enabled = settings.get("enabledPlugins") or {}
+        stale = [k for k in redundant if k not in failed and enabled.get(k) is True]
+        if stale:
+            for key in stale:
+                del enabled[key]
+            write_json(settings_path, settings)
     return 1 if failed else 0
 
 
@@ -378,7 +398,10 @@ def main(argv: list[str]) -> int:
         return 0
 
     if cmd == "unpin":
-        return unpin(project, dry_run="--dry-run" in args[1:])
+        if args[1:] not in ([], ["--dry-run"]):
+            print("usage: loadout unpin [--dry-run]", file=sys.stderr)
+            return 2
+        return unpin(project, dry_run=args[1:] == ["--dry-run"])
 
     if cmd == "detect":
         if state.get("tech"):

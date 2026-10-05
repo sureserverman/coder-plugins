@@ -190,7 +190,66 @@ def test_unpin_failure():
         check(len(calls(log)) == 2, f"the other uninstall still ran (got {calls(log)})")
 
 
-TESTS = [test_writes_false_only, test_unpin, test_unpin_dry_run, test_unpin_failure]
+def test_unpin_keeps_user_off():
+    print("unpin: a record whose user-scope install is off in user settings is kept")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        plugins_file = home / ".claude" / "plugins" / "installed_plugins.json"
+        data = json.loads(plugins_file.read_text())
+        # USER_OFF has a user-scope install but user settings turn it off: the
+        # local record is the only thing loading it here.
+        data["plugins"][USER_OFF].append(
+            {"scope": "local", "projectPath": str(project), "version": "0.1.0"})
+        write(plugins_file, data)
+        r = run(home, project, "unpin", path=path)
+        check(not any(USER_OFF in c for c in calls(log)),
+              f"{USER_OFF} is not uninstalled (got {calls(log)})")
+        check(f"kept (off in user settings): {USER_OFF}" in r.stdout,
+              "it is listed as kept, with the reason")
+
+
+def test_unpin_without_state():
+    print("unpin with no loadout.json: the unpinned keys' local true is dropped")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        (project / ".claude" / "loadout.json").unlink()
+        r = run(home, project, "unpin", path=path)
+        check(r.returncode == 0, f"exits 0 (got {r.returncode}: {r.stderr.strip()})")
+        local = json.loads((project / ".claude" / "settings.local.json").read_text())
+        ep = local.get("enabledPlugins", {})
+        check(ep.get("planning@coder-plugins") is None and ep.get(USER_ON) is None,
+              f"no true left for the unpinned keys (got {ep})")
+        check(not (project / ".claude" / "loadout.json").exists(),
+              "no loadout.json is created")
+        check(local.get("keep") == 1, "other keys survive")
+
+
+def test_unpin_rejects_unknown_flag():
+    print("unpin: an unknown argument is refused before anything runs")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        r = run(home, project, "unpin", "--dryrun", path=path)
+        check(r.returncode == 2, f"exit 2 (got {r.returncode})")
+        check(calls(log) == [], f"nothing uninstalled (got {calls(log)})")
+
+
+def test_unpin_missing_claude():
+    print("unpin: no claude on PATH is a reported failure, not a traceback")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        r = run(home, project, "unpin", path=str(root / "empty-bin"))
+        check(r.returncode == 1, f"exit 1 (got {r.returncode})")
+        check("Traceback" not in r.stderr and "planning@coder-plugins" in r.stderr,
+              "the failing keys are named, with no traceback")
+
+
+TESTS = [test_writes_false_only, test_unpin, test_unpin_dry_run, test_unpin_failure,
+         test_unpin_keeps_user_off, test_unpin_without_state,
+         test_unpin_rejects_unknown_flag, test_unpin_missing_claude]
 
 if __name__ == "__main__":
     for t in TESTS:

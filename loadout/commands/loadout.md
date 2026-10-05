@@ -13,7 +13,7 @@ Manages **which plugins are enabled in this project** by writing `enabledPlugins
 2. **tech** — one sticky baseline per project (`android`, `rust`, `web-ext`, `python`, `plugin-dev`, `docs`, `none`). Stored in `.claude/loadout.json`.
 3. **task** — overlays you toggle on demand (`security-audit`, `release`, `wiki`, `refactor`, `web`, `plugin-authoring`).
 
-Everything **not in the union** is set to `false` for this project, so the session only loads what's relevant. A union plugin that is installed and enabled at user scope is omitted, not written `true`: a local `true` pins the plugin's version in a local install record that nothing refreshes (DEC-030). loadout writes `true` only for a union plugin that user settings leave off or that has no user-scope install, and warns that this pins it. `unpin` removes the pins a user-scope install makes redundant. Changes take effect on the next session start (restart or `/clear`).
+Everything **not in the union** is set to `false` for this project, so the session only loads what's relevant. A union plugin that is installed and enabled at user scope is omitted, not written `true`: a local `true` pins the plugin's version in a local install record that nothing refreshes (DEC-030). loadout writes `true` only for a union plugin that user settings leave off or that has no user-scope install, and warns that this pins it. `unpin` removes the pins that a plugin installed and enabled at user scope makes redundant. Changes take effect on the next session start (restart or `/clear`).
 
 ## Run
 
@@ -51,7 +51,7 @@ After a successful state-changing command (`set`, `add`, `remove`, `clear`, `res
 /loadout reset                 # go back to global enabledPlugins
 /loadout detect                # auto-pick tech from Cargo.toml / build.gradle / etc.
 /loadout unpin --dry-run       # list this project's version-pinned plugin records
-/loadout unpin                 # remove the ones a user-scope install makes redundant
+/loadout unpin                 # remove the ones the user scope makes redundant
 ```
 
 ## Adding your own profiles
