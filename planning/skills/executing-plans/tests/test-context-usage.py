@@ -51,7 +51,7 @@ def check(cond, msg):
 
 def env_for(home, **extra):
     env = {k: v for k, v in os.environ.items()
-           if k not in ("CLAUDE_CODE_SESSION_ID", "ANTHROPIC_MODEL")}
+           if k not in ("CLAUDE_CODE_SESSION_ID", "ANTHROPIC_MODEL", "REMOTE_AGENTS_SESSION_ID")}
     env["HOME"] = str(home)
     env.update(extra)
     return env
@@ -685,6 +685,54 @@ try:
         check(rc == 0 and w is False, f"{label} -> nothing written, exit 0 ({rc}, {w})")
     rc, w = write_run(dict(good, tokens=None, percent=None))
     check(w is True, f"tokens and percent may be null ({w})")
+    print("group 17 — an owner rollover request is a stop reason, read only at a gate")
+    ra_sid = "801245e4-7628-44b7-95fc-e5a5cd025829"
+    req_root = pathlib.Path(tmp) / "reqwork"
+    (req_root / ".claude" / "handoffs").mkdir(parents=True)
+    req = req_root / ".claude" / "handoffs" / "request.json"
+
+    def write_request(managed):
+        req.write_text(json.dumps({"protocol": "remote-agents-handoff", "version": 1,
+                                   "managed_session_id": managed,
+                                   "requested_at": "2026-10-05T10:00:00Z"}), encoding="utf-8")
+
+    unlisted = str(transcript_for(tmp, "claude-unlisted-test"))
+    write_request(ra_sid)
+    rc, j, err = run_json(["--transcript", unlisted], home, req_root,
+                          REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "handoff"
+          and (j.get("reason") or "").startswith("rule requested: owner asked for a rollover"),
+          f"matching request on the first stage with unknown context -> handoff, rule requested "
+          f"(red if the request is not read) ({j.get('verdict')}: {j.get('reason')})")
+    rc, j, err = run_json(["--transcript", str(rows_transcript(tmp, "reqfirst.jsonl",
+                                                                [turn(10000), turn(20000)])),
+                           "--window", "100000"], home, req_root, REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "handoff" and "rule requested" in (j.get("reason") or ""),
+          f"the request wins over the first-stage exception ({j.get('verdict')}: {j.get('reason')})")
+    write_request("00000000-0000-0000-0000-000000000000")
+    rc, j, err = run_json(["--transcript", unlisted], home, req_root,
+                          REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "unknown" and "rule requested" not in (j.get("reason") or ""),
+          f"a request naming another managed_session_id leaves the verdict unchanged "
+          f"(red if the id is not compared) ({j.get('verdict')}: {j.get('reason')})")
+    write_request(ra_sid)
+    rc, j, err = run_json(["--transcript", unlisted], home, req_root)
+    j = j or {}
+    check(j.get("verdict") == "unknown" and "rule requested" not in (j.get("reason") or ""),
+          f"with REMOTE_AGENTS_SESSION_ID unset the request is ignored ({j.get('verdict')})")
+    rc, j, err = run_json(["--transcript", unlisted], home, work, REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "unknown",
+          f"supervised but no request file -> verdict unchanged ({j.get('verdict')})")
+    req.write_text("x" * 5000, encoding="utf-8")
+    rc, j, err = run_json(["--transcript", unlisted], home, req_root,
+                          REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(rc == 0 and j.get("verdict") == "unknown",
+          f"an oversized request.json is refused, verdict unchanged ({rc}, {j.get('verdict')})")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

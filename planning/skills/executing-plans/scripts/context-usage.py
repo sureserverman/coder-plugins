@@ -40,7 +40,11 @@ Window resolution — the transcript records no window, and the model id carries
     5. A model not in the table has no window → verdict `unknown`.
 
 Verdicts: `handoff` when pct > 50, else `continue`; `unknown` for anything the
-script cannot prove. Every verdict carries a `reason` naming the rule and numbers.
+script cannot prove. An owner's rollover request — a valid
+<root>/.claude/handoffs/request.json naming this session's REMOTE_AGENTS_SESSION_ID,
+read by handoff-envelope.py's reader (no second parser) — is `handoff` whatever else
+holds (rule requested); the executor runs this script only at a gate, so the request
+still lands at one. Every verdict carries a `reason` naming the rule and numbers.
 An `unknown` verdict never stops a run: exit 0. Exit 2 only on bad CLI usage.
 
 Stdlib only.
@@ -48,6 +52,7 @@ Stdlib only.
 import argparse
 import datetime
 import glob
+import importlib.util
 import json
 import os
 import pathlib
@@ -431,6 +436,21 @@ def live_window(env, cwd, now=None):
     return window
 
 
+def owner_requested(env, cwd):
+    """True when remote-agents' rollover request names this session. The reader is
+    handoff-envelope.py's, imported rather than copied; any failure to load or read
+    it is False, so a broken request never changes a verdict."""
+    try:
+        here = pathlib.Path(__file__).resolve().parent
+        spec = importlib.util.spec_from_file_location("handoff_envelope",
+                                                      here / "handoff-envelope.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return bool(mod.request_pending(sidecar_root(cwd), env))
+    except Exception:
+        return False
+
+
 def table_entry(model):
     if not model:
         return None
@@ -511,12 +531,15 @@ def verdict(result):
     """Return (verdict, reason) for a result dict built by main().
 
     Rules, in order — each reason names its rule and the numbers:
+      requested          owner's rollover request for this session -> handoff, always
       sub-plan boundary  handoff unless pct < 25
       first stage        no stage committed green this session -> continue, always
       context            pct > 50, or pct + last_stage_cost_pct > 50 -> handoff
       dead weight        next stage disjoint from this session's stages and pct > 25 -> handoff
     Anything unproven is `unknown`, which never stops a run.
     """
+    if result.get("_requested"):
+        return "handoff", "rule requested: owner asked for a rollover"
     if result.get("_unknown"):
         return "unknown", result["_unknown"]
     pct, proj = result["pct"], result["projected_pct"]
@@ -546,7 +569,8 @@ def build(args, env, cwd, home):
     res = {"now": None, "window": None, "window_source": None, "pct": None,
            "stage_costs": [], "last_stage_cost": None, "projected_pct": None,
            "model": None, "transcript": None, "compactions": None, "disjoint": None,
-           "_sub_plan_boundary": args.sub_plan_boundary}
+           "_sub_plan_boundary": args.sub_plan_boundary,
+           "_requested": owner_requested(env, cwd)}
     path, why = locate_transcript(args.transcript, env, home)
     res["transcript"] = path
     if path is None:
