@@ -47,7 +47,7 @@ the one you need rather than working from memory.
 | `references/gate-failure-procedure.md` | a stage gate has failed |
 | `references/close-out.md` | every stage is green — the close-out procedure |
 | `references/progress-state-file.md` | writing `.claude/plan-progress.json`, or wiring the statusline |
-| `references/session-handoff.md` | a stage or sub-plan gate has passed — whether to continue or hand off |
+| `references/session-handoff.md` | a stage or sub-plan gate has passed — whether to continue or hand off; or runs with `--adopt-handoff <id>` |
 | `references/integration.md` | routing to another skill or agent, or citing the opt-out rules |
 | `references/sources.md` | citing why a rule here exists |
 
@@ -87,8 +87,7 @@ run a separate stage-gate Tier-2 pass**; and close-out applies a single stated v
 (`references/review-scope.md`): `none` runs none, `light` and `standard` run that one, `high`
 adds a second pass and Tier-1 even here, on the risk-listed tasks its declaration names.
 
-Everything else is unchanged — Status flips, a commit per green task, the cycle budget, the
-Stop conditions, honest gates.
+Everything else is unchanged.
 
 Full deltas: `references/light-plans.md`.
 
@@ -197,7 +196,8 @@ consequence when it widens the diff into a risk-listed area: `references/bug-is-
 
 ## Phase 1 — Load and critique
 
-1. Read the plan file in full
+1. Read the plan file in full — with `--adopt-handoff <id>`, after
+   `references/session-handoff.md` § Adopting a handoff verifies it
 2. Verify the structure: Research Summary, Preflight, Stages with the expected fields. **For
    a light plan those first two and the Risk / Rollback / Blocks / Dispatch fields are
    correctly absent — do not flag it**; verify instead a single stage of 2–5 tasks, each with
@@ -644,13 +644,13 @@ degraded context, and the plan file is already the handoff artifact.
   force** still binding. **The dispatch and review lines are carried here for the same
   reason**, and they earn the space: the dispatch counts can be rebuilt from the trailers, but
   **the review ledger cannot** — which agent saw which diff exists only in the gate report.
-  Committed with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a
-  log. **The plan file gets the handoff note only (~15 lines); the gate report itself goes
-  in the `"Stage N green"` commit body, never into the plan**
+  Committed with the `"Stage N green"` commit. **The plan file gets the handoff note only
+  (~15 lines); the gate report itself goes in the `"Stage N green"` commit body, never into
+  the plan**
   (`references/stage-gate.md` § The plan file is read whole; exact shape there too).
 - **Stop on a measured reason, never by eye.** After each gate commit, in a separate call, run
-  `scripts/context-usage.py`. Four rules — **context**, **dead weight**, **sub-plan
-  boundary**, **dated wait** — decide `handoff`; a `handoff` writes a `RESUME HERE` block and
+  `scripts/context-usage.py`. Five rules — **requested**, **context**, **dead weight**,
+  **sub-plan boundary**, **dated wait** — decide `handoff`, which writes `RESUME HERE` and
   `phase: "handoff"`. `unknown` never stops, no rule fires before a gate, and a stop without
   the script's `reason:` is not a legal stop (`references/session-handoff.md`).
 - **Resuming fresh:** a new session reads the Research Summary, `Status:` flips, handoff

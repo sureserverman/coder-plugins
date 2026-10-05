@@ -409,7 +409,7 @@ few lines — a briefing, not a log. The `context:` line is the exception: it is
 that commit, so it is appended then and rides the next one (`session-handoff.md`).
 
 **A reset is measured, not suggested.** Whether the next stage runs in this session or a
-fresh one is `context-usage.py`'s verdict, under the four rules in `session-handoff.md` — not
+fresh one is `context-usage.py`'s verdict, under the five rules in `session-handoff.md` — not
 an impression of how noisy the stage was. The handoff note is what makes a reset safe; if you
 could not continue from it without the old transcript, the note was too thin, and that is the
 bug to fix.

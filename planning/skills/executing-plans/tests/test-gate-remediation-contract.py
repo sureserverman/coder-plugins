@@ -91,6 +91,7 @@ What it pins:
      is added to make them pretend harder.
 """
 import os
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -1383,15 +1384,21 @@ def main():
 
     # 12. (executor-handoff plan, Task 2.5) The executor hands off on a measured reason.
     #     Read from the reference directly: the rule lives there, and the trunk carries its
-    #     four names and bounds. Every pin below was the answer to "what would a rewrite
+    #     five names and bounds. Every pin below was the answer to "what would a rewrite
     #     that quietly brought back the eyeball stop have to delete?"
     _ho_path = SKILL.parent / "references" / "session-handoff.md"
     _ho = flat(_ho_path.read_text(encoding="utf-8")) if _ho_path.is_file() else ""
-    _rules = section(_ho, r"## The four stop rules", r"## The bounds")
-    check("session-handoff: the four stop rules are named",
+    _rules = section(_ho, r"## The five stop rules", r"## The bounds")
+    check("session-handoff: the five stop rules are named",
           all(re.search(_ws(r"\*\*" + n + r"\*\*"), _rules) for n in
-              (r"Sub-plan boundary", r"Context", r"Dead weight", r"Dated external wait")),
-          "a stop rule is missing from session-handoff.md § The four stop rules")
+              (r"Owner request", r"Sub-plan boundary", r"Context", r"Dead weight",
+               r"Dated external wait")),
+          "a stop rule is missing from session-handoff.md § The five stop rules")
+    # (workflow-rollover sub-01, Task 2.1) The owner's rollover request is a stop rule
+    # named by the script's own reason prefix, so the rule and the verdict line match.
+    check("session-handoff: the owner request is `rule requested`",
+          "rule requested" in _rules,
+          "the owner-request stop rule is not named by the script's `rule requested` reason")
     check("session-handoff: the context rule is `now > 50`, or now plus last_stage_cost past 50%",
           affirms_claim(_rules, r"handoff when `now > 50`")
           and re.search(_ws(r"`last_stage_cost` would pass 50%"), _rules) is not None,
@@ -1421,10 +1428,89 @@ def main():
           "the handoff block no longer carries the script's reason verbatim")
     check('session-handoff: a handoff writes phase: "handoff"',
           'phase: "handoff"' in _on_ho, "the state-file phase is not named")
+    # (workflow-rollover sub-01, Task 2.1) The handoff id rides the RESUME HERE block, the
+    # state file and the `ready` envelope. Position, not presence: `handoff-envelope.py
+    # verify` reads `handoff_id:` from the block, so a copy outside the template does not
+    # count. Read from the raw text — the fence is a line structure `flat` erases.
+    _on_ho_raw = section(_ho_path.read_text(encoding="utf-8") if _ho_path.is_file() else "",
+                         r"## On `handoff`", r"\Z")
+    _hdr = _on_ho_raw.find("**RESUME HERE (<YYYY-MM-DD>):**")
+    _fence_end = _on_ho_raw.find("```", _hdr) if _hdr >= 0 else -1
+    _hid = _on_ho_raw.find("handoff_id: <id>", _hdr) if _hdr >= 0 else -1
+    check("session-handoff: `handoff_id: <id>` sits inside the RESUME HERE block template",
+          _hdr >= 0 and _fence_end > _hdr and _hdr < _hid < _fence_end,
+          "the RESUME HERE template carries no `handoff_id: <id>` line between its heading "
+          "and its closing fence — a successor's verify would fail id-mismatch")
+    _mint = _on_ho_raw.find("handoff-envelope.py new-id")
+    check("session-handoff: step 0 mints the id with `handoff-envelope.py new-id`, before the block",
+          0 <= _mint < _hdr,
+          f"§ On `handoff` must mint the id before the RESUME HERE template (new-id@{_mint}, "
+          f"block@{_hdr})")
+    _state = _on_ho_raw.find('`phase: "handoff"`')
+    _ready = _on_ho_raw.find("handoff-envelope.py ready")
+    check("session-handoff: the `ready` envelope is written after the state-file step",
+          0 <= _state < _ready,
+          f"§ On `handoff` must write `ready` after phase \"handoff\" (state@{_state}, "
+          f"ready@{_ready})")
+    # The template parses as `verify` reads it: fill it, dedent it to column 0 as step 1
+    # says to write it, and run handoff-envelope.py's own block parser over it.
+    _he = None
+    try:
+        _spec = importlib.util.spec_from_file_location(
+            "handoff_envelope", SKILL.parent / "scripts" / "handoff-envelope.py")
+        _he = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_he)
+    except Exception:  # noqa: BLE001 — reported by the check below
+        _he = None
+    _tpl = _on_ho_raw[_hdr:_fence_end] if 0 <= _hdr < _fence_end else ""
+    _filled = "\n".join(l.strip() for l in _tpl.replace("<YYYY-MM-DD>", "2026-10-05")
+                         .replace("<id>", "h-" + "0" * 20).replace("<repo root>", "/r")
+                         .replace("<branch>", "feat/x").splitlines())
+    _blk = _he.last_block(_filled) if _he else None
+    check("session-handoff: the filled template parses as verify reads it",
+          _blk is not None and _he.block_field(_blk, "handoff_id") == "h-" + "0" * 20
+          and _he.block_field(_blk, "cwd") == "/r" and _he.block_field(_blk, "branch") == "feat/x",
+          "handoff-envelope.py's block parser does not read handoff_id/cwd/branch from the "
+          "RESUME HERE template — a successor's verify would fail")
+    check("session-handoff: from the state-file step on, the session owns nothing",
+          "owns nothing" in _on_ho,
+          "the ownership-surrender rule is gone from § On `handoff`")
+    _psf_path = SKILL.parent / "references" / "progress-state-file.md"
+    check("progress-state-file: the schema carries `handoff_id`",
+          _psf_path.is_file() and "handoff_id" in _psf_path.read_text(encoding="utf-8"),
+          "the state file schema does not name `handoff_id`")
+    # (workflow-rollover sub-01, Task 2.2) A successor started with --adopt-handoff proves
+    # it resumed the handoff it was sent before it owns anything: verify, then accept.
+    # The file's last section, so `\Z`: its step 3 names `## Decisions in force` inline,
+    # which a `## ` end anchor would cut it at.
+    _adopt = section(_ho, r"## Adopting a handoff \(`--adopt-handoff <id>`\)", r"\Z")
+    check("session-handoff: the adoption section exists",
+          "## Adopting a handoff (`--adopt-handoff <id>`)" in _ho,
+          "session-handoff.md has no `## Adopting a handoff (`--adopt-handoff <id>`)` section")
+    _vi = _adopt.find("handoff-envelope.py verify")
+    _ai = _adopt.find("handoff-envelope.py accept")
+    _pi = _adopt.find("handoff-envelope.py plan")
+    check("session-handoff: adoption runs `plan`, then `verify`, then `accept`",
+          0 <= _pi < _vi < _ai,
+          f"plan, verify, accept must come in that order in the adoption section "
+          f"(plan@{_pi}, verify@{_vi}, accept@{_ai})")
+    check("session-handoff: accept and fail are one-shot per id",
+          re.search(_ws(r"one-shot per id"), _adopt) is not None,
+          "the adoption section does not say a second accept/fail of an id is refused")
+    check("session-handoff: the manual resume path runs no verify",
+          re.search(_ws(r"manual path.{0,200}no `verify`"), _adopt, re.S) is not None,
+          "the adoption section does not say the manual path is unchanged and runs no verify")
+    # SKILL.md's Phase 1 itself — the entry path a started session follows. `text` joins
+    # the references, where the section already says it.
+    _phase1 = section(SKILL.read_text(encoding="utf-8"), r"## Phase 1", r"## Phase 2")
+    check("trunk: Phase 1 routes `--adopt-handoff` to the adoption section",
+          "--adopt-handoff" in _phase1 and "Adopting a handoff" in _phase1,
+          "the trunk carries no pointer to adopting a handoff")
     _resets = section(text, r"## Context resets at stage boundaries", r"## Progress state file")
     check("trunk: the context-reset section points at session-handoff.md and names the rules",
           "session-handoff.md" in _resets and "context-usage.py" in _resets
-          and all(n in _resets for n in ("context", "dead weight", "sub-plan", "dated wait")),
+          and all(n in _resets for n in ("requested", "context", "dead weight", "sub-plan",
+                                         "dated wait")),
           "the trunk no longer carries the measured stop rule's names and pointer")
     # Retired advice: an unmeasured reset suggestion. Swept across every markdown file in
     # the plugin, because the second copy (the trunk's master-plans paragraph) was found

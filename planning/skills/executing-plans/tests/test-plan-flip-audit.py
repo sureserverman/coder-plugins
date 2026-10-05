@@ -1655,6 +1655,139 @@ for label, green, want in (("hist-gate-green", True, False), ("hist-gate-nogreen
         bad("history mode must back gate boxes by the green commit alone", json.dumps(f1)[:400])
 
 
+# Finding 1 counts a Preflight box only while no probe artefact backs it. Six Preflight
+# boxes and three task ticks, after three task commits, is an honest Stage 1 gate once
+# the Preflight output is committed — counting those boxes made it 9 > 6, a blocking
+# bulk flip at the first gate of every plan with six Preflight checks (sub-01 of the
+# workflow-rollover master, 2026-10-05). With no probe it is still a bulk flip.
+def preflight_heavy_plan(label):
+    vault = newdir(f"{label}-vault")
+    lines = ["# Plan", "", "## Preflight", ""]
+    lines += [f"- [ ] Check {i}: `tool{i} --version` exits 0" for i in range(6)]
+    lines += ["", "## Stage 1", ""]
+    for i in range(1, 4):
+        lines += [f"### Task 1.{i}: thing {i}", "- **Status:** [ ]", ""]
+    plan = vault / "plan.md"
+    plan.write_text("\n".join(lines))
+    return plan
+
+
+for label, probed, want in (("bl-pre-probed", True, False), ("bl-pre-unprobed", False, True)):
+    plan = preflight_heavy_plan(label)
+    proj, env = newrepo(f"{label}-proj")
+    (proj / "README").write_text("x\n"); commit(proj, env, "chore: initial commit")
+    snap(plan, proj)
+    for i in range(1, 4):
+        (proj / f"f{i}.txt").write_text(f"{i}\n"); commit(proj, env, f"Stage 1 Task 1.{i}: work")
+    if probed:
+        (proj / "evidence").mkdir()
+        (proj / "evidence" / "preflight-probe.txt").write_text("tool0 1.0\n")
+        commit(proj, env, "Preflight probe output")
+    tick_all(plan)
+    r, doc = run_json(str(plan), "--repo", str(proj))
+    f1 = findings_of(doc, 1) if doc else []
+    if bool(f1) == want:
+        ok("baseline: 6 Preflight + 3 task ticks after 3 task commits "
+           + ("with a committed probe is not a bulk flip" if probed
+              else "with no probe still fires finding 1"))
+    else:
+        bad("a probe-backed Preflight box is not a bulk flip (red if Preflight boxes count "
+            "despite the probe, or count as backed with none)", json.dumps(f1)[:400])
+
+for label, probed, want in (("hist-pre-probed", True, False), ("hist-pre-unprobed", False, True)):
+    repo, env = newrepo(label)
+    plan = repo / "p.md"
+    plan.write_text(preflight_heavy_plan(f"{label}-src").read_text())
+    base = commit(repo, env, "authored")
+    for i in range(1, 4):
+        (repo / f"f{i}.txt").write_text(f"{i}\n"); commit(repo, env, f"Stage 1 Task 1.{i}: work")
+    tick_all(plan)
+    if probed:
+        (repo / "evidence").mkdir()
+        (repo / "evidence" / "preflight-probe.txt").write_text("tool0 1.0\n")
+    commit(repo, env, "Preflight green" if probed else "progress")
+    r, doc = run_json(str(plan), "--since", base, cwd=repo)
+    f1 = findings_of(doc, 1) if doc else []
+    if bool(f1) == want:
+        ok("history: 6 Preflight + 3 task ticks in one commit "
+           + ("carrying a probe artefact is not a bulk flip" if probed
+              else "with no probe still fires finding 1"))
+    else:
+        bad("history mode must back Preflight boxes by a probe in their own commit",
+            json.dumps(f1)[:400])
+
+# The exemption's bounds (Stage 2 review, 2026-10-05). A probe file is blind to which
+# box it backs, so it clears at most N Preflight boxes; it never touches a non-Preflight
+# box, even one repeating a Preflight line's text; and in history mode a probe counts
+# from the commit that adds it onward, never backwards.
+def bounds_plan(label, n_pre, n_tasks, gate_dupes=0):
+    vault = newdir(f"{label}-vault")
+    lines = ["# Plan", "", "## Preflight", ""]
+    lines += [f"- [ ] Check {i}: `tool{i} --version` exits 0" for i in range(n_pre)]
+    lines += ["", "## Stage 1", ""]
+    for i in range(1, n_tasks + 1):
+        lines += [f"### Task 1.{i}: thing {i}", "- **Status:** [ ]", ""]
+    if gate_dupes:
+        lines += ["### Stage 1 Gate", ""]
+        lines += ["- [ ] Check 0: `tool0 --version` exits 0"] * gate_dupes
+    plan = vault / "plan.md"
+    plan.write_text("\n".join(lines) + "\n")
+    return plan
+
+
+def bounds_case(label, n_pre, n_tasks, gate_dupes=0):
+    plan = bounds_plan(label, n_pre, n_tasks, gate_dupes)
+    proj, env = newrepo(f"{label}-proj")
+    (proj / "README").write_text("x\n"); commit(proj, env, "chore: initial commit")
+    snap(plan, proj)
+    (proj / "f1.txt").write_text("1\n"); commit(proj, env, "Stage 1 Task 1.1: work")
+    (proj / "evidence").mkdir()
+    (proj / "evidence" / "preflight-probe.txt").write_text("tool0 1.0\n")
+    commit(proj, env, "Preflight probe output")
+    tick_all(plan)
+    r, doc = run_json(str(plan), "--repo", str(proj))
+    return findings_of(doc, 1) if doc else []
+
+
+for label, args, why in (
+        ("bl-cap", (8, 0), "8 probed Preflight boxes exceed the cap of 6"),
+        ("bl-nonpre", (2, 7), "7 task ticks are not cleared by a Preflight probe"),
+        ("bl-dupe", (1, 0, 7), "7 gate boxes repeating a Preflight line are not Preflight boxes")):
+    f1 = bounds_case(label, *args)
+    if f1:
+        ok(f"baseline: finding 1 still fires — {why}")
+    else:
+        bad(f"a probe clears only up to N Preflight boxes, by line (red if {why} is exempted)",
+            json.dumps(f1)[:300])
+
+for label, order, want in (("hist-probe-first", "before", False),
+                           ("hist-probe-after", "after", True)):
+    repo, env = newrepo(label)
+    plan = repo / "p.md"
+    plan.write_text(preflight_heavy_plan(f"{label}-src").read_text())
+    base = commit(repo, env, "authored")
+    for i in range(1, 4):
+        (repo / f"f{i}.txt").write_text(f"{i}\n"); commit(repo, env, f"Stage 1 Task 1.{i}: work")
+
+    def probe():
+        (repo / "evidence").mkdir()
+        (repo / "evidence" / "preflight-probe.txt").write_text("tool0 1.0\n")
+        commit(repo, env, "Preflight probe output")
+    if order == "before":
+        probe()
+    tick_all(plan)
+    commit(repo, env, "progress")
+    if order == "after":
+        probe()
+    r, doc = run_json(str(plan), "--since", base, cwd=repo)
+    f1 = findings_of(doc, 1) if doc else []
+    if bool(f1) == want:
+        ok("history: a probe committed " + order + " the Preflight ticks "
+           + ("does not back them" if want else "backs them, as in baseline mode"))
+    else:
+        bad("history mode backs Preflight boxes by a probe in that commit or earlier, "
+            "never a later one", json.dumps(f1)[:400])
+
 # ------------------------------- findings 8 and 9: proof is a record, not a line
 # metabrush-android: executors wrote `mutation:` and `req:` lines that were
 # false (a substituted break, a cleanup that was never exercised). A line is a

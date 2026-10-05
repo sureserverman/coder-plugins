@@ -1476,6 +1476,11 @@ def case_handoff_phase():
         {"phase": "handoff", "reason": "context 52% > 50%"}))
     check(out == "⏸ HANDOFF context 52% > 50%",
           f"renders `⏸ HANDOFF` followed by the reason verbatim ({out!r})")
+    out = ANSI_RE.sub("", mod.phase_part(
+        {"phase": "handoff", "handoff_id": "h-0123456789abcdef0123",
+         "reason": "context 52% > 50%"}))
+    check(out == "⏸ HANDOFF context 52% > 50%",
+          f"a `handoff_id` field changes nothing in the render ({out!r})")
     out = ANSI_RE.sub("", mod.phase_part({"phase": "handoff"}))
     check(out == "⏸ HANDOFF", f"no reason -> the marker alone, no trailing space ({out!r})")
     long_reason = "sub-plan boundary: " + "x" * 200
@@ -2923,6 +2928,11 @@ def main():
                 reason="context 52% > 50%")
     _, out = run(repo)
     check("⏸ HANDOFF context 52% > 50%" in out, f"handoff glyph + reason ({out.strip()!r})")
+    write_state(repo, plan=str(plan), phase="handoff", stage=2,
+                handoff_id="h-0123456789abcdef0123", reason="context 52% > 50%")
+    proc, out = run(repo)
+    check(proc.returncode == 0 and "⏸ HANDOFF context 52% > 50%" in out,
+          f"handoff_id present -> still handoff glyph + reason ({out.strip()!r})")
 
     print("staleness:")
     write_state(repo, plan=str(plan), phase="task", stage=2, task="2.2")

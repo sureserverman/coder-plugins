@@ -40,7 +40,13 @@ Window resolution — the transcript records no window, and the model id carries
     5. A model not in the table has no window → verdict `unknown`.
 
 Verdicts: `handoff` when pct > 50, else `continue`; `unknown` for anything the
-script cannot prove. Every verdict carries a `reason` naming the rule and numbers.
+script cannot prove. An owner's rollover request — remote-agents' request file,
+naming this session's REMOTE_AGENTS_SESSION_ID, read only by handoff-envelope.py's
+reader (no second parser) — is `handoff` whatever else holds (rule requested); the
+executor runs this script only at a gate, so the request still lands at one. The
+request is looked up at the git top level, else the state root (above), else cwd —
+the one handoff root DEC-029 names, where remote-agents writes it. A reader that cannot load says so on
+stderr and changes no verdict. Every verdict carries a `reason` naming the rule and numbers.
 An `unknown` verdict never stops a run: exit 0. Exit 2 only on bad CLI usage.
 
 Stdlib only.
@@ -48,11 +54,13 @@ Stdlib only.
 import argparse
 import datetime
 import glob
+import importlib.util
 import json
 import os
 import pathlib
 import re
 import stat
+import subprocess
 import sys
 
 # Source: /home/user/.claude/plugins/marketplaces/anthropic-agent-skills/skills/claude-api/
@@ -431,6 +439,45 @@ def live_window(env, cwd, now=None):
     return window
 
 
+def request_root(cwd):
+    """The handoff root (DEC-029) a rollover request lives under: the git top level —
+    the same `<repo root>` session-handoff.md writes envelopes under — else the state
+    root, else cwd."""
+    try:
+        r = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return sidecar_root(cwd, require_state=True) or cwd
+
+
+def owner_requested(env, cwd):
+    """True when remote-agents' rollover request names this session. The reader is
+    handoff-envelope.py's, imported rather than copied. A malformed or absent request
+    is False. A reader that cannot be loaded is also False, but said on stderr: a
+    silently dead reader would drop every owner request with nothing to show for it."""
+    here = pathlib.Path(__file__).resolve().parent
+    prior = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True
+        spec = importlib.util.spec_from_file_location("handoff_envelope",
+                                                      here / "handoff-envelope.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        reader = mod.request_pending
+    except Exception as e:  # noqa: BLE001 — reported, then the measured rules decide
+        print(f"context-usage: cannot load handoff-envelope.py ({type(e).__name__}: {e}); "
+              "an owner rollover request cannot be read", file=sys.stderr)
+        return False
+    finally:
+        sys.dont_write_bytecode = prior
+    if not env.get(mod.ENV_VAR):
+        return False                 # unsupervised: no request can name this session
+    return bool(reader(request_root(cwd), env))
+
+
 def table_entry(model):
     if not model:
         return None
@@ -511,12 +558,15 @@ def verdict(result):
     """Return (verdict, reason) for a result dict built by main().
 
     Rules, in order — each reason names its rule and the numbers:
+      requested          owner's rollover request for this session -> handoff, always
       sub-plan boundary  handoff unless pct < 25
       first stage        no stage committed green this session -> continue, always
       context            pct > 50, or pct + last_stage_cost_pct > 50 -> handoff
       dead weight        next stage disjoint from this session's stages and pct > 25 -> handoff
     Anything unproven is `unknown`, which never stops a run.
     """
+    if result.get("_requested"):
+        return "handoff", "rule requested: owner asked for a rollover"
     if result.get("_unknown"):
         return "unknown", result["_unknown"]
     pct, proj = result["pct"], result["projected_pct"]
@@ -546,7 +596,8 @@ def build(args, env, cwd, home):
     res = {"now": None, "window": None, "window_source": None, "pct": None,
            "stage_costs": [], "last_stage_cost": None, "projected_pct": None,
            "model": None, "transcript": None, "compactions": None, "disjoint": None,
-           "_sub_plan_boundary": args.sub_plan_boundary}
+           "_sub_plan_boundary": args.sub_plan_boundary,
+           "_requested": owner_requested(env, cwd)}
     path, why = locate_transcript(args.transcript, env, home)
     res["transcript"] = path
     if path is None:

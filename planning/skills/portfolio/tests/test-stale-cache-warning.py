@@ -360,6 +360,9 @@ WIRED = [
     # Writes a shim that execs the hook by absolute path; a stale cached copy would
     # point a project's commit gate at an older plugin's hook.
     ("executing-plans", "proof-hooks-install.py"),
+    # Writes the envelopes remote-agents parses and verifies a vault plan's RESUME HERE
+    # block; a stale cached copy would speak an older protocol and say nothing about it.
+    ("executing-plans", "handoff-envelope.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

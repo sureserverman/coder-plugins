@@ -125,6 +125,9 @@ plan: /vault/plans/x-plan.md   cwd: /repo
 next: Task 3.1 — write the validator"
 write_state handoff; write_transcript "$PROMISE_TEXT"
 check "phase handoff -> allow"             allow "$(payload "$TRANSCRIPT" h1)" PLAN_CONTINUE=1
+# The handoff protocol's state file: `handoff` stays terminal with `handoff_id` present.
+printf '{"plan":"plans/x-plan.md","phase":"handoff","handoff_id":"h-0123456789abcdef0123","reason":"context 52%% > 50%%","stage":2,"task":"2.3","task_desc":"parse entries","updated":"%s"}\n' "$(now_iso)" > "$STATE"
+check "phase handoff + handoff_id -> allow" allow "$(payload "$TRANSCRIPT" h1b)" PLAN_CONTINUE=1
 write_state gate; write_transcript "$RESUME_BARE"
 check "RESUME HERE without reason: -> block" block "$(payload "$TRANSCRIPT" h2)" PLAN_CONTINUE=1
 out="$(printf '%s' "$(payload "$TRANSCRIPT" h2b)" | env PLAN_CONTINUE=1 bash "$HOOK")"
