@@ -100,7 +100,87 @@ def test_writes_false_only():
         check(f"- {NOT_IN_LOADOUT}" in r.stdout, "show lists the false plugin as disabled")
 
 
-TESTS = [test_writes_false_only]
+LOCAL_ONLY = "local-only@market"  # pinned here, no user-scope install at all
+
+
+def unpin_fixture(root, fail_key=None):
+    """The fixture above, plus local records for this project (two redundant,
+    one local-only), a record for another project, and a fake `claude` that
+    logs `<cwd> <argv>` and fails for `fail_key`."""
+    home, project = fixture(root)
+    plugins_file = home / ".claude" / "plugins" / "installed_plugins.json"
+    data = json.loads(plugins_file.read_text())
+    for key in ("planning@coder-plugins", USER_ON):
+        data["plugins"][key].append(
+            {"scope": "local", "projectPath": str(project), "version": "0.1.0"})
+    data["plugins"][LOCAL_ONLY] = [
+        {"scope": "local", "projectPath": str(project), "version": "0.1.0"}]
+    data["plugins"]["git-github@coder-plugins"].append(
+        {"scope": "local", "projectPath": str(root / "elsewhere"), "version": "0.1.0"})
+    write(plugins_file, data)
+    write(project / ".claude" / "loadout.json", {"tech": "fixture", "task_overlays": []})
+    log = root / "claude.log"
+    bin_dir = root / "bin"
+    bin_dir.mkdir()
+    fake = bin_dir / "claude"
+    fake.write_text("#!/bin/sh\n"
+                    f'echo "$PWD $*" >> "{log}"\n'
+                    f'[ "$3" = "{fail_key or "-"}" ] && exit 3\n'
+                    "exit 0\n")
+    fake.chmod(0o755)
+    path = f"{bin_dir}:{os.environ.get('PATH', '')}"
+    return home, project, log, path
+
+
+def calls(log):
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def test_unpin():
+    print("unpin: uninstalls exactly the redundant local records, then re-applies")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        r = run(home, project, "unpin", path=path)
+        check(r.returncode == 0, f"unpin exits 0 (got {r.returncode}: {r.stderr.strip()})")
+        got = sorted(calls(log))
+        want = sorted(f"{project} plugin uninstall {k} --scope local"
+                      for k in ("planning@coder-plugins", USER_ON))
+        check(got == want, f"uninstall called for exactly the redundant keys, from the project (got {got})")
+        check(LOCAL_ONLY in r.stdout and "kept" in r.stdout,
+              "a local-only record is kept and listed")
+        written = json.loads((project / ".claude" / "settings.local.json").read_text())
+        check(written["enabledPlugins"].get(USER_ON) is None,
+              "the loadout is re-applied afterwards (no stale true left)")
+
+
+def test_unpin_dry_run():
+    print("unpin --dry-run: lists, calls nothing, writes nothing")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root)
+        before = (project / ".claude" / "settings.local.json").read_text()
+        r = run(home, project, "unpin", "--dry-run", path=path)
+        check(r.returncode == 0, f"dry run exits 0 (got {r.returncode})")
+        check(calls(log) == [], f"dry run calls nothing (got {calls(log)})")
+        check(USER_ON in r.stdout and "planning@coder-plugins" in r.stdout,
+              "dry run lists the redundant keys")
+        check((project / ".claude" / "settings.local.json").read_text() == before,
+              "dry run leaves settings.local.json alone")
+
+
+def test_unpin_failure():
+    print("unpin: a failing uninstall is reported and exits 1")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home, project, log, path = unpin_fixture(root, fail_key=USER_ON)
+        r = run(home, project, "unpin", path=path)
+        check(r.returncode == 1, f"exit 1 on a failed uninstall (got {r.returncode})")
+        check(USER_ON in r.stderr, "the failing key is named on stderr")
+        check(len(calls(log)) == 2, f"the other uninstall still ran (got {calls(log)})")
+
+
+TESTS = [test_writes_false_only, test_unpin, test_unpin_dry_run, test_unpin_failure]
 
 if __name__ == "__main__":
     for t in TESTS:

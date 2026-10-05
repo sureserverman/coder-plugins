@@ -18,11 +18,14 @@ Commands:
   clear             — drop all task overlays (keep tech)
   reset             — drop tech baseline AND overlays
   detect            — auto-pick a tech baseline from cwd signals (no-op if already set)
+  unpin [--dry-run] — remove this project's local install records that a user-scope
+                      install makes redundant, then re-apply the loadout
 """
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -156,6 +159,56 @@ def apply(project: Path, state: dict) -> dict[str, bool]:
     write_json(settings_path, settings)
     save_state(project, state)
     return display_map(state)
+
+
+# ── unpin ─────────────────────────────────────────────────────────────────────
+def local_records(project: Path) -> tuple[list[str], list[str]]:
+    """This project's local install records, split into (redundant, local_only).
+
+    Redundant: the same plugin also has a user-scope install, so removing the
+    local record lets the project load the user's (current) version. Local-only:
+    no user-scope install exists, so removing it would take the plugin away.
+    """
+    plugins = read_json(INSTALLED_PLUGINS).get("plugins") or {}
+    redundant: list[str] = []
+    local_only: list[str] = []
+    for key, entries in sorted(plugins.items()):
+        mine = any(
+            e.get("scope") == "local"
+            and e.get("projectPath")
+            and Path(e["projectPath"]).resolve() == project
+            for e in entries
+        )
+        if not mine:
+            continue
+        if any(e.get("scope") == "user" for e in entries):
+            redundant.append(key)
+        else:
+            local_only.append(key)
+    return redundant, local_only
+
+
+def unpin(project: Path, dry_run: bool) -> int:
+    redundant, local_only = local_records(project)
+    for key in redundant:
+        print(f"{'would unpin' if dry_run else 'unpin'}: {key}")
+    for key in local_only:
+        print(f"kept (no user-scope install): {key}")
+    if dry_run:
+        return 0
+    failed: list[str] = []
+    for key in redundant:
+        # A local record belongs to the project it was made in, so the
+        # uninstall runs from there.
+        r = subprocess.run(
+            ["claude", "plugin", "uninstall", key, "--scope", "local"], cwd=project
+        )
+        if r.returncode != 0:
+            failed.append(key)
+            print(f"loadout: uninstall of {key} failed (exit {r.returncode})", file=sys.stderr)
+    if (project / STATE_FILE).exists():
+        apply(project, load_state(project))
+    return 1 if failed else 0
 
 
 # ── auto-detect ───────────────────────────────────────────────────────────────
@@ -308,6 +361,9 @@ def main(argv: list[str]) -> int:
             state_path.unlink()
         print("reset: project now inherits global enabledPlugins")
         return 0
+
+    if cmd == "unpin":
+        return unpin(project, dry_run="--dry-run" in args[1:])
 
     if cmd == "detect":
         if state.get("tech"):

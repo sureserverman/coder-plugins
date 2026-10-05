@@ -1,6 +1,6 @@
 ---
 description: Show, set, or change the plugin loadout for the current project. Layers a sticky tech baseline with on-demand task overlays.
-argument-hint: "[show|list|set <tech>|add <task>|remove <task>|clear|reset|detect]"
+argument-hint: "[show|list|set <tech>|add <task>|remove <task>|clear|reset|detect|unpin [--dry-run]]"
 allowed-tools: ["Bash(python3:*)"]
 model: inherit
 ---
@@ -31,12 +31,13 @@ Parse `$ARGUMENTS` and dispatch:
 | `clear` | `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loadout.py clear` |
 | `reset` | `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loadout.py reset` |
 | `detect` | `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loadout.py detect` |
+| `unpin` or `unpin --dry-run` | `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loadout.py unpin [--dry-run]` |
 
 Always run with `CLAUDE_PROJECT_DIR` set in the env if it isn't already, so the script writes to the right project. Display the script's stdout verbatim — it is already formatted for the user.
 
 If the script exits non-zero, surface its stderr to the user without rephrasing it.
 
-After a successful state-changing command (`set`, `add`, `remove`, `clear`, `reset`), remind the user with one line: **"Restart the session or `/clear` to apply."** Do not run anything else.
+After a successful state-changing command (`set`, `add`, `remove`, `clear`, `reset`, `unpin` without `--dry-run`), remind the user with one line: **"Restart the session or `/clear` to apply."** Do not run anything else.
 
 ## Examples
 
@@ -49,6 +50,8 @@ After a successful state-changing command (`set`, `add`, `remove`, `clear`, `res
 /loadout clear                 # drop all task overlays (keep tech)
 /loadout reset                 # go back to global enabledPlugins
 /loadout detect                # auto-pick tech from Cargo.toml / build.gradle / etc.
+/loadout unpin --dry-run       # list this project's version-pinned plugin records
+/loadout unpin                 # remove the ones a user-scope install makes redundant
 ```
 
 ## Adding your own profiles
