@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "13 manifest/marketplace pair(s), 1 README lead(s) and 1 changelog(s) reconciled; 0 problem(s)."
+ },
+ "break_patch": "diff --git b/.claude-plugin/marketplace.json a/.claude-plugin/marketplace.json\nindex 37816bf..85b621e 100644\n--- b/.claude-plugin/marketplace.json\n+++ a/.claude-plugin/marketplace.json\n@@ -235,7 +235,7 @@\n       \"name\": \"loadout\",\n       \"source\": \"./loadout\",\n       \"description\": \"Per-project plus per-task plugin loadouts. Layers a sticky tech baseline (android/rust/web-ext/...) with on-demand task overlays (security-audit/release/wiki/...) and writes the resulting `enabledPlugins` map to .claude/settings.local.json so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically from Cargo.toml / build.gradle / manifest.json on first entry; task overlays toggle via /loadout +name and /loadout -name.\",\n-      \"version\": \"0.2.0\",\n+      \"version\": \"0.1.2\",\n       \"category\": \"development\",\n       \"tags\": [\n         \"loadout\",\n",
+ "build": null,
+ "created": "2026-10-05T23:19:36+00:00",
+ "fingerprint": "76fab12a5aee3eb11be4cb0d7a01f427825c64845f6a53097394039f5c5a53bb",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "manifest edit, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-05-loadout-no-version-pins-light-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "13 manifest/marketplace pair(s), 1 README lead(s) and 1 changelog(s) reconciled; 1 problem(s).\n  loadout: MARKETPLACE-DRIFT \u2014 marketplace says '0.1.2', manifest says '0.2.0'"
+ },
+ "schema": 2,
+ "task": "1.4",
+ "test": "python3 scripts/check-version-mirrors.py",
+ "text": "`python3 scripts/check-version-mirrors.py` exits 0, and `grep -c '^## DEC-030' /mnt/vault/Portfolio/ai-tools/coder-plugins/decisions.md` prints 1.",
+ "touched": [
+  ".claude-plugin/marketplace.json"
+ ]
+}
