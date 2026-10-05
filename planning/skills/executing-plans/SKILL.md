@@ -644,17 +644,18 @@ degraded context, and the plan file is already the handoff artifact.
   force** still binding. **The dispatch and review lines are carried here for the same
   reason**, and they earn the space: the dispatch counts can be rebuilt from the trailers, but
   **the review ledger cannot** — which agent saw which diff exists only in the gate report.
-  Committed with the `"Stage N green"` commit, and kept to a few lines — a briefing, not a
-  log. **The plan file gets the handoff note only (~15 lines); the gate report itself goes
-  in the `"Stage N green"` commit body, never into the plan**
+  Committed with the `"Stage N green"` commit. **The plan file gets the handoff note only
+  (~15 lines); the gate report itself goes in the `"Stage N green"` commit body, never into
+  the plan**
   (`references/stage-gate.md` § The plan file is read whole; exact shape there too).
 - **Stop on a measured reason, never by eye.** After each gate commit, in a separate call, run
-  `scripts/context-usage.py`. Four rules — **context**, **dead weight**, **sub-plan
-  boundary**, **dated wait** — decide `handoff`; a `handoff` writes a `RESUME HERE` block and
+  `scripts/context-usage.py`. Five rules — **requested**, **context**, **dead weight**,
+  **sub-plan boundary**, **dated wait** — decide `handoff`, which writes `RESUME HERE` and
   `phase: "handoff"`. `unknown` never stops, no rule fires before a gate, and a stop without
   the script's `reason:` is not a legal stop (`references/session-handoff.md`).
 - **Resuming fresh:** a new session reads the Research Summary, `Status:` flips, handoff
-  notes and the last `RESUME HERE` block — never by needing the prior transcript.
+  notes and the last `RESUME HERE` block — never the prior transcript; one started with
+  `--adopt-handoff <id>` verifies it first.
 
 ---
 

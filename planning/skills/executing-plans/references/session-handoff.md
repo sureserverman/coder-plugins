@@ -147,3 +147,45 @@ plan now belongs to whoever resumes it; a supervisor may start that session as s
 starts at the task it names; the Research Summary, `Status:` flips and handoff notes carry
 everything else. A block too thin to resume from is the bug to fix. Close-out writes no
 `RESUME HERE` — there is no next task.
+
+## Adopting a handoff (`--adopt-handoff <id>`)
+
+A supervisor (remote-agents) starts the next session by typing
+`/planning:executing-plans --adopt-handoff <id>` into it. That session proves it resumed the
+handoff it was sent **before it owns anything**: no state file, no task, no `Status:` flip
+until step 5.
+
+1. **Find the plan.** Read `plan` from `<repo root>/.claude/handoffs/<id>.ready.json`.
+2. **Verify.**
+
+   ```
+   python3 <planning>/skills/executing-plans/scripts/handoff-envelope.py verify \
+     --root <repo root> --handoff-id <id> --plan <plan>
+   ```
+
+   Exit 0 means the `ready` envelope is there, and the plan's last `RESUME HERE` block names
+   this id, this repo root and the branch checked out. On exit 3, record the printed code:
+
+   ```
+   python3 <planning>/skills/executing-plans/scripts/handoff-envelope.py fail \
+     --root <repo root> --handoff-id <id> --code <printed code> --plan <plan>
+   ```
+
+   Then end the turn with one `ACTION NEEDED:` line naming the code. Write no state file and
+   run no task: a session that cannot prove which handoff it holds must not touch the plan.
+3. **Run Phase 1 in full**: the Research Summary, the `Status:` flips, `## Decisions in
+   force`, and the last `RESUME HERE` block.
+4. **Re-ground the task that block names** — read its fields and the files in its `Scope:`
+   as they stand now, not as the block remembers them.
+5. **Accept, then own.**
+
+   ```
+   python3 <planning>/skills/executing-plans/scripts/handoff-envelope.py accept \
+     --root <repo root> --handoff-id <id> --plan <plan>
+   ```
+
+   Only then write `phase: "preflight"` and continue with the normal Preflight. The
+   supervisor stops the predecessor only after this envelope lands.
+
+The manual path (**Resuming**, above) is unchanged: a session the user points at the plan
+runs no `verify` and writes no envelope.

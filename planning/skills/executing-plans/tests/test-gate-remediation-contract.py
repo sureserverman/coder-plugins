@@ -1383,7 +1383,7 @@ def main():
 
     # 12. (executor-handoff plan, Task 2.5) The executor hands off on a measured reason.
     #     Read from the reference directly: the rule lives there, and the trunk carries its
-    #     four names and bounds. Every pin below was the answer to "what would a rewrite
+    #     five names and bounds. Every pin below was the answer to "what would a rewrite
     #     that quietly brought back the eyeball stop have to delete?"
     _ho_path = SKILL.parent / "references" / "session-handoff.md"
     _ho = flat(_ho_path.read_text(encoding="utf-8")) if _ho_path.is_file() else ""
@@ -1453,10 +1453,31 @@ def main():
     check("progress-state-file: the schema carries `handoff_id`",
           _psf_path.is_file() and "handoff_id" in _psf_path.read_text(encoding="utf-8"),
           "the state file schema does not name `handoff_id`")
+    # (workflow-rollover sub-01, Task 2.2) A successor started with --adopt-handoff proves
+    # it resumed the handoff it was sent before it owns anything: verify, then accept.
+    # The file's last section, so `\Z`: its step 3 names `## Decisions in force` inline,
+    # which a `## ` end anchor would cut it at.
+    _adopt = section(_ho, r"## Adopting a handoff \(`--adopt-handoff <id>`\)", r"\Z")
+    check("session-handoff: the adoption section exists",
+          "## Adopting a handoff (`--adopt-handoff <id>`)" in _ho,
+          "session-handoff.md has no `## Adopting a handoff (`--adopt-handoff <id>`)` section")
+    _vi = _adopt.find("handoff-envelope.py verify")
+    _ai = _adopt.find("handoff-envelope.py accept")
+    check("session-handoff: adoption runs `verify` before `accept`",
+          0 <= _vi < _ai,
+          f"verify must come before accept in the adoption section (verify@{_vi}, accept@{_ai})")
+    check("session-handoff: the manual resume path runs no verify",
+          re.search(_ws(r"manual path.{0,200}no `verify`"), _adopt, re.S) is not None,
+          "the adoption section does not say the manual path is unchanged and runs no verify")
+    # SKILL.md itself: `text` joins the references, where the section already says it.
+    check("trunk: SKILL.md names `--adopt-handoff`",
+          "--adopt-handoff" in SKILL.read_text(encoding="utf-8"),
+          "the trunk carries no pointer to adopting a handoff")
     _resets = section(text, r"## Context resets at stage boundaries", r"## Progress state file")
     check("trunk: the context-reset section points at session-handoff.md and names the rules",
           "session-handoff.md" in _resets and "context-usage.py" in _resets
-          and all(n in _resets for n in ("context", "dead weight", "sub-plan", "dated wait")),
+          and all(n in _resets for n in ("requested", "context", "dead weight", "sub-plan",
+                                         "dated wait")),
           "the trunk no longer carries the measured stop rule's names and pointer")
     # Retired advice: an unmeasured reset suggestion. Swept across every markdown file in
     # the plugin, because the second copy (the trunk's master-plans paragraph) was found
