@@ -37,6 +37,7 @@ def write(path, data):
 
 
 USER_OFF = "android-dev@coder-plugins"  # in the loadout, off in user settings
+NO_USER_INSTALL = "lsp@official"  # in the loadout, on in user settings, installed only locally
 USER_ON = "rust-dev@coder-plugins"  # in the loadout, on in user settings
 NOT_IN_LOADOUT = "other@market"  # installed, outside the loadout
 
@@ -53,10 +54,13 @@ def fixture(root):
     write(home / ".claude" / "settings.json", {"enabledPlugins": user_enabled})
     installed = {k: [{"scope": "user", "version": "1.0.0"}] for k in user_enabled}
     installed[NOT_IN_LOADOUT] = [{"scope": "user", "version": "1.0.0"}]
+    user_enabled[NO_USER_INSTALL] = True
+    installed[NO_USER_INSTALL] = [{"scope": "local", "projectPath": "/elsewhere", "version": "1.0.0"}]
+    write(home / ".claude" / "settings.json", {"enabledPlugins": user_enabled})
     write(home / ".claude" / "plugins" / "installed_plugins.json",
           {"version": 2, "plugins": installed})
     write(home / ".claude" / "loadouts" / "tech" / "fixture.json",
-          {"plugins": [USER_OFF, USER_ON]})
+          {"plugins": [USER_OFF, USER_ON, NO_USER_INSTALL]})
     # A map an older loadout wrote: explicit `true` for user-enabled plugins.
     write(project / ".claude" / "settings.local.json",
           {"enabledPlugins": {"planning@coder-plugins": True, USER_ON: True},
@@ -93,6 +97,12 @@ def test_writes_false_only():
         check(f"loadout: {USER_OFF} is off in user settings; enabling it here pins its version"
               in r.stderr, "the pin warning names the plugin")
         check(USER_ON not in r.stderr, "no pin warning for a user-enabled plugin")
+        # A user setting is not enough: with no user-scope install there is
+        # nothing to load, so omitting the plugin would drop it.
+        check(written.get(NO_USER_INSTALL) is True,
+              f"{NO_USER_INSTALL} (on in user settings, no user install) is true")
+        check(f"loadout: {NO_USER_INSTALL} has no user-scope install; enabling it here pins its version"
+              in r.stderr, "the pin warning says there is no user-scope install")
         check(local.get("keep") == 1, "other settings.local.json keys survive")
         # show still lists the whole loadout as enabled.
         check(f"+ {USER_ON}" in r.stdout and "+ planning@coder-plugins" in r.stdout,

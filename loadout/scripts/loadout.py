@@ -98,10 +98,24 @@ def installed_keys() -> list[str]:
     return sorted((data.get("plugins") or {}).keys())
 
 
-def user_enabled() -> set[str]:
+def user_settings_on() -> set[str]:
     """Plugins the user-scope settings.json turns on."""
     plugins = read_json(GLOBAL_SETTINGS).get("enabledPlugins") or {}
     return {k for k, v in plugins.items() if v is True}
+
+
+def user_installed() -> set[str]:
+    """Plugins with a user-scope install record."""
+    plugins = read_json(INSTALLED_PLUGINS).get("plugins") or {}
+    return {k for k, entries in plugins.items()
+            if any(e.get("scope") == "user" for e in entries)}
+
+
+def user_enabled() -> set[str]:
+    """Plugins the user scope loads: turned on in user settings AND installed
+    there. A user setting alone is not enough -- with no user-scope install
+    there is nothing for a project that omits the plugin to load."""
+    return user_settings_on() & user_installed()
 
 
 def loadout_union(state: dict) -> set[str]:
@@ -150,9 +164,10 @@ def display_map(state: dict) -> dict[str, bool]:
 
 def apply(project: Path, state: dict) -> dict[str, bool]:
     enabled_map = compute_enabled(state)
+    installed_for_user = user_installed()
     for key in sorted(k for k, v in enabled_map.items() if v):
-        print(f"loadout: {key} is off in user settings; enabling it here pins its version",
-              file=sys.stderr)
+        why = "is off in user settings" if key in installed_for_user else "has no user-scope install"
+        print(f"loadout: {key} {why}; enabling it here pins its version", file=sys.stderr)
     settings_path = project / SETTINGS_LOCAL
     settings = read_json(settings_path)
     settings["enabledPlugins"] = enabled_map

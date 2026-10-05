@@ -371,7 +371,7 @@ start whether or not you use it. Two mechanisms keep that bounded.
 ```
 
 Applies to your **next** session; Claude Code reads `enabledPlugins` once at startup.
-loadout writes only "off" entries and omits plugins your user settings enable, because a
+loadout writes only "off" entries and omits plugins installed and enabled at user scope, because a
 local "on" entry pins that plugin's version for the project. `/loadout unpin` removes pins left
 by older loadout versions.
 
