@@ -733,6 +733,50 @@ try:
     j = j or {}
     check(rc == 0 and j.get("verdict") == "unknown",
           f"an oversized request.json is refused, verdict unchanged ({rc}, {j.get('verdict')})")
+    write_request(ra_sid)
+    sub = req_root / "deep" / "er"
+    sub.mkdir(parents=True)
+    (req_root / ".claude" / "plan-progress.json").write_text("{}", encoding="utf-8")
+    rc, j, err = run_json(["--transcript", unlisted], home, sub, REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "handoff",
+          f"cwd below the state root still finds the request there (red if read from cwd) "
+          f"({j.get('verdict')})")
+    (req_root / ".claude" / "plan-progress.json").unlink()
+    grepo = pathlib.Path(tmp) / "greq"
+    (grepo / "src").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(grepo)], check=True)
+    (grepo / ".claude" / "handoffs").mkdir(parents=True)
+    shutil.copy(req, grepo / ".claude" / "handoffs" / "request.json")
+    rc, j, err = run_json(["--transcript", unlisted], home, grepo / "src",
+                          REMOTE_AGENTS_SESSION_ID=ra_sid)
+    j = j or {}
+    check(j.get("verdict") == "handoff",
+          f"with no state file the git top level is the request root ({j.get('verdict')})")
+    lone = pathlib.Path(tmp) / "lone"
+    lone.mkdir()
+    shutil.copy(SCRIPT, lone / "context-usage.py")
+    r = subprocess.run([sys.executable, str(lone / "context-usage.py"), "--format", "json",
+                        "--transcript", unlisted], capture_output=True, text=True,
+                       env=env_for(home, REMOTE_AGENTS_SESSION_ID=ra_sid), cwd=str(req_root))
+    try:
+        lj = json.loads(r.stdout)
+    except ValueError:
+        lj = {}
+    check(r.returncode == 0 and lj.get("verdict") == "unknown"
+          and "cannot load handoff-envelope.py" in r.stderr,
+          f"a reader that cannot load is said on stderr and changes no verdict "
+          f"(red if swallowed) ({r.returncode}, {lj.get('verdict')}, {r.stderr.strip()[:120]!r})")
+    both = pathlib.Path(tmp) / "both"
+    both.mkdir()
+    shutil.copy(SCRIPT, both / "context-usage.py")
+    shutil.copy(os.path.join(os.path.dirname(SCRIPT), "handoff-envelope.py"),
+                both / "handoff-envelope.py")
+    subprocess.run([sys.executable, "-B", str(both / "context-usage.py"), "--transcript",
+                    unlisted], capture_output=True, text=True,
+                   env=env_for(home, REMOTE_AGENTS_SESSION_ID=ra_sid), cwd=str(req_root))
+    check(not (both / "__pycache__").exists(),
+          "loading the reader writes no bytecode beside the scripts")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

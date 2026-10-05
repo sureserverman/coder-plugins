@@ -29,7 +29,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), "scripts", "handoff-envelope.py")
 ENV_VAR = "REMOTE_AGENTS_SESSION_ID"
-ID_RE = re.compile(r"^h-[0-9a-f]{20}$")
+ID_RE = re.compile(r"h-[0-9a-f]{20}")      # used with fullmatch: `$` admits a trailing \n
 SID = "ra-session_01"
 BASE_KEYS = {"protocol", "version", "event", "handoff_id", "managed_session_id",
              "timestamp", "plan"}
@@ -105,7 +105,7 @@ try:
     for _ in range(100):
         rc, out, _err = run(["new-id", "--root", tmp])
         ids.append(out if rc == 0 else None)
-    check(all(i is not None and ID_RE.match(i) for i in ids),
+    check(all(i is not None and ID_RE.fullmatch(i) for i in ids),
           f"100 new-id values all match ^h-[0-9a-f]{{20}}$ (first: {ids[0]!r})")
     check(len(set(ids)) == 100, f"100 new-id values are distinct ({len(set(ids))})")
 
@@ -272,6 +272,28 @@ try:
         rc, out, err = verify(plan)
         check(rc == 3 and out == code, f"verify: {label} -> exit 3 {code} ({rc}, {out!r})")
 
+    # A quoted template, prose naming the block, and an indented copy after the real
+    # block are not blocks: the real block stays the last one.
+    p_noise = plan_with(plans / "noise.md", block(good, repo, "feat/handoff"),
+                        "## Notes\n\n```\n" + block(other, plans, "main") + "```\n",
+                        "~~~\n" + block(other, plans, "main") + "~~~\n",
+                        "**RESUME HERE blocks are written at a gate.**\n",
+                        "  " + block(other, plans, "main").replace("\n", "\n  "))
+    rc, out, err = verify(plans / "noise.md")
+    check(rc == 0,
+          f"a heading after the real block ends it without discarding it; fenced, prose and "
+          f"indented copies after it are not blocks ({rc}, {out!r})")
+    p_noise2 = plan_with(plans / "noise2.md", block(good, repo, "feat/handoff"),
+                         "```\n" + block(other, plans, "main") + "```\n",
+                         "**RESUME HERE blocks are written at a gate.**\n",
+                         "  " + block(other, plans, "main").replace("\n", "\n  "))
+    rc, out, err = verify(p_noise2)
+    check(rc == 0, f"a fenced template, a prose mention and an indented copy after the real "
+                   f"block are not blocks (red if BLOCK_START matches them) ({rc}, {out!r})")
+    fifo_plan = plans / "fifo.md"
+    os.mkfifo(fifo_plan)
+    rc, out, _err = verify(fifo_plan)
+    check(rc == 3 and out == "plan-missing", f"verify: a FIFO plan -> plan-missing, no hang ({rc}, {out!r})")
     rc, out, _err = verify(p_ok, hid="h-" + "e" * 20)
     check(rc == 3 and out == "no-ready", f"verify: a missing ready -> exit 3 no-ready ({rc}, {out!r})")
     # A ready that is too big, or reached through a link, counts as absent.
@@ -322,7 +344,33 @@ try:
     req.symlink_to(elsewhere)
     check(pending(SID) == 1, "a symlinked request.json -> exit 1")
     req.unlink()
+    os.mkfifo(req)
+    check(pending(SID) == 1, "a FIFO at request.json -> exit 1, no hang")
+    req.unlink()
+    req.mkdir()
+    check(pending(SID) == 1, "a directory at request.json -> exit 1")
+    req.rmdir()
+    req.write_text(json.dumps(dict(good_req, managed_session_id="bad id!")), encoding="utf-8")
+    check(pending("bad id!") == 1, "an invalid managed_session_id -> exit 1")
     req.write_text(json.dumps(good_req), encoding="utf-8")
+    rc, _o, _e = run(["request-pending", "--root", str(r7 / ".claude")], sid=SID)
+    check(rc == 1, "a request is read only at <root>/.claude/handoffs, not one level off")
+
+    print(".gitignore")
+    r8 = pathlib.Path(tmp) / "gi"
+    (r8 / ".claude" / "handoffs").mkdir(parents=True)
+    gi = r8 / ".claude" / "handoffs" / ".gitignore"
+    gi.write_text("", encoding="utf-8")         # an interrupted first write
+    rc, _o, err = run(["ready", "--root", str(r8), "--handoff-id", "h-" + "a" * 20,
+                       "--plan", "p.md"], sid=SID)
+    check(rc == 0 and gi.read_text(encoding="utf-8") == "*\n",
+          f"an empty .gitignore is rewritten to `*` (red if only created with O_EXCL) "
+          f"({rc}, {gi.read_text(encoding='utf-8')!r})")
+    gi.write_text("!keep\n", encoding="utf-8")
+    run(["accept", "--root", str(r8), "--handoff-id", "h-" + "a" * 20, "--plan", "p.md"], sid=SID)
+    check(gi.read_text(encoding="utf-8") == "*\n", "a .gitignore with other content is rewritten")
+    leftovers = [n for n in tree(r8 / ".claude" / "handoffs") if n.endswith(".tmp")]
+    check(leftovers == [], f"no temp file is left behind ({leftovers})")
 
     spec = importlib.util.spec_from_file_location("handoff_envelope", SCRIPT)
     mod = None

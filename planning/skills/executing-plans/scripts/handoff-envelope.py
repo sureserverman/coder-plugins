@@ -40,8 +40,11 @@ Writes follow context-usage.py's write_sidecar. The root opens as a directory; t
 `.claude` and `handoffs` each open O_NOFOLLOW | O_DIRECTORY relative to the parent fd
 (made with mkdir there first if missing) and must be owned by this user. The bytes go
 to a fresh O_EXCL | O_NOFOLLOW temp file beside the target, and a rename puts it in
-place, so a link planted at the name is replaced, never written through. The first
-write also creates handoffs/.gitignore containing `*`. A refused write prints
+place, so a link planted at the name is replaced, never written through. The temp
+name carries random bytes, and the bytes are written in full or the write is refused.
+Every write also makes sure handoffs/.gitignore holds exactly `*`: one that is
+missing, empty or different is rewritten the same temp-then-rename way, so an
+interrupted first write cannot leave envelopes unignored. A refused write prints
 `refused` to stderr and exits 1.
 
 Reads open each component O_NOFOLLOW (the file also O_NONBLOCK) and refuse: a link,
@@ -53,14 +56,17 @@ verify --handoff-id ID --plan PATH checks, in this order, and prints the first f
 
     no-ready         <id>.ready.json is absent or refused, is not HANDOFF_READY, or
                      names another handoff id
-    plan-missing     the plan file cannot be read
-    id-mismatch      the plan's LAST `**RESUME HERE` block has no `handoff_id:` line,
+    plan-missing     the plan is not a readable regular file of at most 8 MiB
+    id-mismatch      the plan's LAST `**RESUME HERE (` block has no `handoff_id:` line,
                      or its first one names another id
     cwd-mismatch     realpath of the block's `cwd:` value != realpath(root)
     branch-mismatch  the block's `branch:` value != `git -C <root> branch --show-current`
 
-A block runs from a line starting `**RESUME HERE` to the next such line, the next
-markdown heading, or end of file. Within it the first `handoff_id:`, `cwd:` and
+A block starts at a line beginning, in column 0, with `**RESUME HERE (` — the
+template's heading, `**RESUME HERE (<date>):**`, so prose that merely mentions the
+block, an indented copy, and a demoted `**Earlier RESUME HERE` are not blocks. Lines
+inside a ``` or ~~~ fence are never a block start: a quoted template is an example.
+A block runs to the next block start, the next markdown heading, or end of file. Within it the first `handoff_id:`, `cwd:` and
 `branch:` fields are read wherever they sit on a line (the template puts `plan:`,
 `cwd:` and `branch:` on one line); the value is the next whitespace-free token with
 backticks stripped, so list markers, backticks and a trailing `(at abc1234)` note are
@@ -75,6 +81,7 @@ Stdlib only.
 """
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
@@ -90,6 +97,9 @@ CLAUDE_DIR = ".claude"
 HANDOFF_DIR = "handoffs"
 REQUEST = "request.json"
 MAX_READ_BYTES = 4096
+MAX_PLAN_BYTES = 8 * 1024 * 1024
+GITIGNORE = ".gitignore"
+GITIGNORE_BODY = b"*\n"
 HANDOFF_ID_RE = re.compile(r"h-[0-9a-f]{20}")
 SESSION_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,128}")
 FAILURE_CODES = ("id-mismatch", "no-ready", "cwd-mismatch", "branch-mismatch", "plan-missing")
@@ -97,8 +107,24 @@ EVENTS = {"ready": ("HANDOFF_READY", "ready"),
           "accept": ("HANDOFF_ACCEPTED", "accepted"),
           "fail": ("HANDOFF_FAILED", "failed")}
 
-BLOCK_START = re.compile(r"^\s*\*\*RESUME HERE")
+BLOCK_START = re.compile(r"^\*\*RESUME HERE \(")
+FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 MD_HEADING = re.compile(r"^\s{0,3}#{1,6}(\s|$)")
+
+# Explicit path, as in prove-claim.py, so a stale plugin-cache copy says so before it
+# writes an envelope another program parses under yesterday's protocol.
+_STALE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.realpath(__file__)))), "portfolio", "scripts", "_staleness.py")
+
+
+def _warn_if_stale():
+    try:
+        spec = importlib.util.spec_from_file_location("_staleness", _STALE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.warn_if_stale(__file__)
+    except Exception:  # noqa: BLE001 — a probe that cannot load must never stop the command
+        pass
 FIELD_RE = {k: re.compile(r"(?<![\w-])" + k + r":\s*`?([^\s`]+)")
             for k in ("handoff_id", "cwd", "branch")}
 
@@ -188,41 +214,55 @@ def _open_owned_dir(name, parent_fd):
     return fd
 
 
+def _replace_at(hfd, name, body):
+    """Put `body` at `name` in the directory hfd: a fresh O_EXCL | O_NOFOLLOW temp with
+    a random name, written in full, then renamed over `name`. Raises on any failure,
+    after removing its temp."""
+    tmp = f".{name}.{secrets.token_hex(8)}.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=hfd)
+    try:
+        try:
+            view = memoryview(body)
+            while view:
+                view = view[os.write(fd, view):]
+        finally:
+            os.close(fd)
+        os.replace(tmp, name, src_dir_fd=hfd, dst_dir_fd=hfd)
+    except BaseException:
+        try:
+            os.unlink(tmp, dir_fd=hfd)
+        except OSError:
+            pass
+        raise
+
+
+def _gitignore_ok(hfd):
+    try:
+        fd = os.open(GITIGNORE, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=hfd)
+    except OSError:
+        return False
+    try:
+        return (stat.S_ISREG(os.fstat(fd).st_mode)
+                and os.read(fd, len(GITIGNORE_BODY) + 1) == GITIGNORE_BODY)
+    finally:
+        os.close(fd)
+
+
 def write_handoff_file(root, name, body):
-    """Write `body` (bytes) to <root>/.claude/handoffs/<name>. Returns whether it was
-    written; never raises."""
-    fds, tmp = [], f".{name}.{os.getpid()}.tmp"
+    """Write `body` (bytes) to <root>/.claude/handoffs/<name>, first making sure
+    handoffs/.gitignore is exactly `*`. Returns whether it was written; never raises."""
+    fds = []
     try:
         fds.append(os.open(root, os.O_RDONLY | os.O_DIRECTORY))
         fds.append(_open_owned_dir(CLAUDE_DIR, fds[-1]))
         fds.append(_open_owned_dir(HANDOFF_DIR, fds[-1]))
-        hfd = fds[-1]
-        try:
-            gfd = os.open(".gitignore", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                          0o600, dir_fd=hfd)
-            try:
-                os.write(gfd, b"*\n")
-            finally:
-                os.close(gfd)
-        except FileExistsError:
-            pass
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
-                     dir_fd=hfd)
-        try:
-            os.write(fd, body)
-        finally:
-            os.close(fd)
-        os.replace(tmp, name, src_dir_fd=hfd, dst_dir_fd=hfd)
-        tmp = None
+        if not _gitignore_ok(fds[-1]):
+            _replace_at(fds[-1], GITIGNORE, GITIGNORE_BODY)
+        _replace_at(fds[-1], name, body)
         return True
     except Exception:
         return False
     finally:
-        if tmp is not None and len(fds) == 3:
-            try:
-                os.unlink(tmp, dir_fd=fds[-1])
-            except OSError:
-                pass
         _close_all(fds)
 
 
@@ -239,9 +279,14 @@ def envelope(event, handoff_id, session_id, plan, failure_code=None):
 
 def last_block(text):
     """The lines of the last RESUME HERE block in `text`, or None when there is none."""
-    blocks, cur = [], None
+    blocks, cur, fenced = [], None, False
     for line in text.splitlines():
-        if BLOCK_START.match(line):
+        if FENCE.match(line):
+            fenced = not fenced
+            if cur is not None:
+                cur.append(line)
+            continue
+        if not fenced and BLOCK_START.match(line):
             cur = [line]
             blocks.append(cur)
         elif MD_HEADING.match(line):
@@ -268,16 +313,42 @@ def current_branch(root):
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def read_plan(plan):
+    """The plan's text, or None unless it is a regular file of at most MAX_PLAN_BYTES.
+    The path may be a link (plans live in a vault); O_NONBLOCK keeps a FIFO from
+    blocking the open."""
+    try:
+        fd = os.open(plan, os.O_RDONLY | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_PLAN_BYTES:
+            return None
+        chunks, size = [], 0
+        while size <= MAX_PLAN_BYTES:
+            chunk = os.read(fd, 1 << 20)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+        if size > MAX_PLAN_BYTES:
+            return None
+        return b"".join(chunks).decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
 def verify(root, handoff_id, plan):
     """None when the handoff checks out, else the failure code."""
     ready = read_handoff_file(root, f"{handoff_id}.ready.json")
     if (ready is None or ready.get("event") != "HANDOFF_READY"
             or ready.get("handoff_id") != handoff_id):
         return "no-ready"
-    try:
-        with open(plan, encoding="utf-8", errors="replace") as fh:
-            text = fh.read()
-    except OSError:
+    text = read_plan(plan)
+    if text is None:
         return "plan-missing"
     lines = last_block(text)
     if lines is None or block_field(lines, "handoff_id") != handoff_id:
@@ -318,6 +389,7 @@ def main(argv=None):
     p.add_argument("--plan", required=True)
     p = sub.add_parser("request-pending", help="exit 0 when a handoff is requested of us")
     p.add_argument("--root", required=True)
+    _warn_if_stale()
     args = ap.parse_args(argv)
 
     if args.cmd == "new-id":

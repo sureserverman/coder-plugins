@@ -40,11 +40,13 @@ Window resolution — the transcript records no window, and the model id carries
     5. A model not in the table has no window → verdict `unknown`.
 
 Verdicts: `handoff` when pct > 50, else `continue`; `unknown` for anything the
-script cannot prove. An owner's rollover request — a valid
-<root>/.claude/handoffs/request.json naming this session's REMOTE_AGENTS_SESSION_ID,
-read by handoff-envelope.py's reader (no second parser) — is `handoff` whatever else
-holds (rule requested); the executor runs this script only at a gate, so the request
-still lands at one. Every verdict carries a `reason` naming the rule and numbers.
+script cannot prove. An owner's rollover request — remote-agents' request file,
+naming this session's REMOTE_AGENTS_SESSION_ID, read only by handoff-envelope.py's
+reader (no second parser) — is `handoff` whatever else holds (rule requested); the
+executor runs this script only at a gate, so the request still lands at one. The
+request is looked up at the state root (above), else the git top level, else cwd —
+the repo root remote-agents writes it under. A reader that cannot load says so on
+stderr and changes no verdict. Every verdict carries a `reason` naming the rule and numbers.
 An `unknown` verdict never stops a run: exit 0. Exit 2 only on bad CLI usage.
 
 Stdlib only.
@@ -58,6 +60,7 @@ import os
 import pathlib
 import re
 import stat
+import subprocess
 import sys
 
 # Source: /home/user/.claude/plugins/marketplaces/anthropic-agent-skills/skills/claude-api/
@@ -436,19 +439,45 @@ def live_window(env, cwd, now=None):
     return window
 
 
+def request_root(cwd):
+    """The repo root a rollover request lives under: the state root when a state file
+    exists, else the git top level, else cwd."""
+    root = sidecar_root(cwd, require_state=True)
+    if root:
+        return root
+    try:
+        r = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return cwd
+
+
 def owner_requested(env, cwd):
     """True when remote-agents' rollover request names this session. The reader is
-    handoff-envelope.py's, imported rather than copied; any failure to load or read
-    it is False, so a broken request never changes a verdict."""
+    handoff-envelope.py's, imported rather than copied. A malformed or absent request
+    is False. A reader that cannot be loaded is also False, but said on stderr: a
+    silently dead reader would drop every owner request with nothing to show for it."""
+    here = pathlib.Path(__file__).resolve().parent
+    prior = sys.dont_write_bytecode
     try:
-        here = pathlib.Path(__file__).resolve().parent
+        sys.dont_write_bytecode = True
         spec = importlib.util.spec_from_file_location("handoff_envelope",
                                                       here / "handoff-envelope.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return bool(mod.request_pending(sidecar_root(cwd), env))
-    except Exception:
+        reader = mod.request_pending
+    except Exception as e:  # noqa: BLE001 — reported, then the measured rules decide
+        print(f"context-usage: cannot load handoff-envelope.py ({type(e).__name__}: {e}); "
+              "an owner rollover request cannot be read", file=sys.stderr)
         return False
+    finally:
+        sys.dont_write_bytecode = prior
+    if not env.get(mod.ENV_VAR):
+        return False                 # unsupervised: no request can name this session
+    return bool(reader(request_root(cwd), env))
 
 
 def table_entry(model):
