@@ -95,8 +95,14 @@ def installed_keys() -> list[str]:
     return sorted((data.get("plugins") or {}).keys())
 
 
-def compute_enabled(state: dict) -> dict[str, bool]:
-    """Union of always-on ∪ tech ∪ task overlays. Everything else → false."""
+def user_enabled() -> set[str]:
+    """Plugins the user-scope settings.json turns on."""
+    plugins = read_json(GLOBAL_SETTINGS).get("enabledPlugins") or {}
+    return {k for k, v in plugins.items() if v is True}
+
+
+def loadout_union(state: dict) -> set[str]:
+    """Union of always-on ∪ tech ∪ task overlays."""
     enabled: set[str] = set(load_always_on())
 
     tech = state.get("tech")
@@ -109,27 +115,47 @@ def compute_enabled(state: dict) -> dict[str, bool]:
         prof = load_profile("task", task)
         if prof:
             enabled.update(prof.get("plugins", []))
+    return enabled
 
-    # Write explicit true/false for every installed plugin so the loadout fully
-    # scopes the session — not just additive.
+
+def compute_enabled(state: dict) -> dict[str, bool]:
+    """The map written to settings.local.json (DEC-030).
+
+    Every installed plugin outside the loadout → false, so the loadout fully
+    scopes the session. A loadout plugin the user scope already enables is
+    omitted: a local `true` makes Claude Code pin the plugin's version in a
+    local install record that nothing refreshes. Only a loadout plugin the user
+    scope leaves off is written true, because nothing else turns it on.
+    """
+    enabled = loadout_union(state)
+    on_for_user = user_enabled()
     result: dict[str, bool] = {}
     for key in installed_keys():
-        result[key] = key in enabled
-    # Also include any enabled plugins not yet in installed_plugins.json (newly
-    # added marketplaces); harmless if absent.
-    for key in enabled:
-        result.setdefault(key, True)
+        if key not in enabled:
+            result[key] = False
+    for key in sorted(enabled - on_for_user):
+        result[key] = True
     return result
+
+
+def display_map(state: dict) -> dict[str, bool]:
+    """What the session loads: the whole loadout on, the written falses off."""
+    shown = {k: v for k, v in compute_enabled(state).items() if not v}
+    shown.update({k: True for k in loadout_union(state)})
+    return shown
 
 
 def apply(project: Path, state: dict) -> dict[str, bool]:
     enabled_map = compute_enabled(state)
+    for key in sorted(k for k, v in enabled_map.items() if v):
+        print(f"loadout: {key} is off in user settings; enabling it here pins its version",
+              file=sys.stderr)
     settings_path = project / SETTINGS_LOCAL
     settings = read_json(settings_path)
     settings["enabledPlugins"] = enabled_map
     write_json(settings_path, settings)
     save_state(project, state)
-    return enabled_map
+    return display_map(state)
 
 
 # ── auto-detect ───────────────────────────────────────────────────────────────
@@ -210,7 +236,7 @@ def main(argv: list[str]) -> int:
     state = load_state(project)
 
     if cmd == "show":
-        enabled = compute_enabled(state)
+        enabled = display_map(state)
         print(fmt_show(project, state, enabled))
         return 0
 
