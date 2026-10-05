@@ -371,6 +371,9 @@ start whether or not you use it. Two mechanisms keep that bounded.
 ```
 
 Applies to your **next** session; Claude Code reads `enabledPlugins` once at startup.
+loadout writes only "off" entries and omits plugins your user settings enable, because a
+local "on" entry pins that plugin's version for the project. `/loadout unpin` removes pins left
+by older loadout versions.
 
 **`capability-index.json`** — lets one skill or agent be resolved **from disk without
 enabling its plugin**. `planning:capability-router` wraps this for ad-hoc use, and plan
