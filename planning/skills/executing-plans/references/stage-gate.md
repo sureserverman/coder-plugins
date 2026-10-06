@@ -496,7 +496,7 @@ was, with the user's words. A review line that states a verdict but names no age
 refused as well, so a claim cannot leave the check by leaving the grammar. Its exit 3 is
 reported as NOT RUN, never green: no log means nothing was compared (the hook is not loaded,
 or no state file existed when the review was dispatched). A `SUBSTITUTED` line needs no
-dispatch — it is the disclosed path above. The check is a command, so it runs at every tier;
+dispatch — it is the disclosed substitution DEC-019 records. The check is a command, so it runs at every tier;
 its position (DEC-017) is once per gate entry.
 
 ## A review fix does not re-earn the full pass

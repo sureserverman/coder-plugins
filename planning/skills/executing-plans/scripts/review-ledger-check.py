@@ -38,6 +38,7 @@ input) · 3 NOT RUN — the dispatch log is missing, so nothing was checked; nev
 """
 import argparse
 import datetime
+import importlib.util
 import json
 import re
 import subprocess
@@ -45,10 +46,21 @@ import sys
 from pathlib import Path
 
 LOG = Path(".claude") / "dispatch-log.jsonl"
+_STALE = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "_staleness.py"
 VERDICT = re.compile(r"\b(APPROVE\w*|REQUEST[_ -]CHANGES|PASS(ED)?|FAIL(ED)?|Critical|"
                      r"Important|Blocking|Material|findings?)\b")
 REVIEW_CLAIM = re.compile(r"^review:\s+(?:.*\s)?(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)\s+over\s+\S")
 EVALUATOR_CLAIM = re.compile(r"^evaluator:\s+(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)\s+in\s+the\s")
+
+
+def _warn_if_stale():
+    try:
+        spec = importlib.util.spec_from_file_location("_staleness", _STALE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.warn_if_stale(__file__)
+    except Exception:  # noqa: BLE001 — a probe that cannot load must never stop the command
+        pass
 
 
 class Usage(Exception):
@@ -191,6 +203,7 @@ def unstopped(args):
 
 
 def main(argv=None):
+    _warn_if_stale()
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--plan")
