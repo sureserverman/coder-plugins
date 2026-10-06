@@ -210,7 +210,7 @@ with tempfile.TemporaryDirectory() as t:
                               "Stage 2 Tier-2 review")])
     plan_i1b = write_plan(t, s2="review: Tier-2 inline — APPROVE; general-purpose over x")
     rc, out = run("--plan", plan_i1b, "--stage", 2, "--repo", repo)
-    check("a type placed after the verdict is not read as the claim's agent", rc == 1,
+    check("a type placed after the verdict is not read as the claim's agent", rc == 4,
           f"rc={rc} {out}")
 
     # Catches (review S1): SUBSTITUTED anywhere on the line exempting a dispatch claim.
@@ -236,12 +236,18 @@ with tempfile.TemporaryDirectory() as t:
           rc == 3 and "NOT CHECKED" in out, f"rc={rc} {out}")
 
     # Catches (redesign review A2): a fabricated review with an unlisted verdict word passing
-    # as a scope line. A line naming no agent must state why no review ran.
+    # as a scope line. A line naming no agent and no reason is ADVISORY (exit 4), never 0:
+    # measured over 258 portfolio ledger lines it hit 138 honest lines in older wordings, so
+    # DEC-032 makes it advisory and DEC-031 fails only an unmatched dispatch claim.
     for fake in ("review: Tier-2 git-github:code-reviewer — looked at the diff, clean",
                  "review: Tier-2 — LGTM", "review: done, no issues"):
         rc, out = run("--plan", write_plan(t, s2=fake), "--stage", 2, "--repo", repo)
-        check(f"a review line naming no agent and no scope reason exits 1: {fake[:30]!r}",
-              rc == 1, f"rc={rc} {out}")
+        check(f"a review line naming no agent and no scope reason is advisory: {fake[:30]!r}",
+              rc == 4 and "ADVISORY" in out, f"rc={rc} {out}")
+    # An unmatched claim still fails the gate beside an advisory line.
+    rc, out = run("--plan", write_plan(t, s2=REVIEW + "\nreview: Tier-2 — LGTM"), "--stage", 2,
+                  "--repo", repo)
+    check("an unmatched claim beside an advisory line exits 1", rc == 1, f"rc={rc} {out}")
 
     # Catches (redesign review A3): honest lines refused for trailing text after the range.
     write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")] * 3)
@@ -263,13 +269,44 @@ with tempfile.TemporaryDirectory() as t:
     # Catches: a claim dodging the grammar — a verdict with no named dispatched agent.
     plan4 = write_plan(t, s2="review: Tier-2 deep review done — APPROVE, 0 Critical")
     rc, out = run("--plan", plan4, "--stage", 2, "--repo", repo)
-    check("a review line stating a verdict but naming no agent exits 1", rc == 1,
+    check("a review line stating a verdict but naming no agent is advisory", rc == 4,
           f"rc={rc} {out}")
 
     # Catches: a tier-scope statement being refused.
     plan5 = write_plan(t, s2="review: Tier-2 not run — review-scope none mandates none")
     rc, out = run("--plan", plan5, "--stage", 2, "--repo", repo)
     check("a scope statement with no verdict passes", rc == 0, f"rc={rc} {out}")
+
+    # Catches (Stage 5 gate evaluator M2): a reason review-scope.md § Review opt-out sanctions
+    # refused for its wording — the trivial/non-code diffs it names (docs-only, config-only,
+    # pure version bumps, comment-only) and a user who "opted out".
+    for sanctioned in ('review: Tier-2 — user opted out at Preflight: "skip it"',
+                       "review: Tier-2 git-github:code-reviewer — skipped, docs-only diff",
+                       "review: Tier-2 skipped — config-only diff",
+                       "review: Tier-2 skipped — a pure version bump",
+                       "review: Tier-2 skipped — comment-only diff",
+                       "review: Tier-2 skipped — non-code diff"):
+        rc, out = run("--plan", write_plan(t, s2=sanctioned), "--stage", 2, "--repo", repo)
+        check(f"a sanctioned reason is a scope line: {sanctioned[16:50]!r}", rc == 0,
+              f"rc={rc} {out}")
+
+    # Catches (Stage 5 gate evaluator M2's class): the three lines gate-failure-procedure.md
+    # § A redesign the gate closes on prescribes, read as unnamed. `reviewed by <type>` is a
+    # dispatch claim; `battery <name>` and `unread` are scope.
+    write_log(repo, [])
+    for form in ("review: round 2: redesign — battery finding-10 trailer",
+                 "review: round 2: redesign — unread (classify() fallback)",
+                 "evaluator: not dispatched — all 5 gate checks are command checks"):
+        rc, out = run("--plan", write_plan(t, s2=form), "--stage", 2, "--repo", repo)
+        check(f"a prescribed no-dispatch line is a scope line: {form[8:40]!r}", rc == 0,
+              f"rc={rc} {out}")
+    redesign = "review: round 1: redesign — reviewed by git-github:code-reviewer"
+    rc, out = run("--plan", write_plan(t, s2=redesign), "--stage", 2, "--repo", repo)
+    check("a redesign review with no dispatch exits 1", rc == 1, f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 redesign review")])
+    rc, out = run("--plan", write_plan(t, s2=redesign), "--stage", 2, "--repo", repo)
+    check("a redesign review with its dispatch passes", rc == 0, f"rc={rc} {out}")
 
     # Catches: DEC-019's disclosed path being refused.
     plan6 = write_plan(t, s2='review: Tier-2 SUBSTITUTED — ran inline, user authorised at '

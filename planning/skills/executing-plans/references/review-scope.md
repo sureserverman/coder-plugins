@@ -91,6 +91,11 @@ version of this table a half-measure:
   is essentially always at least `standard`, so in practice this loop runs — but it is listed
   here because a mandate costing an agent dispatch that appears on neither list is exactly
   the gap this section exists to close.
+- **The redesign review** (`gate-failure-procedure.md` § A redesign the gate closes on): a
+  redesign no review has read when the gate closes gets one review of its diff, at the tier
+  that funded the original review, or a battery entry in its place. It adds at most one
+  dispatch per gate to the row's count, and only at `light` and above — at `none` no review
+  read the original either. It is not a remediation round.
 
 **Not tier-gated, but relocated: the decisions-conformance check.** It runs at the **final**
 stage gate and at close-out rather than at every intermediate gate — at every tier where the
