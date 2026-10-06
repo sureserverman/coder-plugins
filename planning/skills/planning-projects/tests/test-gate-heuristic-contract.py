@@ -77,6 +77,13 @@ def main():
     check("heuristic: the blocking criterion is stated",
           affirms_claim(sec, ws(r"A blocking finding is one whose measured hits were all true defects")),
           "blocking is left to taste")
+    check("heuristic: an advisory finding never exits 1 and never fails a gate",
+          re.search(ws(r"never exits 1 and never fails a gate"), sec) is not None
+          and re.search(ws(r"changes no exit code"), sec) is None,
+          "the advisory definition misstates the exit code (plan-flip-audit exits 4)")
+    check("heuristic: blocking needs at least one measured hit",
+          re.search(ws(r"at least one hit"), sec) is not None,
+          "an unmeasured (n=0) check could be called blocking")
     check("heuristic: a too-noisy check is a defect in the check",
           affirms_claim(sec, ws(r"A check too noisy to leave on is a defect in the check")),
           "the defect-in-the-check clause is absent or negated")

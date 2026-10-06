@@ -9,10 +9,13 @@ executor and a dispatched agent read them, using the shared negation screening
 
   1. task-execution.md waits on a background job by its own completion (the harness
      notification, `wait <pid>`, or a sentinel file the job writes last), and says why
-     a process-name search is not that: `pgrep -f` matches its own command line.
+     a process-name search is not that: `pgrep -f` matches the shell whose command line
+     holds the pattern.
   2. close-out.md and session-handoff.md § On `handoff` both carry the reap step: list
-     what this run started (`TaskList`), stop each whose result was used (`TaskStop`),
-     and name any still running in the report.
+     what this run started — by the id each launch result and completion notification
+     carried, not by a listing tool (Claude Code 2.1.291 ships `TaskStop` and no
+     `TaskList`) — stop each whose result was used (`TaskStop`), and name any still
+     running in the report.
   3. The return-clean clause — an agent returns only after its own background work has
      finished or been stopped, and says which — stands in all three places a dispatched
      agent is briefed: the dispatch template's `## Return` block, and stage-gate.md's
@@ -84,16 +87,21 @@ def main():
           all(re.search(p, wait) for p in (ws(r"harness"), r"`wait <pid>`", ws(r"sentinel file"))),
           "one of: harness notification / `wait <pid>` / sentinel file is absent")
     check("task-execution: names the `pgrep -f` self-match",
-          "`pgrep -f`" in wait and affirms_claim(wait, ws(r"matches its own command line")),
-          "`pgrep -f` … 'matches its own command line' absent or negated")
+          "`pgrep -f`" in wait
+          and affirms_claim(wait, ws(r"matches the shell whose command line holds the pattern")),
+          "`pgrep -f` … 'matches the shell whose command line holds the pattern' absent or negated")
 
     # --- 2. the reap step at close-out and handoff --------------------------------------
     closeout = read(CLOSEOUT)
     handoff = section(read(HANDOFF), r"^## On `handoff`", r"^## ")
     for name, text in (("close-out", closeout), ("handoff", handoff)):
-        check(f"{name}: lists what the run started with `TaskList`",
-              "`TaskList`" in text and affirms_claim(text, ws(r"list the background tasks and agents this run started")),
-              "'list the background tasks and agents this run started' + `TaskList` absent")
+        check(f"{name}: lists what the run started, by the ids its launches returned",
+              affirms_claim(text, ws(r"list the background tasks and agents this run started"))
+              and affirms_claim(text, ws(r"by the id each launch result")),
+              "'list the background tasks and agents this run started … by the id each launch "
+              "result' absent")
+        check(f"{name}: does not send the executor to a `TaskList` tool the host lacks",
+              "`TaskList`" not in text, "`TaskList` named as the listing tool")
         check(f"{name}: stops each whose result was used with `TaskStop`",
               "`TaskStop`" in text and affirms_claim(text, ws(r"stop each whose result was used")),
               "'stop each whose result was used' + `TaskStop` absent")

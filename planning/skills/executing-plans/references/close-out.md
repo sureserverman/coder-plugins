@@ -105,8 +105,10 @@ procedure. Work the steps in order.
    regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for
    explicit user review.
    **Then, before the report — background work this run started.** List the background tasks
-   and agents this run started (`TaskList`), stop each whose result was used (`TaskStop`), and
-   name each one still running in the report, the way a `[~]` gate is named. Then, from the
+   and agents this run started, by the id each launch result and completion notification
+   carried (`task-execution.md` § Waiting on background work), stop each whose result was
+   used (`TaskStop`), and name each one still running in the report, the way a `[~]` gate is
+   named. Then, from the
    repo root, run
    `python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py --unstopped --repo <repo root>`.
    It lists each agent the dispatch log shows starting and never stopping. Exit 1 → name each

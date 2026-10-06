@@ -100,13 +100,13 @@ that remain, their severities, and how the rounds were spent. This is a document
 looping. The user decides between another round, returning to
 `planning-projects`, and shipping with the residual recorded.
 
-## A redesign in the last round
+## A redesign the gate closes on
 
 An Important fix closes on its fix-scope re-run, with no re-dispatched review
 (`stage-gate.md` § Independent evaluator for non-command checks). That is right for a fix inside code the
 review already read. It is wrong for code the review never saw: a round that answers a
-finding by replacing a parser ships the replacement unread, and when that round is the one
-that ends the budget, nothing reads it before the merge (BL-089).
+finding by replacing a parser ships the replacement unread, because no later review is owed
+— and that holds in round 1 of 2 as much as in the last one (BL-089).
 
 Two terms, decided from the round's diff:
 
@@ -115,18 +115,21 @@ Two terms, decided from the round's diff:
 - A **redesign** is a new file or function, or a replacement of logic the review read — the
   reviewer's reading of that code no longer describes it.
 
-**A redesign in the round that ends the budget gets one review of that round's diff alone,
-at the tier that funded the original review, or a deterministic substitute** — a battery
-entry that answers the question the reviewer would ask of that code (does the replacement
-still refuse what the original refused?). The review line records which:
-`round K: redesign — reviewed by <subagent_type>` or `round K: redesign — battery <name>`.
-A repair in that round, and a redesign in an earlier round (the next round's review reads
-it), close as before. Below tier `light`, nothing is added: at `none` no review read the
-original either.
+**A redesign no review has read when the gate closes — whether the gate closes green or on an
+exhausted budget — gets one review of the redesign's diff alone, at the tier that funded the
+original review, or a deterministic substitute**: a battery entry that answers the question
+the reviewer would ask of that code (does the replacement still refuse what the original
+refused?). Every unread redesign of the gate goes into that one review. The review line
+records which: `round K: redesign — reviewed by <subagent_type>` or
+`round K: redesign — battery <name>`. A repair closes as before. Below tier `light`, nothing
+is added: at `none` no review read the original either.
 
-This is one dispatch, on one diff, in one round. It does not reopen the budget: its findings
-take the exit criterion like any other, and a Critical among them is escalated with the
-residual list, as budget exhaustion always is.
+This review is an exception to two rules. First, it is not a remediation round and does not
+count against the budget. Second, it is owed though nothing Blocking was fixed
+(`stage-gate.md` § Independent evaluator for non-command checks, one dispatch per role per
+gate). Its findings take the exit criterion like any other. A Critical
+among them on an exhausted budget is escalated with the residual list, as exhaustion always
+is.
 
 ## Remediation that re-runs a live check
 

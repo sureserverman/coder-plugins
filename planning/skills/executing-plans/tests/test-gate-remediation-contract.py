@@ -1619,8 +1619,8 @@ def main():
     #     re-review, so replacement code written in the round that ends the budget shipped
     #     unread. These pin the two terms, the review (or battery substitute), its tier
     #     bound and the record.
-    redesign = section(gfp, r"(?m)^## A redesign in the last round", r"(?m)^## ")
-    check("gate-failure-procedure: § A redesign in the last round present", bool(redesign),
+    redesign = section(gfp, r"(?m)^## A redesign the gate closes on", r"(?m)^## ")
+    check("gate-failure-procedure: § A redesign the gate closes on present", bool(redesign),
           "no redesign section")
     check("redesign: a repair is defined",
           affirms_claim(redesign, ws(r"A \*\*repair\*\* is a change inside code the review read")),
@@ -1628,10 +1628,24 @@ def main():
     check("redesign: a redesign is defined",
           affirms_claim(redesign, ws(r"A \*\*redesign\*\* is a new file or function, or a replacement of logic the review read")),
           "the redesign definition is absent")
-    check("redesign: a last-round redesign gets a review of that round's diff, or a battery entry",
-          affirms_claim(redesign, ws(r"gets one review of that round's diff alone"))
+    check("redesign: an unread redesign at gate close gets a review of its diff, or a battery entry",
+          # The subject is an absence ("no review has read"), so it is pinned by presence;
+          # the obligation it carries is screened.
+          re.search(ws(r"A redesign no review has read when the gate closes"), redesign) is not None
+          and affirms_claim(redesign, ws(r"gets one review of the redesign's diff alone"))
           and affirms_claim(redesign, ws(r"or a deterministic substitute")),
-          "a last-round redesign may close on a fix-scope re-run alone")
+          "an unread redesign may close on a fix-scope re-run alone")
+    check("redesign: keyed to the gate closing green or on an exhausted budget",
+          affirms_claim(redesign, ws(r"whether the gate closes green or on an exhausted budget")),
+          "the rule is keyed to the budget-ending round only — a gate closing green in "
+          "round 1 ships its redesign unread")
+    check("redesign: the review is an explicit exception to the round and re-dispatch rules",
+          # Again an absence by design ("is not a round"): presence, beside the exception
+          # sentence that frames it, screened.
+          re.search(ws(r"it is not a remediation round and does not count against the budget"),
+                    redesign) is not None
+          and affirms_claim(redesign, ws(r"This review is an exception to two rules")),
+          "the review contradicts 'a re-dispatched review is a round' with no stated exception")
     check("redesign: bounded to the tier that funded the original review",
           affirms_claim(redesign, ws(r"at the tier that funded the original review"))
           and re.search(ws(r"Below tier `light`, nothing is added"), redesign) is not None,

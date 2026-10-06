@@ -117,15 +117,21 @@ background command or agent finishes, `wait <pid>` for a job this shell started,
 sentinel file the job writes as its last act. Each of those fires when *that job* ends.
 
 A process-name search does not. This loop never returns:
-`until ! pgrep -f run-tests.sh; do sleep 5; done` — `pgrep -f` matches its own command line,
-and the shell running the loop carries the pattern too, so the search always finds itself. If a name search is unavoidable
-(a job some other process started, with no pid and no sentinel), exclude the searcher: match
-on a pattern its own command line cannot contain (`pgrep -f '[r]un-tests.sh'`), or filter
-out `$$` and the `pgrep` itself.
+`until ! pgrep -f run-tests.sh; do sleep 5; done` — the loop matches its own shell:
+`pgrep -f` matches the shell whose command line holds the pattern, and the shell running this
+loop is one, so the search always finds it. If a name search is
+unavoidable (a job some other process started, with no pid and no sentinel), exclude the
+searcher: match on a pattern its own command line cannot contain
+(`pgrep -f '[r]un-tests.sh'`).
 
 **What this run started, this run reaps.** At close-out and at a gate that hands off, list
 the background tasks and agents the run started, stop each whose result was used, and name
 each one still running in the report (`close-out.md`, `session-handoff.md` § On `handoff`).
+The list is kept from the ids the launches returned: each background command's launch result
+and completion notification carry its task id, and `TaskStop` takes that id or an agent's id.
+Claude Code 2.1.291 has no tool that lists them afterwards, so an id not noted at launch is
+an id to recover from the transcript, and `review-ledger-check.py --unstopped` lists the
+agents the dispatch log saw start and never stop.
 A background subagent's own commands keep running after the subagent returns, so a result in
 hand is not proof the work behind it stopped.
 

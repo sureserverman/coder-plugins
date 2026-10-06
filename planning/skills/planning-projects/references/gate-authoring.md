@@ -70,15 +70,17 @@ gate calls — not the checks a plan author writes into a stage gate.
 Any heuristic wired into a gate ships with a severity axis and a trigger rate. The axis has
 two values, blocking and advisory. The trigger rate is measured over a real corpus, stated in
 its source with the corpus and the date, in the form
-`measured <date> over <corpus>: <n> hits, <t> true`. A blocking finding is one whose measured hits were all true defects. Anything
-less is advisory: it is reported and named in the gate report, and it changes no exit code.
+`measured <date> over <corpus>: <n> hits, <t> true`. A blocking finding is one whose measured hits were all true defects, over at least one hit.
+Anything less is advisory: it is reported and named in the gate report, and it never exits 1
+and never fails a gate (`plan-flip-audit.py` exits 4 on advisory findings alone).
 
 **Measured, and the reason this is a rule.** `plan-flip-audit.py`'s void detector began as
 one flat vocabulary where any hit was a RED gate. Over 188 real plans it lit **31.4%** of
-them, with a 39.8% hard false-positive rate, mostly on `amended` — a word the amendment
-protocol requires an honest executor to write. Split into a blocking tier (phrases that say
-the work did not happen) and an advisory tier (qualifiers that void only in company), the
-same corpus lit **12.8%**, and the check stayed on. At 31.4% it would have been waived, and
+them, with a 39.8% hard false-positive rate; the dominant cause was `amended` (44% of hits),
+a word the amendment protocol requires an honest executor to write (`plan-flip-audit.py`'s
+VOID_STRONG comment). Split into a blocking tier (phrases that say the work did not happen)
+and an advisory tier (qualifiers that void only in company), the same corpus lit **12.8%**,
+measured at the engineering-skills port that filed BL-090, and the check stayed on. At 31.4% it would have been waived, and
 the waiver written as a note beside a green gate: the artifact the check exists to abolish.
 
 A check too noisy to leave on is a defect in the check. It is fixed there — narrowed, split,
