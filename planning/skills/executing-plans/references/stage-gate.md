@@ -479,25 +479,41 @@ decision, which is the half that was never the executor's. *"I judged it unneces
 
 The review line names the subagent type it dispatched, because that type is what the check
 matches: `review: Tier-2 git-github:code-reviewer over <base>..HEAD — …`, `evaluator:
-general-purpose in the goal-evaluator role …`. While a plan is in flight,
+general-purpose in the goal-evaluator role …`. The agent is read from the text before the
+first ` — `, so write it there. While a plan is in flight,
 `../../../hooks/dispatch-log.sh` appends every `Agent` dispatch, subagent start and subagent
-stop to `.claude/dispatch-log.jsonl` (the hook gathers; the script decides — DEC-027). Run the
-check once per gate entry, from the repo root, before the gate report is final:
+stop to `.claude/dispatch-log.jsonl` (the hook gathers; the script decides — DEC-027).
+
+**Write the dispatch's description so it names the stage and the role**: `Stage 2 Tier-2
+review`, `Stage 2 second-pass review`, `Stage 2 gate evaluator`. A dispatch counts toward a
+stage's claim only when its description names that stage and the role (review or pass, or
+evaluator) and names no task. Without it, any task worker of the same type would satisfy
+an evaluator claim, and a per-task Tier-1 review would satisfy the stage's Tier-2 claim.
+A Tier-1 review names its task (`Stage 2 Task 2.3 quick review`) for the same reason.
+
+Run the check once per gate entry, from the repo root, before the gate report is final:
 
 ```
 python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py \
-  --plan <plan> --stage <N> --repo <repo root> [--report <draft gate report>]
+  --plan <plan> --stage <N> --repo <repo root> --report <draft gate report>
 ```
 
-Each claimed review needs its own `dispatch` line of that type, logged since the previous
+Each claimed review needs its own matching `dispatch` line, logged since the previous
 `Stage N-1 green` commit (for Stage 1, since the log began). Its exit 1 fails the gate. The
 failure names the claim: run the review it claims, or rewrite the line as the substitution it
-was, with the user's words. A review line that states a verdict but names no agent is
-refused as well, so a claim cannot leave the check by leaving the grammar. Its exit 3 is
-reported as NOT RUN, never green: no log means nothing was compared (the hook is not loaded,
-or no state file existed when the review was dispatched). A `SUBSTITUTED` line needs no
-dispatch — it is the disclosed substitution DEC-019 records. The check is a command, so it runs at every tier;
-its position (DEC-017) is once per gate entry.
+was, with the user's words. A review line that states a verdict but names no agent before
+its first ` — ` is refused as well. Its exit 3 is reported as NOT RUN, never green: either no
+log exists, so nothing was compared (the hook is not loaded, or no state file existed when
+the review was dispatched), or the report has no `review:` or `evaluator:` line at all, which
+a gate report always has. A line with `SUBSTITUTED` before its first ` — ` needs no
+dispatch — it is the disclosed substitution DEC-019 records. The check is a command, so it
+runs at every tier; its position (DEC-017) is once per gate entry.
+
+**What it cannot see.** It proves a dispatch of the claimed type and role happened in the
+stage's window — not that the agent saw the diff the line names, nor that the verdict quoted
+is the one it returned. The window opens at the newest commit whose subject is exactly
+`Stage N-1 green`, so that commit's subject is load-bearing; and a log left by a plan whose
+close-out never ran satisfies Stage 1 claims, which is why close-out deletes it.
 
 ## A review fix does not re-earn the full pass
 

@@ -113,6 +113,29 @@ dispatch_payload general-purpose | hook "$S"
     && ok "a symlinked .claude is not written through" \
     || bad "a symlinked .claude is not written through" "rc=$(rc_of) $(ls "$T/elsewhere")"
 
+# Catches: a symlinked log being written through.
+L="$T/linklog"; mkrepo "$L" plan; : > "$T/target.jsonl"
+ln -s "$T/target.jsonl" "$L/.claude/dispatch-log.jsonl"
+dispatch_payload general-purpose | hook "$L"
+[ "$(rc_of)" = 0 ] && [ ! -s "$T/target.jsonl" ] \
+    && ok "a symlinked dispatch-log.jsonl is not written through" \
+    || bad "a symlinked dispatch-log.jsonl is not written through" "$(cat "$T/target.jsonl")"
+
+# Catches: the legacy `Task` tool name (the Agent tool's alias) going unlogged.
+K="$T/tasktool"; mkrepo "$K" plan
+python3 -c 'import json; print(json.dumps({"session_id": "s", "hook_event_name": "PreToolUse", "tool_name": "Task", "tool_input": {"subagent_type": "general-purpose", "description": "d"}}))' | hook "$K"
+[ "$(lines "$K")" = 1 ] && [ "$(field "$K" 1 event)" = dispatch ] \
+    && ok "a dispatch through the Task alias is logged" \
+    || bad "a dispatch through the Task alias is logged" "lines=$(lines "$K")"
+
+# Catches: no python3 on PATH failing closed.
+E="$T/nopy"; mkrepo "$E" plan; mkdir -p "$T/bin"
+for b in bash cat; do ln -sf "$(command -v $b)" "$T/bin/$b"; done
+dispatch_payload general-purpose > "$T/payload.json"
+CLAUDE_PROJECT_DIR="$E" PATH="$T/bin" "$T/bin/bash" "$HOOK" < "$T/payload.json" >"$T/out" 2>&1; rc=$?
+[ "$rc" = 0 ] && [ ! -s "$T/out" ] && ok "with no python3 it exits 0 silently" \
+    || bad "with no python3 it exits 0 silently" "rc=$rc $(cat "$T/out")"
+
 # Catches: no project dir at all failing closed.
 dispatch_payload general-purpose | env -u CLAUDE_PROJECT_DIR bash "$HOOK" >"$T/out" 2>&1; rc=$?
 [ "$rc" = 0 ] && [ ! -s "$T/out" ] && ok "with CLAUDE_PROJECT_DIR unset it exits 0 silently" \

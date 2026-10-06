@@ -12,6 +12,7 @@ new claim, a missing log reading as green, a disclosed SUBSTITUTED line being re
 and an agent left running going unreported. One case builds its log through the real
 hook, so the script and the hook cannot drift apart on the line format.
 """
+import datetime
 import json
 import os
 import subprocess
@@ -63,7 +64,7 @@ def mkrepo(root):
 
 
 def commit(repo, subject, date):
-    (repo / "f").write_text(subject + "\n")
+    (repo / "f").write_text(f"{subject} {date}\n")  # unique: a repeated subject still commits
     git(repo, "commit", "-q", "-am", subject, date=date)
 
 
@@ -73,9 +74,9 @@ def write_log(repo, rows):
             fh.write(json.dumps(r) + "\n")
 
 
-def dispatch(ts, stype):
+def dispatch(ts, stype, description="Stage 2 Tier-2 review"):
     return {"ts": ts, "event": "dispatch", "session_id": "s", "subagent_type": stype,
-            "description": "d"}
+            "description": description}
 
 
 def agent(ts, event, aid, atype):
@@ -142,6 +143,8 @@ if not SCRIPT.exists():
 with tempfile.TemporaryDirectory() as t:
     repo = mkrepo(t)
     commit(repo, "Stage 1 green", "2026-10-06T10:00:00+00:00")
+    # The real-hook case below writes wall-clock timestamps, so its own repo's green commit
+    # must predate "now" whatever day the suite runs.
 
     # Catches: a real review being refused.
     plan = write_plan(t, s2=REVIEW)
@@ -176,6 +179,56 @@ with tempfile.TemporaryDirectory() as t:
     check("a claimed evaluator with no general-purpose dispatch exits 1",
           rc == 1 and "general-purpose" in out, f"rc={rc} {out}")
 
+    # Catches (review I2): a task worker of the claimed type satisfying an evaluator claim —
+    # the dispatch must name the stage and the role in its description.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "general-purpose",
+                              "Task 2.1: build the parser")])
+    rc, out = run("--plan", plan3, "--stage", 2, "--repo", repo)
+    check("a task worker of the claimed type does not satisfy an evaluator claim",
+          rc == 1, f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "general-purpose",
+                              "Stage 2 gate evaluator")])
+    rc, out = run("--plan", plan3, "--stage", 2, "--repo", repo)
+    check("a dispatch naming the stage and the evaluator role satisfies it", rc == 0,
+          f"rc={rc} {out}")
+    # A per-task (Tier-1) review of the same type is not the stage's Tier-2 pass.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 Task 2.1 quick review")])
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
+    check("a per-task review dispatch does not satisfy a stage Tier-2 claim", rc == 1,
+          f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 3 Tier-2 review")])
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
+    check("a review dispatch naming another stage does not count", rc == 1, f"rc={rc} {out}")
+
+    # Catches (review I1): the type read from text after the verdict.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")])
+    plan_i1 = write_plan(t, s2=REVIEW + "; 2 Suggestions carried over to the backlog")
+    rc, out = run("--plan", plan_i1, "--stage", 2, "--repo", repo)
+    check("an honest line with a second `over` after the verdict is read correctly",
+          rc == 0, f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "general-purpose",
+                              "Stage 2 Tier-2 review")])
+    plan_i1b = write_plan(t, s2="review: Tier-2 inline — APPROVE; general-purpose over x")
+    rc, out = run("--plan", plan_i1b, "--stage", 2, "--repo", repo)
+    check("a type placed after the verdict is not read as the claim's agent", rc == 1,
+          f"rc={rc} {out}")
+
+    # Catches (review S1): SUBSTITUTED anywhere on the line exempting a dispatch claim.
+    write_log(repo, [])
+    plan_s1 = write_plan(t, s2=REVIEW + " (not SUBSTITUTED)")
+    rc, out = run("--plan", plan_s1, "--stage", 2, "--repo", repo)
+    check("SUBSTITUTED after the verdict does not exempt the claim", rc == 1, f"rc={rc} {out}")
+
+    # Catches (review I3): ledger lines in another case or under a list marker read as none.
+    write_log(repo, [])
+    for form in ("- **Review:** Tier-2 git-github:code-reviewer over a..HEAD — APPROVE",
+                 "1. review: Tier-2 git-github:code-reviewer over a..HEAD — APPROVE"):
+        rc, out = run("--plan", write_plan(t, s2=form), "--stage", 2, "--repo", repo)
+        check(f"a ledger line is read under its markup: {form[:24]!r}", rc == 1,
+              f"rc={rc} {out}")
+
     # Catches: a claim dodging the grammar — a verdict with no named dispatched agent.
     plan4 = write_plan(t, s2="review: Tier-2 deep review done — APPROVE, 0 Critical")
     rc, out = run("--plan", plan4, "--stage", 2, "--repo", repo)
@@ -194,6 +247,13 @@ with tempfile.TemporaryDirectory() as t:
     rc, out = run("--plan", plan6, "--stage", 2, "--repo", repo)
     check("a SUBSTITUTED line passes with no dispatch", rc == 0, f"rc={rc} {out}")
 
+    # Catches (review I3): no ledger line at all reading as checked.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")])
+    rc, out = run("--plan", write_plan(t, s2="nothing about reviews here"), "--stage", 2,
+                  "--repo", repo)
+    check("no review: or evaluator: line exits 3 (NOT CHECKED), never 0",
+          rc == 3 and "NOT CHECKED" in out, f"rc={rc} {out}")
+
     # Catches: a draft report (--report) being ignored in favour of the plan.
     draft = Path(t) / "draft.txt"
     draft.write_text(REVIEW + "\n")
@@ -204,7 +264,8 @@ with tempfile.TemporaryDirectory() as t:
 
     # Catches: Stage 1 having no previous green commit to bound it — the log's start is the bound.
     plan8 = write_plan(t, s1=REVIEW)
-    write_log(repo, [dispatch("2026-10-06T09:00:00+00:00", "git-github:code-reviewer")])
+    write_log(repo, [dispatch("2026-10-06T09:00:00+00:00", "git-github:code-reviewer",
+                              "Stage 1 Tier-2 review")])
     rc, out = run("--plan", plan8, "--stage", 1, "--repo", repo)
     check("Stage 1 counts from the log's start", rc == 0, f"rc={rc} {out}")
 
@@ -235,7 +296,7 @@ with tempfile.TemporaryDirectory() as t:
     env = {**os.environ, "CLAUDE_PROJECT_DIR": str(repo)}
     for payload in (
         {"session_id": "s", "hook_event_name": "PreToolUse", "tool_name": "Agent",
-         "tool_input": {"subagent_type": "git-github:code-reviewer", "description": "Stage 2",
+         "tool_input": {"subagent_type": "git-github:code-reviewer", "description": "Stage 2 Tier-2 review",
                         "prompt": "p"}},
         {"session_id": "s", "hook_event_name": "SubagentStart", "agent_id": "h1",
          "agent_type": "git-github:code-reviewer"},
@@ -244,9 +305,38 @@ with tempfile.TemporaryDirectory() as t:
                        capture_output=True)
     rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
     check("a log written by the real hook satisfies a matching claim", rc == 0, f"rc={rc} {out}")
+    # And with the green commit an hour ago rather than at a fixed date.
+    hour_ago = (datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(hours=1)).isoformat(timespec="seconds")
+    commit(repo, "Stage 1 green", hour_ago)
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
+    check("...also when the green commit is relative to now", rc == 0, f"rc={rc} {out}")
     rc, out = run("--unstopped", "--repo", repo)
     check("a start written by the real hook, with no stop, is listed by --unstopped",
           rc == 1 and "h1" in out, f"rc={rc} {out}")
+
+    # Catches (review S4): the window opening at an OLDER `Stage 1 green` (an earlier plan's).
+    repo3 = Path(t) / "r3"
+    repo3.mkdir()
+    git(repo3, "init", "-q", "-b", "work")
+    (repo3 / ".claude").mkdir()
+    (repo3 / "f").write_text("0\n")
+    git(repo3, "add", "f")
+    git(repo3, "commit", "-q", "-m", "base", date="2026-10-01T08:00:00+00:00")
+    commit(repo3, "Stage 1 green", "2026-10-01T09:00:00+00:00")
+    commit(repo3, "Stage 1 green", "2026-10-06T10:00:00+00:00")
+    write_log(repo3, [dispatch("2026-10-03T10:00:00+00:00", "git-github:code-reviewer")])
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo3)
+    check("the window opens at the NEWEST `Stage N-1 green` commit", rc == 1, f"rc={rc} {out}")
+
+    # Catches (review S2): unreadable input escaping the documented usage exit.
+    bad = Path(t) / "bad.txt"
+    bad.write_bytes(b"\xff\xfe review: \x80\n")
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo3, "--report", Path(t) / "nope")
+    check("an unreadable --report exits 2", rc == 2, f"rc={rc} {out}")
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo3, "--report", bad)
+    check("an undecodable --report is read, not a traceback", rc in (0, 1, 3)
+          and "Traceback" not in out, f"rc={rc} {out}")
 
     # Catches: a missing Stage N-1 green commit silently widening the window.
     repo2 = Path(t) / "r2"

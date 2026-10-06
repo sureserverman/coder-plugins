@@ -21,12 +21,25 @@ GATE MODE (--plan --stage). Reads Stage N's `review:` and `evaluator:` lines —
                      a disclosed deviation, valid whatever the log says)
   a scope statement  a line stating no verdict ("review: Tier-2 not run — tier none")
 
-A review line that states a verdict (APPROVE, PASS, FAIL, Critical, …) but fits
-neither of the first two shapes is refused: a claim cannot leave the check by
-leaving the grammar. Each claim needs its own `dispatch` line of that subagent_type
-logged at or after the previous stage's `Stage N-1 green` commit (the newest commit
-with that subject; for Stage 1, the log's start). Two claimed passes of one type
-need two dispatches.
+The agent and SUBSTITUTED are read from the line's head — the text before the first
+` — ` — so nothing written after the verdict can supply either. Prefixes are read in
+any case and under list markers or bold. A review line that states a verdict
+(APPROVE, PASS, FAIL, Critical, …) but fits neither of the first two shapes is
+refused. A stage with no ledger line at all is NOT CHECKED (exit 3): a gate report
+states every review, run or not.
+
+Each claim needs its own `dispatch` line of that subagent_type whose description names
+`Stage N` and the claim's role (review / pass, or evaluator) and names no `Task N.M`,
+logged at or after the newest `Stage N-1 green` commit (for Stage 1, the log's start).
+So the executor writes the dispatch description as `Stage N Tier-2 review` or
+`Stage N gate evaluator`. Two claimed passes need two dispatches.
+
+WHAT THIS DOES NOT DO. It cannot tell whether the agent was briefed on the right diff,
+or whether the verdict quoted is the one it returned — only that a dispatch of the
+claimed type and role happened in the stage's window. The window rests on the newest
+commit with the exact subject `Stage N-1 green`: a missing or reworded commit from this
+plan lets an older plan's commit open it, and a log left behind by a plan whose
+close-out never ran satisfies Stage 1 claims.
 
 UNSTOPPED MODE (--unstopped). Lists every agent with a `start` line and no `stop`
 line — an agent still running after the run that started it used its result.
@@ -34,7 +47,8 @@ line — an agent still running after the run that started it used its result.
 EXIT CODES: 0 every claim matched / no agent left running · 1 a claimed dispatch
 has no match, a verdict line names no agent, or an agent is still running (each
 named) · 2 usage error (no Stage N section, no `Stage N-1 green` commit, unreadable
-input) · 3 NOT RUN — the dispatch log is missing, so nothing was checked; never 0.
+input, no git) · 3 NOT RUN — the dispatch log is missing — or NOT CHECKED — no
+review: or evaluator: line for the stage; never 0.
 """
 import argparse
 import datetime
@@ -49,8 +63,19 @@ LOG = Path(".claude") / "dispatch-log.jsonl"
 _STALE = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "_staleness.py"
 VERDICT = re.compile(r"\b(APPROVE\w*|REQUEST[_ -]CHANGES|PASS(ED)?|FAIL(ED)?|Critical|"
                      r"Important|Blocking|Material|findings?)\b")
-REVIEW_CLAIM = re.compile(r"^review:\s+(?:.*\s)?(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)\s+over\s+\S")
-EVALUATOR_CLAIM = re.compile(r"^evaluator:\s+(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)\s+in\s+the\s")
+TYPE = r"(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)"
+# Matched against the line's HEAD only — the text before the first ` — ` — so nothing
+# written after the verdict ("… carried over to the backlog") can be read as the agent.
+REVIEW_CLAIM = re.compile(rf"^review:\s+(?:[^—]*?\s)?{TYPE}\s+over\s+\S+\s*$")
+EVALUATOR_CLAIM = re.compile(rf"^evaluator:\s+{TYPE}\s+in\s+the\s")
+VERDICT_SEP = re.compile(r"\s+(?:—|--)\s+")
+LEDGER_PREFIX = re.compile(r"^(review|evaluator)\s*:", re.I)
+LIST_MARKER = re.compile(r"^(?:[-*+>]|\d+[.)])\s+")
+# A dispatch counts toward a stage's claim only when its description names that stage and
+# the claim's role; one naming a task (`Task 2.1`) is per-task work, never the stage's pass.
+ROLE = {"review": re.compile(r"review|pass", re.I),
+        "evaluator": re.compile(r"evaluat", re.I)}
+TASK_REF = re.compile(r"\bTask\s+\d+\.\d+\b", re.I)
 
 
 def _warn_if_stale():
@@ -97,22 +122,33 @@ def stage_section(plan_text, stage):
 
 
 def ledger_lines(text):
+    """Every review:/evaluator: line, whatever its case, list marker or emphasis, normalised
+    to a lowercase prefix with the markup removed."""
     out = []
     for raw in text.splitlines():
-        line = raw.strip().lstrip("-*> ").strip().strip("`").strip()
-        if re.match(r"^(review|evaluator):", line):
-            out.append(line)
+        line = LIST_MARKER.sub("", raw.strip()).replace("**", "").strip().strip("`").strip()
+        m = LEDGER_PREFIX.match(line)
+        if m:
+            out.append(m.group(1).lower() + ":" + line[m.end():])
     return out
 
 
 def classify(line):
-    """('claim', type) | ('substituted', None) | ('scope', None) | ('unnamed', None)."""
-    if "SUBSTITUTED" in line:
-        return "substituted", None
-    m = REVIEW_CLAIM.match(line) or EVALUATOR_CLAIM.match(line)
+    """('claim', role, type) | ('substituted', …) | ('scope', …) | ('unnamed', …)."""
+    head = VERDICT_SEP.split(line, maxsplit=1)[0]
+    role = "evaluator" if line.startswith("evaluator:") else "review"
+    if "SUBSTITUTED" in head:
+        return "substituted", role, None
+    m = REVIEW_CLAIM.match(head) or EVALUATOR_CLAIM.match(head)
     if m:
-        return "claim", m.group("type")
-    return ("unnamed", None) if VERDICT.search(line) else ("scope", None)
+        return "claim", role, m.group("type")
+    return ("unnamed" if VERDICT.search(line) else "scope"), role, None
+
+
+def counts_for(row, stage, role):
+    d = row.get("description") or ""
+    return (re.search(rf"\bStage\s+{stage}\b", d, re.I) is not None
+            and ROLE[role].search(d) is not None and not TASK_REF.search(d))
 
 
 def previous_green(repo, stage):
@@ -120,8 +156,11 @@ def previous_green(repo, stage):
     if stage <= 1:
         return None
     subject = f"Stage {stage - 1} green"
-    r = subprocess.run(["git", "-C", str(repo), "log", "--format=%cI%x09%s", "HEAD"],
-                       capture_output=True, text=True)
+    try:
+        r = subprocess.run(["git", "-C", str(repo), "log", "--format=%cI%x09%s", "HEAD"],
+                           capture_output=True, text=True)
+    except OSError as e:
+        raise Usage(f"cannot run git: {e}")
     if r.returncode != 0:
         raise Usage(f"git log failed in {repo}: {r.stderr.strip()}")
     for row in r.stdout.splitlines():
@@ -135,7 +174,8 @@ def previous_green(repo, stage):
 def gate(args):
     if args.report:
         try:
-            text = sys.stdin.read() if args.report == "-" else Path(args.report).read_text()
+            text = (sys.stdin.read() if args.report == "-"
+                    else Path(args.report).read_text(errors="replace"))
         except OSError as e:
             raise Usage(f"cannot read --report {args.report}: {e}")
     else:
@@ -145,13 +185,21 @@ def gate(args):
             raise Usage(f"cannot read plan {args.plan}: {e}")
     lines = ledger_lines(text)
     since = previous_green(args.repo, args.stage)
-    rows = read_log(args.repo)
+    try:
+        rows = read_log(args.repo)
+    except OSError as e:
+        raise Usage(f"cannot read the dispatch log: {e}")
     if rows is None:
         print(f"NOT RUN — no dispatch log at {Path(args.repo) / LOG}; no claimed review was "
               "checked. The hook (hooks/dispatch-log.sh) writes it only while "
               ".claude/plan-progress.json exists.")
         return 3
-    pool = {}
+    if not lines:
+        print(f"NOT CHECKED — no review: or evaluator: line for Stage {args.stage} "
+              f"({'--report' if args.report else 'the plan section'}). A gate states every "
+              "review, run or not; pass the draft report with --report.")
+        return 3
+    pool = []
     for r in rows:
         if r.get("event") != "dispatch":
             continue
@@ -160,16 +208,19 @@ def gate(args):
         except (TypeError, ValueError):
             continue
         if since is None or when >= since:
-            pool[r.get("subagent_type")] = pool.get(r.get("subagent_type"), 0) + 1
+            pool.append(r)
     bad = []
     for line in lines:
-        kind, stype = classify(line)
+        kind, role, stype = classify(line)
         if kind == "claim":
-            if pool.get(stype, 0) > 0:
-                pool[stype] -= 1
-                print(f"  matched      {stype}: {line[:100]}")
+            hit = next((r for r in pool if r.get("subagent_type") == stype
+                        and counts_for(r, args.stage, role)), None)
+            if hit is not None:
+                pool.remove(hit)
+                print(f"  matched      {stype} ({hit.get('description')}): {line[:90]}")
             else:
-                bad.append(f"no `{stype}` dispatch logged since "
+                bad.append(f"no `{stype}` dispatch whose description names Stage {args.stage} "
+                           f"and the {role} role, logged since "
                            f"{'the log start' if since is None else since.isoformat()}: {line}")
         elif kind == "unnamed":
             bad.append(f"states a verdict but names no dispatched agent "
@@ -178,13 +229,14 @@ def gate(args):
             print(f"  {kind:<12} {line[:100]}")
     for b in bad:
         print(f"  UNMATCHED    {b}")
-    if not lines:
-        print(f"  (no review: or evaluator: lines for Stage {args.stage})")
     return 1 if bad else 0
 
 
 def unstopped(args):
-    rows = read_log(args.repo)
+    try:
+        rows = read_log(args.repo)
+    except OSError as e:
+        raise Usage(f"cannot read the dispatch log: {e}")
     if rows is None:
         print(f"NOT RUN — no dispatch log at {Path(args.repo) / LOG}")
         return 3
