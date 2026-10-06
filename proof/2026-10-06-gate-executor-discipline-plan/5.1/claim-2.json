@@ -1,0 +1,11 @@
+{
+ "created": "2026-10-06T16:00:08+00:00",
+ "fingerprint": "71cddb487ee1bca8e42612f01871b12b00c8031c65260ece9057158caaff002d",
+ "index": 2,
+ "kind": "claim-deviation",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "schema": 2,
+ "task": "5.1",
+ "text": "every new script, hook and suite is documented (red if one is not)",
+ "why": "check-doc-coverage.py scans skills/agents/commands, hooks.json and .mcp.json, never hook scripts or scripts/*.py, and the README names no test suites by convention, so no README break turns the plan's Test command red. Observed by the executor 2026-10-06: with every mention of dispatch-log.sh and review-ledger-check.py removed from planning/README.md, check-doc-coverage.py still exited 0. Covered instead by the task test's added grep: both names present in planning/README.md (exit 0), absent before the task (README had neither)."
+}
