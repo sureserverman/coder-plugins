@@ -8,7 +8,7 @@ ledger; it cannot and does not verify that a close-out obeys them. The ledger
 itself lives in gate-report prose that no script reads (DEC-022), so what IS
 mechanically checkable is that the rule is stated where it is consumed.
 
-What it pins (BL-093 + the report-line half of BL-094):
+What it pins (BL-093 + the report-line half of BL-094, and BL-105 (b) in 4-6):
   1. master-plans.md step 5 reconciles the review ledger plan-wide — for each
      sub-plan, which tiers ran, over which diff, and a count against what the
      declared tier owed — in the literal `reviews: <n> of <owed>` form, and the
@@ -23,6 +23,14 @@ What it pins (BL-093 + the report-line half of BL-094):
      honest-gates § Reporting for what that changes rather than restating the
      BLOCKED rule — the one negative check here, since the requirement's subject
      is an absence.
+
+  4. stage-gate.md § The dispatched-vs-inline review ledger runs review-ledger-check.py
+     once per gate entry: the review line names the subagent type it dispatched, exit 1
+     fails the gate (never softened to advisory), exit 3 is reported NOT RUN, never green.
+  5. close-out.md and session-handoff.md § On `handoff` both run `--unstopped` before
+     reporting — an agent still running is named, not left behind.
+  6. close-out.md § Last step deletes `.claude/dispatch-log.jsonl` beside the state file,
+     so a log never outlives its run and satisfies the next plan's claims.
 
 Deliberately small — one assertion per rule. These catch DELETION of a rule,
 which is the failure that actually happens; they do not pretend to catch every
@@ -39,6 +47,7 @@ REFS = os.path.join(SKILL_DIR, "references")
 MASTER = os.path.join(REFS, "master-plans.md")
 CLOSEOUT = os.path.join(REFS, "close-out.md")
 STAGEGATE = os.path.join(REFS, "stage-gate.md")
+HANDOFF = os.path.join(REFS, "session-handoff.md")
 HELPER = os.path.join(HERE, "test-gate-remediation-contract.py")
 
 
@@ -166,6 +175,54 @@ def main():
           re.search(r"^evidence: .*— host.*— container.*— target device", review_line, re.M)
           is not None,
           "no `evidence: … — host … — container … — target device` example line")
+
+    # --- 4. stage-gate.md: the ledger is checked against the dispatch log (BL-105 b) ------
+    ledger = section(stagegate, r"^## The dispatched-vs-inline review ledger", r"^## ")
+    check("stage-gate ledger section located", bool(ledger))
+    check("stage-gate ledger: the review line names the subagent type it dispatched",
+          affirms_claim(ledger, ws(r"names the subagent type it dispatched")),
+          "no non-negated 'names the subagent type it dispatched' clause")
+    check("stage-gate ledger: review-ledger-check.py runs once per gate entry",
+          "review-ledger-check.py" in ledger
+          and affirms_claim(ledger, ws(r"once per gate entry")),
+          "review-ledger-check.py / 'once per gate entry' absent or negated")
+    fails = [m for m in re.finditer(ws(r"exit 1 fails the gate"), ledger)]
+    sentence = ""
+    if fails:
+        m = fails[0]
+        s = ledger.rfind(".", 0, m.start())
+        e = ledger.find(".", m.end())
+        sentence = ledger[s + 1: e if e != -1 else len(ledger)]
+    check("stage-gate ledger: exit 1 fails the gate, never softened to advisory",
+          bool(fails) and affirms_claim(ledger, ws(r"exit 1 fails the gate"))
+          and not re.search(r"advisory|warn", sentence, re.I),
+          f"'exit 1 fails the gate' absent, negated or advisory: {sentence[:120]!r}")
+    check("stage-gate ledger: exit 3 is reported NOT RUN, never green",
+          re.search(ws(r"exit 3 is reported as NOT RUN, never green"), ledger) is not None,
+          "'exit 3 is reported as NOT RUN, never green' absent")
+
+    # --- 5. close-out and handoff run --unstopped before reporting ----------------------
+    handoff = read(HANDOFF)
+    on_handoff = section(handoff, r"^## On `handoff`", r"^## ")
+    check("close-out runs review-ledger-check.py --unstopped",
+          re.search(r"review-ledger-check\.py[^\n`]*--unstopped", closeout) is not None,
+          "no `review-ledger-check.py … --unstopped` in close-out.md")
+    check("handoff runs review-ledger-check.py --unstopped",
+          bool(on_handoff)
+          and re.search(r"review-ledger-check\.py[^\n`]*--unstopped", on_handoff) is not None,
+          "no `review-ledger-check.py … --unstopped` under session-handoff.md § On `handoff`")
+    pos_unstopped = closeout.find("--unstopped")
+    pos_report = closeout.find("9. Report to the user")
+    check("close-out: --unstopped runs before the report",
+          pos_unstopped != -1 and pos_report != -1 and pos_unstopped < pos_report,
+          f"--unstopped at {pos_unstopped}, report step at {pos_report}")
+
+    # --- 6. close-out deletes the log -----------------------------------------------------
+    last = section(closeout, r"^## Last step, every close-out", r"^## ")
+    check("close-out last step deletes .claude/dispatch-log.jsonl",
+          ".claude/dispatch-log.jsonl" in last
+          and affirms_claim(last, ws(r"Delete `\.claude/plan-progress\.json`")),
+          "the last step does not name `.claude/dispatch-log.jsonl` beside the state file")
 
     print()
     if FAILED:

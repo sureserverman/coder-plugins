@@ -104,6 +104,12 @@ procedure. Work the steps in order.
    branch. **Any `Removed` finding the audit reports that the plan did not declare is a
    regression — stop and escalate before merge.** Surface every `Moved`/`Modified` finding for
    explicit user review.
+   **Then, before the report — agents left running.** From the repo root run
+   `python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py --unstopped --repo <repo root>`.
+   It lists each agent the dispatch log shows starting and never stopping. Exit 1 → name each
+   one in the report by id and type, the way a `[~]` gate is named. Exit 3 (no log) → the
+   report says `unstopped: NOT RUN`.
+
 9. Report to the user with:
    - Stages completed
    - Total commits
@@ -211,6 +217,7 @@ sub-plan that never closed.
 
 ## Last step, every close-out
 
-Delete `.claude/plan-progress.json` once the report is out. This applies to every close-out,
+Delete `.claude/plan-progress.json` once the report is out, and `.claude/dispatch-log.jsonl`
+beside it, so the next plan's review claims are checked against a log of its own run. This applies to every close-out,
 blocked or clean — it is a `##` section rather than a trailing line because it previously sat
 inside the blocked-gate section, where a reader working an unblocked plan never reached it.

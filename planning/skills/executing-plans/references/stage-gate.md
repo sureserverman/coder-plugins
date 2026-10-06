@@ -475,6 +475,30 @@ failed probe to an inline review and a ledger line has recorded the deviation an
 decision, which is the half that was never the executor's. *"I judged it unnecessary"* and
 *"the diff looked small"* are the same move with less paperwork.
 
+### Checked against the dispatch log
+
+The review line names the subagent type it dispatched, because that type is what the check
+matches: `review: Tier-2 git-github:code-reviewer over <base>..HEAD — …`, `evaluator:
+general-purpose in the goal-evaluator role …`. While a plan is in flight,
+`../../../hooks/dispatch-log.sh` appends every `Agent` dispatch, subagent start and subagent
+stop to `.claude/dispatch-log.jsonl` (the hook gathers; the script decides — DEC-027). Run the
+check once per gate entry, from the repo root, before the gate report is final:
+
+```
+python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py \
+  --plan <plan> --stage <N> --repo <repo root> [--report <draft gate report>]
+```
+
+Each claimed review needs its own `dispatch` line of that type, logged since the previous
+`Stage N-1 green` commit (for Stage 1, since the log began). Its exit 1 fails the gate. The
+failure names the claim: run the review it claims, or rewrite the line as the substitution it
+was, with the user's words. A review line that states a verdict but names no agent is
+refused as well, so a claim cannot leave the check by leaving the grammar. Its exit 3 is
+reported as NOT RUN, never green: no log means nothing was compared (the hook is not loaded,
+or no state file existed when the review was dispatched). A `SUBSTITUTED` line needs no
+dispatch — it is the disclosed path above. The check is a command, so it runs at every tier;
+its position (DEC-017) is once per gate entry.
+
 ## A review fix does not re-earn the full pass
 
 `../../planning-projects/references/test-scope-tiers.md` has said this since it was written:
