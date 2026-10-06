@@ -133,7 +133,8 @@ E="$T/nopy"; mkrepo "$E" plan; mkdir -p "$T/bin"
 for b in bash cat; do ln -sf "$(command -v $b)" "$T/bin/$b"; done
 dispatch_payload general-purpose > "$T/payload.json"
 CLAUDE_PROJECT_DIR="$E" PATH="$T/bin" "$T/bin/bash" "$HOOK" < "$T/payload.json" >"$T/out" 2>&1; rc=$?
-[ "$rc" = 0 ] && [ ! -s "$T/out" ] && ok "with no python3 it exits 0 silently" \
+[ "$rc" = 0 ] && [ ! -s "$T/out" ] && [ ! -e "$E/.claude/dispatch-log.jsonl" ] \
+    && ok "with no python3 it exits 0 silently" \
     || bad "with no python3 it exits 0 silently" "rc=$rc $(cat "$T/out")"
 
 # Catches: no project dir at all failing closed.

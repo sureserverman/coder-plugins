@@ -616,7 +616,8 @@ news.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
 **Remediation budget — default 2 rounds per gate.** A plan may override it, and the gate
-report states the count. **A re-dispatched review or evaluator is a round.**
+report states the count. **A re-dispatched review or evaluator is a round** (an unread
+redesign's review is not — `references/gate-failure-procedure.md`).
 **Before dispatching a further round, run `scripts/plan-progress.py --budget-check` from the repo root** —
 untiered per DEC-010 and DEC-017, a command not a dispatch. **It binds only on a recorded round.**
 Non-zero means exhausted: escalate with the residual list, never another round — a Stop

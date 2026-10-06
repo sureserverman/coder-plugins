@@ -17,19 +17,22 @@ GATE MODE (--plan --stage). Reads Stage N's `review:` and `evaluator:` lines —
 
   a dispatch claim   review: <label> <subagent_type> over <range> — <verdict>
                      evaluator: <subagent_type> in the <role> role … — <verdict>
-  a substitution     any line containing SUBSTITUTED — needs no dispatch (DEC-019:
+  a substitution     SUBSTITUTED in the line's head — needs no dispatch (DEC-019:
                      a disclosed deviation, valid whatever the log says)
-  a scope statement  a line stating no verdict ("review: Tier-2 not run — tier none")
+  a scope statement  a line naming no agent that says why no review ran — `not run`,
+                     `not mandated`, an `opt-out`, a `trivial` diff
+                     ("review: Tier-2 not run — tier none")
 
 The agent and SUBSTITUTED are read from the line's head — the text before the first
 ` — ` — so nothing written after the verdict can supply either. Prefixes are read in
-any case and under list markers or bold. A review line that states a verdict
-(APPROVE, PASS, FAIL, Critical, …) but fits neither of the first two shapes is
-refused. A stage with no ledger line at all is NOT CHECKED (exit 3): a gate report
+any case and under list markers or bold. Any other line is refused: "looked at the diff,
+clean" claims a review whatever words it uses. Text may follow the range ("over a..b
+(round 2): APPROVE"). The task field `Review: required` / `Review: skip` is not a ledger
+line. A stage with no ledger line at all is NOT CHECKED (exit 3): a gate report
 states every review, run or not.
 
 Each claim needs its own `dispatch` line of that subagent_type whose description names
-`Stage N` and the claim's role (review / pass, or evaluator) and names no `Task N.M`,
+`Stage N` and the claim's role (the word review or pass, or evaluator) and names no `Task N.M`,
 logged at or after the newest `Stage N-1 green` commit (for Stage 1, the log's start).
 So the executor writes the dispatch description as `Stage N Tier-2 review` or
 `Stage N gate evaluator`. Two claimed passes need two dispatches.
@@ -61,19 +64,26 @@ from pathlib import Path
 
 LOG = Path(".claude") / "dispatch-log.jsonl"
 _STALE = Path(__file__).resolve().parents[2] / "portfolio" / "scripts" / "_staleness.py"
-VERDICT = re.compile(r"\b(APPROVE\w*|REQUEST[_ -]CHANGES|PASS(ED)?|FAIL(ED)?|Critical|"
-                     r"Important|Blocking|Material|findings?)\b")
+# A line naming no agent is a scope statement only when it says why no review ran: the tier
+# did not mandate it, an evidenced opt-out, or a trivial diff (stage-gate.md § The gate
+# report's review line). Anything else naming no agent is refused — "looked at it, clean" is
+# a claim of a review, whatever words it uses.
+SCOPE_REASON = re.compile(r"\bnot run\b|\bnot mandated\b|\bmandates? none\b|\bopt-?out\b|"
+                          r"\btrivial\b", re.I)
 TYPE = r"(?P<type>[A-Za-z][\w.-]*(?::[\w.-]+)?)"
 # Matched against the line's HEAD only — the text before the first ` — ` — so nothing
 # written after the verdict ("… carried over to the backlog") can be read as the agent.
-REVIEW_CLAIM = re.compile(rf"^review:\s+(?:[^—]*?\s)?{TYPE}\s+over\s+\S+\s*$")
+REVIEW_CLAIM = re.compile(rf"^review:\s+(?:[^—]*?[\s(])?{TYPE}\s+over\s+\S")
 EVALUATOR_CLAIM = re.compile(rf"^evaluator:\s+{TYPE}\s+in\s+the\s")
 VERDICT_SEP = re.compile(r"\s+(?:—|--)\s+")
 LEDGER_PREFIX = re.compile(r"^(review|evaluator)\s*:", re.I)
+# The task field `Review: required` / `Review: skip` (task-fields.md) shares the prefix and is
+# never a ledger line.
+TASK_FIELD = re.compile(r"^review:\s*(required|skip)\b", re.I)
 LIST_MARKER = re.compile(r"^(?:[-*+>]|\d+[.)])\s+")
 # A dispatch counts toward a stage's claim only when its description names that stage and
 # the claim's role; one naming a task (`Task 2.1`) is per-task work, never the stage's pass.
-ROLE = {"review": re.compile(r"review|pass", re.I),
+ROLE = {"review": re.compile(r"\breview|\bpass\b", re.I),
         "evaluator": re.compile(r"evaluat", re.I)}
 TASK_REF = re.compile(r"\bTask\s+\d+\.\d+\b", re.I)
 
@@ -128,7 +138,7 @@ def ledger_lines(text):
     for raw in text.splitlines():
         line = LIST_MARKER.sub("", raw.strip()).replace("**", "").strip().strip("`").strip()
         m = LEDGER_PREFIX.match(line)
-        if m:
+        if m and not TASK_FIELD.match(line):
             out.append(m.group(1).lower() + ":" + line[m.end():])
     return out
 
@@ -142,7 +152,7 @@ def classify(line):
     m = REVIEW_CLAIM.match(head) or EVALUATOR_CLAIM.match(head)
     if m:
         return "claim", role, m.group("type")
-    return ("unnamed" if VERDICT.search(line) else "scope"), role, None
+    return ("scope" if SCOPE_REASON.search(line) else "unnamed"), role, None
 
 
 def counts_for(row, stage, role):
@@ -223,8 +233,9 @@ def gate(args):
                            f"and the {role} role, logged since "
                            f"{'the log start' if since is None else since.isoformat()}: {line}")
         elif kind == "unnamed":
-            bad.append(f"states a verdict but names no dispatched agent "
-                       f"(`<label> <subagent_type> over <range>`): {line}")
+            bad.append(f"names no dispatched agent as `<subagent_type> over <range>` before its "
+                       f"first ` — `, and gives no reason a review did not run (not run, "
+                       f"not mandated, opt-out, trivial): {line}")
         else:
             print(f"  {kind:<12} {line[:100]}")
     for b in bad:

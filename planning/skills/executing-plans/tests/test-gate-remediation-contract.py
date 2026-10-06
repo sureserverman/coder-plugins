@@ -1655,6 +1655,31 @@ def main():
           and "`round K: redesign — battery <name>`" in redesign,
           "the record form is unspecified")
 
+    # 16b. (redesign review B1, B3) Both exceptions pinned, the one-review rule, the
+    #      termination sentence, and the cross-references at the sites that count rounds.
+    check("redesign: second exception — owed though nothing Blocking was fixed",
+          affirms_claim(redesign, ws(r"it is owed though nothing Blocking was fixed")),
+          "the second exception is absent, leaving a false 'two rules'")
+    check("redesign: every unread redesign of the gate goes into the one review",
+          affirms_claim(redesign, ws(r"Every unread redesign of the gate goes into that one review")),
+          "several unread redesigns could each buy a review")
+    check("redesign: a redesign answering this review is named unread, so the loop ends on the budget",
+          "`round K: redesign — unread`" in redesign
+          and re.search(ws(r"the loop ends on the budget"), redesign) is not None,
+          "a redesign answering the review could buy another review, without end")
+    stagegate_text = (SKILL.parent / "references" / "stage-gate.md").read_text(encoding="utf-8")
+    for site, text in (
+            ("SKILL.md budget", SKILL.read_text(encoding="utf-8")),
+            ("gate-failure-procedure.md budget", gfp),
+            ("stage-gate.md", stagegate_text)):
+        check(f"cross-reference to the redesign exception at {site}",
+              re.search(ws(r"A redesign the gate closes on"), text) is not None
+              or re.search(ws(r"unread redesign"), text) is not None,
+              f"{site} counts rounds or re-dispatches with no pointer to the redesign exception")
+    check("stage-gate.md: both round-counting sites point at the exception",
+          len(re.findall(ws(r"A redesign the gate closes on"), stagegate_text)) >= 2,
+          "one of stage-gate.md's two round/re-dispatch rules lacks the pointer")
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")

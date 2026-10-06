@@ -129,9 +129,10 @@ the background tasks and agents the run started, stop each whose result was used
 each one still running in the report (`close-out.md`, `session-handoff.md` § On `handoff`).
 The list is kept from the ids the launches returned: each background command's launch result
 and completion notification carry its task id, and `TaskStop` takes that id or an agent's id.
-Claude Code 2.1.291 has no tool that lists them afterwards, so an id not noted at launch is
-an id to recover from the transcript, and `review-ledger-check.py --unstopped` lists the
-agents the dispatch log saw start and never stop.
+As of Claude Code 2.1.291 (2026-10) no tool lists them afterwards, so note each id when it is
+launched — in the gate report, and in the `RESUME HERE` block's `running:` line at a handoff,
+since a successor session has no transcript to recover them from. For agents,
+`review-ledger-check.py --unstopped` lists those the dispatch log saw start and never stop.
 A background subagent's own commands keep running after the subagent returns, so a result in
 hand is not proof the work behind it stopped.
 
@@ -146,7 +147,9 @@ the per-task opt-in that buys one risky task a review without raising the whole 
 A `high` declaration naming no tasks binds all of them; an ordinary task in a `high` plan
 whose own diff touches nothing risk-listed does **not** run Tier 1, and the gate report
 records that as scope (`Tier-1: not run — tier high, task not risk-listed`), never as an
-opt-out.
+opt-out. Describe a Tier-1 dispatch by its task (`Stage 2 Task 2.3 quick review`): the ledger
+check never counts a dispatch naming a task toward the stage's Tier-2 claim
+(`stage-gate.md` § Checked against the dispatch log).
 
 **Why the default moved.** Per-task review was unconditional through 0.36.0, so a nine-task
 plan paid nine review dispatches plus their re-dispatches after fixes, and the findings were

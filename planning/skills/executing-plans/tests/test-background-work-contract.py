@@ -91,6 +91,19 @@ def main():
           and affirms_claim(wait, ws(r"matches the shell whose command line holds the pattern")),
           "`pgrep -f` … 'matches the shell whose command line holds the pattern' absent or negated")
 
+    check("task-execution: the self-excluding name search is given",
+          "`pgrep -f '[r]un-tests.sh'`" in wait,
+          "the `[r]un-tests.sh` remedy is gone, leaving only the broken loop")
+    check("task-execution: ids are kept from what the launches returned",
+          affirms_claim(wait, ws(r"The list is kept from the ids the launches returned"))
+          and "`TaskStop`" in wait,
+          "the definition close-out and handoff point at is gone")
+    check("task-execution: ids are noted at launch, where a successor can read them",
+          affirms_claim(wait, ws(r"note each id when it is launched")),
+          "ids are left to a transcript a successor session does not have")
+    check("task-execution: --unstopped is named for agents",
+          "review-ledger-check.py --unstopped" in wait, "the agent lister is unnamed")
+
     # --- 2. the reap step at close-out and handoff --------------------------------------
     closeout = read(CLOSEOUT)
     handoff = section(read(HANDOFF), r"^## On `handoff`", r"^## ")
@@ -100,8 +113,8 @@ def main():
               and affirms_claim(text, ws(r"by the id each launch result")),
               "'list the background tasks and agents this run started … by the id each launch "
               "result' absent")
-        check(f"{name}: does not send the executor to a `TaskList` tool the host lacks",
-              "`TaskList`" not in text, "`TaskList` named as the listing tool")
+        check(f"{name}: does not send the executor to a TaskList tool the host lacks",
+              "TaskList" not in text, "TaskList named as the listing tool")
         check(f"{name}: stops each whose result was used with `TaskStop`",
               "`TaskStop`" in text and affirms_claim(text, ws(r"stop each whose result was used")),
               "'stop each whose result was used' + `TaskStop` absent")

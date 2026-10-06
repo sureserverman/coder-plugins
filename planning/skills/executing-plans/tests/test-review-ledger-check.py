@@ -143,8 +143,6 @@ if not SCRIPT.exists():
 with tempfile.TemporaryDirectory() as t:
     repo = mkrepo(t)
     commit(repo, "Stage 1 green", "2026-10-06T10:00:00+00:00")
-    # The real-hook case below writes wall-clock timestamps, so its own repo's green commit
-    # must predate "now" whatever day the suite runs.
 
     # Catches: a real review being refused.
     plan = write_plan(t, s2=REVIEW)
@@ -229,6 +227,39 @@ with tempfile.TemporaryDirectory() as t:
         check(f"a ledger line is read under its markup: {form[:24]!r}", rc == 1,
               f"rc={rc} {out}")
 
+    # Catches (redesign review A1): a task's `Review: required` field read as a ledger line,
+    # turning "nothing checked" into a scope line and exit 0.
+    write_log(repo, [])
+    rc, out = run("--plan", write_plan(t, s2="- **Review:** required"), "--stage", 2,
+                  "--repo", repo)
+    check("a task's `Review: required` field is not a ledger line (exit 3, NOT CHECKED)",
+          rc == 3 and "NOT CHECKED" in out, f"rc={rc} {out}")
+
+    # Catches (redesign review A2): a fabricated review with an unlisted verdict word passing
+    # as a scope line. A line naming no agent must state why no review ran.
+    for fake in ("review: Tier-2 git-github:code-reviewer — looked at the diff, clean",
+                 "review: Tier-2 — LGTM", "review: done, no issues"):
+        rc, out = run("--plan", write_plan(t, s2=fake), "--stage", 2, "--repo", repo)
+        check(f"a review line naming no agent and no scope reason exits 1: {fake[:30]!r}",
+              rc == 1, f"rc={rc} {out}")
+
+    # Catches (redesign review A3): honest lines refused for trailing text after the range.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")] * 3)
+    for honest in ("review: Tier-2 git-github:code-reviewer over b54494b..a226d35 "
+                   "(round 2 re-dispatch) — APPROVE",
+                   "review: Tier-2 git-github:code-reviewer over a..b: APPROVE, 0 Critical",
+                   "review: Tier-2 review (git-github:code-reviewer over b54..a226): 0 Critical"):
+        rc, out = run("--plan", write_plan(t, s2=honest), "--stage", 2, "--repo", repo)
+        check(f"an honest line with text after the range is read: {honest[24:60]!r}",
+              rc == 0, f"rc={rc} {out}")
+
+    # Catches (redesign review, suggestion): `pass` matching inside another word.
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 compass bypass check")])
+    rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
+    check("a description containing `bypass` is not a review-role dispatch", rc == 1,
+          f"rc={rc} {out}")
+
     # Catches: a claim dodging the grammar — a verdict with no named dispatched agent.
     plan4 = write_plan(t, s2="review: Tier-2 deep review done — APPROVE, 0 Critical")
     rc, out = run("--plan", plan4, "--stage", 2, "--repo", repo)
@@ -305,7 +336,8 @@ with tempfile.TemporaryDirectory() as t:
                        capture_output=True)
     rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
     check("a log written by the real hook satisfies a matching claim", rc == 0, f"rc={rc} {out}")
-    # And with the green commit an hour ago rather than at a fixed date.
+    # The hook writes wall-clock timestamps, so the case is repeated with the green commit an
+    # hour before now rather than at the fixed date above: it holds whatever day it runs.
     hour_ago = (datetime.datetime.now(datetime.timezone.utc)
                 - datetime.timedelta(hours=1)).isoformat(timespec="seconds")
     commit(repo, "Stage 1 green", hour_ago)
@@ -335,8 +367,8 @@ with tempfile.TemporaryDirectory() as t:
     rc, out = run("--plan", plan, "--stage", 2, "--repo", repo3, "--report", Path(t) / "nope")
     check("an unreadable --report exits 2", rc == 2, f"rc={rc} {out}")
     rc, out = run("--plan", plan, "--stage", 2, "--repo", repo3, "--report", bad)
-    check("an undecodable --report is read, not a traceback", rc in (0, 1, 3)
-          and "Traceback" not in out, f"rc={rc} {out}")
+    check("an undecodable --report is read, not a traceback: no ledger line, so NOT CHECKED",
+          rc == 3 and "NOT CHECKED" in out and "Traceback" not in out, f"rc={rc} {out}")
 
     # Catches: a missing Stage N-1 green commit silently widening the window.
     repo2 = Path(t) / "r2"

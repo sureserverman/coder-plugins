@@ -157,6 +157,10 @@ is exactly the one worth paying an agent for.
 evaluator reading the artifact black-box routinely names one instance of something that is
 true of several, and it has no way to know that.
 
+**Describe the dispatch as `Stage N gate evaluator`.** The dispatch log keeps the Agent call's
+description, and `review-ledger-check.py` counts an evaluator claim only against a dispatch
+whose description names the stage and the evaluator role (§ Checked against the dispatch log).
+
 **Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
 nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
 always finds *something*, so "no adverse findings" is not a reachable state. Require, for
@@ -179,7 +183,9 @@ arrives.
 **One dispatch per role per gate unless something Blocking was fixed.** A Material finding
 is fixed and its fix proven at fix-scope by the executor; it does **not** re-dispatch the
 evaluator, and an Important finding does not re-dispatch the reviewer. Re-dispatch is owed
-only to a Blocking / Critical fix, because only there is the verdict itself in question.
+only to a Blocking / Critical fix, because only there is the verdict itself in question. One
+review is owed beyond that: a redesign no review has read when the gate closes
+(`gate-failure-procedure.md` § A redesign the gate closes on).
 Measured 2026-09-10/11 (multitor, one master, three sub-plans): 13 of 13 gate evaluators
 returned Material findings, every one fed a remediation commit, and the re-dispatches after
 Material-only rounds cost 28 minutes for no changed verdict.
@@ -195,7 +201,8 @@ with the goal and the `(judgment)` lines only.
 Whether it runs, and at what shape, comes from `../references/review-scope.md`. The evaluator
 verifies *goals* black-box; this is the complementary *white-box* pass: dispatch
 `git-github:code-reviewer` (read-only) over the **full stage diff** plus the stage's collected
-`**Review notes (Task N.M):**` lines. It is a gate criterion, not advisory — a **Critical**
+`**Review notes (Task N.M):**` lines. Describe the dispatch as `Stage N Tier-2 review`; the
+ledger check counts it only when its description names the stage and the review role. It is a gate criterion, not advisory — a **Critical**
 here is a **gate failure**. Important findings are **not free either**: each leaves the gate
 **fixed**, per the exit criterion, which governs every gate pass and not only one reached
 through the failure branch. Suggestions are recorded. This is the only point where findings
@@ -370,8 +377,9 @@ like fresh news.
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
-**A re-dispatched review or evaluator is a round** — and one owed only to a Critical /
-Blocking fix; a round spent on Important / Material findings closes on its fix-scope re-run
+**A re-dispatched review or evaluator is a round** — except the review of an unread redesign
+(`gate-failure-procedure.md` § A redesign the gate closes on) — and one owed only to a
+Critical / Blocking fix; a round spent on Important / Material findings closes on its fix-scope re-run
 with no re-dispatch (§ Independent evaluator for non-command checks). Fixing a finding and
 asking the same reviewer again is the loop the budget exists to bound, so it is counted like
 any other round rather than treated as verification of a round already spent. Without this the gate has two
@@ -506,8 +514,9 @@ python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py \
 Each claimed review needs its own matching `dispatch` line, logged since the previous
 `Stage N-1 green` commit (for Stage 1, since the log began). Its exit 1 fails the gate. The
 failure names the claim: run the review it claims, or rewrite the line as the substitution it
-was, with the user's words. A review line that states a verdict but names no agent before
-its first ` — ` is refused as well. Its exit 3 is reported as NOT RUN, never green: either no
+was, with the user's words. A review line that names no agent before its first ` — ` is
+refused as well, unless it says why no review ran (`not run`, `not mandated`, an opt-out, a
+trivial diff). Its exit 3 is reported as NOT RUN, never green: either no
 log exists, so nothing was compared (the hook is not loaded, or no state file existed when
 the review was dispatched), or the report has no `review:` or `evaluator:` line at all, which
 a gate report always has. A line with `SUBSTITUTED` before its first ` — ` needs no

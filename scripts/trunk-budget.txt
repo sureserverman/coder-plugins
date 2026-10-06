@@ -199,7 +199,12 @@
 #   the task's `Test:`, the break patch kept outside the repo, `--help` for the arguments —
 #   each a refusal an executor otherwise meets at run time; Step 3.5 gives the audit's exit
 #   codes (1 fails, 2 is an error, 4 advisory). Obligations, not argument.
-planning/skills/executing-plans/SKILL.md 50036
+# Raised 50036 -> 50116 (+80 B) 2026-10-06, gate-executor-discipline Stage 2 gate remediation
+#   round 2 (redesign review B1): "A re-dispatched review or evaluator is a round" now says the
+#   review of an unread redesign is not, and points at gate-failure-procedure.md. The trunk is
+#   where the round is counted; read alone it contradicted the new rule and would count a
+#   green gate's redesign review as round 3.
+planning/skills/executing-plans/SKILL.md 50116
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.

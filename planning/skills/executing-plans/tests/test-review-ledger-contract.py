@@ -201,6 +201,29 @@ def main():
           re.search(ws(r"exit 3 is reported as NOT RUN, never green"), ledger) is not None,
           "'exit 3 is reported as NOT RUN, never green' absent")
 
+    # --- 4b. the description convention, at the check and at every dispatch site ---------
+    #     (redesign review A4: stated only at check time, the description is chosen before
+    #     the check exists, and a wrong one costs a second paid dispatch).
+    check("stage-gate ledger: the description names the stage and the role",
+          affirms_claim(ledger, ws(r"Write the dispatch's description so it names the stage and the role")),
+          "the description convention is absent from the ledger section")
+    evaluator = section(stagegate, r"^## Independent evaluator for non-command checks", r"^## ")
+    tier2 = section(stagegate, r"^## Deep code review \(Tier 2\)", r"^## ")
+    taskexec = read(os.path.join(REFS, "task-execution.md"))
+    tier1 = section(taskexec, r"^## Tier 1", r"^## ")
+    for site, text, form in (("evaluator brief", evaluator, "`Stage N gate evaluator`"),
+                             ("Tier-2 brief", tier2, "`Stage N Tier-2 review`"),
+                             ("Tier-1", tier1, "`Stage 2 Task 2.3 quick review`")):
+        check(f"{site}: states the dispatch description form {form}",
+              form in text and re.search(ws(r"Describe a?\s*(the|Tier-1)? ?dispatch"), text) is not None,
+              f"no 'Describe the dispatch as {form}' at the {site}")
+    check("stage-gate ledger: a no-line report is NOT RUN / NOT CHECKED, never green",
+          re.search(ws(r"has no `review:` or `evaluator:` line at all"), ledger) is not None,
+          "the exit-3-on-no-lines rule is unstated")
+    check("stage-gate ledger: states what the check cannot see",
+          re.search(r"\*\*What it cannot see\.\*\*", ledger) is not None,
+          "the limits paragraph is gone, so the section overclaims")
+
     # --- 5. close-out and handoff run --unstopped before reporting ----------------------
     handoff = read(HANDOFF)
     on_handoff = section(handoff, r"^## On `handoff`", r"^## ")

@@ -60,7 +60,8 @@ news. Triage before repairing, and bound the loop.
    auditable rather than merely asserted.
 
 **Remediation budget — default 2 rounds per gate.** One round is classify →
-repair → re-verify — and **a re-dispatched review or evaluator is itself a round**
+repair → re-verify — and **a re-dispatched review or evaluator is itself a round** (the
+review of an unread redesign is not: § A redesign the gate closes on)
 (trunk, § Remediation budget), never a free confirmation of a round already spent — and one
 owed only to a Critical / Blocking fix: a round spent on Important / Material findings
 closes on its fix-scope re-run with no re-dispatch (`stage-gate.md` § Independent evaluator
@@ -127,9 +128,12 @@ is added: at `none` no review read the original either.
 This review is an exception to two rules. First, it is not a remediation round and does not
 count against the budget. Second, it is owed though nothing Blocking was fixed
 (`stage-gate.md` § Independent evaluator for non-command checks, one dispatch per role per
-gate). Its findings take the exit criterion like any other. A Critical
-among them on an exhausted budget is escalated with the residual list, as exhaustion always
-is.
+gate). Its findings take the exit criterion like any other, repaired
+within the rounds the budget has left; a Critical among them on an exhausted budget is
+escalated with the residual list, as exhaustion always is. A redesign made to answer this
+review is not reviewed again: the gate report names it `round K: redesign — unread`, so the
+loop ends on the budget, never on a reviewer going quiet. One review line is written per
+round whose redesign it covered.
 
 ## Remediation that re-runs a live check
 
