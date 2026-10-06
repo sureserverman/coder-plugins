@@ -49,7 +49,7 @@ b = importlib.util.module_from_spec(spec); spec.loader.exec_module(b)
 entry = [e for e in b.M if e[0] == sys.argv[2]]
 if len(entry) != 1:
     sys.exit(f"no battery entry labelled {sys.argv[2]!r}")
-_label, target, old, new = entry[0]
+_label, target, old, new = entry[0][:4]   # (label, target, old, new, killer)
 d = b.copy_skill()
 f = d / "planning" / target
 f.write_text(f.read_text().replace(old, new))
