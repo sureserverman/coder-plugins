@@ -168,6 +168,24 @@ pytest --collect-only -q <the check's selector>
 - **Target file does not exist yet** → same as the previous case: name the task that creates
   it, or it is a defect.
 
+**The same probe for the other two runners** the authoring check reads (`validate-gate-checks.py`
+reports their unmatched selectors as advisory, because some match tests that already exist —
+this is where each one is settled):
+
+- **cargo** — a gate's `cargo test <filter>` is probed with `cargo test <filter> -- --list`
+  (the gate's own package and target flags kept), which builds and lists the matching tests
+  without running them. It must list at least one test.
+- **Gradle** — a gate's `--tests '<pattern>'` must match a test class or method name under the
+  project's test source sets. Gradle has no cheap "what would this filter collect" mode, so
+  search the sources instead, on the simple name: drop the package (`com.x.FooTest.parses`
+  → `FooTest`, then `parses`), read `*` as `.*`, and search every test source set at any
+  depth, the root module's included:
+  `grep -rlsE --include='*.kt' --include='*.java' '<name as a regex>' $(find . -type d \( -path '*/src/test' -o -path '*/src/androidTest' \))`.
+
+A zero result is a plan defect at Preflight for every runner, exactly as for pytest — and, as
+there, a zero that a task's `Test:` builds toward is expected and recorded with the task that
+satisfies it.
+
 This is a **command, not a dispatch**, so it is not tier-gated by review-scope (DEC-010's
 cost rule: a mandate costing an agent dispatch is tiered). Its own gate, per **DEC-017**, is
 a **position** — once at Preflight, never per stage — which is what that entry requires a

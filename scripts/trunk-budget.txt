@@ -199,7 +199,12 @@
 #   the task's `Test:`, the break patch kept outside the repo, `--help` for the arguments —
 #   each a refusal an executor otherwise meets at run time; Step 3.5 gives the audit's exit
 #   codes (1 fails, 2 is an error, 4 advisory). Obligations, not argument.
-planning/skills/executing-plans/SKILL.md 50036
+# Raised 50036 -> 50116 (+80 B) 2026-10-06, gate-executor-discipline Stage 2 gate remediation
+#   round 2 (redesign review B1): "A re-dispatched review or evaluator is a round" now says the
+#   review of an unread redesign is not, and points at gate-failure-procedure.md. The trunk is
+#   where the round is counted; read alone it contradicted the new rule and would count a
+#   green gate's redesign review as round 3.
+planning/skills/executing-plans/SKILL.md 50116
 
 # derived-ceiling: 26976 — Stage 3 Task 3.0, from
 # planning/skills/planning-projects/references/extraction-classification.md.
@@ -496,7 +501,11 @@ planning/skills/backlog/SKILL.md 17333
 #   brief's step 7 was not runnable by a dispatched agent — it now says to stage the work
 #   first, where the tool lives, that `--test` is the Test command and the patch stays
 #   outside the repo, and that `--help` lists the arguments.
-planning/skills/dispatching-parallel-agents/SKILL.md 17626
+# Raised 17626 -> 17725 (+99 B) 2026-10-06, gate-executor-discipline Task 2.1 (BL-120): the
+#   prompt template's ## Return block says an agent returns only after its own background work
+#   finished or was stopped, and says which. It has to be in the template: a dispatched agent
+#   reads only its prompt, and its background commands outlive it otherwise.
+planning/skills/dispatching-parallel-agents/SKILL.md 17725
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file

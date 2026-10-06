@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "review-ledger-check \u2014 claimed reviews against the dispatch log, and agents left running\n\n  ok    a claimed Tier-2 review with a matching dispatch passes\n  ok    a claimed review with no dispatch of that type exits 1 naming it\n  ok    a dispatch before the previous stage's green commit does not count\n  ok    two claimed passes need two dispatches\n  ok    a claimed evaluator with no general-purpose dispatch exits 1\n  ok    a review line stating a verdict but naming no agent exits 1\n  ok    a scope statement with no verdict passes\n  ok    a SUBSTITUTED line passes with no dispatch\n  ok    --report is read instead of the plan's handoff note\n  ok    Stage 1 counts from the log's start\n  ok    a missing log exits 3 (NOT RUN), never 0\n  ok    --unstopped lists a started-never-stopped agent and exits 1\n  ok    --unstopped exits 0 when every started agent stopped\n  ok    --unstopped with no log exits 3 (NOT RUN)\n  ok    a log written by the real hook satisfies a matching claim\n  ok    a start written by the real hook, with no stop, is listed by --unstopped\n  ok    no `Stage N-1 green` commit is a usage error (exit 2), not a pass\n\n17 passed, 0 failed"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/scripts/review-ledger-check.py\n+++ b/planning/skills/executing-plans/scripts/review-ledger-check.py\n@@ -147,7 +147,7 @@\n             when = ts(r.get(\"ts\"))\n         except (TypeError, ValueError):\n             continue\n-        if since is None or when >= since:\n+        if True:\n             pool[r.get(\"subagent_type\")] = pool.get(r.get(\"subagent_type\"), 0) + 1\n     bad = []\n     for line in lines:\n",
+ "build": null,
+ "created": "2026-10-06T11:36:25+00:00",
+ "fingerprint": "80748d61280fa1bb8658c46c87418a2766e6750c6b7c42e12002b54713052637",
+ "index": 3,
+ "kind": "claim",
+ "named_break": "an old dispatch satisfies a new claim",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "review-ledger-check \u2014 claimed reviews against the dispatch log, and agents left running\n\n  ok    a claimed Tier-2 review with a matching dispatch passes\n  ok    a claimed review with no dispatch of that type exits 1 naming it\n  FAIL  a dispatch before the previous stage's green commit does not count\n        | rc=0   matched      git-github:code-reviewer: review: Tier-2 git-github:code-reviewer over 1a2b3c..HEAD \u2014 APPROVE, 0 Critical\n\n  ok    two claimed passes need two dispatches\n  ok    a claimed evaluator with no general-purpose dispatch exits 1\n  ok    a review line stating a verdict but naming no agent exits 1\n  ok    a scope statement with no verdict passes\n  ok    a SUBSTITUTED line passes with no dispatch\n  ok    --report is read instead of the plan's handoff note\n  ok    Stage 1 counts from the log's start\n  ok    a missing log exits 3 (NOT RUN), never 0\n  ok    --unstopped lists a started-never-stopped agent and exits 1\n  ok    --unstopped exits 0 when every started agent stopped\n  ok    --unstopped with no log exits 3 (NOT RUN)\n  ok    a log written by the real hook satisfies a matching claim\n  ok    a start written by the real hook, with no stop, is listed by --unstopped\n  ok    no `Stage N-1 green` commit is a usage error (exit 2), not a pass\n\n16 passed, 1 failed"
+ },
+ "schema": 2,
+ "task": "1.2",
+ "test": "python3 planning/skills/executing-plans/tests/test-review-ledger-check.py",
+ "text": "a dispatch before the previous stage's green commit does not count (red if an old dispatch satisfies a new claim)",
+ "touched": [
+  "planning/skills/executing-plans/scripts/review-ledger-check.py"
+ ]
+}

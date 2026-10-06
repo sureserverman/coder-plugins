@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "PASS  master step 5 located\nPASS  master step 5: reconciles the review ledger across sub-plans\nPASS  master step 5: names tiers ran / diff range / count against what the tier owed\nPASS  master step 5: literal form `reviews: <n> of <owed>`\nPASS  master step 5: one line per sub-plan, then the total\nPASS  master step 5: the incident is stated (evaluator ran for sub-plan 1 and never again)\nPASS  master step 5: stated as a close-out rule, not a validator (DEC-022)\nPASS  master step 5: ledger reconciliation is ordered BEFORE the **Completed:** append\nPASS  close-out step 9 review bullet located\nPASS  close-out step 9: master plan \u2192 per-sub-plan reconciliation of master-plans.md step 5\nPASS  close-out step 9: literal form `reviews: <n> of <owed>`\nPASS  stage-gate review-line section located\nPASS  stage-gate: each evidence line names its substrate\nPASS  stage-gate: the four substrates are listed\nPASS  stage-gate: cites honest-gates/SKILL.md \u00a7 Reporting\nPASS  stage-gate: does NOT restate 'BLOCKED, not green'\nPASS  stage-gate: example block carries an `evidence:` line naming substrates\nPASS  stage-gate ledger section located\nPASS  stage-gate ledger: the review line names the subagent type it dispatched\nPASS  stage-gate ledger: review-ledger-check.py runs once per gate entry\nPASS  stage-gate ledger: exit 1 fails the gate, never softened to advisory\nPASS  stage-gate ledger: exit 3 is reported NOT RUN, never green\nPASS  close-out runs review-ledger-check.py --unstopped\nPASS  handoff runs review-ledger-check.py --unstopped\nPASS  close-out: --unstopped runs before the report\nPASS  close-out last step deletes .claude/dispatch-log.jsonl\n\nall checks passed"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/references/close-out.md\n+++ b/planning/skills/executing-plans/references/close-out.md\n@@ -217,7 +217,6 @@\n \n ## Last step, every close-out\n \n-Delete `.claude/plan-progress.json` once the report is out, and `.claude/dispatch-log.jsonl`\n-beside it, so the next plan's review claims are checked against a log of its own run. This applies to every close-out,\n+Delete `.claude/plan-progress.json` once the report is out, so the next plan's review claims are checked against a log of its own run. This applies to every close-out,\n blocked or clean \u2014 it is a `##` section rather than a trailing line because it previously sat\n inside the blocked-gate section, where a reader working an unblocked plan never reached it.\n",
+ "build": null,
+ "created": "2026-10-06T11:38:23+00:00",
+ "fingerprint": "c8c64c4b2050b7f9cfa0727f4cb8a529107129670dc40cfe384d5a8ebd7283da",
+ "index": 4,
+ "kind": "claim",
+ "named_break": "the log outlives the run",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "PASS  master step 5 located\nPASS  master step 5: reconciles the review ledger across sub-plans\nPASS  master step 5: names tiers ran / diff range / count against what the tier owed\nPASS  master step 5: literal form `reviews: <n> of <owed>`\nPASS  master step 5: one line per sub-plan, then the total\nPASS  master step 5: the incident is stated (evaluator ran for sub-plan 1 and never again)\nPASS  master step 5: stated as a close-out rule, not a validator (DEC-022)\nPASS  master step 5: ledger reconciliation is ordered BEFORE the **Completed:** append\nPASS  close-out step 9 review bullet located\nPASS  close-out step 9: master plan \u2192 per-sub-plan reconciliation of master-plans.md step 5\nPASS  close-out step 9: literal form `reviews: <n> of <owed>`\nPASS  stage-gate review-line section located\nPASS  stage-gate: each evidence line names its substrate\nPASS  stage-gate: the four substrates are listed\nPASS  stage-gate: cites honest-gates/SKILL.md \u00a7 Reporting\nPASS  stage-gate: does NOT restate 'BLOCKED, not green'\nPASS  stage-gate: example block carries an `evidence:` line naming substrates\nPASS  stage-gate ledger section located\nPASS  stage-gate ledger: the review line names the subagent type it dispatched\nPASS  stage-gate ledger: review-ledger-check.py runs once per gate entry\nPASS  stage-gate ledger: exit 1 fails the gate, never softened to advisory\nPASS  stage-gate ledger: exit 3 is reported NOT RUN, never green\nPASS  close-out runs review-ledger-check.py --unstopped\nPASS  handoff runs review-ledger-check.py --unstopped\nPASS  close-out: --unstopped runs before the report\nFAIL  close-out last step deletes .claude/dispatch-log.jsonl \u2014 the last step does not name `.claude/dispatch-log.jsonl` beside the state file\n\n1 check(s) failed:\n  - close-out last step deletes .claude/dispatch-log.jsonl"
+ },
+ "schema": 2,
+ "task": "1.3",
+ "test": "python3 planning/skills/executing-plans/tests/test-review-ledger-contract.py",
+ "text": "close-out deletes the log (red if the log outlives the run)",
+ "touched": [
+  "planning/skills/executing-plans/references/close-out.md"
+ ]
+}

@@ -157,6 +157,10 @@ is exactly the one worth paying an agent for.
 evaluator reading the artifact black-box routinely names one instance of something that is
 true of several, and it has no way to know that.
 
+**Describe the dispatch as `Stage N gate evaluator`.** The dispatch log keeps the Agent call's
+description, and `review-ledger-check.py` counts an evaluator claim only against a dispatch
+whose description names the stage and the evaluator role (§ Checked against the dispatch log).
+
 **Brief it to grade by severity, not just pass/fail** — a bare pass/fail gives the loop
 nothing to terminate on, because a fresh judgment agent reading a real artifact essentially
 always finds *something*, so "no adverse findings" is not a reachable state. Require, for
@@ -171,12 +175,17 @@ each finding, exactly one of:
 Blocking maps to Critical, Material to Important, Minor to Suggestion, so both scales
 resolve to the one exit criterion in this file. An evaluator FAIL carrying no Blocking finding
 is a **pass with recorded residuals**, not a failure — tell the evaluator so explicitly, or
-it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition.
+it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition. **Tell it
+too that it returns only after its own background work has finished or been stopped, and says
+which**: a suite or probe it started in the background keeps running after its verdict
+arrives.
 
 **One dispatch per role per gate unless something Blocking was fixed.** A Material finding
 is fixed and its fix proven at fix-scope by the executor; it does **not** re-dispatch the
 evaluator, and an Important finding does not re-dispatch the reviewer. Re-dispatch is owed
-only to a Blocking / Critical fix, because only there is the verdict itself in question.
+only to a Blocking / Critical fix, because only there is the verdict itself in question. One
+review is owed beyond that: a redesign no review has read when the gate closes
+(`gate-failure-procedure.md` § A redesign the gate closes on).
 Measured 2026-09-10/11 (multitor, one master, three sub-plans): 13 of 13 gate evaluators
 returned Material findings, every one fed a remediation commit, and the re-dispatches after
 Material-only rounds cost 28 minutes for no changed verdict.
@@ -192,7 +201,8 @@ with the goal and the `(judgment)` lines only.
 Whether it runs, and at what shape, comes from `../references/review-scope.md`. The evaluator
 verifies *goals* black-box; this is the complementary *white-box* pass: dispatch
 `git-github:code-reviewer` (read-only) over the **full stage diff** plus the stage's collected
-`**Review notes (Task N.M):**` lines. It is a gate criterion, not advisory — a **Critical**
+`**Review notes (Task N.M):**` lines. Describe the dispatch as `Stage N Tier-2 review`; the
+ledger check counts it only when its description names the stage and the review role. It is a gate criterion, not advisory — a **Critical**
 here is a **gate failure**. Important findings are **not free either**: each leaves the gate
 **fixed**, per the exit criterion, which governs every gate pass and not only one reached
 through the failure branch. Suggestions are recorded. This is the only point where findings
@@ -202,7 +212,9 @@ finding is repaired as a class** per `../SKILL.md` § A bug found during executi
 sweep it, fix every instance — a reviewer cites the line it read, which is one member of
 whatever set that line belongs to. **Brief it to audit the stage's behavioral claims as a
 set**, per `honest-gates` and its rule that a behavioral claim is a gate too — the stage view is where a
-claim that was true when written and false after a later task shows up.
+claim that was true when written and false after a later task shows up. Brief it, as the
+evaluator is briefed, that it returns only after its own background work has finished or been
+stopped, and says which.
 
 ## Decisions-conformance check (gate criterion, not advisory)
 
@@ -365,8 +377,9 @@ like fresh news.
    sweep returns in this round**.
 4. **Re-run the task's Red-Green loop**, then re-verify narrowly plus the sweep.
 
-**A re-dispatched review or evaluator is a round** — and one owed only to a Critical /
-Blocking fix; a round spent on Important / Material findings closes on its fix-scope re-run
+**A re-dispatched review or evaluator is a round** — except the review of an unread redesign
+(`gate-failure-procedure.md` § A redesign the gate closes on) — and one owed only to a
+Critical / Blocking fix; a round spent on Important / Material findings closes on its fix-scope re-run
 with no re-dispatch (§ Independent evaluator for non-command checks). Fixing a finding and
 asking the same reviewer again is the loop the budget exists to bound, so it is counted like
 any other round rather than treated as verification of a round already spent. Without this the gate has two
@@ -474,6 +487,55 @@ then is there a substitution to record, quoting them. An executor that goes stra
 failed probe to an inline review and a ledger line has recorded the deviation and skipped the
 decision, which is the half that was never the executor's. *"I judged it unnecessary"* and
 *"the diff looked small"* are the same move with less paperwork.
+
+### Checked against the dispatch log
+
+The review line names the subagent type it dispatched, because that type is what the check
+matches: `review: Tier-2 git-github:code-reviewer over <base>..HEAD — …`, `evaluator:
+general-purpose in the goal-evaluator role …`. The agent is read from the text before the
+first ` — `, so write it there. While a plan is in flight,
+`../../../hooks/dispatch-log.sh` appends every `Agent` dispatch, subagent start and subagent
+stop to `.claude/dispatch-log.jsonl` (the hook gathers; the script decides — DEC-027).
+
+**Write the dispatch's description so it names the stage and the role**: `Stage 2 Tier-2
+review`, `Stage 2 second-pass review`, `Stage 2 gate evaluator`. A dispatch counts toward a
+stage's claim only when its description names that stage and the role (review or pass, or
+evaluator) and names no task. Without it, any task worker of the same type would satisfy
+an evaluator claim, and a per-task Tier-1 review would satisfy the stage's Tier-2 claim.
+A Tier-1 review names its task (`Stage 2 Task 2.3 quick review`) for the same reason.
+
+Run the check once per gate entry, from the repo root, before the gate report is final:
+
+```
+python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py \
+  --plan <plan> --stage <N> --repo <repo root> --report <draft gate report>
+```
+
+Each claimed review needs its own matching `dispatch` line, logged since the previous
+`Stage N-1 green` commit (for Stage 1, since the log began). Its exit 1 fails the gate. The
+failure names the claim: run the review it claims, or rewrite the line as the substitution it
+was, with the user's words. The redesign lines `gate-failure-procedure.md` prescribes are
+read as written: `round K: redesign — reviewed by <subagent_type>` is a claim, `— battery
+<name>` and `— unread` need no dispatch; the claim is read in any case, with or without
+`round K`. Any other review line that names no agent before its first ` — ` is ADVISORY,
+exit 4, unless it says why no review ran (`not run`, `not dispatched`, `not mandated`, an
+opt-out, a trivial diff — `trivial`, `non-code`, `docs-only`, `config-only`, `comment-only` or
+a `version bump`) in its head, or after a head saying the review was `skipped` (`Tier-2
+skipped — docs-only diff`). A reason inside verdict prose does not count: a line stating a
+verdict (APPROVE, LGTM, clean, `0 Critical`) reports a review, never a skip. Name an
+advisory line in the gate report; it does not fail the gate (DEC-032 — measured, it hit
+honest lines). The script's exit 3 is reported as NOT RUN, never green: either no
+log exists, so nothing was compared (the hook is not loaded, or no state file existed when
+the review was dispatched), or the report has no `review:` or `evaluator:` line at all, which
+a gate report always has. A line with `SUBSTITUTED` before its first ` — ` needs no
+dispatch — it is the disclosed substitution DEC-019 records. The check is a command, so it
+runs at every tier; its position (DEC-017) is once per gate entry.
+
+**What it cannot see.** It proves a dispatch of the claimed type and role happened in the
+stage's window — not that the agent saw the diff the line names, nor that the verdict quoted
+is the one it returned. The window opens at the newest commit whose subject is exactly
+`Stage N-1 green`, so that commit's subject is load-bearing; and a log left by a plan whose
+close-out never ran satisfies Stage 1 claims, which is why close-out deletes it.
 
 ## A review fix does not re-earn the full pass
 

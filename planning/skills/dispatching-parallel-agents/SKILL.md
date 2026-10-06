@@ -141,6 +141,7 @@ A structured report:
 - STATUS: GREEN | ESCALATE
 - If GREEN: commit SHA, test output summary, any notes
 - If ESCALATE: last error, diagnosis, what was tried, what's needed from the caller
+- An agent returns only after its own background work has finished or been stopped, and says which
 ```
 
 **Prompt discipline:** focused scope (one task), self-contained (all needed context inlined), explicit constraints (no refactoring creep), specific return format (so the caller can integrate).

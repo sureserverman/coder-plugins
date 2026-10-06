@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "review-ledger-check \u2014 claimed reviews against the dispatch log, and agents left running\n\n  ok    a claimed Tier-2 review with a matching dispatch passes\n  ok    a claimed review with no dispatch of that type exits 1 naming it\n  ok    a dispatch before the previous stage's green commit does not count\n  ok    two claimed passes need two dispatches\n  ok    a claimed evaluator with no general-purpose dispatch exits 1\n  ok    a review line stating a verdict but naming no agent exits 1\n  ok    a scope statement with no verdict passes\n  ok    a SUBSTITUTED line passes with no dispatch\n  ok    --report is read instead of the plan's handoff note\n  ok    Stage 1 counts from the log's start\n  ok    a missing log exits 3 (NOT RUN), never 0\n  ok    --unstopped lists a started-never-stopped agent and exits 1\n  ok    --unstopped exits 0 when every started agent stopped\n  ok    --unstopped with no log exits 3 (NOT RUN)\n  ok    a log written by the real hook satisfies a matching claim\n  ok    a start written by the real hook, with no stop, is listed by --unstopped\n  ok    no `Stage N-1 green` commit is a usage error (exit 2), not a pass\n\n17 passed, 0 failed"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/scripts/review-ledger-check.py\n+++ b/planning/skills/executing-plans/scripts/review-ledger-check.py\n@@ -183,7 +183,7 @@\n             started.setdefault(aid, r)\n         elif r.get(\"event\") == \"stop\" and aid:\n             stopped.add(aid)\n-    running = [r for aid, r in started.items() if aid not in stopped]\n+    running = []\n     for r in running:\n         print(f\"  RUNNING  {r.get('agent_id')} ({r.get('agent_type')}), started {r.get('ts')}\")\n     print(f\"{len(running)} agent(s) started and never stopped\")\n",
+ "build": null,
+ "created": "2026-10-06T11:36:29+00:00",
+ "fingerprint": "80748d61280fa1bb8658c46c87418a2766e6750c6b7c42e12002b54713052637",
+ "index": 6,
+ "kind": "claim",
+ "named_break": "it is missed",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "review-ledger-check \u2014 claimed reviews against the dispatch log, and agents left running\n\n  ok    a claimed Tier-2 review with a matching dispatch passes\n  ok    a claimed review with no dispatch of that type exits 1 naming it\n  ok    a dispatch before the previous stage's green commit does not count\n  ok    two claimed passes need two dispatches\n  ok    a claimed evaluator with no general-purpose dispatch exits 1\n  ok    a review line stating a verdict but naming no agent exits 1\n  ok    a scope statement with no verdict passes\n  ok    a SUBSTITUTED line passes with no dispatch\n  ok    --report is read instead of the plan's handoff note\n  ok    Stage 1 counts from the log's start\n  ok    a missing log exits 3 (NOT RUN), never 0\n  FAIL  --unstopped lists a started-never-stopped agent and exits 1\n        | rc=0 0 agent(s) started and never stopped\n\n  ok    --unstopped exits 0 when every started agent stopped\n  ok    --unstopped with no log exits 3 (NOT RUN)\n  ok    a log written by the real hook satisfies a matching claim\n  FAIL  a start written by the real hook, with no stop, is listed by --unstopped\n        | rc=0 0 agent(s) started and never stopped\n\n  ok    no `Stage N-1 green` commit is a usage error (exit 2), not a pass\n\n15 passed, 2 failed"
+ },
+ "schema": 2,
+ "task": "1.2",
+ "test": "python3 planning/skills/executing-plans/tests/test-review-ledger-check.py",
+ "text": "`--unstopped` lists a started-never-stopped agent and exits 1 (red if it is missed)",
+ "touched": [
+  "planning/skills/executing-plans/scripts/review-ledger-check.py"
+ ]
+}

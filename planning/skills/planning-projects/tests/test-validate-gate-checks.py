@@ -20,6 +20,7 @@ are the kind of thing a later "tightening" of the regex would silently reintrodu
 Stdlib only.
 """
 import importlib.util
+import re
 import os
 import pathlib
 import subprocess
@@ -416,6 +417,62 @@ check(len(vgc.unmatched_selectors(plan_with_task(
         "a restart"))) == 1,
       "the remote-agents bot-live-view sub-01 gate would have been caught at authoring")
 
+print("group 8d — SELECTOR-UNMATCHED for Gradle `--tests` and `cargo test <filter>` (advisory)")
+# The same cross-reference as the pytest form, for the two other runners the portfolio's gates
+# use. ADVISORY: measured over the vault corpus, the flagged set includes writer-pad's
+# `*PrivacyManifestTest*`, a test that already existed — the false-positive shape the pytest
+# form documents. So these forms are reported and never change the exit code (gate-authoring.md
+# § A gate heuristic ships with a severity axis and a measured trigger rate).
+_g_un = plan_with_task("`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — parses",
+                       "`./gradlew :app:testDebugUnitTest --tests '*NothingTest*'` — the goal")
+_g_ok = plan_with_task("`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — parses",
+                       "`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — the goal")
+_c_un = plan_with_task("`cargo test -p core parser::` — parses",
+                       "`cargo test -p core nothing_` — the goal")
+_c_ok = plan_with_task("`cargo test -p core parser::` — parses",
+                       "`cargo test -p core parser:: -- --nocapture` — the goal")
+check(len(vgc.unmatched_runner_selectors(_g_un)) == 1,
+      "an undeclared Gradle --tests filter is flagged")
+check(len(vgc.unmatched_runner_selectors(_c_un)) == 1,
+      "an undeclared cargo test filter is flagged")
+check(vgc.unmatched_runner_selectors(_g_ok) == [],
+      "a Gradle filter a task declares passes")
+check(vgc.unmatched_runner_selectors(_c_ok) == [],
+      "a cargo filter a task declares passes (arguments after -- are not the filter)")
+for marker in ("(judgment)", "(scoped)"):
+    check(vgc.unmatched_runner_selectors(
+            plan_with_task("`cargo test parser::`",
+                           f"**{marker}** `cargo test later_` — author asserts")) == [],
+          f"a {marker} check is exempt from the Gradle/cargo cross-reference")
+check(vgc.runner_selectors("`cargo test --workspace --offline`") == [],
+      "a cargo test with no filter is never a selector (a whole-suite run is legitimate)")
+check(vgc.runner_selectors("`cargo test -p core --test cli api_`") == [("cargo", "api_")],
+      "flag values (-p core, --test cli) are not read as the filter")
+check(vgc.runner_selectors("`cd rust && cargo test --lib a_ && cargo test --lib b_`")
+      == [("cargo", "a_"), ("cargo", "b_")],
+      "chained cargo invocations each keep their own filter")
+check(vgc.runner_selectors("`./gradlew test --tests=com.x.FooTest`")
+      == [("gradle", "com.x.FooTest")],
+      "the Gradle `--tests=` form is read too")
+# Stage 3 review I3: cargo's own `--tests` flag (all test targets) is not a Gradle filter.
+check(vgc.runner_selectors("`cargo test --tests -- --nocapture`") == [],
+      "cargo's `--tests` flag is not read as a Gradle selector")
+check(vgc.runner_selectors("`cargo test -p core --tests api_`") == [("cargo", "api_")],
+      "a cargo command with --tests yields its cargo filter only")
+check(vgc.runner_selectors("`./gradlew test --tests -x`") == [],
+      "a Gradle --tests value starting with `-` is a flag, not a pattern")
+check(vgc.unmatched_runner_selectors(_c_un.replace("# Project Plan: x", "# Master Plan: x")) == [],
+      "a master plan's Gradle/cargo selectors are skipped, as its pytest ones are")
+rc_r, out_r = run(_c_un)
+check(rc_r == 0, "the Gradle/cargo form is advisory — it never changes the exit code")
+check("selector-unmatched (gradle/cargo) 1 (advisory" in out_r,
+      "the advisory count is printed under its own name")
+check(run(_c_ok)[1].count("gradle/cargo") == 0, "nothing is printed when every filter matches")
+check(re.search(r"measured\s+2026-10-06\s+over\s+\d+\s+portfolio\s+plans:\s+\d+\s+Gradle/cargo"
+                r"\s+gate\s+selectors?\s+in\s+\d+\s+plans,\s+\d+\s+hits\s+in\s+\d+\s+plans",
+                vgc.__doc__) is not None,
+      "the docstring states the measured trigger rate with its corpus and date")
+
 print("group 10 — TASK-TEST-UNSCOPED: a task Test: that collects the whole suite")
 # The measured incident: a task whose `Test:` read `uv run --locked pytest -m 'not
 # requires_session'` ran ~3.5 h against a 3132-test collection inside one Red-Green loop,
@@ -629,6 +686,49 @@ check("stage-scope names 4 test trees" in out_g,
       "gradle `:module:test` tasks count as trees, so an Android declaration is covered")
 check(len(vgc.wide_stage_scopes("- stage-scope: `cargo test --lib`\n- plan-scope: `x`\n")) == 0,
       "a single-runner stage-scope with no tree list is not noted")
+# Task 3.3 (BL-062): a `justified:` clause giving one reason per tree silences the finding;
+# a missing reason for any tree keeps it, naming the tree. The finding stays ADVISORY: measured
+# 2026-10-06, 49 of the 119 corpus plans declaring stage-scope hit, and the hits include
+# claude-pacer's `:app:lintDebug :app:assembleDebug` counted as test trees — not all defects.
+_four = ("uv run pytest tests/unit tests/integration tests/contract tests/architecture -q")
+rc_j0, out_j0 = run(tiered_plan(_four))
+check("stage-scope names 4 test trees" in out_j0 and "no `justified:`" in out_j0,
+      "a 4-tree stage-scope with no `justified:` is reported, saying the clause is missing")
+_just = (f"- stage-scope: `{_four}` justified: tests/unit — Stage 1 edits it; "
+         "tests/integration — Stage 1 imports it; tests/contract — Stage 2 changes the port; "
+         "tests/architecture — Stage 2 adds a layer\n- plan-scope: `uv run pytest`\n")
+check(vgc.wide_stage_scopes(_just) == [],
+      "a 4-tree stage-scope with a reason for every tree is not reported")
+_partial = (f"- stage-scope: `{_four}` justified: tests/unit — Stage 1 edits it; "
+            "tests/integration — Stage 1 imports it; tests/contract — Stage 2 changes the port"
+            "\n- plan-scope: `uv run pytest`\n")
+_pw = vgc.wide_stage_scopes(_partial)
+check(len(_pw) == 1 and "tests/architecture" in _pw[0][2],
+      "a justification missing one tree is reported, naming that tree")
+# Stage 3 review I4: a tree written `tests/unit/` or `./tests/unit` in the clause is the
+# same tree the command names.
+_slash = _just.replace("justified: tests/unit — ", "justified: tests/unit/ — ").replace(
+    "tests/integration — Stage 1", "./tests/integration — Stage 1")
+check(vgc.wide_stage_scopes(_slash) == [],
+      "a justified tree with a trailing slash or leading ./ matches the command's tree")
+# Stage 3 review S4: a reason containing a dash, and the clause on a wrapped line.
+_dash = _just.replace("Stage 1 edits it", "Stage 1 edits it - the parser")
+check(vgc.wide_stage_scopes(_dash) == [], "a reason containing a dash still justifies its tree")
+_wrapped = (f"- stage-scope: `{_four}`\n  justified: tests/unit — Stage 1 edits it; "
+            "tests/integration — Stage 1 imports it;\n  tests/contract — Stage 2 changes the "
+            "port; tests/architecture — Stage 2 adds a layer\n- plan-scope: `uv run pytest`\n")
+check(vgc.wide_stage_scopes(_wrapped) == [], "a justified: clause on wrapped lines is read")
+_empty_reason = _just.replace("tests/architecture — Stage 2 adds a layer", "tests/architecture —")
+check(len(vgc.wide_stage_scopes(_empty_reason)) == 1,
+      "a tree listed with an empty reason is not justified")
+check(vgc.wide_stage_scopes("- stage-scope: `uv run pytest tests/unit tests/integration "
+                            "tests/contract -q`\n- plan-scope: `x`\n") == [],
+      "a 3-tree stage-scope is untouched (the threshold is still 4)")
+check(run(tiered_plan(_four))[0] == 0,
+      "STAGE-SCOPE-WIDE stays advisory — measured hits are not all defects")
+check(re.search(r"measured\s+2026-10-06:\s+\d+\s+of\s+the\s+\d+\s+corpus\s+plans\s+declaring"
+                r"\s+stage-scope", vgc.__doc__) is not None,
+      "the docstring states the measured trigger rate and why the finding is advisory")
 
 print("group 10 — PROSE-BLIND-SWEEP: a negated recursive grep that cannot go green")
 
@@ -699,7 +799,12 @@ frozen = collections.Counter()
 for f in corpus:
     for c in vgc.gate_checks(f.read_text()):
         frozen[vgc.classify(c)[0]] += 1
-doc = vgc.__doc__
+# Read the figures from the calibration sentence only: "3 INSTANCE-SHAPED" also appears in
+# the next sentence about those checks, so a whole-docstring match stayed green with the
+# calibration figure itself changed (found 2026-10-06, gate-executor-discipline Task 3.1).
+_calm = re.search(r"Calibrated against.*?\bPROSE\.", " ".join(vgc.__doc__.split()))
+doc = _calm.group(0) if _calm else ""
+check(bool(doc), "the docstring's calibration sentence is present")
 for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
     # Every class must be represented, or the corpus silently stops testing that branch
     # while the count still "matches" at zero.

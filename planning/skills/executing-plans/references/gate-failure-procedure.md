@@ -60,7 +60,8 @@ news. Triage before repairing, and bound the loop.
    auditable rather than merely asserted.
 
 **Remediation budget — default 2 rounds per gate.** One round is classify →
-repair → re-verify — and **a re-dispatched review or evaluator is itself a round**
+repair → re-verify — and **a re-dispatched review or evaluator is itself a round** (the
+review of an unread redesign is not: § A redesign the gate closes on)
 (trunk, § Remediation budget), never a free confirmation of a round already spent — and one
 owed only to a Critical / Blocking fix: a round spent on Important / Material findings
 closes on its fix-scope re-run with no re-dispatch (`stage-gate.md` § Independent evaluator
@@ -99,6 +100,71 @@ that remain, their severities, and how the rounds were spent. This is a document
 **Stop condition** (below) — not a failure to hide, and not a licence to keep
 looping. The user decides between another round, returning to
 `planning-projects`, and shipping with the residual recorded.
+
+## A redesign the gate closes on
+
+An Important fix closes on its fix-scope re-run, with no re-dispatched review
+(`stage-gate.md` § Independent evaluator for non-command checks). That is right for a fix inside code the
+review already read. It is wrong for code the review never saw: a round that answers a
+finding by replacing a parser ships the replacement unread, because no later review is owed
+— and that holds in round 1 of 2 as much as in the last one (BL-089).
+
+Two terms, decided from the round's diff:
+
+- A **repair** is a change inside code the review read — a condition corrected, a branch
+  added, a value fixed in a function the reviewer's diff already contained.
+- A **redesign** is a new file or function, or a replacement of logic the review read — the
+  reviewer's reading of that code no longer describes it.
+
+**A redesign no review has read when the gate closes — whether the gate closes green or on an
+exhausted budget — gets one review of the redesign's diff alone, at the tier that funded the
+original review, or a deterministic substitute**: a battery entry that answers the question
+the reviewer would ask of that code (does the replacement still refuse what the original
+refused?). Every unread redesign of the gate goes into that one review. The review line
+records which: `round K: redesign — reviewed by <subagent_type>` or
+`round K: redesign — battery <name>`. A repair closes as before. Below tier `light`, nothing
+is added: at `none` no review read the original either.
+
+This review is an exception to two rules. First, it is not a remediation round and does not
+count against the budget. Second, it is owed though nothing Blocking was fixed
+(`stage-gate.md` § Independent evaluator for non-command checks, one dispatch per role per
+gate). Its findings take the exit criterion like any other, repaired
+within the rounds the budget has left; a Critical among them on an exhausted budget is
+escalated with the residual list, as exhaustion always is. A redesign made to answer this
+review is not reviewed again: the gate report names it `round K: redesign — unread`, so the
+loop ends on the budget, never on a reviewer going quiet. One review line is written per
+round whose redesign it covered.
+
+## Remediation that re-runs a live check
+
+A live or device-bound check — a real bot session, a device, a remote host — costs minutes per
+run, and a fix fitted to the one capture the failed run left behind passes its fake and fails
+the next live run. Repeated, that is a remediation loop at 15 minutes a turn which a host-side
+run would have ended in seconds (BL-140). So the round's evidence is gathered on the host
+first.
+
+**Before a remediation round re-runs a live or device-bound check, the fix is proven against
+every real capture or fixture of that kind the repo holds, plus any the failed run produced,
+and the sweep command is recorded in the commit as a `fixture-sweep:` trailer**
+(`fixture-sweep: pytest tests/captures -k parse  # 14 captures`). The live re-run comes
+after, and it is the confirmation, not the search.
+
+**A rule derived from a capture states the property it checks, and its test includes one real
+capture that differs from the source in its incidental parts** — another session, another
+id, another ordering. A rule written from one capture tends to encode that capture's
+accidents; the second capture is what tells the property from the accident.
+
+**A fake that encodes the behaviour under test is named in the gate report as "unproven
+against the real system".** A stub that returns the shape the fix expects proves the fix
+agrees with the stub. It stays a useful test of the code around it, and the label keeps it
+from being read as evidence about the system it imitates.
+
+Position (DEC-017): only a round that re-runs a live or device-bound check. A round whose
+checks all run on the host pays nothing here. `plan-flip-audit.py --repo` reports a
+`Stage N gate remediation` or `Stage N gate, remediation` commit, dated on or after the plan's
+own date, for a gate with a `**Live check` line and no `fixture-sweep:` trailer (finding 10,
+advisory). It matches by stage number and date, so plans sharing a date and stage numbers
+read each other's commits; the report names each commit for the reader to place.
 
 ## What `--budget-check` rests on, and what it does not cover
 

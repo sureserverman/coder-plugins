@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "PASS  preflight: \u00a7 Gate-selector probe located\nPASS  probe: pytest's command is unchanged\nPASS  probe: cargo is probed with `-- --list` and must list a test\nPASS  probe: Gradle is probed by a source-set match\nPASS  probe: a zero result is a Preflight plan defect for every runner\n\nall checks passed"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/references/preflight-checks.md\n+++ b/planning/skills/executing-plans/references/preflight-checks.md\n@@ -172,7 +172,7 @@\n reports their unmatched selectors as advisory, because some match tests that already exist \u2014\n this is where each one is settled):\n \n-- **cargo** \u2014 a gate's `cargo test <filter>` is probed with `cargo test <filter> -- --list`\n+- **cargo** \u2014 a gate's `cargo test <filter>` is probed with `cargo test <filter>`\n   (the gate's own package and target flags kept), which builds and lists the matching tests\n   without running them. It must list at least one test.\n - **Gradle** \u2014 a gate's `--tests '<pattern>'` must match a test class or method name under the\n",
+ "build": null,
+ "created": "2026-10-06T12:07:30+00:00",
+ "fingerprint": "94f90b1e3972ff3f136709a9ba56d35e6b529c4aaceba0632053bb4d80437fc8",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "cargo is absent",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "PASS  preflight: \u00a7 Gate-selector probe located\nPASS  probe: pytest's command is unchanged\nFAIL  probe: cargo is probed with `-- --list` and must list a test \u2014 cargo is absent, or its probe is not `-- --list`\nPASS  probe: Gradle is probed by a source-set match\nPASS  probe: a zero result is a Preflight plan defect for every runner\n\n1 check(s) failed:\n  - probe: cargo is probed with `-- --list` and must list a test"
+ },
+ "schema": 2,
+ "task": "3.2",
+ "test": "python3 planning/skills/executing-plans/tests/test-preflight-probe-contract.py",
+ "text": "the probe covers cargo with `-- --list` (red if cargo is absent)",
+ "touched": [
+  "planning/skills/executing-plans/references/preflight-checks.md"
+ ]
+}

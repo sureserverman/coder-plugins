@@ -363,6 +363,9 @@ WIRED = [
     # Writes the envelopes remote-agents parses and verifies a vault plan's RESUME HERE
     # block; a stale cached copy would speak an older protocol and say nothing about it.
     ("executing-plans", "handoff-envelope.py"),
+    # Decides at every gate whether a claimed review was dispatched; a stale cached copy
+    # would judge the review line by an older grammar and say nothing about it.
+    ("executing-plans", "review-ledger-check.py"),
     ("compass", "compass-scan.py"),
     ("decisions", "decisions-relevant.py"),
 ]

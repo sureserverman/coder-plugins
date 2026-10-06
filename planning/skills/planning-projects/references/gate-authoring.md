@@ -62,6 +62,36 @@ The "strictly wider set" exception is the class-predicate rule doing its job: th
 the column is gone from the migration; the gate sweeps the whole source tree for the
 vocabulary" — because an unnameable widening is indistinguishable from a duplicate.
 
+## A gate heuristic ships with a severity axis and a measured trigger rate
+
+This governs the plugin's own checks — a validator finding, an audit pattern, a detector a
+gate calls — not the checks a plan author writes into a stage gate.
+
+Any heuristic wired into a gate ships with a severity axis and a trigger rate. The axis has
+two values, blocking and advisory. The trigger rate is measured over a real corpus, stated in
+its source with the corpus and the date, in the form
+`measured <date> over <corpus>: <n> hits, <t> true`. A blocking finding is one whose measured hits were all true defects, over at least one hit.
+Anything less is advisory: it is reported and named in the gate report, and it never exits 1
+and never fails a gate (`plan-flip-audit.py` exits 4 on advisory findings alone).
+
+**Measured, and the reason this is a rule.** `plan-flip-audit.py`'s void detector began as
+one flat vocabulary where any hit was a RED gate. Over 188 real plans it lit **31.4%** of
+them, with a 39.8% hard false-positive rate; the dominant cause was `amended` (44% of hits),
+a word the amendment protocol requires an honest executor to write (`plan-flip-audit.py`'s
+VOID_STRONG comment). Split into a blocking tier (phrases that say the work did not happen)
+and an advisory tier (qualifiers that void only in company), the same corpus lit **12.8%**,
+measured at the engineering-skills port that filed BL-090, and the check stayed on. At 31.4% it would have been waived, and
+the waiver written as a note beside a green gate: the artifact the check exists to abolish.
+
+A check too noisy to leave on is a defect in the check. It is fixed there — narrowed, split,
+or moved to advisory — and the plans it flags carry it as a finding against the check, not as
+a residual of their own. A heuristic with no measured rate has no ground for either tier: it
+ships advisory until one is measured.
+
+Position (DEC-017): once, when the check is built or its trigger changes. The measurement
+over the vault corpus runs in the building task's test, never in a repo validator
+(DEC-022).
+
 ## When a stage gate fails
 
 `executing-plans` owns the operative procedure and is the single source of truth for it:

@@ -116,6 +116,11 @@ FAILURES = []
 RAN = []
 
 
+def ws(pattern):
+    """A literal phrase as a wrap-tolerant pattern: every space may be any whitespace run."""
+    return re.sub(r" ", r"\\s+", pattern)
+
+
 def check(name, ok, detail=""):
     RAN.append(name)
     if not ok:
@@ -1581,6 +1586,99 @@ def main():
           "--stage-order-check" in step31
           and affirms_claim(step31, r"fully `\[x\]` gate"),
           "a stage can open before the gate it depends on, and nothing says so")
+
+    # 15. (gate-executor-discipline Task 2.2, BL-140) Live-evidence remediation. A fix
+    #     fitted to one capture passed its fake and failed the 15-minute live re-run, round
+    #     after round: the remediation swept code, never the captures. These pin the sweep
+    #     before a live re-run, its trailer, the property statement with a differing
+    #     capture, and the label on a fake that encodes the behaviour under test.
+    gfp = (SKILL.parent / "references" / "gate-failure-procedure.md").read_text(encoding="utf-8")
+    live = section(gfp, r"(?m)^## Remediation that re-runs a live check", r"(?m)^## ")
+    check("gate-failure-procedure: § Remediation that re-runs a live check present",
+          bool(live), "no live-evidence remediation section")
+    check("live remediation: the fix is proven against every real capture before a live re-run",
+          affirms_claim(live, ws(r"proven against every real capture or fixture of that kind"))
+          and affirms_claim(live, ws(r"before a remediation round re-runs a live or device-bound check")),
+          "the capture sweep, or its position before the live re-run, is absent or negated")
+    check("live remediation: the sweep command is recorded as a `fixture-sweep:` trailer",
+          "`fixture-sweep:`" in live
+          and affirms_claim(live, ws(r"recorded in the commit as a `fixture-sweep:` trailer")),
+          "the `fixture-sweep:` trailer is unnamed or optional")
+    check("live remediation: a capture-derived rule states the property it checks",
+          affirms_claim(live, ws(r"states the property it checks")),
+          "no property statement")
+    check("live remediation: its test includes a real capture differing in incidental parts",
+          affirms_claim(live, ws(r"one real capture that differs from the source in its incidental parts")),
+          "a one-capture test is allowed")
+    check("live remediation: a fake encoding the behaviour under test is labelled",
+          affirms_claim(live, ws(r'is named in the gate report as "unproven against the real system"')),
+          "the 'unproven against the real system' label is absent or negated")
+
+    # 16. (gate-executor-discipline Task 2.3, BL-089) A redesign in the last round gets
+    #     read. Since 0.50.0 an Important fix closes on a fix-scope re-run with no
+    #     re-review, so replacement code written in the round that ends the budget shipped
+    #     unread. These pin the two terms, the review (or battery substitute), its tier
+    #     bound and the record.
+    redesign = section(gfp, r"(?m)^## A redesign the gate closes on", r"(?m)^## ")
+    check("gate-failure-procedure: § A redesign the gate closes on present", bool(redesign),
+          "no redesign section")
+    check("redesign: a repair is defined",
+          affirms_claim(redesign, ws(r"A \*\*repair\*\* is a change inside code the review read")),
+          "the repair definition is absent")
+    check("redesign: a redesign is defined",
+          affirms_claim(redesign, ws(r"A \*\*redesign\*\* is a new file or function, or a replacement of logic the review read")),
+          "the redesign definition is absent")
+    check("redesign: an unread redesign at gate close gets a review of its diff, or a battery entry",
+          # The subject is an absence ("no review has read"), so it is pinned by presence;
+          # the obligation it carries is screened.
+          re.search(ws(r"A redesign no review has read when the gate closes"), redesign) is not None
+          and affirms_claim(redesign, ws(r"gets one review of the redesign's diff alone"))
+          and affirms_claim(redesign, ws(r"or a deterministic substitute")),
+          "an unread redesign may close on a fix-scope re-run alone")
+    check("redesign: keyed to the gate closing green or on an exhausted budget",
+          affirms_claim(redesign, ws(r"whether the gate closes green or on an exhausted budget")),
+          "the rule is keyed to the budget-ending round only — a gate closing green in "
+          "round 1 ships its redesign unread")
+    check("redesign: the review is an explicit exception to the round and re-dispatch rules",
+          # Again an absence by design ("is not a round"): presence, beside the exception
+          # sentence that frames it, screened.
+          re.search(ws(r"it is not a remediation round and does not count against the budget"),
+                    redesign) is not None
+          and affirms_claim(redesign, ws(r"This review is an exception to two rules")),
+          "the review contradicts 'a re-dispatched review is a round' with no stated exception")
+    check("redesign: bounded to the tier that funded the original review",
+          affirms_claim(redesign, ws(r"at the tier that funded the original review"))
+          and re.search(ws(r"Below tier `light`, nothing is added"), redesign) is not None,
+          "the tier bound, or the below-light clause, is absent")
+    check("redesign: the review-line form is stated",
+          "`round K: redesign — reviewed by <subagent_type>`" in redesign
+          and "`round K: redesign — battery <name>`" in redesign,
+          "the record form is unspecified")
+
+    # 16b. (redesign review B1, B3) Both exceptions pinned, the one-review rule, the
+    #      termination sentence, and the cross-references at the sites that count rounds.
+    check("redesign: second exception — owed though nothing Blocking was fixed",
+          affirms_claim(redesign, ws(r"it is owed though nothing Blocking was fixed")),
+          "the second exception is absent, leaving a false 'two rules'")
+    check("redesign: every unread redesign of the gate goes into the one review",
+          affirms_claim(redesign, ws(r"Every unread redesign of the gate goes into that one review")),
+          "several unread redesigns could each buy a review")
+    check("redesign: a redesign answering this review is named unread, so the loop ends on the budget",
+          "`round K: redesign — unread`" in redesign
+          and re.search(ws(r"the loop ends on the budget"), redesign) is not None,
+          "a redesign answering the review could buy another review, without end")
+    stagegate_text = (SKILL.parent / "references" / "stage-gate.md").read_text(encoding="utf-8")
+    for site, text in (
+            ("SKILL.md budget", SKILL.read_text(encoding="utf-8")),
+            ("gate-failure-procedure.md budget", gfp),
+            ("stage-gate.md", stagegate_text)):
+        check(f"cross-reference to the redesign exception at {site}",
+              re.search(ws(r"A redesign the gate closes on"), text) is not None
+              or re.search(ws(r"unread redesign"), text) is not None,
+              f"{site} counts rounds or re-dispatches with no pointer to the redesign exception")
+    check("stage-gate.md: both round-counting sites point at the exception",
+          len(re.findall(ws(r"A redesign the gate closes on"), stagegate_text)) >= 2,
+          "one of stage-gate.md's two round/re-dispatch rules lacks the pointer")
 
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:

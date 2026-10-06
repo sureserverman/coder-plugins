@@ -124,6 +124,13 @@ the owner's request. A supervisor must resolve its project directory to the same
    **Decisions in force:** <IDs>
    ```
 
+   Before writing it, list the background tasks and agents this run started, by the id each
+   launch result and completion notification carried, stop each whose result was used
+   (`TaskStop`), and name each one still running in the block's `running:` line. Then run `python3 <planning>/skills/executing-plans/scripts/review-ledger-check.py --unstopped --repo <repo root>`
+   and add to that line each agent it lists (exit 1) by id and type; with nothing from
+   either, `running: none`; with no log (exit 3), `running: NOT RUN` beside the ids
+   noted at launch. The successor must
+   know what is still working before it starts anything of its own.
 2. Commit it as its own `"Stage N handoff"` commit, whose body carries the same `reason:`
    line — the gate commit is already made, since the script runs after it. When the plan
    lives outside the repo, write the block at the plan's absolute path and make the same

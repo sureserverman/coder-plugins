@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "PASS  gate-authoring: the heuristic section is present\nPASS  heuristic: ships with a severity axis and a trigger rate\nPASS  heuristic: the axis has the two values blocking and advisory\nPASS  heuristic: the trigger rate is measured over a real corpus\nPASS  heuristic: the rate is stated in the check's source with corpus and date\nPASS  heuristic: the blocking criterion is stated\nPASS  heuristic: a too-noisy check is a defect in the check\nPASS  heuristic: cites the 31.4% -> 12.8% measurement\n\nall checks passed"
+ },
+ "break_patch": "--- a/planning/skills/planning-projects/references/gate-authoring.md\n+++ b/planning/skills/planning-projects/references/gate-authoring.md\n@@ -68,7 +68,7 @@\n gate calls \u2014 not the checks a plan author writes into a stage gate.\n \n Any heuristic wired into a gate ships with a severity axis and a trigger rate. The axis has\n-two values, blocking and advisory. The trigger rate is measured over a real corpus, stated in\n+two values, blocking and advisory. A trigger rate may be noted, stated in\n its source with the corpus and the date, in the form\n `measured <date> over <corpus>: <n> hits, <t> true`. A blocking finding is one whose measured hits were all true defects. Anything\n less is advisory: it is reported and named in the gate report, and it changes no exit code.\n",
+ "build": null,
+ "created": "2026-10-06T11:51:34+00:00",
+ "fingerprint": "142221583358ff1e59d1bf1d16f1d9e31cbdb0064bc9e5ad06e7fb00881103d4",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "either is removed",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "PASS  gate-authoring: the heuristic section is present\nPASS  heuristic: ships with a severity axis and a trigger rate\nPASS  heuristic: the axis has the two values blocking and advisory\nFAIL  heuristic: the trigger rate is measured over a real corpus \u2014 the measured-trigger-rate requirement is absent or negated\nPASS  heuristic: the rate is stated in the check's source with corpus and date\nPASS  heuristic: the blocking criterion is stated\nPASS  heuristic: a too-noisy check is a defect in the check\nPASS  heuristic: cites the 31.4% -> 12.8% measurement\n\n1 check(s) failed:\n  - heuristic: the trigger rate is measured over a real corpus"
+ },
+ "schema": 2,
+ "task": "2.4",
+ "test": "python3 planning/skills/planning-projects/tests/test-gate-heuristic-contract.py",
+ "text": "the section requires both a severity axis and a measured trigger rate (red if either is removed)",
+ "touched": [
+  "planning/skills/planning-projects/references/gate-authoring.md"
+ ]
+}

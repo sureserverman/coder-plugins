@@ -110,6 +110,57 @@ and end the turn — the host re-invokes you when it lands. Naming the thing you
 for is what separates a legitimate pause from an abandoned promise, both for the reader and
 for the optional `plan-continue` Stop hook (`plan-continue-hook.md`).
 
+## Waiting on background work
+
+Wait on a background job by its own completion: the harness notification that arrives when a
+background command or agent finishes, `wait <pid>` for a job this shell started, or a
+sentinel file the job writes as its last act. Each of those fires when *that job* ends.
+
+A process-name search does not. This loop never returns:
+`until ! pgrep -f run-tests.sh; do sleep 5; done` — the loop matches its own shell:
+`pgrep -f` matches the shell whose command line holds the pattern, and the shell running this
+loop is one, so the search always finds it. If a name search is
+unavoidable (a job some other process started, with no pid and no sentinel), exclude the
+searcher: match on a pattern its own command line cannot contain
+(`pgrep -f '[r]un-tests.sh'`).
+
+**What this run started, this run reaps.** At close-out and at a gate that hands off, list
+the background tasks and agents the run started, stop each whose result was used, and name
+each one still running in the report (`close-out.md`, `session-handoff.md` § On `handoff`).
+The list is kept from the ids the launches returned: each background command's launch result
+and completion notification carry its task id, and `TaskStop` takes that id or an agent's id.
+As of Claude Code 2.1.291 (2026-10) no tool lists them afterwards, so note each id when it is
+launched — in the gate report, and in the `RESUME HERE` block's `running:` line at a handoff,
+since a successor session has no transcript to recover them from. For agents,
+`review-ledger-check.py --unstopped` lists those the dispatch log saw start and never stop.
+A background subagent's own commands keep running after the subagent returns, so a result in
+hand is not proof the work behind it stopped.
+
+## A task test has a time budget
+
+A task's `Test:` is its whole testing
+(§ Why the task's own `Test:` is the whole of its testing), and nothing bounded what it costs. Measured (BL-097): a task test that collected a
+3,132-test suite ran 3.5 h inside one Red-Green loop, and the user noticed before any tool did.
+
+**On a plan that declares test-scope commands, a task's `Test:` runs under a task-test budget:
+300 s by default.** A plan overrides it with a Preflight line, `task-test budget: N s`
+(`../../planning-projects/references/test-scope-tiers.md`). The budget is passed to the proof
+as `prove-claim.py --timeout N`; every proof record carries the measured `elapsed_s` of its
+baseline and break runs, so the cost is on record whether or not it runs over.
+
+The budget bounds each run of the test, not their sum, and nothing applies it for you:
+`prove-claim.py`'s own `--timeout` default is 3600 s, and no tool reads the Preflight line —
+the executor passes the budget.
+
+**A test over the budget is a Stop condition**, reported like a spent cycle budget: the
+progress file gets `phase: "blocked"` with the note `task test over N s`. `prove-claim.py`
+exits 4 without a record when the run before the break goes over; a test that hangs only
+under the break exits 1 ("hung … inconclusive") — a stop all the same, because the test
+cannot be timed. The test is never narrowed to fit (DEC-024): cost is an argument
+for re-planning the task, made to the user, never a licence to prove less. Position
+(DEC-017): test-scope tier task, and only on a plan that declares test-scope commands, where
+the suite is expensive enough for the budget to bind.
+
 ## Tier 1 — the quick per-task review
 
 Whether it runs comes from `../references/review-scope.md`; do not re-derive it. **At `none`,
@@ -121,7 +172,9 @@ the per-task opt-in that buys one risky task a review without raising the whole 
 A `high` declaration naming no tasks binds all of them; an ordinary task in a `high` plan
 whose own diff touches nothing risk-listed does **not** run Tier 1, and the gate report
 records that as scope (`Tier-1: not run — tier high, task not risk-listed`), never as an
-opt-out.
+opt-out. Describe a Tier-1 dispatch by its task (`Stage 2 Task 2.3 quick review`): the ledger
+check never counts a dispatch naming a task toward the stage's Tier-2 claim
+(`stage-gate.md` § Checked against the dispatch log).
 
 **Why the default moved.** Per-task review was unconditional through 0.36.0, so a nine-task
 plan paid nine review dispatches plus their re-dispatches after fixes, and the findings were

@@ -6,8 +6,8 @@
                        [--repo DIR]
     plan-flip-audit.py <plan.md> --snapshot [--repo DIR]
 
-Reports nine patterns, each reconstructed from a real session that shipped a
-green gate over work that had not happened:
+Reports ten patterns, each reconstructed from a real session that shipped a
+green gate over work that had not happened, or burned turns on one (10):
 
   1. more than N (default 6) boxes becoming `[x]` in one commit, with fewer than
      N task commits in the range behind them — the bulk regex flip. The boxes
@@ -38,6 +38,11 @@ green gate over work that had not happened:
   9. a ticked task with a requirement clause that has neither a valid
      req-K.json nor a deviation-K.json record — `advisory`, always: requirement
      accounting carries no blocking mandate until it is measured. Needs --repo.
+ 10. a `Stage N gate remediation` (or `Stage N gate, remediation`) commit, dated
+     on or after the plan's own date, whose Stage N gate has a `**Live check` line
+     and whose message has no `fixture-sweep:` trailer — `advisory`, always (see
+     LIVE_CHECK for the measured rate, why, and the same-date attribution limit).
+     Needs --repo.
 
 Exit 0 = no findings, 1 = a blocking finding, 4 = advisory findings only, 2 =
 usage/IO error (never clean), 3 = no findings but some checks could not run (only
@@ -329,6 +334,35 @@ REQ_LINE = re.compile(r"^\s*(req|deviation)\s*:\s*\S", re.I | re.M)
 FIELD_BULLET = re.compile(r"^\s*[-*+]\s*\*\*[^*]+:\*\*")
 PLAIN_BULLET = re.compile(r"^\s*[-*+]\s+(\S.*)$")
 CLAUSE_SPLIT = re.compile(r";|\.\s+(?=[A-Z`(*])")
+
+# Finding 10: a remediation round that re-runs a live or device-bound check is
+# proven on the host first, against every capture of that kind, and the sweep is
+# recorded as a `fixture-sweep:` trailer (gate-failure-procedure.md § Remediation
+# that re-runs a live check; BL-140: a fix fitted to one capture, 15 minutes a
+# live turn). A gate's live check is a box whose text opens `**Live check`.
+#
+# measured 2026-10-06 over coder-plugins (50 vault plans, its git history) and
+# remote-agents (94 plans, its git history): 4 hits, 0 true — all attributed to
+# proof-by-tool-backport's Stage 4. Two are its own round-1 commits: 4a3b4ad reworded
+# the README, and the live check was not re-run for it; 0e96ef2 did re-run it, and
+# passed first time, with no capture of that kind in the repo to sweep. The other two,
+# 12a4704 and b7586c8 (`Stage 4 gate, remediation …`, the comma form this repo used
+# until 2026-10-04), belong to another plan executed the same day: commits are matched
+# by stage number and date, not by plan, so plans sharing a date and stage numbers —
+# sub-plans especially — read each other's remediations. remote-agents: 0 hits,
+# because no plan there writes the `**Live check` marker (the marker dates from
+# 2026-10-04; 14 of its plans write `Live, …`). BL-140's own incident, remote-agents'
+# `Master gate remediation` rounds, is out of reach for the same reason. The date bound
+# (commits from the plan's filename date on) is measured too: without it the corpus
+# gives two more hits, another plan's 2026-08-08 Stage 4 rounds.
+# Advisory, always: 0 true of 4, and a commit cannot show whether its round re-ran the
+# live check, nor which plan it belongs to. The gate report says that
+# (gate-authoring.md § A gate heuristic ships with a severity axis and a measured
+# trigger rate).
+REMEDIATION = re.compile(r"\bStage\s+(\d+)\s+gate,?\s+remediation\b", re.I)
+LIVE_CHECK = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[[ xX]\]\s*\*\*Live check", re.I)
+FIXTURE_SWEEP = re.compile(r"^\s*fixture-sweep\s*:\s*\S", re.I | re.M)
+PLAN_DATE = re.compile(r"^(\d{4}-\d{2}-\d{2})-")
 
 # The staleness probe lives beside portfolio-unify.py, not beside this file: loaded by
 # explicit path, as in check-master-register.py, so a stale plugin-cache copy says so
@@ -998,6 +1032,47 @@ def scan_task_requirements(path, text, repo):
     return out
 
 
+def live_check_stages(text):
+    """Stage numbers whose `### Stage N Gate` holds a `**Live check` box."""
+    lines = text.splitlines()
+    return {stage for i, stage in gate_box_stages(text).items()
+            if LIVE_CHECK.match(lines[i - 1])}
+
+
+def scan_live_remediations(path, text, repo):
+    """Finding 10 — a live-check gate's remediation commit with no fixture sweep.
+
+    Read from the PROJECT repo's history, from the plan's own date on (its
+    filename's YYYY-MM-DD prefix): a `Stage 1 gate remediation` from a plan the
+    repo executed earlier is not this plan's. Advisory, always — see LIVE_CHECK.
+    """
+    log = gout(repo, "log", "--date=short", "--format=%x1e%H%x00%cd%x00%s%x00%b", "HEAD")
+    if log is None:
+        return None
+    stages = live_check_stages(text)
+    m = PLAN_DATE.match(Path(path).name)
+    since = m.group(1) if m else ""
+    out = []
+    for rec in log.split("\x1e"):
+        if rec.count("\x00") < 3:
+            continue
+        sha, date, subj, body = rec.split("\x00", 3)
+        hit = REMEDIATION.search(subj)
+        if not hit or date < since or hit.group(1) not in stages:
+            continue
+        if FIXTURE_SWEEP.search(body):
+            continue
+        out.append({
+            "finding": 10, "severity": "advisory",
+            "rule": f"Stage {hit.group(1)}'s gate has a **Live check line and this "
+                    "remediation commit records no `fixture-sweep:` trailer — say in "
+                    "the gate report whether the round re-ran the live check, and "
+                    "against which captures the fix was proven first",
+            "file": str(path), "line": None, "commit": sha[:8], "text": subj.strip(),
+        })
+    return out
+
+
 def linked_plans(path, text):
     """Sub-plans referenced from this plan, confined to its own subtree."""
     root, found, seen = path.resolve().parent, [], set()
@@ -1588,7 +1663,8 @@ def build(args):
         has_head = top8 and gout(root, "rev-parse", "--verify", "--quiet", "HEAD")
         f8 = scan_task_mutations(path, text, Path(top8.strip())) if has_head else None
         f9 = scan_task_requirements(path, text, Path(top8.strip())) if has_head else None
-        for n, fs in ((8, f8), (9, f9)):
+        f10 = scan_live_remediations(path, text, Path(top8.strip())) if has_head else None
+        for n, fs in ((8, f8), (9, f9), (10, f10)):
             if fs is None:
                 not_run.append({"finding": n, "reason": f"{root} is not a git repository "
                                 f"with commits — finding {n} reads the task commits there"})
@@ -1596,7 +1672,7 @@ def build(args):
                 findings.extend(fs)
                 checks_run = sorted(set(checks_run) | {n})
     else:
-        for n in (8, 9):
+        for n in (8, 9, 10):
             not_run.append({"finding": n, "reason": f"no --repo: finding {n} reads the task "
                             "commits in the project repo; pass --repo <project root>"})
 

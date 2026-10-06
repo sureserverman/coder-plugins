@@ -41,6 +41,17 @@ impossible to run:
                         never a selector (a whole-file regression run is legitimate, and
                         syntax cannot tell it from the defect).
 
+    SELECTOR-UNMATCHED (gradle/cargo)  the same cross-reference for a Gradle `--tests
+                        '<pattern>'` and a `cargo test <filter>`. ADVISORY, never failed:
+                        measured 2026-10-06 over 595 portfolio plans: 36 Gradle/cargo gate
+                        selectors in 23 plans, 24 hits in 18 plans. The hits include
+                        writer-pad's `*PrivacyManifestTest*`, a test that existed before
+                        its plan — the false-positive shape the pytest form documents — so
+                        not every hit is a defect, and a check is blocking only when every
+                        measured hit was (gate-authoring.md § A gate heuristic ships with a
+                        severity axis and a measured trigger rate). Preflight's probe
+                        settles each one at run time.
+
 A FOURTH axis — REPORTED, NEVER FAILED, and the reason why is the interesting part:
 
     PROSE-BLIND-SWEEP   a negated recursive grep over a source tree, for a pattern of
@@ -89,7 +100,15 @@ plan's TASK fields:
                         to bound. Master plans are skipped: they carry no tasks.
 
     STAGE-SCOPE-WIDE    a declared `stage-scope:` command naming four or more test trees or
-                        modules. A NOTE, never a failure: cost is not decidable from text,
+                        modules with no `justified:` clause giving one reason per tree
+                        (`justified: tests/a — Stage 1 edits it; tests/b — Stage 2 imports
+                        it`); the note names each unjustified tree. ADVISORY, measured
+                        2026-10-06: 49 of the 119 corpus plans declaring stage-scope hit,
+                        and the hits include claude-pacer's `:app:lintDebug
+                        :app:assembleDebug`, which the tree count reads as test trees — so
+                        not every hit is a defect, and the finding stays a note
+                        (gate-authoring.md § A gate heuristic ships with a severity axis and
+                        a measured trigger rate). Cost is not decidable from text either,
                         but a stage-scope that lists most of the project is the full suite
                         under another name and pays plan-scope cost at every gate. Measured
                         (remote-agents, 2026-09-09..11): a seven-tree declaration at 10.5 min
@@ -487,6 +506,74 @@ def pytest_selectors(text):
     return found
 
 
+# The same cross-reference for the two other runners the portfolio's gates use. `cargo test
+# <filter>` (or `cargo nextest run <filter>`): the first positional argument, after flags and
+# their values, before `--`. Gradle: the value of `--tests` / `--tests=`.
+CARGO_SELECTOR = re.compile(r"\bcargo\s+(?:nextest\s+run|test)\b"
+                            r"(?P<body>(?:(?!\bcargo\b|&&|\|\||;)[^`])*)")
+GRADLE_SELECTOR = re.compile(r"--tests(?:=|\s+)(?P<q>['\"]?)(?P<pat>[^'\"`\s]+)(?P=q)")
+# cargo flags that take a value, so the token after them is not the filter.
+CARGO_VALUE_FLAGS = {"-p", "--package", "--test", "--bin", "--example", "--bench",
+                     "--features", "-F", "--manifest-path", "--target", "-j", "--jobs",
+                     "--profile", "--color", "--message-format", "--target-dir", "-Z",
+                     "--config", "--exclude"}
+
+
+def runner_selectors(text):
+    """-> [(runner, filter)] for every Gradle `--tests` and filtered `cargo test` in `text`.
+
+    A cargo run with no filter is not a selector, for the same reason a bare pytest file run
+    is not: a whole-suite run is a legitimate regression sweep."""
+    found = []
+    for span in backticked(text):
+        for m in CARGO_SELECTOR.finditer(span):
+            body = re.split(r"\s--(?:\s|$)", m.group("body"), maxsplit=1)[0]
+            skip = False
+            for tok in body.split():
+                if skip:
+                    skip = False
+                    continue
+                if tok in CARGO_VALUE_FLAGS:
+                    skip = True
+                    continue
+                if tok.startswith("-"):
+                    continue
+                if re.fullmatch(r"[\w:.*-]+", tok):
+                    found.append(("cargo", tok))
+                break
+        # cargo has its own `--tests` flag (all test targets), so a span that runs cargo is
+        # never read as Gradle. A Gradle span need not name gradlew: `:data:test --tests X`.
+        if not re.search(r"\bcargo\b", span):
+            for m in GRADLE_SELECTOR.finditer(span):
+                if not m.group("pat").startswith("-"):
+                    found.append(("gradle", m.group("pat")))
+    return found
+
+
+def unmatched_runner_selectors(text, path=None):
+    """-> [(check, runner, filter)] Gradle/cargo gate selectors no task `Test:` declares.
+
+    ADVISORY — reported, never failed. Measured over the vault corpus (see the module
+    docstring): the flagged set includes a test that already existed before its plan, the
+    same false-positive shape the pytest form documents, so its hits are not all true
+    defects (gate-authoring.md § A gate heuristic ships with a severity axis and a measured
+    trigger rate). Same exemptions as the pytest form: a master plan, `(judgment)`,
+    `(scoped)`."""
+    if is_master_plan(text, path):
+        return []
+    declared = set()
+    for m in TEST_FIELD.finditer(text):
+        declared.update(runner_selectors(m.group(1)))
+    out = []
+    for c in gate_checks(text):
+        if re.search(r"\((judgment|scoped)\)", c, re.I):
+            continue
+        for sel in runner_selectors(c):
+            if sel not in declared:
+                out.append((c, *sel))
+    return out
+
+
 MASTER_HEADING = re.compile(r"^#\s+Master Plan:", re.MULTILINE)
 
 
@@ -734,10 +821,33 @@ TREE_TOKEN = re.compile(r"(?<![\w./-])(?:[\w.-]*/)?tests?(?:/[\w.-]+)*(?![\w-])|
 STAGE_SCOPE_WIDE_MIN = 4
 
 
+JUSTIFIED = re.compile(r"\bjustified\s*:", re.I)
+
+
+def _justified_trees(clause):
+    """Trees a `justified: <tree> — <reason>; <tree> — <reason>` clause gives a reason for.
+    A tree listed with an empty reason is not justified."""
+    out = set()
+    for item in clause.split(";"):
+        parts = re.split(r"\s+(?:—|–|--?)(?:\s+|$)", item.strip(), maxsplit=1)
+        if len(parts) == 2 and parts[1].strip().strip("`"):
+            out.add(_tree_key(parts[0]))
+    return out
+
+
+def _tree_key(tree):
+    """`tests/unit/`, `./tests/unit` and `tests/unit` name one tree."""
+    tree = tree.strip().strip("`").strip()
+    return (tree[2:] if tree.startswith("./") else tree).rstrip("/")
+
+
 def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
-    """-> [(command, tree_count)] for every `stage-scope:` declaration naming
-    `min_trees` or more test trees/modules. Reads the declaration line plus any wrapped
-    continuation lines (indented, not a new bullet). Advisory only."""
+    """-> [(command, tree_count, unjustified)] for every `stage-scope:` declaration naming
+    `min_trees` or more test trees/modules that a `justified:` clause does not cover tree by
+    tree (`justified: tests/a — Stage 1 edits it; tests/b — Stage 2 imports it`).
+    `unjustified` names the trees with no reason. Reads the declaration line plus any
+    wrapped continuation lines (indented, not a new bullet). Advisory only — see the
+    module docstring for the measurement."""
     out = []
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -749,9 +859,14 @@ def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
                 and not re.match(r"\s*[-*]\s", lines[j]):
             cmd += " " + lines[j]
             j += 1
-        trees = set(t for t in TREE_TOKEN.findall(cmd))
-        if len(trees) >= min_trees:
-            out.append((cmd.strip().strip("`").strip(), len(trees)))
+        jm = JUSTIFIED.search(cmd)
+        command, clause = (cmd[:jm.start()], cmd[jm.end():]) if jm else (cmd, "")
+        trees = set(t for t in TREE_TOKEN.findall(command))
+        if len(trees) < min_trees:
+            continue
+        missing = sorted(t for t in trees if _tree_key(t) not in _justified_trees(clause))
+        if missing:
+            out.append((command.strip().strip("`").strip(), len(trees), ", ".join(missing)))
     return out
 
 
@@ -1030,6 +1145,7 @@ def main(argv=None):
     failures = []
     selector_failures = []
     task_test_failures = []
+    runner_selector_notes = []
     prose_blind_failures = []
     wide_stage_notes = []
     examined_files = 0
@@ -1047,10 +1163,12 @@ def main(argv=None):
             scope_notes.append((path, unswept))
         for c, sel_path, expr, why in unmatched_selectors(raw, path):
             selector_failures.append((path, c, sel_path, expr, why))
+        for c, runner, filt in unmatched_runner_selectors(raw, path):
+            runner_selector_notes.append((path, c, runner, filt))
         for task, cmd, why in unscoped_task_tests(raw, path):
             task_test_failures.append((path, task, cmd, why))
-        for cmd, n in wide_stage_scopes(raw):
-            wide_stage_notes.append((path, cmd, n))
+        for cmd, n, missing in wide_stage_scopes(raw):
+            wide_stage_notes.append((path, cmd, n, missing))
         for c, cmd, word in prose_blind_sweeps(raw):
             prose_blind_failures.append((path, c, cmd, word))
         examined_files += 1
@@ -1112,13 +1230,21 @@ def main(argv=None):
 
     # Advisory, never a failure: cost is not decidable from text, so this names the shape
     # and leaves the ~5 min judgment to the author and to Preflight's timing step.
-    for path, cmd, n in wide_stage_notes:
+    for path, cmd, n, missing in wide_stage_notes:
         print(f"\nnote: {path.name}: stage-scope names {n} test trees/modules "
-              f"(`{cmd[:72]}`) — a stage-scope that lists most of the project is the "
+              f"(`{cmd[:72]}`) with no `justified:` reason for {missing} — add "
+              f"`justified: <tree> — <reason>; …` naming why each tree is in, or narrow it. "
+              f"A stage-scope that lists most of the project is the "
               f"full suite under another name and pays plan-scope cost at every gate; "
               f"narrow it to the trees the stages touch or depend on if it crosses ~5 min "
               f"(test-scope-tiers.md § A declared stage-scope command is subject to the "
               f"same cost threshold).")
+
+    # Advisory, never a failure: measured to include an existing-test false positive.
+    for path, c, runner, filt in runner_selector_notes:
+        print(f"\nnote: {path.name}: {runner} filter `{filt}` in a gate check matches no task "
+              f"Test: in the plan — {c[:72]} — if no existing test matches it either, the "
+              f"gate cannot pass (Preflight probes it: preflight-checks.md § Gate-selector probe)")
 
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
@@ -1143,6 +1269,9 @@ def main(argv=None):
         print(f"prose-blind-sweep {len(prose_blind_failures)} (advisory — see notes above)")
     if wide_stage_notes:
         print(f"stage-scope-wide {len(wide_stage_notes)} (advisory — see notes above)")
+    if runner_selector_notes:
+        print(f"selector-unmatched (gradle/cargo) {len(runner_selector_notes)} "
+              f"(advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 
