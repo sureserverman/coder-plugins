@@ -56,6 +56,10 @@ def bad(msg, detail=""):
     if detail:
         for line in str(detail).splitlines():
             print(f"        | {line}")
+    if os.environ.get("SUITE_FAIL_FAST") == "1":   # the battery needs only the first FAIL
+        for d_ in _tmpdirs:
+            shutil.rmtree(d_, ignore_errors=True)
+        sys.exit(1)
 
 
 def run(*args, cwd=None):

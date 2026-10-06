@@ -20,7 +20,8 @@ T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
 pass=0; fail=0
 ok()  { pass=$((pass+1)); echo "  ok    $1"; }
-bad() { fail=$((fail+1)); echo "  FAIL  $1"; [ -n "${2:-}" ] && printf '        | %s\n' "${2:0:700}"; }
+bad() { fail=$((fail+1)); echo "  FAIL  $1"; [ -n "${2:-}" ] && printf '        | %s\n' "${2:0:700}"
+        [ "${SUITE_FAIL_FAST:-}" = 1 ] && exit 1; }   # the battery needs only the first FAIL
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 unset CLAUDE_PROJECT_DIR
 

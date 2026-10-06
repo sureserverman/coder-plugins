@@ -1,0 +1,11 @@
+{
+ "created": "2026-10-06T14:12:58+00:00",
+ "fingerprint": "58a0f62eff187980898879e6f588cbda60317f8c96a3bcc7e336e63e515355aa",
+ "index": 2,
+ "kind": "claim-deviation",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "schema": 2,
+ "task": "4.2",
+ "text": "without it, the same count of `  FAIL` lines as before the change (red if default mode changed)",
+ "why": "Test-file-only change, as claim 1. Proven by hand: with test-proof-guard.sh's bad() changed to exit 1 unconditionally (default mode altered), the fail-fast suite went RED:   FAIL  test-proof-guard.sh: default mode must be unchanged         | before 6, now 1 (exit 1) ; restored, 12 passed, 0 failed."
+}
