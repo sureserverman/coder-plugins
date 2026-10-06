@@ -1,0 +1,11 @@
+{
+ "created": "2026-10-06T12:05:39+00:00",
+ "fingerprint": "9c5e4f24af45642c271e83472a0a6132e527bb8efb5ae93ca1fa40f0cb3a592a",
+ "index": 1,
+ "kind": "claim-deviation",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "schema": 2,
+ "task": "3.1",
+ "text": "an undeclared Gradle filter and an undeclared cargo filter are each flagged (red if either form is ignored)",
+ "why": "prove-claim refuses this Task's Test field: its second command runs validate-gate-checks.py, the file every break must edit (\"breaking the test runner\"). Proven by hand on bdf80b1+staged: with break /tmp/claude-1000/-home-user-dev-ai-tools-coder-plugins/2dc7f284-b270-47da-a514-a48604918d46/scratchpad/breaks/3.1-1.patch applied, the first command (python3 planning/skills/planning-projects/tests/test-validate-gate-checks.py) exits 1 with:   FAIL: an undeclared Gradle --tests filter is flagged   FAIL: the Gradle `--tests=` form is read too ; restored, it exits 0."
+}

@@ -20,6 +20,7 @@ are the kind of thing a later "tightening" of the regex would silently reintrodu
 Stdlib only.
 """
 import importlib.util
+import re
 import os
 import pathlib
 import subprocess
@@ -416,6 +417,55 @@ check(len(vgc.unmatched_selectors(plan_with_task(
         "a restart"))) == 1,
       "the remote-agents bot-live-view sub-01 gate would have been caught at authoring")
 
+print("group 8d — SELECTOR-UNMATCHED for Gradle `--tests` and `cargo test <filter>` (advisory)")
+# The same cross-reference as the pytest form, for the two other runners the portfolio's gates
+# use. ADVISORY: measured over the vault corpus, the flagged set includes writer-pad's
+# `*PrivacyManifestTest*`, a test that already existed — the false-positive shape the pytest
+# form documents. So these forms are reported and never change the exit code (gate-authoring.md
+# § A gate heuristic ships with a severity axis and a measured trigger rate).
+_g_un = plan_with_task("`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — parses",
+                       "`./gradlew :app:testDebugUnitTest --tests '*NothingTest*'` — the goal")
+_g_ok = plan_with_task("`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — parses",
+                       "`./gradlew :app:testDebugUnitTest --tests '*ParserTest*'` — the goal")
+_c_un = plan_with_task("`cargo test -p core parser::` — parses",
+                       "`cargo test -p core nothing_` — the goal")
+_c_ok = plan_with_task("`cargo test -p core parser::` — parses",
+                       "`cargo test -p core parser:: -- --nocapture` — the goal")
+check(len(vgc.unmatched_runner_selectors(_g_un)) == 1,
+      "an undeclared Gradle --tests filter is flagged")
+check(len(vgc.unmatched_runner_selectors(_c_un)) == 1,
+      "an undeclared cargo test filter is flagged")
+check(vgc.unmatched_runner_selectors(_g_ok) == [],
+      "a Gradle filter a task declares passes")
+check(vgc.unmatched_runner_selectors(_c_ok) == [],
+      "a cargo filter a task declares passes (arguments after -- are not the filter)")
+for marker in ("(judgment)", "(scoped)"):
+    check(vgc.unmatched_runner_selectors(
+            plan_with_task("`cargo test parser::`",
+                           f"**{marker}** `cargo test later_` — author asserts")) == [],
+          f"a {marker} check is exempt from the Gradle/cargo cross-reference")
+check(vgc.runner_selectors("`cargo test --workspace --offline`") == [],
+      "a cargo test with no filter is never a selector (a whole-suite run is legitimate)")
+check(vgc.runner_selectors("`cargo test -p core --test cli api_`") == [("cargo", "api_")],
+      "flag values (-p core, --test cli) are not read as the filter")
+check(vgc.runner_selectors("`cd rust && cargo test --lib a_ && cargo test --lib b_`")
+      == [("cargo", "a_"), ("cargo", "b_")],
+      "chained cargo invocations each keep their own filter")
+check(vgc.runner_selectors("`./gradlew test --tests=com.x.FooTest`")
+      == [("gradle", "com.x.FooTest")],
+      "the Gradle `--tests=` form is read too")
+check(vgc.unmatched_runner_selectors(_c_un.replace("# Project Plan: x", "# Master Plan: x")) == [],
+      "a master plan's Gradle/cargo selectors are skipped, as its pytest ones are")
+rc_r, out_r = run(_c_un)
+check(rc_r == 0, "the Gradle/cargo form is advisory — it never changes the exit code")
+check("selector-unmatched (gradle/cargo) 1 (advisory" in out_r,
+      "the advisory count is printed under its own name")
+check(run(_c_ok)[1].count("gradle/cargo") == 0, "nothing is printed when every filter matches")
+check(re.search(r"measured\s+2026-10-06\s+over\s+\d+\s+portfolio\s+plans:\s+\d+\s+Gradle/cargo"
+                r"\s+gate\s+selectors?\s+in\s+\d+\s+plans,\s+\d+\s+hits\s+in\s+\d+\s+plans",
+                vgc.__doc__) is not None,
+      "the docstring states the measured trigger rate with its corpus and date")
+
 print("group 10 — TASK-TEST-UNSCOPED: a task Test: that collects the whole suite")
 # The measured incident: a task whose `Test:` read `uv run --locked pytest -m 'not
 # requires_session'` ran ~3.5 h against a 3132-test collection inside one Red-Green loop,
@@ -699,7 +749,12 @@ frozen = collections.Counter()
 for f in corpus:
     for c in vgc.gate_checks(f.read_text()):
         frozen[vgc.classify(c)[0]] += 1
-doc = vgc.__doc__
+# Read the figures from the calibration sentence only: "3 INSTANCE-SHAPED" also appears in
+# the next sentence about those checks, so a whole-docstring match stayed green with the
+# calibration figure itself changed (found 2026-10-06, gate-executor-discipline Task 3.1).
+_cal = vgc.__doc__.index("Calibrated against")
+doc = " ".join(vgc.__doc__[_cal: vgc.__doc__.index(" PROSE.", _cal) + len(" PROSE.")].split())
+check(bool(doc), "the docstring's calibration sentence is present")
 for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
     # Every class must be represented, or the corpus silently stops testing that branch
     # while the count still "matches" at zero.

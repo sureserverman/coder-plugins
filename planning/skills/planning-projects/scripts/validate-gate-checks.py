@@ -41,6 +41,17 @@ impossible to run:
                         never a selector (a whole-file regression run is legitimate, and
                         syntax cannot tell it from the defect).
 
+    SELECTOR-UNMATCHED (gradle/cargo)  the same cross-reference for a Gradle `--tests
+                        '<pattern>'` and a `cargo test <filter>`. ADVISORY, never failed:
+                        measured 2026-10-06 over 595 portfolio plans: 36 Gradle/cargo gate
+                        selectors in 23 plans, 24 hits in 18 plans. The hits include
+                        writer-pad's `*PrivacyManifestTest*`, a test that existed before
+                        its plan — the false-positive shape the pytest form documents — so
+                        not every hit is a defect, and a check is blocking only when every
+                        measured hit was (gate-authoring.md § A gate heuristic ships with a
+                        severity axis and a measured trigger rate). Preflight's probe
+                        settles each one at run time.
+
 A FOURTH axis — REPORTED, NEVER FAILED, and the reason why is the interesting part:
 
     PROSE-BLIND-SWEEP   a negated recursive grep over a source tree, for a pattern of
@@ -485,6 +496,70 @@ def pytest_selectors(text):
             for p in SELECTOR_PATH.findall(body):
                 found.append((p, kf.group("expr").strip()))
     return found
+
+
+# The same cross-reference for the two other runners the portfolio's gates use. `cargo test
+# <filter>` (or `cargo nextest run <filter>`): the first positional argument, after flags and
+# their values, before `--`. Gradle: the value of `--tests` / `--tests=`.
+CARGO_SELECTOR = re.compile(r"\bcargo\s+(?:nextest\s+run|test)\b"
+                            r"(?P<body>(?:(?!\bcargo\b|&&|\|\||;)[^`])*)")
+GRADLE_SELECTOR = re.compile(r"--tests(?:=|\s+)(?P<q>['\"]?)(?P<pat>[^'\"`\s]+)(?P=q)")
+# cargo flags that take a value, so the token after them is not the filter.
+CARGO_VALUE_FLAGS = {"-p", "--package", "--test", "--bin", "--example", "--bench",
+                     "--features", "-F", "--manifest-path", "--target", "-j", "--jobs",
+                     "--profile", "--color", "--message-format", "--target-dir", "-Z",
+                     "--config", "--exclude"}
+
+
+def runner_selectors(text):
+    """-> [(runner, filter)] for every Gradle `--tests` and filtered `cargo test` in `text`.
+
+    A cargo run with no filter is not a selector, for the same reason a bare pytest file run
+    is not: a whole-suite run is a legitimate regression sweep."""
+    found = []
+    for span in backticked(text):
+        for m in CARGO_SELECTOR.finditer(span):
+            body = re.split(r"\s--(?:\s|$)", m.group("body"), maxsplit=1)[0]
+            skip = False
+            for tok in body.split():
+                if skip:
+                    skip = False
+                    continue
+                if tok in CARGO_VALUE_FLAGS:
+                    skip = True
+                    continue
+                if tok.startswith("-"):
+                    continue
+                if re.fullmatch(r"[\w:.*-]+", tok):
+                    found.append(("cargo", tok))
+                break
+        for m in GRADLE_SELECTOR.finditer(span):
+            found.append(("gradle", m.group("pat")))
+    return found
+
+
+def unmatched_runner_selectors(text, path=None):
+    """-> [(check, runner, filter)] Gradle/cargo gate selectors no task `Test:` declares.
+
+    ADVISORY — reported, never failed. Measured over the vault corpus (see the module
+    docstring): the flagged set includes a test that already existed before its plan, the
+    same false-positive shape the pytest form documents, so its hits are not all true
+    defects (gate-authoring.md § A gate heuristic ships with a severity axis and a measured
+    trigger rate). Same exemptions as the pytest form: a master plan, `(judgment)`,
+    `(scoped)`."""
+    if is_master_plan(text, path):
+        return []
+    declared = set()
+    for m in TEST_FIELD.finditer(text):
+        declared.update(runner_selectors(m.group(1)))
+    out = []
+    for c in gate_checks(text):
+        if re.search(r"\((judgment|scoped)\)", c, re.I):
+            continue
+        for sel in runner_selectors(c):
+            if sel not in declared:
+                out.append((c, *sel))
+    return out
 
 
 MASTER_HEADING = re.compile(r"^#\s+Master Plan:", re.MULTILINE)
@@ -1030,6 +1105,7 @@ def main(argv=None):
     failures = []
     selector_failures = []
     task_test_failures = []
+    runner_selector_notes = []
     prose_blind_failures = []
     wide_stage_notes = []
     examined_files = 0
@@ -1047,6 +1123,8 @@ def main(argv=None):
             scope_notes.append((path, unswept))
         for c, sel_path, expr, why in unmatched_selectors(raw, path):
             selector_failures.append((path, c, sel_path, expr, why))
+        for c, runner, filt in unmatched_runner_selectors(raw, path):
+            runner_selector_notes.append((path, c, runner, filt))
         for task, cmd, why in unscoped_task_tests(raw, path):
             task_test_failures.append((path, task, cmd, why))
         for cmd, n in wide_stage_scopes(raw):
@@ -1120,6 +1198,12 @@ def main(argv=None):
               f"(test-scope-tiers.md § A declared stage-scope command is subject to the "
               f"same cost threshold).")
 
+    # Advisory, never a failure: measured to include an existing-test false positive.
+    for path, c, runner, filt in runner_selector_notes:
+        print(f"\nnote: {path.name}: {runner} filter `{filt}` in a gate check matches no task "
+              f"Test: in the plan — {c[:72]} — if no existing test matches it either, the "
+              f"gate cannot pass (Preflight probes it: preflight-checks.md § Gate-selector probe)")
+
     # Name the files that yielded nothing. A batch total hides a file the extractor
     # cannot see — which is exactly how master-plan `**Gate:**` blocks went unnoticed
     # while the aggregate looked healthy.
@@ -1143,6 +1227,9 @@ def main(argv=None):
         print(f"prose-blind-sweep {len(prose_blind_failures)} (advisory — see notes above)")
     if wide_stage_notes:
         print(f"stage-scope-wide {len(wide_stage_notes)} (advisory — see notes above)")
+    if runner_selector_notes:
+        print(f"selector-unmatched (gradle/cargo) {len(runner_selector_notes)} "
+              f"(advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 
