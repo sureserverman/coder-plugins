@@ -454,6 +454,13 @@ check(vgc.runner_selectors("`cd rust && cargo test --lib a_ && cargo test --lib 
 check(vgc.runner_selectors("`./gradlew test --tests=com.x.FooTest`")
       == [("gradle", "com.x.FooTest")],
       "the Gradle `--tests=` form is read too")
+# Stage 3 review I3: cargo's own `--tests` flag (all test targets) is not a Gradle filter.
+check(vgc.runner_selectors("`cargo test --tests -- --nocapture`") == [],
+      "cargo's `--tests` flag is not read as a Gradle selector")
+check(vgc.runner_selectors("`cargo test -p core --tests api_`") == [("cargo", "api_")],
+      "a cargo command with --tests yields its cargo filter only")
+check(vgc.runner_selectors("`./gradlew test --tests -x`") == [],
+      "a Gradle --tests value starting with `-` is a flag, not a pattern")
 check(vgc.unmatched_runner_selectors(_c_un.replace("# Project Plan: x", "# Master Plan: x")) == [],
       "a master plan's Gradle/cargo selectors are skipped, as its pytest ones are")
 rc_r, out_r = run(_c_un)
@@ -698,6 +705,19 @@ _partial = (f"- stage-scope: `{_four}` justified: tests/unit — Stage 1 edits i
 _pw = vgc.wide_stage_scopes(_partial)
 check(len(_pw) == 1 and "tests/architecture" in _pw[0][2],
       "a justification missing one tree is reported, naming that tree")
+# Stage 3 review I4: a tree written `tests/unit/` or `./tests/unit` in the clause is the
+# same tree the command names.
+_slash = _just.replace("justified: tests/unit — ", "justified: tests/unit/ — ").replace(
+    "tests/integration — Stage 1", "./tests/integration — Stage 1")
+check(vgc.wide_stage_scopes(_slash) == [],
+      "a justified tree with a trailing slash or leading ./ matches the command's tree")
+# Stage 3 review S4: a reason containing a dash, and the clause on a wrapped line.
+_dash = _just.replace("Stage 1 edits it", "Stage 1 edits it - the parser")
+check(vgc.wide_stage_scopes(_dash) == [], "a reason containing a dash still justifies its tree")
+_wrapped = (f"- stage-scope: `{_four}`\n  justified: tests/unit — Stage 1 edits it; "
+            "tests/integration — Stage 1 imports it;\n  tests/contract — Stage 2 changes the "
+            "port; tests/architecture — Stage 2 adds a layer\n- plan-scope: `uv run pytest`\n")
+check(vgc.wide_stage_scopes(_wrapped) == [], "a justified: clause on wrapped lines is read")
 _empty_reason = _just.replace("tests/architecture — Stage 2 adds a layer", "tests/architecture —")
 check(len(vgc.wide_stage_scopes(_empty_reason)) == 1,
       "a tree listed with an empty reason is not justified")
@@ -782,8 +802,8 @@ for f in corpus:
 # Read the figures from the calibration sentence only: "3 INSTANCE-SHAPED" also appears in
 # the next sentence about those checks, so a whole-docstring match stayed green with the
 # calibration figure itself changed (found 2026-10-06, gate-executor-discipline Task 3.1).
-_cal = vgc.__doc__.index("Calibrated against")
-doc = " ".join(vgc.__doc__[_cal: vgc.__doc__.index(" PROSE.", _cal) + len(" PROSE.")].split())
+_calm = re.search(r"Calibrated against.*?\bPROSE\.", " ".join(vgc.__doc__.split()))
+doc = _calm.group(0) if _calm else ""
 check(bool(doc), "the docstring's calibration sentence is present")
 for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
     # Every class must be represented, or the corpus silently stops testing that branch

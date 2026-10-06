@@ -38,10 +38,11 @@ green gate over work that had not happened, or burned turns on one (10):
   9. a ticked task with a requirement clause that has neither a valid
      req-K.json nor a deviation-K.json record — `advisory`, always: requirement
      accounting carries no blocking mandate until it is measured. Needs --repo.
- 10. a `Stage N gate remediation` commit, dated on or after the plan's own
-     date, whose Stage N gate has a `**Live check` line and whose message has no
-     `fixture-sweep:` trailer — `advisory`, always (see LIVE_CHECK for the
-     measured rate and why). Needs --repo.
+ 10. a `Stage N gate remediation` (or `Stage N gate, remediation`) commit, dated
+     on or after the plan's own date, whose Stage N gate has a `**Live check` line
+     and whose message has no `fixture-sweep:` trailer — `advisory`, always (see
+     LIVE_CHECK for the measured rate, why, and the same-date attribution limit).
+     Needs --repo.
 
 Exit 0 = no findings, 1 = a blocking finding, 4 = advisory findings only, 2 =
 usage/IO error (never clean), 3 = no findings but some checks could not run (only
@@ -341,20 +342,24 @@ CLAUSE_SPLIT = re.compile(r";|\.\s+(?=[A-Z`(*])")
 # live turn). A gate's live check is a box whose text opens `**Live check`.
 #
 # measured 2026-10-06 over coder-plugins (50 vault plans, its git history) and
-# remote-agents (94 plans, its git history): 2 hits, 0 true. Both hits are
-# proof-by-tool-backport's Stage 4 round 1: 4a3b4ad reworded the README, and the
-# live check was not re-run for it; 0e96ef2 did re-run it, and passed first time.
-# The repo held no capture of that kind to sweep, so it matched the rule's letter
-# without its defect. remote-agents: 0 hits, because no plan there writes the
-# `**Live check` marker (the marker dates from 2026-10-04; 14 of its plans write
-# `Live, …`). BL-140's own incident, remote-agents' `Master gate remediation`
-# rounds, is out of reach for the same reason. The date bound (commits from the
-# plan's filename date on) is measured too: without it the same corpus gives 4
-# hits, and the 2 extra are another plan's 2026-08-08 Stage 4 rounds.
-# Advisory, always: 0 true of 2, and a commit cannot show whether its round
-# re-ran the live check. The gate report says that (gate-authoring.md § A gate
-# heuristic ships with a severity axis and a measured trigger rate).
-REMEDIATION = re.compile(r"\bStage\s+(\d+)\s+gate\s+remediation\b", re.I)
+# remote-agents (94 plans, its git history): 4 hits, 0 true — all attributed to
+# proof-by-tool-backport's Stage 4. Two are its own round-1 commits: 4a3b4ad reworded
+# the README, and the live check was not re-run for it; 0e96ef2 did re-run it, and
+# passed first time, with no capture of that kind in the repo to sweep. The other two,
+# 12a4704 and b7586c8 (`Stage 4 gate, remediation …`, the comma form this repo used
+# until 2026-10-04), belong to another plan executed the same day: commits are matched
+# by stage number and date, not by plan, so plans sharing a date and stage numbers —
+# sub-plans especially — read each other's remediations. remote-agents: 0 hits,
+# because no plan there writes the `**Live check` marker (the marker dates from
+# 2026-10-04; 14 of its plans write `Live, …`). BL-140's own incident, remote-agents'
+# `Master gate remediation` rounds, is out of reach for the same reason. The date bound
+# (commits from the plan's filename date on) is measured too: without it the corpus
+# gives two more hits, another plan's 2026-08-08 Stage 4 rounds.
+# Advisory, always: 0 true of 4, and a commit cannot show whether its round re-ran the
+# live check, nor which plan it belongs to. The gate report says that
+# (gate-authoring.md § A gate heuristic ships with a severity axis and a measured
+# trigger rate).
+REMEDIATION = re.compile(r"\bStage\s+(\d+)\s+gate,?\s+remediation\b", re.I)
 LIVE_CHECK = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[[ xX]\]\s*\*\*Live check", re.I)
 FIXTURE_SWEEP = re.compile(r"^\s*fixture-sweep\s*:\s*\S", re.I | re.M)
 PLAN_DATE = re.compile(r"^(\d{4}-\d{2}-\d{2})-")

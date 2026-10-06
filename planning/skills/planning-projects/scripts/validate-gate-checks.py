@@ -108,7 +108,7 @@ plan's TASK fields:
                         :app:assembleDebug`, which the tree count reads as test trees — so
                         not every hit is a defect, and the finding stays a note
                         (gate-authoring.md § A gate heuristic ships with a severity axis and
-                        a measured trigger rate). Also a NOTE because cost is not decidable from text,
+                        a measured trigger rate). Cost is not decidable from text either,
                         but a stage-scope that lists most of the project is the full suite
                         under another name and pays plan-scope cost at every gate. Measured
                         (remote-agents, 2026-09-09..11): a seven-tree declaration at 10.5 min
@@ -541,8 +541,12 @@ def runner_selectors(text):
                 if re.fullmatch(r"[\w:.*-]+", tok):
                     found.append(("cargo", tok))
                 break
-        for m in GRADLE_SELECTOR.finditer(span):
-            found.append(("gradle", m.group("pat")))
+        # cargo has its own `--tests` flag (all test targets), so a span that runs cargo is
+        # never read as Gradle. A Gradle span need not name gradlew: `:data:test --tests X`.
+        if not re.search(r"\bcargo\b", span):
+            for m in GRADLE_SELECTOR.finditer(span):
+                if not m.group("pat").startswith("-"):
+                    found.append(("gradle", m.group("pat")))
     return found
 
 
@@ -827,8 +831,14 @@ def _justified_trees(clause):
     for item in clause.split(";"):
         parts = re.split(r"\s+(?:—|–|--?)(?:\s+|$)", item.strip(), maxsplit=1)
         if len(parts) == 2 and parts[1].strip().strip("`"):
-            out.add(parts[0].strip().strip("`").strip())
+            out.add(_tree_key(parts[0]))
     return out
+
+
+def _tree_key(tree):
+    """`tests/unit/`, `./tests/unit` and `tests/unit` name one tree."""
+    tree = tree.strip().strip("`").strip()
+    return (tree[2:] if tree.startswith("./") else tree).rstrip("/")
 
 
 def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
@@ -854,7 +864,7 @@ def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
         trees = set(t for t in TREE_TOKEN.findall(command))
         if len(trees) < min_trees:
             continue
-        missing = sorted(trees - _justified_trees(clause))
+        missing = sorted(t for t in trees if _tree_key(t) not in _justified_trees(clause))
         if missing:
             out.append((command.strip().strip("`").strip(), len(trees), ", ".join(missing)))
     return out

@@ -161,8 +161,10 @@ from being read as evidence about the system it imitates.
 
 Position (DEC-017): only a round that re-runs a live or device-bound check. A round whose
 checks all run on the host pays nothing here. `plan-flip-audit.py --repo` reports a
-`Stage N gate remediation` commit for a gate with a `**Live check` line and no
-`fixture-sweep:` trailer (advisory).
+`Stage N gate remediation` or `Stage N gate, remediation` commit, dated on or after the plan's
+own date, for a gate with a `**Live check` line and no `fixture-sweep:` trailer (finding 10,
+advisory). It matches by stage number and date, so plans sharing a date and stage numbers
+read each other's commits; the report names each commit for the reader to place.
 
 ## What `--budget-check` rests on, and what it does not cover
 

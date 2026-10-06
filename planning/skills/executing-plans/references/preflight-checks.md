@@ -177,8 +177,10 @@ this is where each one is settled):
   without running them. It must list at least one test.
 - **Gradle** — a gate's `--tests '<pattern>'` must match a test class or method name under the
   project's test source sets. Gradle has no cheap "what would this filter collect" mode, so
-  search the sources instead (`grep -rlE '<pattern as a regex>' */src/test* */src/androidTest*`,
-  with `*` read as `.*`).
+  search the sources instead, on the simple name: drop the package (`com.x.FooTest.parses`
+  → `FooTest`, then `parses`), read `*` as `.*`, and search every test source set at any
+  depth, the root module's included:
+  `grep -rlsE --include='*.kt' --include='*.java' '<name as a regex>' $(find . -type d \( -path '*/src/test' -o -path '*/src/androidTest' \))`.
 
 A zero result is a plan defect at Preflight for every runner, exactly as for pytest — and, as
 there, a zero that a task's `Test:` builds toward is expected and recorded with the task that

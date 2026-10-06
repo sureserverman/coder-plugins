@@ -2332,6 +2332,33 @@ else:
     bad("finding 10 must read only commits from the plan's date on",
         json.dumps(doc, indent=2)[:900] if doc else r.stderr)
 
+# Catches (Stage 3 review I1): the comma form `Stage N gate, remediation round K` — this
+# repo's dominant remediation subject until 2026-10-04 — read as no remediation at all.
+plan, proj, env = live_world("live-comma", "Stage 1 gate, remediation round 1: fit the parser")
+r, doc = run_json(str(plan), "--repo", str(proj))
+if doc is not None and len(findings_of(doc, 10)) == 1:
+    ok("the comma form `Stage N gate, remediation` is a remediation commit too")
+else:
+    bad("finding 10 must read `Stage N gate, remediation` (red if the comma form is missed)",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
+
+# Catches (Stage 3 review S3): the "on or after" boundary — a commit dated ON the plan's
+# date is this plan's.
+vault = newdir("live-same-vault")
+proj, env = newrepo("live-same-proj")
+(proj / "README").write_text("x\n")
+same_env = dict(env, GIT_AUTHOR_DATE="2026-10-01T09:00:00+00:00",
+                GIT_COMMITTER_DATE="2026-10-01T09:00:00+00:00")
+commit(proj, same_env, "Stage 1 gate remediation round 1: same day")
+plan = vault / "2026-10-01-live-plan.md"
+plan.write_text(LIVE_PLAN)
+r, doc = run_json(str(plan), "--repo", str(proj))
+if doc is not None and len(findings_of(doc, 10)) == 1:
+    ok("a remediation commit dated on the plan's own date is in scope")
+else:
+    bad("the date bound is `on or after` the plan's date (red if the same day is dropped)",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
+
 
 for d_ in _tmpdirs:
     shutil.rmtree(d_, ignore_errors=True)
