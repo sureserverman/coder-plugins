@@ -116,6 +116,11 @@ FAILURES = []
 RAN = []
 
 
+def ws(pattern):
+    """A literal phrase as a wrap-tolerant pattern: every space may be any whitespace run."""
+    return re.sub(r" ", r"\\s+", pattern)
+
+
 def check(name, ok, detail=""):
     RAN.append(name)
     if not ok:
@@ -1581,6 +1586,33 @@ def main():
           "--stage-order-check" in step31
           and affirms_claim(step31, r"fully `\[x\]` gate"),
           "a stage can open before the gate it depends on, and nothing says so")
+
+    # 15. (gate-executor-discipline Task 2.2, BL-140) Live-evidence remediation. A fix
+    #     fitted to one capture passed its fake and failed the 15-minute live re-run, round
+    #     after round: the remediation swept code, never the captures. These pin the sweep
+    #     before a live re-run, its trailer, the property statement with a differing
+    #     capture, and the label on a fake that encodes the behaviour under test.
+    gfp = (SKILL.parent / "references" / "gate-failure-procedure.md").read_text(encoding="utf-8")
+    live = section(gfp, r"(?m)^## Remediation that re-runs a live check", r"(?m)^## ")
+    check("gate-failure-procedure: § Remediation that re-runs a live check present",
+          bool(live), "no live-evidence remediation section")
+    check("live remediation: the fix is proven against every real capture before a live re-run",
+          affirms_claim(live, ws(r"proven against every real capture or fixture of that kind"))
+          and affirms_claim(live, ws(r"before a remediation round re-runs a live or device-bound check")),
+          "the capture sweep, or its position before the live re-run, is absent or negated")
+    check("live remediation: the sweep command is recorded as a `fixture-sweep:` trailer",
+          "`fixture-sweep:`" in live
+          and affirms_claim(live, ws(r"recorded in the commit as a `fixture-sweep:` trailer")),
+          "the `fixture-sweep:` trailer is unnamed or optional")
+    check("live remediation: a capture-derived rule states the property it checks",
+          affirms_claim(live, ws(r"states the property it checks")),
+          "no property statement")
+    check("live remediation: its test includes a real capture differing in incidental parts",
+          affirms_claim(live, ws(r"one real capture that differs from the source in its incidental parts")),
+          "a one-capture test is allowed")
+    check("live remediation: a fake encoding the behaviour under test is labelled",
+          affirms_claim(live, ws(r'is named in the gate report as "unproven against the real system"')),
+          "the 'unproven against the real system' label is absent or negated")
 
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:

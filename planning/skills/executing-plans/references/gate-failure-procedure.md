@@ -100,6 +100,35 @@ that remain, their severities, and how the rounds were spent. This is a document
 looping. The user decides between another round, returning to
 `planning-projects`, and shipping with the residual recorded.
 
+## Remediation that re-runs a live check
+
+A live or device-bound check — a real bot session, a device, a remote host — costs minutes per
+run, and a fix fitted to the one capture the failed run left behind passes its fake and fails
+the next live run. Repeated, that is a remediation loop at 15 minutes a turn which a host-side
+run would have ended in seconds (BL-140). So the round's evidence is gathered on the host
+first.
+
+**Before a remediation round re-runs a live or device-bound check, the fix is proven against
+every real capture or fixture of that kind the repo holds, plus any the failed run produced,
+and the sweep command is recorded in the commit as a `fixture-sweep:` trailer**
+(`fixture-sweep: pytest tests/captures -k parse  # 14 captures`). The live re-run comes
+after, and it is the confirmation, not the search.
+
+**A rule derived from a capture states the property it checks, and its test includes one real
+capture that differs from the source in its incidental parts** — another session, another
+id, another ordering. A rule written from one capture tends to encode that capture's
+accidents; the second capture is what tells the property from the accident.
+
+**A fake that encodes the behaviour under test is named in the gate report as "unproven
+against the real system".** A stub that returns the shape the fix expects proves the fix
+agrees with the stub. It stays a useful test of the code around it, and the label keeps it
+from being read as evidence about the system it imitates.
+
+Position (DEC-017): only a round that re-runs a live or device-bound check. A round whose
+checks all run on the host pays nothing here. `plan-flip-audit.py --repo` reports a
+`Stage N gate remediation` commit for a gate with a `**Live check` line and no
+`fixture-sweep:` trailer (advisory).
+
 ## What `--budget-check` rests on, and what it does not cover
 
 The check reads `remediation_round` out of `.claude/plan-progress.json`. It is deliberately
