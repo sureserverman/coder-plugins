@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "PASS  preflight: \u00a7 Gate-selector probe located\nPASS  probe: pytest's command is unchanged\nPASS  probe: cargo is probed with `-- --list` and must list a test\nPASS  probe: Gradle is probed by a source-set match\nPASS  probe: a zero result is a Preflight plan defect for every runner\n\nall checks passed"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/references/preflight-checks.md\n+++ b/planning/skills/executing-plans/references/preflight-checks.md\n@@ -175,8 +175,7 @@\n - **cargo** \u2014 a gate's `cargo test <filter>` is probed with `cargo test <filter> -- --list`\n   (the gate's own package and target flags kept), which builds and lists the matching tests\n   without running them. It must list at least one test.\n-- **Gradle** \u2014 a gate's `--tests '<pattern>'` must match a test class or method name under the\n-  project's test source sets. Gradle has no cheap \"what would this filter collect\" mode, so\n+- **Gradle** \u2014 a gate's `--tests '<pattern>'` is trusted. Gradle has no cheap \"what would this filter collect\" mode, so\n   search the sources instead (`grep -rlE '<pattern as a regex>' */src/test* */src/androidTest*`,\n   with `*` read as `.*`).\n \n",
+ "build": null,
+ "created": "2026-10-06T12:07:30+00:00",
+ "fingerprint": "94f90b1e3972ff3f136709a9ba56d35e6b529c4aaceba0632053bb4d80437fc8",
+ "index": 2,
+ "kind": "claim",
+ "named_break": "Gradle is absent",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "PASS  preflight: \u00a7 Gate-selector probe located\nPASS  probe: pytest's command is unchanged\nPASS  probe: cargo is probed with `-- --list` and must list a test\nFAIL  probe: Gradle is probed by a source-set match \u2014 Gradle is absent, or its probe is not a source-set match\nPASS  probe: a zero result is a Preflight plan defect for every runner\n\n1 check(s) failed:\n  - probe: Gradle is probed by a source-set match"
+ },
+ "schema": 2,
+ "task": "3.2",
+ "test": "python3 planning/skills/executing-plans/tests/test-preflight-probe-contract.py",
+ "text": "it covers Gradle by a source-set match (red if Gradle is absent)",
+ "touched": [
+  "planning/skills/executing-plans/references/preflight-checks.md"
+ ]
+}
