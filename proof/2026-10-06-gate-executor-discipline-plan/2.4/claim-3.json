@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "PASS  gate-authoring: the heuristic section is present\nPASS  heuristic: ships with a severity axis and a trigger rate\nPASS  heuristic: the axis has the two values blocking and advisory\nPASS  heuristic: the trigger rate is measured over a real corpus\nPASS  heuristic: the rate is stated in the check's source with corpus and date\nPASS  heuristic: the blocking criterion is stated\nPASS  heuristic: a too-noisy check is a defect in the check\nPASS  heuristic: cites the 31.4% -> 12.8% measurement\n\nall checks passed"
+ },
+ "break_patch": "--- a/planning/skills/planning-projects/references/gate-authoring.md\n+++ b/planning/skills/planning-projects/references/gate-authoring.md\n@@ -81,7 +81,7 @@\n same corpus lit **12.8%**, and the check stayed on. At 31.4% it would have been waived, and\n the waiver written as a note beside a green gate: the artifact the check exists to abolish.\n \n-A check too noisy to leave on is a defect in the check. It is fixed there \u2014 narrowed, split,\n+A check too noisy to leave on is not a defect in the check. It is fixed there \u2014 narrowed, split,\n or moved to advisory \u2014 and the plans it flags carry it as a finding against the check, not as\n a residual of their own. A heuristic with no measured rate has no ground for either tier: it\n ships advisory until one is measured.\n",
+ "build": null,
+ "created": "2026-10-06T11:51:34+00:00",
+ "fingerprint": "142221583358ff1e59d1bf1d16f1d9e31cbdb0064bc9e5ad06e7fb00881103d4",
+ "index": 3,
+ "kind": "claim",
+ "named_break": "that clause is negated",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "PASS  gate-authoring: the heuristic section is present\nPASS  heuristic: ships with a severity axis and a trigger rate\nPASS  heuristic: the axis has the two values blocking and advisory\nPASS  heuristic: the trigger rate is measured over a real corpus\nPASS  heuristic: the rate is stated in the check's source with corpus and date\nPASS  heuristic: the blocking criterion is stated\nFAIL  heuristic: a too-noisy check is a defect in the check \u2014 the defect-in-the-check clause is absent or negated\nPASS  heuristic: cites the 31.4% -> 12.8% measurement\n\n1 check(s) failed:\n  - heuristic: a too-noisy check is a defect in the check"
+ },
+ "schema": 2,
+ "task": "2.4",
+ "test": "python3 planning/skills/planning-projects/tests/test-gate-heuristic-contract.py",
+ "text": "it names a too-noisy check as a defect in the check (red if that clause is negated)",
+ "touched": [
+  "planning/skills/planning-projects/references/gate-authoring.md"
+ ]
+}
