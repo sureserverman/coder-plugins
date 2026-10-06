@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# Fixture suite for the dispatch-log hook — run directly (repo convention):
+#
+#     bash planning/hooks/tests/test-dispatch-log.sh
+#
+# WHAT THIS SUITE IS REALLY GUARDING. hooks/dispatch-log.sh ships in the plugin's
+# hooks.json, so it runs on EVERY Agent call and every subagent start and stop of
+# every user who enables planning. It must write nothing unless a plan is in flight
+# (.claude/plan-progress.json), and it must never block a dispatch: whatever goes
+# wrong, it exits 0 with empty stdout. Inside a plan run it appends one JSON line per
+# event to .claude/dispatch-log.jsonl, which review-ledger-check.py reads. The payload
+# shapes below are the fields a real `claude -p` run handed the hooks (2.1.291,
+# 2026-10-06): PreToolUse carries tool_input.subagent_type and description;
+# SubagentStart / SubagentStop carry agent_id and agent_type.
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+HOOK="$HERE/../dispatch-log.sh"
+HOOKS_JSON="$HERE/../hooks.json"
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT
+pass=0; fail=0
+ok()  { pass=$((pass+1)); echo "  ok    $1"; }
+bad() { fail=$((fail+1)); echo "  FAIL  $1"; [ -n "${2:-}" ] && printf '        | %s\n' "${2:0:700}"; }
+
+[ -f "$HOOK" ] || { echo "FAIL: $HOOK does not exist"; exit 1; }
+
+mkrepo() {  # $1 = path [$2 = "plan" to put a plan in flight]
+    mkdir -p "$1/.claude"
+    if [ "${2:-}" = plan ]; then
+        printf '{"plan": "%s", "phase": "task", "stage": 1, "task": "1.1"}\n' "$T/plan.md" \
+            > "$1/.claude/plan-progress.json"
+    fi
+}
+dispatch_payload() {  # $1 = subagent_type
+    python3 -c 'import json,sys; print(json.dumps({"session_id": "sess-1", "transcript_path": "/x.jsonl", "cwd": "/x", "hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": {"description": "Review Stage 1", "prompt": "review it", "subagent_type": sys.argv[1]}, "tool_use_id": "toolu_1"}))' "$1"
+}
+agent_payload() {  # $1 = SubagentStart|SubagentStop  $2 = agent_id  $3 = agent_type
+    python3 -c 'import json,sys; print(json.dumps({"session_id": "sess-1", "transcript_path": "/x.jsonl", "cwd": "/x", "hook_event_name": sys.argv[1], "agent_id": sys.argv[2], "agent_type": sys.argv[3]}))' "$1" "$2" "$3"
+}
+hook() {  # $1 = repo; stdin payload. stdout -> $T/out, rc -> $T/rc (read it with rc_of)
+    # Called at the end of a pipe, so it runs in a subshell: the rc goes through a file.
+    CLAUDE_PROJECT_DIR="$1" bash "$HOOK" >"$T/out" 2>"$T/err"; echo $? > "$T/rc"
+}
+rc_of() { cat "$T/rc"; }
+lines() { [ -f "$1/.claude/dispatch-log.jsonl" ] && wc -l < "$1/.claude/dispatch-log.jsonl" || echo 0; }
+field() {  # $1 = repo $2 = line no (1-based) $3 = key
+    sed -n "${2}p" "$1/.claude/dispatch-log.jsonl" | python3 -c 'import json,sys; v=json.loads(sys.stdin.read()).get(sys.argv[1]); print("" if v is None else v)' "$3"
+}
+
+echo "dispatch-log — every dispatch, start and stop of a plan run is logged; nothing else"
+echo
+
+# Catches: the hook writing nothing for a dispatch during a plan run.
+R="$T/inflight"; mkrepo "$R" plan
+dispatch_payload git-github:code-reviewer | hook "$R"
+if [ "$(rc_of)" = 0 ] && [ "$(lines "$R")" = 1 ] && [ "$(field "$R" 1 event)" = dispatch ] \
+   && [ "$(field "$R" 1 subagent_type)" = git-github:code-reviewer ] \
+   && [ "$(field "$R" 1 description)" = "Review Stage 1" ] \
+   && [ "$(field "$R" 1 session_id)" = sess-1 ] && [ -n "$(field "$R" 1 ts)" ]; then
+    ok "a dispatch during a plan run appends one dispatch line with its subagent_type"
+else
+    bad "a dispatch during a plan run appends one dispatch line with its subagent_type" \
+        "rc=$(rc_of) lines=$(lines "$R") $(cat "$R/.claude/dispatch-log.jsonl" 2>/dev/null)"
+fi
+[ -s "$T/out" ] && bad "a logged dispatch prints nothing on stdout" "$(cat "$T/out")" \
+    || ok "a logged dispatch prints nothing on stdout"
+
+# Catches: the log being written outside a plan run.
+N="$T/noplan"; mkrepo "$N"
+dispatch_payload general-purpose | hook "$N"
+if [ "$(rc_of)" = 0 ] && [ ! -e "$N/.claude/dispatch-log.jsonl" ] && [ ! -s "$T/out" ]; then
+    ok "with no plan in flight nothing is written"
+else
+    bad "with no plan in flight nothing is written" "rc=$(rc_of) $(ls -A "$N/.claude")"
+fi
+
+# Catches: a non-Agent PreToolUse being logged as a dispatch (matcher widened by hand).
+python3 -c 'import json; print(json.dumps({"session_id": "s", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls"}}))' | hook "$R"
+[ "$(lines "$R")" = 1 ] && ok "a PreToolUse for another tool is not logged" \
+    || bad "a PreToolUse for another tool is not logged" "lines=$(lines "$R")"
+
+# Catches: start or stop dropping agent_id / agent_type.
+agent_payload SubagentStart a-123 git-github:code-reviewer | hook "$R"
+agent_payload SubagentStop a-123 git-github:code-reviewer | hook "$R"
+if [ "$(lines "$R")" = 3 ] \
+   && [ "$(field "$R" 2 event)" = start ] && [ "$(field "$R" 2 agent_id)" = a-123 ] \
+   && [ "$(field "$R" 2 agent_type)" = git-github:code-reviewer ] \
+   && [ "$(field "$R" 3 event)" = stop ] && [ "$(field "$R" 3 agent_id)" = a-123 ] \
+   && [ "$(field "$R" 3 agent_type)" = git-github:code-reviewer ]; then
+    ok "start and stop lines carry agent_id and agent_type"
+else
+    bad "start and stop lines carry agent_id and agent_type" "$(cat "$R/.claude/dispatch-log.jsonl")"
+fi
+
+# Catches: the hook blocking a dispatch on bad input — any stdout could be read as a
+# decision, and a non-zero exit is a hook error shown to the user.
+for junk in 'not json' '' '[1,2]' '{"hook_event_name": "SubagentStart"}' \
+            '{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": "x"}'; do
+    printf '%s' "$junk" | hook "$R"
+    if [ "$(rc_of)" != 0 ] || [ -s "$T/out" ]; then
+        bad "malformed stdin exits 0 with empty stdout: '$junk'" "rc=$(rc_of) out=$(cat "$T/out")"
+        continue
+    fi
+    ok "malformed stdin exits 0 with empty stdout: '${junk:0:40}'"
+done
+
+# Catches: a .claude symlinked out of the repo being followed to write elsewhere.
+S="$T/symlinked"; mkdir -p "$S" "$T/elsewhere"
+printf '{"plan": "p", "phase": "task"}\n' > "$T/elsewhere/plan-progress.json"
+ln -s "$T/elsewhere" "$S/.claude"
+dispatch_payload general-purpose | hook "$S"
+[ "$(rc_of)" = 0 ] && [ ! -e "$T/elsewhere/dispatch-log.jsonl" ] \
+    && ok "a symlinked .claude is not written through" \
+    || bad "a symlinked .claude is not written through" "rc=$(rc_of) $(ls "$T/elsewhere")"
+
+# Catches: no project dir at all failing closed.
+dispatch_payload general-purpose | env -u CLAUDE_PROJECT_DIR bash "$HOOK" >"$T/out" 2>&1; rc=$?
+[ "$rc" = 0 ] && [ ! -s "$T/out" ] && ok "with CLAUDE_PROJECT_DIR unset it exits 0 silently" \
+    || bad "with CLAUDE_PROJECT_DIR unset it exits 0 silently" "rc=$rc $(cat "$T/out")"
+
+# Catches: an event missing from hooks.json, or registered to another script.
+reg="$(python3 - "$HOOKS_JSON" <<'PY'
+import json, sys
+h = json.load(open(sys.argv[1]))["hooks"]
+def cmds(event, matcher=None):
+    return [c.get("command", "") for g in h.get(event, [])
+            if matcher is None or matcher in (g.get("matcher") or "").split("|")
+            for c in g.get("hooks", [])]
+out = []
+for event, matcher in (("PreToolUse", "Agent"), ("SubagentStart", None), ("SubagentStop", None)):
+    hit = [c for c in cmds(event, matcher) if c.rstrip('"').endswith("/hooks/dispatch-log.sh")]
+    out.append(f"{event}:{'ok' if hit else 'missing'}")
+print(" ".join(out))
+PY
+)"
+for want in PreToolUse SubagentStart SubagentStop; do
+    case "$reg" in
+        *"$want:ok"*) ok "hooks.json registers $want to dispatch-log.sh" ;;
+        *) bad "hooks.json registers $want to dispatch-log.sh" "$reg" ;;
+    esac
+done
+[ -x "$HOOK" ] && ok "dispatch-log.sh is executable" || bad "dispatch-log.sh is executable"
+
+echo
+echo "$pass passed, $fail failed"
+[ "$fail" = 0 ]

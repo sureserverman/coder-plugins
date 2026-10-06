@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "dispatch-log \u2014 every dispatch, start and stop of a plan run is logged; nothing else\n\n  ok    a dispatch during a plan run appends one dispatch line with its subagent_type\n  ok    a logged dispatch prints nothing on stdout\n  ok    with no plan in flight nothing is written\n  ok    a PreToolUse for another tool is not logged\n  ok    start and stop lines carry agent_id and agent_type\n  ok    malformed stdin exits 0 with empty stdout: 'not json'\n  ok    malformed stdin exits 0 with empty stdout: ''\n  ok    malformed stdin exits 0 with empty stdout: '[1,2]'\n  ok    malformed stdin exits 0 with empty stdout: '{\"hook_event_name\": \"SubagentStart\"}'\n  ok    malformed stdin exits 0 with empty stdout: '{\"hook_event_name\": \"PreToolUse\", \"tool_'\n  ok    a symlinked .claude is not written through\n  ok    with CLAUDE_PROJECT_DIR unset it exits 0 silently\n  ok    hooks.json registers PreToolUse to dispatch-log.sh\n  ok    hooks.json registers SubagentStart to dispatch-log.sh\n  ok    hooks.json registers SubagentStop to dispatch-log.sh\n  ok    dispatch-log.sh is executable\n\n16 passed, 0 failed"
+ },
+ "break_patch": "--- a/planning/hooks/dispatch-log.sh\n+++ b/planning/hooks/dispatch-log.sh\n@@ -40,7 +40,7 @@\n     ti = p.get(\"tool_input\")\n     if not isinstance(ti, dict):\n         sys.exit(0)\n-    line.update(event=\"dispatch\", subagent_type=ti.get(\"subagent_type\") or \"general-purpose\",\n+    sys.exit(0); line.update(event=\"dispatch\", subagent_type=ti.get(\"subagent_type\") or \"general-purpose\",\n                 description=ti.get(\"description\"))\n elif ev in (\"SubagentStart\", \"SubagentStop\") and p.get(\"agent_id\"):\n     line.update(event=\"start\" if ev == \"SubagentStart\" else \"stop\",\n",
+ "build": null,
+ "created": "2026-10-06T11:32:57+00:00",
+ "fingerprint": "64d9465c128ad3ce97da747b6162bda2d9feec0960a378747844b92895d502ac",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "the hook writes nothing",
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "dispatch-log \u2014 every dispatch, start and stop of a plan run is logged; nothing else\n\n  FAIL  a dispatch during a plan run appends one dispatch line with its subagent_type\n        | rc=0 lines=0 \n  ok    a logged dispatch prints nothing on stdout\n  ok    with no plan in flight nothing is written\n  FAIL  a PreToolUse for another tool is not logged\n        | lines=0\n  FAIL  start and stop lines carry agent_id and agent_type\n        | {\"ts\": \"2026-10-06T11:32:57+00:00\", \"session_id\": \"sess-1\", \"event\": \"start\", \"agent_type\": \"git-github:code-reviewer\", \"agent_id\": \"a-123\"}\n{\"ts\": \"2026-10-06T11:32:57+00:00\", \"session_id\": \"sess-1\", \"event\": \"stop\", \"agent_type\": \"git-github:code-reviewer\", \"agent_id\": \"a-123\"}\n  ok    malformed stdin exits 0 with empty stdout: 'not json'\n  ok    malformed stdin exits 0 with empty stdout: ''\n  ok    malformed stdin exits 0 with empty stdout: '[1,2]'\n  ok    malformed stdin exits 0 with empty stdout: '{\"hook_event_name\": \"SubagentStart\"}'\n  ok    malformed stdin exits 0 with empty stdout: '{\"hook_event_name\": \"PreToolUse\", \"tool_'\n  ok    a symlinked .claude is not written through\n  ok    with CLAUDE_PROJECT_DIR unset it exits 0 silently\n  ok    hooks.json registers PreToolUse to dispatch-log.sh\n  ok    hooks.json registers SubagentStart to dispatch-log.sh\n  ok    hooks.json registers SubagentStop to dispatch-log.sh\n  ok    dispatch-log.sh is executable\n\n13 passed, 3 failed"
+ },
+ "schema": 2,
+ "task": "1.1",
+ "test": "bash planning/hooks/tests/test-dispatch-log.sh",
+ "text": "a dispatch input with `plan-progress.json` present appends one `dispatch` line with its `subagent_type` (red if the hook writes nothing)",
+ "touched": [
+  "planning/hooks/dispatch-log.sh"
+ ]
+}
