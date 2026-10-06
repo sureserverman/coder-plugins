@@ -83,6 +83,11 @@ stage did touch, is not narrowed away for cost
 tax when it has ten — the same sub-plan declared four whole trees as its stage-scope at
 every gate, for stages that touched one.
 
+**A task test's budget.** On a plan that declares these commands, each task's `Test:` runs
+under a budget of 300 s unless the Preflight block carries `task-test budget: N s`; over it,
+execution stops (`../../executing-plans/references/task-execution.md` § A task test has a
+time budget). Set it from the task tests' measured cost, not to make a slow test fit.
+
 **Four or more trees carry a reason each.** A `stage-scope:` declaration naming four or more
 test trees or modules ends with a `justified:` clause that gives every tree its reason:
 

@@ -136,6 +136,25 @@ since a successor session has no transcript to recover them from. For agents,
 A background subagent's own commands keep running after the subagent returns, so a result in
 hand is not proof the work behind it stopped.
 
+## A task test has a time budget
+
+A task's `Test:` is its whole testing
+(§ Why the task's own `Test:` is the whole of its testing), and nothing bounded what it costs. Measured (BL-097): a task test that collected a
+3,132-test suite ran 3.5 h inside one Red-Green loop, and the user noticed before any tool did.
+
+**On a plan that declares test-scope commands, a task's `Test:` runs under a task-test budget:
+300 s by default.** A plan overrides it with a Preflight line, `task-test budget: N s`
+(`../../planning-projects/references/test-scope-tiers.md`). The budget is passed to the proof
+as `prove-claim.py --timeout N`; every proof record carries the measured `elapsed_s` of its
+baseline and break runs, so the cost is on record whether or not it runs over.
+
+**A test over the budget is a Stop condition**, reported like a spent cycle budget: the
+progress file gets `phase: "blocked"` with the note `task test over N s`, and `prove-claim.py`
+exits 4 without a record. The test is never narrowed to fit (DEC-024): cost is an argument
+for re-planning the task, made to the user, never a licence to prove less. Position
+(DEC-017): test-scope tier task, and only on a plan that declares test-scope commands, where
+the suite is expensive enough for the budget to bind.
+
 ## Tier 1 — the quick per-task review
 
 Whether it runs comes from `../references/review-scope.md`; do not re-derive it. **At `none`,

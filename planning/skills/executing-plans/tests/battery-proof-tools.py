@@ -26,6 +26,9 @@ because the required response to each differs:
         killed it. The guard is pinned, but not by the check the entry says —
         the name is wrong, or the named check stopped covering it. Fix the
         name after reading which check it was. (Precedence: 1, then 5, then 6.)
+        A MISNAMED trial is re-run once, alone; one its named check kills on the
+        re-run is UNSTABLE — printed, with the stray failure's detail, and
+        counted apart: it changes no exit code.
 
 --anchors-only checks the anchors (exit 0 or 4) and runs nothing — cheap enough
 for CI, which runs the suites but not the battery.
@@ -363,6 +366,10 @@ M = [
   '    recover_if_needed(repo)',
   '    pass',
   'journal recovery must restore and stop'),
+ ('prove: the elapsed time is not recorded', PC_S,
+  '"baseline": {"exit": base[0], "tail": base[1], "elapsed_s": base[2]},',
+  '"baseline": {"exit": base[0], "tail": base[1]},',
+  'a record must carry elapsed_s for both runs'),
  ('prove: timeout kills only the shell', PC_S,
   '        os.killpg(p.pid, signal.SIGKILL)',
   '        p.kill()',
@@ -869,7 +876,12 @@ def trial(entry):
                     return label, "ERROR", f"{s} exited {rc} without reporting a failing check"
                 if any(k.strip() in fails[0] for k in killer.split(" | ")):
                     return label, "killed", ""
-                return label, "MISNAMED", f"killed by `{fails[0][:90]}`, named `{killer}`"
+                lines = out.splitlines()
+                at = next(i for i, ln in enumerate(lines) if ln.startswith("  FAIL"))
+                detail = " / ".join(ln.strip() for ln in lines[at + 1: at + 4]
+                                    if ln.startswith("        |"))
+                return label, "MISNAMED", (f"killed by `{fails[0][:90]}`, named `{killer}`"
+                                           + (f" — {detail[:300]}" if detail else ""))
         return label, "SURVIVED", ""
     except Exception as e:  # noqa: BLE001
         return label, "ERROR", f"{e.__class__.__name__}: {e}"
@@ -912,13 +924,30 @@ def main():
         return 2
     print(f"  ok\n\nrunning {len(M)} mutations, {jobs} at a time")
 
-    counts = {"killed": 0, "SURVIVED": 0, "ERROR": 0, "MISNAMED": 0}
+    counts = {"killed": 0, "SURVIVED": 0, "ERROR": 0, "MISNAMED": 0, "UNSTABLE": 0}
+    misnamed = []
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        for label, verdict, why in pool.map(trial, M):
+        for entry, (label, verdict, why) in zip(M, pool.map(trial, M)):
+            if verdict == "MISNAMED":
+                misnamed.append((entry, why))
+                continue
             print(f"  {verdict:<8} {label}" + (f"  ({why})" if why else ""), flush=True)
             counts[verdict] += 1
+    # A MISNAMED trial is re-run once, alone, after the pool: under -j N a check that
+    # also covers the guard sometimes fails first (measured 2026-10-06: an rc=128 from
+    # `git commit` in test-git-ref-gate.sh, 1-2 times in ~5 full runs, never in 36
+    # targeted ones). A wrong name is deterministic and stays MISNAMED; a first killer
+    # that changed between runs is UNSTABLE — printed with the stray failure's detail
+    # so it can be diagnosed, and never counted as a kill or a misname.
+    for entry, why in misnamed:
+        label, verdict, why2 = trial(entry)
+        if verdict == "killed":
+            verdict, why2 = "UNSTABLE", f"first run {why}; re-run alone: killed by its named check"
+        print(f"  {verdict:<8} {label}" + (f"  ({why2})" if why2 else ""), flush=True)
+        counts[verdict] += 1
     print(f"\nkilled {counts['killed']}  survived {counts['SURVIVED']}  "
-          f"errors {counts['ERROR']}  misnamed {counts['MISNAMED']}  skipped 0")
+          f"errors {counts['ERROR']}  misnamed {counts['MISNAMED']}  "
+          f"unstable {counts['UNSTABLE']}  skipped 0")
     if counts["SURVIVED"]:
         return 1
     if counts["ERROR"]:

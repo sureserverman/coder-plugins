@@ -14,6 +14,7 @@ that silently did not happen. If a fixture stops failing, that fake is back.
 import importlib.util
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -384,6 +385,58 @@ if r.returncode == 1 and "hung" in r.stderr and took < 12:
     ok(f"a hung test's whole process group dies at the timeout ({took:.0f}s)")
 else:
     bad(f"timeout must kill the process group, exit {r.returncode}, took {took:.0f}s", r.stderr)
+
+# ------------------------------------- task-test cost (gate-executor-discipline Task 4.4)
+print()
+print("a task test's elapsed time is recorded, and a test over its budget is a stop")
+# Catches: the elapsed time missing from a record — nothing measures what a task test
+# costs, so a 3.5 h task test is noticed by a person, not a tool (BL-097).
+repo_e, plan_e = world()
+r = claim(repo_e, plan_e, 1, patch(repo_e, "calc.py", "return a + b", "return a - b"))
+data = json.loads(rec(repo_e, plan_e, "claim", 1).read_text()) if rec(repo_e, plan_e, "claim", 1).is_file() else {}
+el = [data.get(k, {}).get("elapsed_s") for k in ("baseline", "red")]
+if r.returncode == 0 and all(isinstance(x, (int, float)) and x >= 0 for x in el):
+    ok(f"a record carries elapsed_s for the baseline and the break run ({el})")
+else:
+    bad(f"a record must carry elapsed_s for both runs (red if either is missing); got {el}",
+        r.stderr)
+
+# Catches: a test slower than --timeout recorded as proven, or refused as an ordinary
+# NOT PROVEN — the budget's stop must be distinguishable from a failed claim.
+SLOW = "sleep 8; python3 tests/test_calc.py"
+repo_s, plan_s = world(SLOW)
+r = claim(repo_s, plan_s, 1, patch(repo_s, "calc.py", "return a + b", "return a - b"),
+          "--timeout", "3", test=SLOW)
+if r.returncode == 4 and "over --timeout" in r.stderr and not rec(repo_s, plan_s, "claim", 1).exists():
+    ok("a test over --timeout writes no record and exits 4 (the task-test budget is spent)")
+else:
+    bad(f"a test over --timeout must exit 4 with no record (red if a slow test is recorded "
+        f"as proven); exit {r.returncode}", r.stderr)
+
+# Catches: the budget rule missing from where the executor and the plan author read it.
+REFS = HERE.parent / "references"
+TIERS = HERE.parents[1] / "planning-projects" / "references" / "test-scope-tiers.md"
+te = (REFS / "task-execution.md").read_text(encoding="utf-8")
+budget = te[te.find("## A task test has a time budget"):]
+budget = budget[: budget.find("\n## ", 5)] if "\n## " in budget[5:] else budget
+for what, pat in (("the 300 s default", r"300\s+s\s+by\s+default"),
+                  ("the Preflight override line", r"`task-test budget: N s`"),
+                  ("prove-claim.py --timeout", r"prove-claim\.py\s+--timeout|--timeout"),
+                  ("the Stop condition", r"Stop\s+condition"),
+                  ("the blocked phase note", r'`phase: "blocked"`'),
+                  ("never narrowing the test (DEC-024)", r"never\s+narrowed.*DEC-024")):
+    if budget and re.search(pat, budget, re.S):
+        ok(f"task-execution.md § A task test has a time budget names {what}")
+    else:
+        bad(f"the task-test budget rule must name {what} (red if it is missing)")
+# The mutation battery runs this suite in a copy holding only the executing-plans skill and
+# the hooks, so test-scope-tiers.md is absent there; in the repo it is always present.
+if not TIERS.is_file():
+    print("  note  test-scope-tiers.md not in this tree (a battery copy) — checked in the repo")
+elif "`task-test budget: N s`" in TIERS.read_text(encoding="utf-8"):
+    ok("test-scope-tiers.md documents the `task-test budget: N s` override line")
+else:
+    bad("test-scope-tiers.md must document the `task-test budget: N s` line")
 
 # ------------------------------------------------- review I3 / I4 (Task 2.6)
 print()

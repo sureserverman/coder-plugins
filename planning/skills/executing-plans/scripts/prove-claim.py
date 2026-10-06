@@ -53,7 +53,11 @@ deliberate lie rather than an oversight. One run each: a flaky test can pass.
 EXIT CODES: 0 proven / recorded / replay clean · 1 not proven or refused (no
 record written) · 2 usage or IO error, or another run holds the lock · 3 the tree
 is not as it was, or an interrupted run was just recovered (or its journal no
-longer matches the repo) — check the tree by hand before anything else.
+longer matches the repo) — check the tree by hand before anything else · 4 the test
+ran over --timeout before the break: the task-test budget is spent (no record; stop,
+never narrow the test — task-execution.md § A task test has a time budget).
+
+Each record's `baseline` and `red` runs carry `elapsed_s`, the test's wall-clock time.
 """
 import argparse
 import base64
@@ -117,6 +121,11 @@ class Usage(Exception):
 
 class RestoreFailed(Exception):
     """The tree is not as it was: exit 3."""
+
+
+class OverBudget(Exception):
+    """The test ran over --timeout before the break: exit 4, no record. On a plan with a
+    task-test budget this is a Stop condition, never a reason to narrow the test (DEC-024)."""
 
 
 def _audit_module():
@@ -562,8 +571,8 @@ def observe(repo, patch_src, test, build, no_build, timeout, text):
     finally:
         Path(private).unlink(missing_ok=True)
     return {"break_patch": patch_text, "touched": paths, "fingerprint": fp,
-            "baseline": {"exit": base[0], "tail": base[1]},
-            "red": {"exit": red[0], "tail": red[1]}}
+            "baseline": {"exit": base[0], "tail": base[1], "elapsed_s": base[2]},
+            "red": {"exit": red[0], "tail": red[1], "elapsed_s": red[2]}}
 
 
 def unparseable(repo, paths):
@@ -589,7 +598,13 @@ def _observe(repo, patch, paths, test, build, no_build, timeout, fp, text):
         b_rc, b_tail = run(build, repo, timeout)
         if b_rc != 0:
             raise Refused(f"the code does not build before the break (exit {b_rc})\n{b_tail}")
+    t0 = time.monotonic()
     base_rc, base_tail = run(test, repo, timeout)
+    base_s = round(time.monotonic() - t0, 1)
+    if base_rc is None:
+        raise OverBudget(f"the test ran over --timeout {timeout} s before the break "
+                         f"({base_s} s) — the task-test budget is spent; stop and report, "
+                         "never narrow the test to fit")
     if base_rc != 0:
         raise Refused(f"the test does not pass before the break (exit {base_rc}) — a test "
                       f"that fails anyway proves nothing\n{base_tail}")
@@ -607,7 +622,9 @@ def _observe(repo, patch, paths, test, build, no_build, timeout, fp, text):
             if broken:
                 raise Refused(f"the break leaves {', '.join(broken)} unparseable — with no "
                               "build step that fails every test, not this claim")
+        t0 = time.monotonic()
         red_rc, red_tail = run(test, repo, timeout)
+        red_s = round(time.monotonic() - t0, 1)
     if build:
         # Rebuild on the restored sources, so the broken build does not outlive the proof.
         a_rc, a_tail = run(build, repo, timeout)
@@ -630,7 +647,7 @@ def _observe(repo, patch, paths, test, build, no_build, timeout, fp, text):
     if red_rc == 0:
         raise Refused("the test still PASSES with the break in place — it does not check "
                       f"this:\n  {text}\n{red_tail}")
-    return (base_rc, base_tail), (red_rc, red_tail)
+    return (base_rc, base_tail, base_s), (red_rc, red_tail, red_s)
 
 
 def req(repo, plan, task, index, check, covered_by, timeout, brk=None, build=None,
@@ -934,6 +951,9 @@ if __name__ == "__main__":
     except Refused as e:
         print(f"prove-claim: NOT PROVEN — {e}", file=sys.stderr)
         sys.exit(1)
+    except OverBudget as e:
+        print(f"prove-claim: OVER BUDGET — {e}", file=sys.stderr)
+        sys.exit(4)
     except RestoreFailed as e:
         print(f"prove-claim: RESTORE FAILED — {e}. Check the tree by hand before anything "
               "else.", file=sys.stderr)
