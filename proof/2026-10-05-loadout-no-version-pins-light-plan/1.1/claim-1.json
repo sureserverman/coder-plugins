@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "set: a user-enabled plugin is omitted, never written true\n  ok: set exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version)\n  ok: no true for user-enabled loadout plugins (found [])\n  ok: user-enabled loadout plugins are omitted (found [])\n  ok: other@market is false\n  ok: android-dev@coder-plugins is true\n  ok: the pin warning names the plugin\n  ok: no pin warning for a user-enabled plugin\n  ok: other settings.local.json keys survive\n  ok: show lists omitted loadout plugins as enabled\n  ok: show lists the false plugin as disabled\n\nall loadout tests passed"
+ },
+ "break_patch": "--- a/loadout/scripts/loadout.py\n+++ b/loadout/scripts/loadout.py\n@@ -133,7 +133,7 @@\n     for key in installed_keys():\n         if key not in enabled:\n             result[key] = False\n-    for key in sorted(enabled - on_for_user):\n+    for key in sorted(enabled):\n         result[key] = True\n     return result\n \n",
+ "build": null,
+ "created": "2026-10-05T23:16:36+00:00",
+ "fingerprint": "a33d7d980c27660ff7cd9af2265fe4db58bd47b0dff2eff2e0a2a74673c7228f",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "pure Python script, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-05-loadout-no-version-pins-light-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "set: a user-enabled plugin is omitted, never written true\n  ok: set exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version\nloadout: claude-code-setup@claude-plugins-official is off in user settings; enabling it here pins its version\nloadout: claude-md-management@claude-plugins-official is off in user settings; enabling it here pins its version\nloadout: git-github@coder-plugins is off in user settings; enabling it here pins its version\nloadout: planning@coder-plugins is off in user settings; enabling it here pins its version\nloadout: rust-dev@coder-plugins is off in user settings; enabling it here pins its version\nloadout: stingy-agents@coder-plugins is off in user settings; enabling it here pins its version)\n  FAIL: no true for user-enabled loadout plugins (found ['claude-code-setup@claude-plugins-official', 'claude-md-management@claude-plugins-official', 'git-github@coder-plugins', 'planning@coder-plugins', 'rust-dev@coder-plugins', 'stingy-agents@coder-plugins'])\n  FAIL: user-enabled loadout plugins are omitted (found ['claude-code-setup@claude-plugins-official', 'claude-md-management@claude-plugins-official', 'git-github@coder-plugins', 'planning@coder-plugins', 'rust-dev@coder-plugins', 'stingy-agents@coder-plugins'])\n  ok: other@market is false\n  ok: android-dev@coder-plugins is true\n  ok: the pin warning names the plugin\n  FAIL: no pin warning for a user-enabled plugin\n  ok: other settings.local.json keys survive\n  ok: show lists omitted loadout plugins as enabled\n  ok: show lists the false plugin as disabled\n\n3 failure(s)"
+ },
+ "schema": 2,
+ "task": "1.1",
+ "test": "python3 loadout/scripts/tests/test-loadout.py",
+ "text": "`python3 loadout/scripts/tests/test-loadout.py` exits 0. It runs with a temp `HOME` holding fixture `settings.json` and `installed_plugins.json`, and asserts:",
+ "touched": [
+  "loadout/scripts/loadout.py"
+ ]
+}

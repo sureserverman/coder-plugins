@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "set: a user-enabled plugin is omitted, never written true\n  ok: set exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version)\n  ok: no true for user-enabled loadout plugins (found [])\n  ok: user-enabled loadout plugins are omitted (found [])\n  ok: other@market is false\n  ok: android-dev@coder-plugins is true\n  ok: the pin warning names the plugin\n  ok: no pin warning for a user-enabled plugin\n  ok: other settings.local.json keys survive\n  ok: show lists omitted loadout plugins as enabled\n  ok: show lists the false plugin as disabled\nunpin: uninstalls exactly the redundant local records, then re-applies\n  ok: unpin exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version)\n  ok: uninstall called for exactly the redundant keys, from the project (got ['/tmp/tmpt_v4un5k/project plugin uninstall planning@coder-plugins --scope local', '/tmp/tmpt_v4un5k/project plugin uninstall rust-dev@coder-plugins --scope local'])\n  ok: a local-only record is kept and listed\n  ok: the loadout is re-applied afterwards (no stale true left)\nunpin --dry-run: lists, calls nothing, writes nothing\n  ok: dry run exits 0 (got 0)\n  ok: dry run calls nothing (got [])\n  ok: dry run lists the redundant keys\n  ok: dry run leaves settings.local.json alone\nunpin: a failing uninstall is reported and exits 1\n  ok: exit 1 on a failed uninstall (got 1)\n  ok: the failing key is named on stderr\n  ok: the other uninstall still ran (got ['/tmp/tmpv2b9qsxc/project plugin uninstall planning@coder-plugins --scope local', '/tmp/tmpv2b9qsxc/project plugin uninstall rust-dev@coder-plugins --scope local'])\n\nall loadout tests passed"
+ },
+ "break_patch": "--- a/loadout/scripts/loadout.py\n+++ b/loadout/scripts/loadout.py\n@@ -181,7 +181,7 @@\n         )\n         if not mine:\n             continue\n-        if any(e.get(\"scope\") == \"user\" for e in entries):\n+        if True:\n             redundant.append(key)\n         else:\n             local_only.append(key)\n",
+ "build": null,
+ "created": "2026-10-05T23:17:47+00:00",
+ "fingerprint": "a3b431dc18a6a4be118e0f6f91f1d29be6f6f34b91709ea39738c36280d87af1",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "pure Python script, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-05-loadout-no-version-pins-light-plan.md",
+ "red": {
+  "exit": 1,
+  "tail": "set: a user-enabled plugin is omitted, never written true\n  ok: set exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version)\n  ok: no true for user-enabled loadout plugins (found [])\n  ok: user-enabled loadout plugins are omitted (found [])\n  ok: other@market is false\n  ok: android-dev@coder-plugins is true\n  ok: the pin warning names the plugin\n  ok: no pin warning for a user-enabled plugin\n  ok: other settings.local.json keys survive\n  ok: show lists omitted loadout plugins as enabled\n  ok: show lists the false plugin as disabled\nunpin: uninstalls exactly the redundant local records, then re-applies\n  ok: unpin exits 0 (got 0: loadout: android-dev@coder-plugins is off in user settings; enabling it here pins its version)\n  FAIL: uninstall called for exactly the redundant keys, from the project (got ['/tmp/tmp33rzrun6/project plugin uninstall local-only@market --scope local', '/tmp/tmp33rzrun6/project plugin uninstall planning@coder-plugins --scope local', '/tmp/tmp33rzrun6/project plugin uninstall rust-dev@coder-plugins --scope local'])\n  FAIL: a local-only record is kept and listed\n  ok: the loadout is re-applied afterwards (no stale true left)\nunpin --dry-run: lists, calls nothing, writes nothing\n  ok: dry run exits 0 (got 0)\n  ok: dry run calls nothing (got [])\n  ok: dry run lists the redundant keys\n  ok: dry run leaves settings.local.json alone\nunpin: a failing uninstall is reported and exits 1\n  ok: exit 1 on a failed uninstall (got 1)\n  ok: the failing key is named on stderr\n  FAIL: the other uninstall still ran (got ['/tmp/tmp23tweo0s/project plugin uninstall local-only@market --scope local', '/tmp/tmp23tweo0s/project plugin uninstall planning@coder-plugins --scope local', '/tmp/tmp23tweo0s/project plugin uninstall rust-dev@coder-plugins --scope local'])\n\n3 failure(s)"
+ },
+ "schema": 2,
+ "task": "1.2",
+ "test": "python3 loadout/scripts/tests/test-loadout.py",
+ "text": "`python3 loadout/scripts/tests/test-loadout.py` exits 0, with a fake `claude` on `PATH` that logs its argv. It asserts:",
+ "touched": [
+  "loadout/scripts/loadout.py"
+ ]
+}

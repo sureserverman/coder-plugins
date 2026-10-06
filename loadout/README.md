@@ -16,7 +16,9 @@ Three layers, unioned:
 2. **tech** — one sticky baseline per project (`android`, `rust`, `web-ext`, ...). Stored in `.claude/loadout.json` (commit-safe — it's a project fact).
 3. **task** — overlays you toggle on demand (`security-audit`, `release`, `wiki`, `refactor`, ...). Stored in `.claude/settings.local.json` (per-machine, gitignored).
 
-Everything **not** in the union is set to `false` for this project. Changes apply on next session start (restart or `/clear`).
+loadout writes `false` by default: everything not in the union is set to `false` for this project. A plugin in the union that is installed and enabled at user scope is omitted, so it loads from your user-scope install and stays current. Changes apply on next session start (restart or `/clear`).
+
+**Why loadout avoids `true`.** A local `true` makes Claude Code create a local install record for that project, and that record pins the plugin's version. Nothing refreshes it: `claude plugin update` at user scope leaves it alone, and later sessions reuse it (DEC-030). So the model is: user settings enable every plugin you install at user scope, and loadout mostly turns plugins off. It writes `true` only when nothing else enables a plugin in the union: user settings leave it **off**, or it has no user-scope install. loadout prints a warning that this pins the plugin's version. To avoid the pin, install the plugin at user scope and turn it on in user settings.
 
 ## Commands
 
@@ -29,7 +31,10 @@ Everything **not** in the union is set to `false` for this project. Changes appl
 /loadout clear                 drop all task overlays (keep tech)
 /loadout reset                 drop tech + overlays — back to global enabledPlugins
 /loadout detect                auto-pick tech from Cargo.toml / build.gradle / etc.
+/loadout unpin [--dry-run]     remove this project's version-pinned plugin records
 ```
+
+`unpin` removes the project's local install records for plugins that are installed and enabled at user scope (`claude plugin uninstall <key> --scope local`), then re-applies the loadout. Any other record is kept and listed with its reason (off in user settings, or no user-scope install), because removing it would take the plugin away. With no `loadout.json` to re-apply, it drops the unpinned keys' local `true` instead. `--dry-run` only lists.
 
 ## Bundled profiles
 
@@ -103,6 +108,7 @@ User profiles **override** bundled profiles with the same name (full replacement
 
 - **Session restart required to apply.** Claude Code reads `enabledPlugins` once at startup; mid-session toggling needs the `/plugin` UI manually.
 - **First entry loads with global defaults.** The auto-detect hook can't influence the current session — only the next one.
+- **A plugin the user scope does not load pins.** If a plugin in the union is off in user settings, or has no user-scope install, loadout writes a local `true`, which pins its version for this project (loadout warns). Install it at user scope and turn it on in user settings, then run `/loadout unpin`.
 - **Profiles are bundled with this plugin.** Adjust them by editing your `~/.claude/loadouts/` overrides; don't fork the plugin for personal preferences.
 
 
