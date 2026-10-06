@@ -1,7 +1,6 @@
 {
   "description": "Android / Kotlin / Jetpack Compose project baseline.",
   "plugins": [
-    "android-dev@coder-plugins",
-    "kotlin-lsp@claude-plugins-official"
+    "android-dev@coder-plugins"
   ]
 }
