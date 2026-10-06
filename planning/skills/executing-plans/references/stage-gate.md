@@ -171,7 +171,10 @@ each finding, exactly one of:
 Blocking maps to Critical, Material to Important, Minor to Suggestion, so both scales
 resolve to the one exit criterion in this file. An evaluator FAIL carrying no Blocking finding
 is a **pass with recorded residuals**, not a failure — tell the evaluator so explicitly, or
-it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition.
+it will withhold PASS to seem rigorous and hand the loop an unsatisfiable condition. **Tell it
+too that it returns only after its own background work has finished or been stopped, and says
+which**: a suite or probe it started in the background keeps running after its verdict
+arrives.
 
 **One dispatch per role per gate unless something Blocking was fixed.** A Material finding
 is fixed and its fix proven at fix-scope by the executor; it does **not** re-dispatch the
@@ -202,7 +205,9 @@ finding is repaired as a class** per `../SKILL.md` § A bug found during executi
 sweep it, fix every instance — a reviewer cites the line it read, which is one member of
 whatever set that line belongs to. **Brief it to audit the stage's behavioral claims as a
 set**, per `honest-gates` and its rule that a behavioral claim is a gate too — the stage view is where a
-claim that was true when written and false after a later task shows up.
+claim that was true when written and false after a later task shows up. Brief it, as the
+evaluator is briefed, that it returns only after its own background work has finished or been
+stopped, and says which.
 
 ## Decisions-conformance check (gate criterion, not advisory)
 

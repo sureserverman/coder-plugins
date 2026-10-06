@@ -110,6 +110,25 @@ and end the turn — the host re-invokes you when it lands. Naming the thing you
 for is what separates a legitimate pause from an abandoned promise, both for the reader and
 for the optional `plan-continue` Stop hook (`plan-continue-hook.md`).
 
+## Waiting on background work
+
+Wait on a background job by its own completion: the harness notification that arrives when a
+background command or agent finishes, `wait <pid>` for a job this shell started, or a
+sentinel file the job writes as its last act. Each of those fires when *that job* ends.
+
+A process-name search does not. This loop never returns:
+`until ! pgrep -f run-tests.sh; do sleep 5; done` — `pgrep -f` matches its own command line,
+and the shell running the loop carries the pattern too, so the search always finds itself. If a name search is unavoidable
+(a job some other process started, with no pid and no sentinel), exclude the searcher: match
+on a pattern its own command line cannot contain (`pgrep -f '[r]un-tests.sh'`), or filter
+out `$$` and the `pgrep` itself.
+
+**What this run started, this run reaps.** At close-out and at a gate that hands off, list
+the background tasks and agents the run started, stop each whose result was used, and name
+each one still running in the report (`close-out.md`, `session-handoff.md` § On `handoff`).
+A background subagent's own commands keep running after the subagent returns, so a result in
+hand is not proof the work behind it stopped.
+
 ## Tier 1 — the quick per-task review
 
 Whether it runs comes from `../references/review-scope.md`; do not re-derive it. **At `none`,

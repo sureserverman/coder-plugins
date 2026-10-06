@@ -496,7 +496,11 @@ planning/skills/backlog/SKILL.md 17333
 #   brief's step 7 was not runnable by a dispatched agent — it now says to stage the work
 #   first, where the tool lives, that `--test` is the Test command and the patch stays
 #   outside the repo, and that `--help` lists the arguments.
-planning/skills/dispatching-parallel-agents/SKILL.md 17626
+# Raised 17626 -> 17725 (+99 B) 2026-10-06, gate-executor-discipline Task 2.1 (BL-120): the
+#   prompt template's ## Return block says an agent returns only after its own background work
+#   finished or was stopped, and says which. It has to be in the template: a dispatched agent
+#   reads only its prompt, and its background commands outlive it otherwise.
+planning/skills/dispatching-parallel-agents/SKILL.md 17725
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
 #   citation stopped claiming a path that resolves nowhere from this file
