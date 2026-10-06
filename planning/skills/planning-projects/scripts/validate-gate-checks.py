@@ -100,7 +100,15 @@ plan's TASK fields:
                         to bound. Master plans are skipped: they carry no tasks.
 
     STAGE-SCOPE-WIDE    a declared `stage-scope:` command naming four or more test trees or
-                        modules. A NOTE, never a failure: cost is not decidable from text,
+                        modules with no `justified:` clause giving one reason per tree
+                        (`justified: tests/a — Stage 1 edits it; tests/b — Stage 2 imports
+                        it`); the note names each unjustified tree. ADVISORY, measured
+                        2026-10-06: 49 of the 119 corpus plans declaring stage-scope hit,
+                        and the hits include claude-pacer's `:app:lintDebug
+                        :app:assembleDebug`, which the tree count reads as test trees — so
+                        not every hit is a defect, and the finding stays a note
+                        (gate-authoring.md § A gate heuristic ships with a severity axis and
+                        a measured trigger rate). Also a NOTE because cost is not decidable from text,
                         but a stage-scope that lists most of the project is the full suite
                         under another name and pays plan-scope cost at every gate. Measured
                         (remote-agents, 2026-09-09..11): a seven-tree declaration at 10.5 min
@@ -809,10 +817,27 @@ TREE_TOKEN = re.compile(r"(?<![\w./-])(?:[\w.-]*/)?tests?(?:/[\w.-]+)*(?![\w-])|
 STAGE_SCOPE_WIDE_MIN = 4
 
 
+JUSTIFIED = re.compile(r"\bjustified\s*:", re.I)
+
+
+def _justified_trees(clause):
+    """Trees a `justified: <tree> — <reason>; <tree> — <reason>` clause gives a reason for.
+    A tree listed with an empty reason is not justified."""
+    out = set()
+    for item in clause.split(";"):
+        parts = re.split(r"\s+(?:—|–|--?)(?:\s+|$)", item.strip(), maxsplit=1)
+        if len(parts) == 2 and parts[1].strip().strip("`"):
+            out.add(parts[0].strip().strip("`").strip())
+    return out
+
+
 def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
-    """-> [(command, tree_count)] for every `stage-scope:` declaration naming
-    `min_trees` or more test trees/modules. Reads the declaration line plus any wrapped
-    continuation lines (indented, not a new bullet). Advisory only."""
+    """-> [(command, tree_count, unjustified)] for every `stage-scope:` declaration naming
+    `min_trees` or more test trees/modules that a `justified:` clause does not cover tree by
+    tree (`justified: tests/a — Stage 1 edits it; tests/b — Stage 2 imports it`).
+    `unjustified` names the trees with no reason. Reads the declaration line plus any
+    wrapped continuation lines (indented, not a new bullet). Advisory only — see the
+    module docstring for the measurement."""
     out = []
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -824,9 +849,14 @@ def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
                 and not re.match(r"\s*[-*]\s", lines[j]):
             cmd += " " + lines[j]
             j += 1
-        trees = set(t for t in TREE_TOKEN.findall(cmd))
-        if len(trees) >= min_trees:
-            out.append((cmd.strip().strip("`").strip(), len(trees)))
+        jm = JUSTIFIED.search(cmd)
+        command, clause = (cmd[:jm.start()], cmd[jm.end():]) if jm else (cmd, "")
+        trees = set(t for t in TREE_TOKEN.findall(command))
+        if len(trees) < min_trees:
+            continue
+        missing = sorted(trees - _justified_trees(clause))
+        if missing:
+            out.append((command.strip().strip("`").strip(), len(trees), ", ".join(missing)))
     return out
 
 
@@ -1127,8 +1157,8 @@ def main(argv=None):
             runner_selector_notes.append((path, c, runner, filt))
         for task, cmd, why in unscoped_task_tests(raw, path):
             task_test_failures.append((path, task, cmd, why))
-        for cmd, n in wide_stage_scopes(raw):
-            wide_stage_notes.append((path, cmd, n))
+        for cmd, n, missing in wide_stage_scopes(raw):
+            wide_stage_notes.append((path, cmd, n, missing))
         for c, cmd, word in prose_blind_sweeps(raw):
             prose_blind_failures.append((path, c, cmd, word))
         examined_files += 1
@@ -1190,9 +1220,11 @@ def main(argv=None):
 
     # Advisory, never a failure: cost is not decidable from text, so this names the shape
     # and leaves the ~5 min judgment to the author and to Preflight's timing step.
-    for path, cmd, n in wide_stage_notes:
+    for path, cmd, n, missing in wide_stage_notes:
         print(f"\nnote: {path.name}: stage-scope names {n} test trees/modules "
-              f"(`{cmd[:72]}`) — a stage-scope that lists most of the project is the "
+              f"(`{cmd[:72]}`) with no `justified:` reason for {missing} — add "
+              f"`justified: <tree> — <reason>; …` naming why each tree is in, or narrow it. "
+              f"A stage-scope that lists most of the project is the "
               f"full suite under another name and pays plan-scope cost at every gate; "
               f"narrow it to the trees the stages touch or depend on if it crosses ~5 min "
               f"(test-scope-tiers.md § A declared stage-scope command is subject to the "

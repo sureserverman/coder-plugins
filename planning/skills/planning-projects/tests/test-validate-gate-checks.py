@@ -679,6 +679,36 @@ check("stage-scope names 4 test trees" in out_g,
       "gradle `:module:test` tasks count as trees, so an Android declaration is covered")
 check(len(vgc.wide_stage_scopes("- stage-scope: `cargo test --lib`\n- plan-scope: `x`\n")) == 0,
       "a single-runner stage-scope with no tree list is not noted")
+# Task 3.3 (BL-062): a `justified:` clause giving one reason per tree silences the finding;
+# a missing reason for any tree keeps it, naming the tree. The finding stays ADVISORY: measured
+# 2026-10-06, 49 of the 119 corpus plans declaring stage-scope hit, and the hits include
+# claude-pacer's `:app:lintDebug :app:assembleDebug` counted as test trees — not all defects.
+_four = ("uv run pytest tests/unit tests/integration tests/contract tests/architecture -q")
+rc_j0, out_j0 = run(tiered_plan(_four))
+check("stage-scope names 4 test trees" in out_j0 and "no `justified:`" in out_j0,
+      "a 4-tree stage-scope with no `justified:` is reported, saying the clause is missing")
+_just = (f"- stage-scope: `{_four}` justified: tests/unit — Stage 1 edits it; "
+         "tests/integration — Stage 1 imports it; tests/contract — Stage 2 changes the port; "
+         "tests/architecture — Stage 2 adds a layer\n- plan-scope: `uv run pytest`\n")
+check(vgc.wide_stage_scopes(_just) == [],
+      "a 4-tree stage-scope with a reason for every tree is not reported")
+_partial = (f"- stage-scope: `{_four}` justified: tests/unit — Stage 1 edits it; "
+            "tests/integration — Stage 1 imports it; tests/contract — Stage 2 changes the port"
+            "\n- plan-scope: `uv run pytest`\n")
+_pw = vgc.wide_stage_scopes(_partial)
+check(len(_pw) == 1 and "tests/architecture" in _pw[0][2],
+      "a justification missing one tree is reported, naming that tree")
+_empty_reason = _just.replace("tests/architecture — Stage 2 adds a layer", "tests/architecture —")
+check(len(vgc.wide_stage_scopes(_empty_reason)) == 1,
+      "a tree listed with an empty reason is not justified")
+check(vgc.wide_stage_scopes("- stage-scope: `uv run pytest tests/unit tests/integration "
+                            "tests/contract -q`\n- plan-scope: `x`\n") == [],
+      "a 3-tree stage-scope is untouched (the threshold is still 4)")
+check(run(tiered_plan(_four))[0] == 0,
+      "STAGE-SCOPE-WIDE stays advisory — measured hits are not all defects")
+check(re.search(r"measured\s+2026-10-06:\s+\d+\s+of\s+the\s+\d+\s+corpus\s+plans\s+declaring"
+                r"\s+stage-scope", vgc.__doc__) is not None,
+      "the docstring states the measured trigger rate and why the finding is advisory")
 
 print("group 10 — PROSE-BLIND-SWEEP: a negated recursive grep that cannot go green")
 

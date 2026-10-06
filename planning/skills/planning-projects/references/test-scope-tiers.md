@@ -83,6 +83,20 @@ stage did touch, is not narrowed away for cost
 tax when it has ten — the same sub-plan declared four whole trees as its stage-scope at
 every gate, for stages that touched one.
 
+**Four or more trees carry a reason each.** A `stage-scope:` declaration naming four or more
+test trees or modules ends with a `justified:` clause that gives every tree its reason:
+
+```
+- stage-scope: `uv run pytest tests/unit tests/integration tests/contract tests/architecture -q`
+  justified: tests/unit — Stage 1 edits it; tests/integration — Stage 1 imports it;
+  tests/contract — Stage 2 changes the port; tests/architecture — Stage 2 adds a layer
+```
+
+`validate-gate-checks.py` reports a four-tree declaration with no reason for some tree as
+STAGE-SCOPE-WIDE, naming the trees that lack one. The finding is advisory: its measured hits
+include build tasks (`:app:lintDebug`) counted as trees, so it does not fail a plan, and a
+tree that needs no reason is a tree to drop.
+
 ## A stage-scope pass never runs inside a task
 
 **Between a task's Red-Green loop starting and its commit landing, the only tests that run
