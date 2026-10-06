@@ -7,7 +7,6 @@
     "codex-dev@agent-tooling",
     "opencode-dev@agent-tooling",
     "hermes-dev@agent-tooling",
-    "openclaw-dev@agent-tooling",
-    "context7@claude-plugins-official"
+    "openclaw-dev@agent-tooling"
   ]
 }

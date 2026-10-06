@@ -1,8 +1,4 @@
 {
   "description": "Browser extension (Firefox AMO / Chrome MV3) project baseline.",
-  "plugins": [
-    "browser-extensions@coder-plugins",
-    "typescript-lsp@claude-plugins-official",
-    "playwright@claude-plugins-official"
-  ]
+  "plugins": []
 }

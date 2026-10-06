@@ -1,6 +1,4 @@
 {
   "description": "Python project baseline.",
-  "plugins": [
-    "pyright-lsp@claude-plugins-official"
-  ]
+  "plugins": []
 }
