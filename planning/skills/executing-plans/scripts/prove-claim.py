@@ -732,7 +732,8 @@ def replay(repo, plan, task, timeout):
                     out.write(rec["break_patch"])
                 prove(repo, plan, rec["task"], rec["index"], tmp, rec["test"],
                       rec.get("build"), rec.get("no_build_reason"), timeout, write=False)
-            except (Refused, Usage) as e:
+            except (Refused, Usage, OverBudget) as e:
+                # One slow record is that record's failure; the rest still replay.
                 problems = [str(e).splitlines()[0]]
             finally:
                 Path(tmp).unlink(missing_ok=True)

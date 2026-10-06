@@ -23,9 +23,14 @@ pass=0; fail=0
 ok()  { pass=$((pass+1)); echo "  ok    $1"; }
 bad() { fail=$((fail+1)); echo "  FAIL  $1"; [ -n "${2:-}" ] && printf '        | %s\n' "${2:0:700}"; }
 
-# The tree as it was before this change: the suites' pre-fail-fast text.
-BASE="$(git -C "$REPO" log --format=%H -1 --grep='^Stage 3 green$' 2>/dev/null)"
-[ -n "$BASE" ] || { echo "FAIL: no 'Stage 3 green' commit to read the pre-change suites from"; exit 1; }
+# The tree as it was before this change: the suites' pre-fail-fast text, at the commit the
+# change was built on (gate-executor-discipline `Stage 3 green`). Pinned by SHA — a later
+# plan's `Stage 3 green` would hold the new suites, and the comparison would test nothing.
+BASE=d60113f
+git -C "$REPO" cat-file -e "$BASE^{commit}" 2>/dev/null \
+    || { echo "FAIL: commit $BASE (the pre-fail-fast suites) is not in this clone — fetch full history"; exit 1; }
+d=""
+trap '[ -n "$d" ] && rm -rf "$d"' EXIT
 
 echo "suite fail-fast — SUITE_FAIL_FAST=1 stops at the first FAIL; default mode unchanged"
 echo

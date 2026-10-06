@@ -407,7 +407,9 @@ SLOW = "sleep 8; python3 tests/test_calc.py"
 repo_s, plan_s = world(SLOW)
 r = claim(repo_s, plan_s, 1, patch(repo_s, "calc.py", "return a + b", "return a - b"),
           "--timeout", "3", test=SLOW)
-if r.returncode == 4 and "over --timeout" in r.stderr and not rec(repo_s, plan_s, "claim", 1).exists():
+# (and the tree as it was: the stop comes before the break is applied)
+if r.returncode == 4 and "over --timeout" in r.stderr and not rec(repo_s, plan_s, "claim", 1).exists() \
+        and tree_clean(repo_s):
     ok("a test over --timeout writes no record and exits 4 (the task-test budget is spent)")
 else:
     bad(f"a test over --timeout must exit 4 with no record (red if a slow test is recorded "
@@ -421,7 +423,7 @@ budget = te[te.find("## A task test has a time budget"):]
 budget = budget[: budget.find("\n## ", 5)] if "\n## " in budget[5:] else budget
 for what, pat in (("the 300 s default", r"300\s+s\s+by\s+default"),
                   ("the Preflight override line", r"`task-test budget: N s`"),
-                  ("prove-claim.py --timeout", r"prove-claim\.py\s+--timeout|--timeout"),
+                  ("prove-claim.py --timeout", r"--timeout"),
                   ("the Stop condition", r"Stop\s+condition"),
                   ("the blocked phase note", r'`phase: "blocked"`'),
                   ("never narrowing the test (DEC-024)", r"never\s+narrowed.*DEC-024")):

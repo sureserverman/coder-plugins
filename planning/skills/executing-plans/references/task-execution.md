@@ -148,9 +148,15 @@ A task's `Test:` is its whole testing
 as `prove-claim.py --timeout N`; every proof record carries the measured `elapsed_s` of its
 baseline and break runs, so the cost is on record whether or not it runs over.
 
+The budget bounds each run of the test, not their sum, and nothing applies it for you:
+`prove-claim.py`'s own `--timeout` default is 3600 s, and no tool reads the Preflight line —
+the executor passes the budget.
+
 **A test over the budget is a Stop condition**, reported like a spent cycle budget: the
-progress file gets `phase: "blocked"` with the note `task test over N s`, and `prove-claim.py`
-exits 4 without a record. The test is never narrowed to fit (DEC-024): cost is an argument
+progress file gets `phase: "blocked"` with the note `task test over N s`. `prove-claim.py`
+exits 4 without a record when the run before the break goes over; a test that hangs only
+under the break exits 1 ("hung … inconclusive") — a stop all the same, because the test
+cannot be timed. The test is never narrowed to fit (DEC-024): cost is an argument
 for re-planning the task, made to the user, never a licence to prove less. Position
 (DEC-017): test-scope tier task, and only on a plan that declares test-scope commands, where
 the suite is expensive enough for the budget to bind.

@@ -14,7 +14,8 @@ because the required response to each differs:
 
     0   every guard independently pinned — nothing survived, nothing skipped
     1   a mutation SURVIVED: that guard is not reachable from any named test
-    2   the control suites were already red before mutating; nothing was run
+    2   the control suites were already red before mutating, or an entry is
+        malformed (not 5 fields, or an empty killer); nothing was run
     4   a mutation was SKIPPED because its anchor text is gone. Coverage
         silently shrank; the guard it pinned is now unpinned. Re-anchor it.
     5   a trial ERRORED: it could not run, timed out, the mutation left the
@@ -59,7 +60,8 @@ check, and that first check must be the one the entry names.
 COST, measured so a change to it is visible. Before fail-fast (gate-executor-discipline
 Task 4.1, 2026-10-06, 16 CPUs, -j 16): 173 mutations, every suite run to its end —
 6m33s wall, 43m16s user. With fail-fast and named killers (Task 4.3, same machine, same
-day): 3m58s wall, 24m17s user — 173 killed, 0 misnamed.
+day): 3m58s wall, 24m17s user — 173 killed, 0 misnamed. After the Stage 4 gate's entries
+(176): 4m06s wall, 24m27s user — 176 killed, 0 misnamed.
 """
 import argparse
 import os
@@ -370,6 +372,14 @@ M = [
   '"baseline": {"exit": base[0], "tail": base[1], "elapsed_s": base[2]},',
   '"baseline": {"exit": base[0], "tail": base[1]},',
   'a record must carry elapsed_s for both runs'),
+ ('prove: the break run elapsed time is not recorded', PC_S,
+  '"red": {"exit": red[0], "tail": red[1], "elapsed_s": red[2]}}',
+  '"red": {"exit": red[0], "tail": red[1]}}',
+  'a record must carry elapsed_s for both runs'),
+ ('prove: a test over --timeout before the break is not a budget stop', PC_S,
+  '    if base_rc is None:\n        raise OverBudget(',
+  '    if False:\n        raise OverBudget(',
+  'a test over --timeout must exit 4 with no record'),
  ('prove: timeout kills only the shell', PC_S,
   '        os.killpg(p.pid, signal.SIGKILL)',
   '        p.kill()',
@@ -647,7 +657,7 @@ M = [
  ('ref gate: a claim deviation counted as proof', GR_S,
   '            elif rec.get("kind") == "claim-deviation":',
   '            elif False:',
-  'a claim deviation must be allowed and named | a named-break claim without a record must be refused'),
+  'a claim deviation must be allowed and named'),
  ('ref gate: covered-by not followed to a real proof', GR_S,
   'if probs.get("req") == [] and cites is not None and not proven.get(cites):',
   'if False:',
@@ -700,7 +710,7 @@ M = [
  ('installer: a non-repo accepted', PI_S,
   '    if top.returncode != 0:\n        die(f"{r} is not a git work tree")',
   '    if False:\n        die(f"{r} is not a git work tree")',
-  'a non-repo must be refused | an unproven task commit must not land by'),
+  'a non-repo must be refused'),
  ('installer: --status reports a missing shim as installed', PI_S,
   '        print(f"not installed — no {HOOK_NAME} hook in {top}")\n    return 1',
   '        print(f"not installed — no {HOOK_NAME} hook in {top}")\n    return 0',
@@ -741,11 +751,11 @@ M = [
  ('guard: a repo reached by cd not considered', PG_S,
   're.findall(r"\\bcd\\s+(',
   're.findall(r"\\bcdXX\\s+(',
-  "/repo && git -c core.hookspath=/x commit -m x' run from /"),
+  "/repo && git -c core.hookspath=/x commit -m x'"),
  ('guard: a repo reached by git -C not considered', PG_S,
   're.findall(r"\\bgit\\s+-C\\s+(',
   're.findall(r"\\bgitXX\\s+-C\\s+(',
-  "/repo -c core.hooksPath=/x commit -m x' run from /tmp"),
+  "/repo -c core.hooksPath=/x commit -m x'"),
  ('guard: the pre-filter drops hooksPath', PG_S,
   "grep -qiE 'hookspath|reference-transaction|",
   "grep -qiE 'reference-transaction|",
@@ -857,9 +867,10 @@ def trial(entry):
     as a kill. Exceptions are caught here, so a worker's crash cannot escape as
     Python's exit 1, which this file defines as "survived".
     """
-    label, target, old, new, killer = entry
+    label = entry[0] if entry else "?"
     d = None
     try:
+        label, target, old, new, killer = entry
         d = copy_skill()
         f = d / "planning" / target
         f.write_text(f.read_text().replace(old, new))
@@ -902,6 +913,15 @@ def main():
     # outcome anyway; finding it first costs a second rather than a battery.
     # An anchor at several sites is mutated at ALL of them: a guard emitted in
     # two places is only pinned if BOTH are covered.
+    # A killer that is empty, or has an empty ` | ` alternative, matches every FAIL line and
+    # would read any kill as the named one; a short entry would crash a worker. Both are
+    # refused before anything runs.
+    malformed = [e[0] for e in M if len(e) != 5
+                 or not all(k.strip() for k in str(e[4]).split(" | "))]
+    if malformed:
+        for label in malformed:
+            print(f"  MALFORMED {label}  (needs 5 fields and a non-empty killer)")
+        return 2
     gone = [label for label, target, old, *_ in M if (PLUGIN / target).read_text().count(old) == 0]
     if gone:
         for label in gone:
