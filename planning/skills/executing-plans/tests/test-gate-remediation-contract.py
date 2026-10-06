@@ -1614,6 +1614,33 @@ def main():
           affirms_claim(live, ws(r'is named in the gate report as "unproven against the real system"')),
           "the 'unproven against the real system' label is absent or negated")
 
+    # 16. (gate-executor-discipline Task 2.3, BL-089) A redesign in the last round gets
+    #     read. Since 0.50.0 an Important fix closes on a fix-scope re-run with no
+    #     re-review, so replacement code written in the round that ends the budget shipped
+    #     unread. These pin the two terms, the review (or battery substitute), its tier
+    #     bound and the record.
+    redesign = section(gfp, r"(?m)^## A redesign in the last round", r"(?m)^## ")
+    check("gate-failure-procedure: § A redesign in the last round present", bool(redesign),
+          "no redesign section")
+    check("redesign: a repair is defined",
+          affirms_claim(redesign, ws(r"A \*\*repair\*\* is a change inside code the review read")),
+          "the repair definition is absent")
+    check("redesign: a redesign is defined",
+          affirms_claim(redesign, ws(r"A \*\*redesign\*\* is a new file or function, or a replacement of logic the review read")),
+          "the redesign definition is absent")
+    check("redesign: a last-round redesign gets a review of that round's diff, or a battery entry",
+          affirms_claim(redesign, ws(r"gets one review of that round's diff alone"))
+          and affirms_claim(redesign, ws(r"or a deterministic substitute")),
+          "a last-round redesign may close on a fix-scope re-run alone")
+    check("redesign: bounded to the tier that funded the original review",
+          affirms_claim(redesign, ws(r"at the tier that funded the original review"))
+          and re.search(ws(r"Below tier `light`, nothing is added"), redesign) is not None,
+          "the tier bound, or the below-light clause, is absent")
+    check("redesign: the review-line form is stated",
+          "`round K: redesign — reviewed by <subagent_type>`" in redesign
+          and "`round K: redesign — battery <name>`" in redesign,
+          "the record form is unspecified")
+
     print(f"assertions run ({len(RAN)}), files swept: {scanned}")
     for name in RAN:
         print(f"  - {name}")
