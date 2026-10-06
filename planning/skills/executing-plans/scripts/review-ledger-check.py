@@ -22,16 +22,21 @@ GATE MODE (--plan --stage). Reads Stage N's `review:` and `evaluator:` lines —
   a scope statement  a line naming no agent that says why no review ran — `not run`,
                      `not dispatched`, `not mandated`, an `opt-out`, a `trivial`
                      (`non-code`, `docs-only`, `config-only`, `comment-only`,
-                     `version bump`) diff ("review: Tier-2 not run — tier none")
+                     `version bump`) diff — in its head, or after a head saying it was
+                     `skipped` ("review: Tier-2 not run — tier none", "review: Tier-2
+                     skipped — docs-only diff"); a line stating a verdict (APPROVE, LGTM,
+                     clean, `0 Critical`, PASS …) is never one
   a redesign line    review: round K: redesign — reviewed by <subagent_type> (a claim),
-                     — battery <name> or — unread (scope), per gate-failure-procedure.md
+                     — battery <name> or — unread (scope, unless it states a verdict),
+                     per gate-failure-procedure.md; read in any case, `round K` optional
 
 The agent and SUBSTITUTED are read from the line's head — the text before the first
 ` — ` — so nothing written after the verdict can supply either. Prefixes are read in
 any case and under list markers or bold. Any other line is ADVISORY (exit 4): "looked at
 the diff, clean" may claim a review whatever words it uses, so the gate report names it.
 It is advisory, not a failure (DEC-032): measured 2026-10-06 over 258 review:/evaluator:
-lines in `Stage N green` commit bodies of 13 ~/dev repos: 134 hits, 0 true — every hit
+lines in `Stage N green` commit bodies of 13 ~/dev repos, with this classifier (the
+head-anchored reasons and the verdict exclusion included): 134 hits, 0 true — every hit
 read was an honest review or scope line in a wording older than this grammar. DEC-031
 fails only an unmatched dispatch claim. Text may follow the range ("over a..b
 (round 2): APPROVE"). The task field `Review: required` / `Review: skip` is not a ledger
@@ -54,11 +59,15 @@ close-out never ran satisfies Stage 1 claims.
 UNSTOPPED MODE (--unstopped). Lists every agent with a `start` line and no `stop`
 line — an agent still running after the run that started it used its result.
 
-EXIT CODES: 0 every claim matched / no agent left running · 1 a claimed dispatch
-has no match, or an agent is still running (each named) · 4 every claim matched, and a
-line names no agent and gives no reason (ADVISORY, each named) · 2 usage error (no Stage N section, no `Stage N-1 green` commit, unreadable
-input, no git) · 3 NOT RUN — the dispatch log is missing — or NOT CHECKED — no
-review: or evaluator: line for the stage; never 0.
+EXIT CODES:
+  0  every claim matched / no agent left running
+  1  a claimed dispatch has no match, or an agent is still running (each named)
+  2  usage error (no Stage N section, no `Stage N-1 green` commit, unreadable input,
+     no git)
+  3  NOT RUN — the dispatch log is missing — or NOT CHECKED — no review: or
+     evaluator: line for the stage; never 0
+  4  gate mode only: every claim matched, and a line names no agent and gives no
+     reason (ADVISORY, each named); --unstopped uses only 0, 1 and 3
 """
 import argparse
 import datetime
@@ -90,8 +99,15 @@ VERDICT_SEP = re.compile(r"\s+(?:—|--)\s+")
 # gate-failure-procedure.md § A redesign the gate closes on prescribes three lines whose head
 # names no agent: `round K: redesign — reviewed by <subagent_type>` (a dispatch claim),
 # `— battery <name>` and `— unread` (scope: no dispatch was owed or made).
-REDESIGN = re.compile(rf"^review:\s+round\s+\d+:\s+redesign\s+(?:—|--)\s+"
-                      rf"(?:reviewed\s+by\s+{TYPE}|battery\s+\S|unread\b)")
+# Read in any case, with or without `round K`, its colon, or backticks around the type, and
+# after an em dash, en dash or `--`: a claim in another spelling must not fall to advisory.
+REDESIGN = re.compile(rf"^review:\s+(?:round\s+\d+:?\s+)?redesign\s*:?\s+(?:—|–|--)\s+"
+                      rf"(?:reviewed\s+by\s+`?{TYPE}`?|battery\s+\S|unread\b)", re.I)
+# A skip verb in the head lets the reason follow the dash ("Tier-2 skipped — docs-only diff").
+SKIPPED = re.compile(r"\b(?:auto-)?skipped\b", re.I)
+# A line that states a verdict reports a review; it is never a scope line.
+VERDICT = re.compile(r"\bAPPROVE\b|\bLGTM\b|\bREQUEST CHANGES\b|\bBLOCK\b|"
+                     r"\b\d+\s+Critical\b|\bclean\b|\bPASS\b|\bFAIL\b", re.I)
 LEDGER_PREFIX = re.compile(r"^(review|evaluator)\s*:", re.I)
 # The task field `Review: required` / `Review: skip` (task-fields.md) shares the prefix and is
 # never a ledger line.
@@ -166,12 +182,17 @@ def classify(line):
     if "SUBSTITUTED" in head:
         return "substituted", role, None
     r = REDESIGN.match(line)
+    if r and r.group("type"):
+        return "claim", role, r.group("type")
     if r:
-        return ("claim", role, r.group("type")) if r.group("type") else ("scope", role, None)
+        return ("unnamed" if VERDICT.search(line) else "scope"), role, None
     m = REVIEW_CLAIM.match(head) or EVALUATOR_CLAIM.match(head)
     if m:
         return "claim", role, m.group("type")
-    return ("scope" if SCOPE_REASON.search(line) else "unnamed"), role, None
+    # The reason is read from the head, or after a head saying the review was skipped — never
+    # from verdict prose ("APPROVE, docs-only change" names no reason a review did not run).
+    reason = SCOPE_REASON.search(head) or (SKIPPED.search(head) and SCOPE_REASON.search(line))
+    return ("scope" if reason and not VERDICT.search(line) else "unnamed"), role, None
 
 
 def counts_for(row, stage, role):
@@ -252,9 +273,10 @@ def gate(args):
                            f"and the {role} role, logged since "
                            f"{'the log start' if since is None else since.isoformat()}: {line}")
         elif kind == "unnamed":
-            advisory.append(f"names no dispatched agent as `<subagent_type> over <range>` before its "
-                       f"first ` — `, and gives no reason a review did not run (not run, "
-                       f"not mandated, opt-out, a trivial or non-code diff): {line}")
+            advisory.append(f"names no dispatched agent as `<subagent_type> over <range>` "
+                            f"before its first ` — `, and gives no reason a review did not "
+                            f"run (not run, not dispatched, not mandated, opt-out, a trivial "
+                            f"or non-code diff) outside verdict prose: {line}")
         else:
             print(f"  {kind:<12} {line[:100]}")
     for b in bad:

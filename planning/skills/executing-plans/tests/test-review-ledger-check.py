@@ -237,8 +237,9 @@ with tempfile.TemporaryDirectory() as t:
 
     # Catches (redesign review A2): a fabricated review with an unlisted verdict word passing
     # as a scope line. A line naming no agent and no reason is ADVISORY (exit 4), never 0:
-    # measured over 258 portfolio ledger lines it hit 138 honest lines in older wordings, so
-    # DEC-032 makes it advisory and DEC-031 fails only an unmatched dispatch claim.
+    # measured over 258 portfolio ledger lines it hit honest lines only, in older wordings
+    # (the count is in the script's docstring), so DEC-032 makes it advisory and DEC-031
+    # fails only an unmatched dispatch claim.
     for fake in ("review: Tier-2 git-github:code-reviewer — looked at the diff, clean",
                  "review: Tier-2 — LGTM", "review: done, no issues"):
         rc, out = run("--plan", write_plan(t, s2=fake), "--stage", 2, "--repo", repo)
@@ -248,6 +249,12 @@ with tempfile.TemporaryDirectory() as t:
     rc, out = run("--plan", write_plan(t, s2=REVIEW + "\nreview: Tier-2 — LGTM"), "--stage", 2,
                   "--repo", repo)
     check("an unmatched claim beside an advisory line exits 1", rc == 1, f"rc={rc} {out}")
+    # A matched claim beside an advisory line is advisory, not clean (round 2 review S7).
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")])
+    rc, out = run("--plan", write_plan(t, s2=REVIEW + "\nreview: Tier-2 — LGTM"), "--stage", 2,
+                  "--repo", repo)
+    check("a matched claim beside an advisory line exits 4", rc == 4, f"rc={rc} {out}")
+    write_log(repo, [])
 
     # Catches (redesign review A3): honest lines refused for trailing text after the range.
     write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")] * 3)
@@ -280,8 +287,9 @@ with tempfile.TemporaryDirectory() as t:
     # Catches (Stage 5 gate evaluator M2): a reason review-scope.md § Review opt-out sanctions
     # refused for its wording — the trivial/non-code diffs it names (docs-only, config-only,
     # pure version bumps, comment-only) and a user who "opted out".
-    for sanctioned in ('review: Tier-2 — user opted out at Preflight: "skip it"',
-                       "review: Tier-2 git-github:code-reviewer — skipped, docs-only diff",
+    for sanctioned in ('review: Tier-2 skipped — user opt-out, Preflight: "skip it"',
+                       'review: Tier-2 opted out by the user at Preflight — "skip it"',
+                       "review: Tier-2 skipped — docs-only diff",
                        "review: Tier-2 skipped — config-only diff",
                        "review: Tier-2 skipped — a pure version bump",
                        "review: Tier-2 skipped — comment-only diff",
@@ -289,6 +297,22 @@ with tempfile.TemporaryDirectory() as t:
         rc, out = run("--plan", write_plan(t, s2=sanctioned), "--stage", 2, "--repo", repo)
         check(f"a sanctioned reason is a scope line: {sanctioned[16:50]!r}", rc == 0,
               f"rc={rc} {out}")
+
+    # Catches (round 2 redesign review I1): a skip word in verdict prose clearing a line. The
+    # reason must sit in the line's head, or follow a head that says the review was skipped,
+    # and a line carrying a verdict is never a scope line.
+    write_log(repo, [])
+    for verdict in ("review: Tier-2 git-github:code-reviewer — APPROVE, docs-only change",
+                    "review: Tier-2 — LGTM, version bump looks right",
+                    "review: Tier-2 git-github:code-reviewer — skipped, docs-only diff",
+                    "review: Tier-2 trivial — APPROVE, 0 Critical",
+                    "review: round 2: redesign — unread, reviewed it myself: clean"):
+        rc, out = run("--plan", write_plan(t, s2=verdict), "--stage", 2, "--repo", repo)
+        check(f"a skip word in verdict prose is not a scope line: {verdict[16:52]!r}",
+              rc == 4, f"rc={rc} {out}")
+    rc, out = run("--plan", write_plan(t, s2=REVIEW + ", docs-only"), "--stage", 2,
+                  "--repo", repo)
+    check("a scope word cannot rescue a real claim with no dispatch", rc == 1, f"rc={rc} {out}")
 
     # Catches (Stage 5 gate evaluator M2's class): the three lines gate-failure-procedure.md
     # § A redesign the gate closes on prescribes, read as unnamed. `reviewed by <type>` is a
@@ -303,6 +327,17 @@ with tempfile.TemporaryDirectory() as t:
     redesign = "review: round 1: redesign — reviewed by git-github:code-reviewer"
     rc, out = run("--plan", write_plan(t, s2=redesign), "--stage", 2, "--repo", repo)
     check("a redesign review with no dispatch exits 1", rc == 1, f"rc={rc} {out}")
+    # Catches (round 2 redesign review I2): a redesign claim in another spelling dropping from
+    # a refusal to a warning.
+    for variant in ("Review: Round 1: Redesign — reviewed by git-github:code-reviewer",
+                    "review: round 1: redesign — reviewed by `git-github:code-reviewer`",
+                    "review: round 1 redesign — reviewed by git-github:code-reviewer",
+                    "review: redesign — reviewed by git-github:code-reviewer",
+                    "review: round 1: redesign – reviewed by git-github:code-reviewer",
+                    "review: round 1: redesign -- reviewed by git-github:code-reviewer"):
+        rc, out = run("--plan", write_plan(t, s2=variant), "--stage", 2, "--repo", repo)
+        check(f"a redesign claim variant with no dispatch exits 1: {variant[:40]!r}", rc == 1,
+              f"rc={rc} {out}")
     write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
                               "Stage 2 redesign review")])
     rc, out = run("--plan", write_plan(t, s2=redesign), "--stage", 2, "--repo", repo)

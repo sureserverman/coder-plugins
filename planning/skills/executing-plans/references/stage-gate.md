@@ -516,11 +516,15 @@ Each claimed review needs its own matching `dispatch` line, logged since the pre
 failure names the claim: run the review it claims, or rewrite the line as the substitution it
 was, with the user's words. The redesign lines `gate-failure-procedure.md` prescribes are
 read as written: `round K: redesign — reviewed by <subagent_type>` is a claim, `— battery
-<name>` and `— unread` need no dispatch. Any other review line that names no agent before its
-first ` — ` and gives no reason no review ran (`not run`, `not dispatched`, `not mandated`, an
+<name>` and `— unread` need no dispatch; the claim is read in any case, with or without
+`round K`. Any other review line that names no agent before its first ` — ` is ADVISORY,
+exit 4, unless it says why no review ran (`not run`, `not dispatched`, `not mandated`, an
 opt-out, a trivial diff — `trivial`, `non-code`, `docs-only`, `config-only`, `comment-only` or
-a `version bump`) is ADVISORY, exit 4: name it in the gate report; it does not fail the gate
-(DEC-032 — measured, it hit honest lines). Its exit 3 is reported as NOT RUN, never green: either no
+a `version bump`) in its head, or after a head saying the review was `skipped` (`Tier-2
+skipped — docs-only diff`). A reason inside verdict prose does not count: a line stating a
+verdict (APPROVE, LGTM, clean, `0 Critical`) reports a review, never a skip. Name an
+advisory line in the gate report; it does not fail the gate (DEC-032 — measured, it hit
+honest lines). The script's exit 3 is reported as NOT RUN, never green: either no
 log exists, so nothing was compared (the hook is not loaded, or no state file existed when
 the review was dispatched), or the report has no `review:` or `evaluator:` line at all, which
 a gate report always has. A line with `SUBSTITUTED` before its first ` — ` needs no
