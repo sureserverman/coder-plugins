@@ -533,10 +533,10 @@ r, doc = run_json(str(p))
 if doc is not None:
     not_run = {c["finding"] for c in doc.get("checks_not_run", [])}
     run_ = set(doc.get("checks_run", []))
-    if not_run == {1, 3, 5, 8, 9}:
-        ok("outside a git repo, findings 1/3/5 (and 8: no --repo) are reported NOT RUN")
+    if not_run == {1, 3, 5, 8, 9, 10}:
+        ok("outside a git repo, findings 1/3/5 (and 8-10: no --repo) are reported NOT RUN")
     else:
-        bad(f"checks_not_run was {sorted(not_run)}, expected [1, 3, 5, 8, 9]",
+        bad(f"checks_not_run was {sorted(not_run)}, expected [1, 3, 5, 8, 9, 10]",
             json.dumps(doc, indent=2)[:600])
     if run_ == {2, 4, 6, 7}:
         ok("findings 2/4/6/7 (the on-disk checks) are reported as actually run")
@@ -582,7 +582,7 @@ commit(repo, env, "Stage 1 Task 1.1: unrelated work")
 _, doc = run_json(str(plan), "--since", base, cwd=repo)
 if doc is not None:
     nr = {c["finding"] for c in doc.get("checks_not_run", [])}
-    if nr == {1, 3, 5, 8, 9} and doc.get("commits_examined") == 0:
+    if nr == {1, 3, 5, 8, 9, 10} and doc.get("commits_examined") == 0:
         ok("a zero-commit range is NOT reported as five checks run")
     else:
         bad("zero-commit range claimed coverage it never had",
@@ -614,7 +614,7 @@ commit(repo, env, "authored")
 r, doc = run_json(str(plan), "--since", "deadbeefdeadbeef", cwd=repo)
 if doc is not None:
     nr = {c["finding"] for c in doc.get("checks_not_run", [])}
-    if nr == {1, 3, 5, 8, 9} and r.returncode == 0:
+    if nr == {1, 3, 5, 8, 9, 10} and r.returncode == 0:
         ok("an unresolvable --since degrades to the static half rather than crashing")
     else:
         bad(f"unresolvable --since: rc={r.returncode}, not_run={sorted(nr)}",
@@ -656,7 +656,7 @@ untracked.write_text(preflight_plan(ticked=True))
 r, doc = run_json(str(untracked), cwd=repo)
 if doc is not None:
     nr = {c["finding"] for c in doc.get("checks_not_run", [])}
-    if nr == {1, 3, 5, 8, 9}:
+    if nr == {1, 3, 5, 8, 9, 10}:
         ok("untracked plan reports 1/3/5 NOT RUN despite the repo having history")
     else:
         bad("C2 REGRESSION: clean bill over checks that never ran",
@@ -1504,7 +1504,7 @@ def snap(plan, proj):
 vault, proj, env, plan = baseline_world("bl-none")
 r, doc = run_json(str(plan), "--repo", str(proj))
 reasons = " ".join(c.get("reason", "") for c in (doc or {}).get("checks_not_run", []))
-if doc is not None and {c["finding"] for c in doc["checks_not_run"]} == {1, 3, 5, 8, 9} \
+if doc is not None and {c["finding"] for c in doc["checks_not_run"]} == {1, 3, 5, 8, 9, 10} \
         and "--snapshot" in reasons:
     ok("with no baseline, 1/3/5 are NOT RUN and the reason says to --snapshot")
 else:
@@ -1535,9 +1535,9 @@ if doc is not None and {1, 3, 5} <= got and r.returncode == 1:
 else:
     bad(f"expected findings 1, 3, 5 and exit 1; got {sorted(got)}, exit {r.returncode}",
         json.dumps(doc, indent=2)[:900] if doc else r.stderr)
-if doc is not None and set(doc.get("checks_run", [])) == {1, 2, 3, 4, 5, 6, 7, 8, 9} \
+if doc is not None and set(doc.get("checks_run", [])) == {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} \
         and doc.get("baseline"):
-    ok("baseline mode with --repo reports all nine checks run, and names the baseline")
+    ok("baseline mode with --repo reports all ten checks run, and names the baseline")
 else:
     bad("baseline mode must report 1-7 run", json.dumps(doc, indent=2)[:500] if doc else "")
 f3 = findings_of(doc, 3) if doc else []
@@ -2241,6 +2241,96 @@ if _pfa.count_requirements(spanned) == 2 and "amended" in _pfa.requirement_claus
     ok("a note-shaped string inside a code span is kept")
 else:
     bad("code spans must not be stripped as notes", _pfa.requirement_clauses(spanned))
+
+
+# ------------------------- finding 10: a live-check remediation with no fixture sweep
+# BL-140: a remediation round fitted to the one capture a failed live run left
+# behind, then re-ran the live check, 15 minutes a turn, several turns. The rule
+# (gate-failure-procedure.md § Remediation that re-runs a live check): sweep every
+# capture on the host first and record the command as a `fixture-sweep:` trailer.
+print()
+print("finding 10 — a live-check remediation commit with no fixture-sweep: trailer")
+LIVE_PLAN = (
+    "# Plan\n\n## Stage 1: parser\n\n"
+    "### Task 1.1: parse\n- **Status:** [ ]\n"
+    "- **Test:** `python3 t.py` — parses (red if it does not)\n\n"
+    "### Stage 1 Gate\n\n"
+    "- [ ] Stage-scope: `make test` exits 0\n"
+    "- [ ] **Live check, session-driven:** a real bot session answers the prompt\n\n"
+    "## Stage 2: docs\n\n"
+    "### Task 2.1: docs\n- **Status:** [ ]\n"
+    "- **Test:** `python3 d.py` — documents (red if it does not)\n\n"
+    "### Stage 2 Gate\n\n"
+    "- [ ] Stage-scope: `make test` exits 0\n"
+)
+
+
+def live_world(label, subject, body=""):
+    vault = newdir(f"{label}-vault")
+    proj, env = newrepo(f"{label}-proj")
+    (proj / "README").write_text("x\n")
+    commit(proj, env, "base")
+    plan = vault / "2026-10-01-live-plan.md"
+    plan.write_text(LIVE_PLAN)
+    (proj / "parser.py").write_text("x = 1\n")
+    commit(proj, env, subject + ("\n\n" + body if body else ""))
+    return plan, proj, env
+
+
+# Catches: the finding silent — a live-check remediation with no sweep reads as clean.
+plan, proj, env = live_world("live-nosweep", "Stage 1 gate remediation round 1: fit the parser")
+r, doc = run_json(str(plan), "--repo", str(proj))
+f10 = findings_of(doc, 10) if doc else []
+if len(f10) == 1 and f10[0].get("severity") == "advisory" and 10 in doc.get("checks_run", []):
+    ok("a live-check gate's remediation commit with no fixture-sweep: trailer is reported advisory")
+else:
+    bad("a live-check remediation with no sweep must be finding 10, advisory (red if it is silent)",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
+# Catches: the severity raised — an advisory heuristic turned into a RED gate.
+if f10 and r.returncode == 4 and not any(f.get("severity") == "blocking" for f in f10):
+    ok("finding 10 alone exits 4, never 1 — it is never blocking")
+else:
+    bad(f"finding 10 must never block (red if it changes the exit code); exit {r.returncode}",
+        json.dumps(f10, indent=2)[:400])
+
+# Catches: the trailer ignored — the sweep was recorded and the finding fires anyway.
+plan, proj, env = live_world("live-sweep", "Stage 1 gate remediation round 1: fit the parser",
+                             "fixture-sweep: python3 -m pytest tests/captures  # 3 captures")
+r, doc = run_json(str(plan), "--repo", str(proj))
+if doc is not None and not findings_of(doc, 10) and 10 in doc.get("checks_run", []) \
+        and r.returncode == 0:
+    ok("the same remediation with a fixture-sweep: trailer is clean")
+else:
+    bad("a recorded fixture sweep must satisfy finding 10 (red if the trailer is ignored)",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
+
+# Catches: every remediation flagged — Stage 2's gate has no live check.
+plan, proj, env = live_world("live-hostonly", "Stage 2 gate remediation round 1: reword the docs")
+r, doc = run_json(str(plan), "--repo", str(proj))
+if doc is not None and not findings_of(doc, 10) and 10 in doc.get("checks_run", []) \
+        and r.returncode == 0:
+    ok("a remediation of a gate with no live check is clean")
+else:
+    bad("only a gate with a **Live check line is in scope (red if every remediation is flagged)",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
+
+# Catches: the date bound dropped — a "Stage 1 gate remediation" from a plan the
+# repo executed before this one was written is not this plan's remediation.
+vault = newdir("live-old-vault")
+proj, env = newrepo("live-old-proj")
+(proj / "README").write_text("x\n")
+old_env = dict(env, GIT_AUTHOR_DATE="2026-09-01T12:00:00+00:00",
+               GIT_COMMITTER_DATE="2026-09-01T12:00:00+00:00")
+commit(proj, old_env, "Stage 1 gate remediation round 1: another plan's work")
+plan = vault / "2026-10-01-live-plan.md"
+plan.write_text(LIVE_PLAN)
+r, doc = run_json(str(plan), "--repo", str(proj))
+if doc is not None and not findings_of(doc, 10) and 10 in doc.get("checks_run", []) \
+        and r.returncode == 0:
+    ok("a remediation commit older than the plan's date is another plan's, not flagged")
+else:
+    bad("finding 10 must read only commits from the plan's date on",
+        json.dumps(doc, indent=2)[:900] if doc else r.stderr)
 
 
 for d_ in _tmpdirs:
