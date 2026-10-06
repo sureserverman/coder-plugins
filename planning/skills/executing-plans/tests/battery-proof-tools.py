@@ -44,6 +44,10 @@ run serially (121 suite runs, ~25 min) and a killed run left a weakened fraud
 detector in the working tree — found there twice. A copy per mutation makes
 the runs independent: they go out in parallel (-j, default every CPU) and an
 interrupted battery leaves nothing behind but temporary directories.
+
+COST, measured so a change to it is visible. Before fail-fast (gate-executor-discipline
+Task 4.1, 2026-10-06, 16 CPUs, -j 16): 173 mutations, every suite run to its end —
+6m33s wall, 43m16s user.
 """
 import argparse
 import os
@@ -157,9 +161,12 @@ M = [
  ('baseline: compares the plan with itself (no flips ever)', PY_S,
   'flips = tick_delta(base["text"], text)',
   'flips = tick_delta(text, text)'),
+ # Re-anchored 2026-10-06 (gate-executor-discipline Task 4.1): unbacked() gained its probed
+ # and cap arguments, and the rule is emitted at two sites (the plan-wide count and the
+ # per-commit scan); the shared condition is the anchor, so both are mutated.
  ('baseline: bulk-flip rule deleted', PY_S,
-  'counted = unbacked(flips, text, green_stages(subjects))\n    if len(counted) > threshold and task_commits < threshold:',
-  'counted = unbacked(flips, text, green_stages(subjects))\n    if False:'),
+  'if len(counted) > threshold and task_commits < threshold:',
+  'if False:'),
  ('baseline: probe rule deleted', PY_S,
   '    if not probed:',
   '    if False:'),
@@ -430,12 +437,13 @@ M = [
  ('req: covered-by accepts a claim deviation as proof', PC_S,
   '        if not problems and crec.get("kind") != "claim":',
   '        if False:'),
+ # Re-anchored 2026-10-06 (Task 4.1): unbacked() now builds `out` before its Preflight step.
  ('finding 1: gate boxes always counted (a gate ticked with its green commit is a bulk flip)', PY_S,
-  '    return [e for e in entries if gates.get(e[2]) not in green]',
-  '    return list(entries)'),
+  '    out = [e for e in entries if gates.get(e[2]) not in green]',
+  '    out = list(entries)'),
  ('finding 1: gate boxes backed without a Stage N green commit', PY_S,
-  '    return [e for e in entries if gates.get(e[2]) not in green]',
-  '    return [e for e in entries if gates.get(e[2]) is None]'),
+  '    out = [e for e in entries if gates.get(e[2]) not in green]',
+  '    out = [e for e in entries if gates.get(e[2]) is None]'),
  ('finding 10: a live-check remediation with no fixture sweep goes silent', PY_S,
   '        if not hit or date < since or hit.group(1) not in stages:',
   '        if True:'),

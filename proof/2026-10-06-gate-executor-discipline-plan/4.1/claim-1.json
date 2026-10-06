@@ -1,0 +1,26 @@
+{
+ "baseline": {
+  "exit": 0,
+  "tail": "  killed   ref gate: a record not bound to the commit tree\n  killed   ref gate: a record not bound to the plan wording\n  killed   ref gate: a claim deviation counted as proof\n  killed   ref gate: covered-by not followed to a real proof\n  killed   ref gate: deviations not named at commit time\n  killed   ref gate: unaccounted requirements not named (finding 9 silent)\n  killed   ref gate: a refusal exits 0\n  killed   installer: a foreign reference-transaction hook replaced\n  killed   installer: --remove deletes a foreign hook\n  killed   installer: a shim without its exec bit counts as installed\n  killed   installer: an edited shim counts as installed\n  killed   installer: core.hooksPath ignored\n  killed   installer: the shim is written without its exec bit\n  killed   installer: a dangling shim fails open in silence\n  killed   installer: re-install rewrites a current shim\n  killed   installer: a non-repo accepted\n  killed   installer: --status reports a missing shim as installed\n  killed   guard: the hooksPath rule off\n  killed   guard: hooksPath matched case-sensitively\n  killed   guard: the hook-file rule off\n  killed   guard: the installer --remove rule off\n  killed   guard: acts without opt-in\n  killed   guard: acts with no plan in flight\n  killed   guard: any reference-transaction hook counts as our opt-in\n  killed   guard: the state file read naively, following symlinks (evaluator M1)\n  killed   guard: a repo reached by cd not considered\n  killed   guard: a repo reached by git -C not considered\n  killed   guard: the pre-filter drops hooksPath\n  killed   guard: the pre-filter drops the hook file\n  killed   guard: an unreadable payload denied (fails closed)\n  killed   guard: the decision is \"ask\", not \"deny\"\n  killed   ref gate: no python3 aborts every update (review I4)\n  killed   ref gate: an uncaught exception refuses the update (review I4)\n  killed   ref gate: fetched commits gated as if added here (review I3)\n  killed   installer: --rem abbreviates --remove past the guard (review I1)\n  killed   installer: a shared hooks directory accepted (review I2)\n  killed   installer: the marker anywhere identifies our shim (review S3)\n  killed   guard: a shim in a shared hooks directory counts as opt-in (review I2)\n\nkilled 173  survived 0  errors 0  skipped 0"
+ },
+ "break_patch": "--- a/planning/skills/executing-plans/scripts/plan-flip-audit.py\n+++ b/planning/skills/executing-plans/scripts/plan-flip-audit.py\n@@ -1270,7 +1270,7 @@\n     threshold would tolerate with no evidence at all. Membership is by line, never by\n     text: a gate box repeating a Preflight line verbatim is not a Preflight box.\"\"\"\n     gates = gate_box_stages(text)\n-    out = [e for e in entries if gates.get(e[2]) not in green]\n+    out = [e for e in entries if gates.get(e[2]) not in (green)]\n     if probed:\n         pre = preflight_lines(text)\n         pf = [e for e in out if e[2] in pre]\n",
+ "build": null,
+ "created": "2026-10-06T13:51:19+00:00",
+ "fingerprint": "9b9b5819c1a55d0145c206fc55a463a6d0141518c634ead81660aad1107a96cf",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "interpreted scripts, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-06-gate-executor-discipline-plan.md",
+ "red": {
+  "exit": 4,
+  "tail": "\n2 mutation(s) SKIPPED \u2014 anchors gone, those guards are no longer pinned. Re-anchor them. Nothing was mutated.\n  SKIP     finding 1: gate boxes always counted (a gate ticked with its green commit is a bulk flip)  (anchor missing)\n  SKIP     finding 1: gate boxes backed without a Stage N green commit  (anchor missing)"
+ },
+ "schema": 2,
+ "task": "4.1",
+ "test": "python3 planning/skills/executing-plans/tests/battery-proof-tools.py --anchors-only && python3 planning/skills/executing-plans/tests/battery-proof-tools.py",
+ "text": "every anchor is present (red while any of the three is SKIPPED)",
+ "touched": [
+  "planning/skills/executing-plans/scripts/plan-flip-audit.py"
+ ]
+}
