@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dispatch-log.sh — Claude Code hook (PreToolUse matcher Agent, SubagentStart,
+# dispatch-log.sh — Claude Code hook (PreToolUse matcher Agent|Task, SubagentStart,
 # SubagentStop): log every agent dispatch, start and stop of a plan run.
 #
 # WHY. A gate report's review line says which reviews were dispatched, and until
