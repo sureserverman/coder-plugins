@@ -7,7 +7,7 @@ A fifteen-skill pipeline (v0.57.0) that turns a vague idea into executed work �
 **The band looks like the status line, and every plan has its pane.**
 
 - **Status-line look.** The band draws `⚙`, one shared name column, the green bar (20 cells from 100 columns), `done/total` aligned, a dim `(pct%)`, and each marker in its own colour. The colours come from the script (`plan-progress.py --json` gains `palette` and each group's `tail_spans`), so the two cannot drift.
-- **A Plan button per plan.** When the band draws two or more plan rows, every plan row gets its own button. The executing plan's opens `/plan-view`'s pane; any other opens `planning-plan-<id>`, which shows that plan (`--json` gains each group's `id`, and a document-level `details` keyed by it). Its markers (`✘ blocked`, `⊘ GATE BLOCKED`) are the last thing a narrow row gives up.
+- **A Plan button per plan.** When the band draws two or more plan rows, every plan row gets its own button. The executing plan's opens `/plan-view`'s pane; any other opens `planning-plan-<id>`, which shows that plan (`--json` gains each group's `id`, and a document-level `details` keyed by it). A narrow row keeps its markers (`✘ blocked`, `⊘ GATE BLOCKED`) whole ahead of the context figure, the names' extra width and the free text; only the counts, the stale mark and the name's minimum outrank them.
 - **`plan_detail()` lists each stage once.** A `## Stage N Gate Report` heading no longer shows as an empty extra stage.
 - **`review-ledger-check.py` reads a Tier-1 line as its task's.** A gate report's `review: Tier-1 <type> over the Task N.M diff — …` line takes only that task's dispatch, never a stage review's.
 
