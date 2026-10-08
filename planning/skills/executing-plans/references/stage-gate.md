@@ -502,7 +502,10 @@ review`, `Stage 2 second-pass review`, `Stage 2 gate evaluator`. A dispatch coun
 stage's claim only when its description names that stage and the role (review or pass, or
 evaluator) and names no task. Without it, any task worker of the same type would satisfy
 an evaluator claim, and a per-task Tier-1 review would satisfy the stage's Tier-2 claim.
-A Tier-1 review names its task (`Stage 2 Task 2.3 quick review`) for the same reason.
+A Tier-1 review names its task (`Stage 2 Task 2.3 quick review`) for the same reason, and
+so does its gate-report line (`review: Tier-1 git-github:code-reviewer over the Task 2.3
+diff — …`): a line whose head names `Task N.M` is matched only against a dispatch naming
+that task, so it never takes the dispatch the stage's own Tier-2 line needs.
 
 Run the check once per gate entry, from the repo root, before the gate report is final:
 

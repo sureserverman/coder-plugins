@@ -200,6 +200,36 @@ with tempfile.TemporaryDirectory() as t:
     rc, out = run("--plan", plan, "--stage", 2, "--repo", repo)
     check("a review dispatch naming another stage does not count", rc == 1, f"rc={rc} {out}")
 
+    # A Tier-1 line names its task: it is matched against that task's dispatch, never
+    # a stage pass, so it cannot take the dispatch the stage's own line needs.
+    tier1 = ("review: Tier-1 git-github:code-reviewer over the Task 2.1 diff — APPROVE\n"
+             + REVIEW)
+    plan_t1 = write_plan(t, s2=tier1)
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 Task 2.1 quick review"),
+                     dispatch("2026-10-06T10:06:00+00:00", "git-github:code-reviewer")])
+    rc, out = run("--plan", plan_t1, "--stage", 2, "--repo", repo)
+    check("a Tier-1 line matches its task's dispatch and the stage line the stage's",
+          rc == 0, f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer"),
+                     dispatch("2026-10-06T10:06:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 second-pass review")])
+    rc, out = run("--plan", plan_t1, "--stage", 2, "--repo", repo)
+    check("a Tier-1 line is not satisfied by a stage pass", rc == 1 and "Task 2.1" in out,
+          f"rc={rc} {out}")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Stage 2 Task 2.2 quick review"),
+                     dispatch("2026-10-06T10:06:00+00:00", "git-github:code-reviewer")])
+    rc, out = run("--plan", plan_t1, "--stage", 2, "--repo", repo)
+    check("a Tier-1 line is not satisfied by another task's dispatch", rc == 1,
+          f"rc={rc} {out}")
+    plan_t1x = write_plan(t, s2="review: Tier-1 git-github:code-reviewer over the Task 1.1 diff — APPROVE")
+    write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer",
+                              "Task 1.1 quick review")])
+    rc, out = run("--plan", plan_t1x, "--stage", 2, "--repo", repo)
+    check("a Tier-1 line naming another stage's task does not count at this gate", rc == 1,
+          f"rc={rc} {out}")
+
     # Catches (review I1): the type read from text after the verdict.
     write_log(repo, [dispatch("2026-10-06T10:05:00+00:00", "git-github:code-reviewer")])
     plan_i1 = write_plan(t, s2=REVIEW + "; 2 Suggestions carried over to the backlog")

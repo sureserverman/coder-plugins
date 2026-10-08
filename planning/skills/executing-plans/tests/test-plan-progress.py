@@ -8,6 +8,7 @@ JSON, and asserts: silence when idle/broken (never a traceback), the Status
 counts via the shared portfolio-unify regexes, the bar geometry, the per-phase
 glyphs, walk-up discovery from a subdirectory, and staleness marking.
 """
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -158,6 +159,64 @@ def marker_disagreements(i, line, g):
     return out
 
 
+# The five role colours as the band reads them: `palette` in --json, each the hex
+# of the script's own SGR constant.
+PALETTE = {"green": "#008c2f", "red": "#db3630", "yellow": "#947006",
+           "cyan": "#168191", "purple": "#a23efa"}
+ID_RE = re.compile(r"^[0-9a-f]{8}$")
+HEX_RE = re.compile(r"^#[0-9a-f]{6}$")
+SPAN_FORBIDDEN = re.compile("[\x00-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def contract_problems(doc, groups):
+    """The band's fields, on every group of every rendered fixture state: an
+    8-hex `id` unique in the document, `details` keyed by exactly those ids,
+    `tail_spans` whose texts join to `tail`, and the `palette`."""
+    out = []
+    ids = [g.get("id") if isinstance(g, dict) else None for g in groups]
+    for i, gid in enumerate(ids):
+        if not (isinstance(gid, str) and ID_RE.match(gid)):
+            out.append(f"group {i} id {gid!r} is not 8 hex")
+    if len(set(ids)) != len(ids):
+        out.append(f"ids not unique {ids}")
+    details = doc.get("details")
+    if not isinstance(details, dict) or set(details) != set(ids):
+        out.append(f"details keys {sorted(details) if isinstance(details, dict) else details!r} != ids {ids}")
+        details = {}
+    for i, g in enumerate(groups):
+        if not isinstance(g, dict) or not isinstance(g.get("plan"), str):
+            continue
+        want = hashlib.sha1(str(Path(g["plan"]).resolve()).encode()).hexdigest()[:8]
+        if g.get("id") != want:
+            out.append(f"group {i} id {g.get('id')!r} != sha1(resolved plan)[:8] {want!r}")
+        d = details.get(g.get("id"))
+        # Each group's own breakdown: built from ITS plan, and the pinned one is `detail`.
+        if not isinstance(d, dict) or d.get("plan") != g["plan"]:
+            out.append(f"group {i} details entry is not its own plan's ({(d or {}).get('plan')!r} vs {g['plan']!r})")
+        elif g.get("role") == "pinned" and d != doc.get("detail"):
+            out.append(f"group {i} pinned details entry differs from `detail`")
+    for i, g in enumerate(groups):
+        if not isinstance(g, dict):
+            continue
+        spans = g.get("tail_spans")
+        if not isinstance(spans, list) or not all(isinstance(sp, dict) for sp in spans):
+            out.append(f"group {i} tail_spans {spans!r} is not a list of objects")
+            continue
+        joined = "".join(str(sp.get("text")) for sp in spans)
+        if joined != g.get("tail"):
+            out.append(f"group {i} joined spans {joined!r} != tail {g.get('tail')!r}")
+        for sp in spans:
+            if not isinstance(sp.get("text"), str) or sp["text"] == "" or SPAN_FORBIDDEN.search(sp["text"]):
+                out.append(f"group {i} span text {sp.get('text')!r}")
+            if not (sp.get("color") is None or (isinstance(sp.get("color"), str) and HEX_RE.match(sp["color"]))):
+                out.append(f"group {i} span color {sp.get('color')!r}")
+            if not isinstance(sp.get("dim"), bool):
+                out.append(f"group {i} span dim {sp.get('dim')!r}")
+    if doc.get("palette") != PALETTE:
+        out.append(f"palette {doc.get('palette')!r} != {PALETTE}")
+    return out
+
+
 JSON_PARITY_RUNS = []
 
 
@@ -218,6 +277,8 @@ def json_parity(lines, json_text, where, rc=0):
                         problems.append(f"line {i} tail {tail!r} != the text after its bar {m.group(1).strip()!r}")
                 elif "…" not in ln and not shown_line.endswith(tail):
                     problems.append(f"line {i} tail {tail!r} is not the end of {shown_line!r}")
+    if isinstance(groups, list):
+        problems.extend(contract_problems(doc, groups))
     check(not problems,
           f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
           f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
@@ -2672,6 +2733,132 @@ def jdoc(r):
     return doc if isinstance(doc, dict) else {}
 
 
+def case_detail_folds_repeated_stages():
+    """A `## Stage N …` heading repeating a stage number already seen (a gate
+    report, a re-run) is that stage's, not a new one: plan_detail() lists each
+    stage once, as parse_plan() counts them."""
+    print("detail — one entry per stage number:")
+    mod = load_module()
+    text = ("# Plan: x\n\n## Stage 1: First\n\n### Task 1.1: a\n- **Status:** [x]\n\n"
+            "### Stage 1 Gate\n- [x] ok\n\n## Stage 1 Gate Report — 2026-09-09\nprose\n\n"
+            "## Stage 2: Second\n\n### Task 2.1: b\n- **Status:** [ ]\n\n### Stage 2 Gate\n- [ ] ok\n- [ ] two\n\n"
+            "## Stage 2 Gate — round 3 (authorized)\nprose\n")
+    d = mod.plan_detail(text, Path("/x/y-plan.md"))
+    got = [(st["number"], st["name"], [t["id"] for t in st["tasks"]], st["gate_checked"], st["gate_total"])
+           for st in d["stages"]]
+    want = [(1, "First", ["1.1"], 1, 1), (2, "Second", ["2.1"], 0, 2)]
+    check(got == want, f"detail: gate-report headings fold into their stage ({got})")
+    check(len(d["stages"]) == mod.parse_plan(text, Path("/x/y-plan.md"))[2],
+          f"detail: as many stages as parse_plan counts ({len(d['stages'])})")
+    # After Stage 2's gate: a repeated Stage 1 heading carrying a task and a
+    # checked bullet. The task is Stage 1's (not Stage 2's), and the bullet is no
+    # one's gate item (the heading closed Stage 2's gate).
+    late = text + ("\n## Stage 1 Addendum\n\n### Task 1.2: late\n- **Status:** [x]\n\n"
+                   "### Stage 2 Gate\n- [ ] three\n"
+                   "## Stage 2 Gate Report — round 2\n- [x] a report bullet, not a gate item\n")
+    d = mod.plan_detail(late, Path("/x/y-plan.md"))
+    got = [(st["number"], [t["id"] for t in st["tasks"]], st["gate_checked"], st["gate_total"]) for st in d["stages"]]
+    # A second `### Stage 2 Gate` block adds to the same tally (pre-existing, keyed by number).
+    check(got == [(1, ["1.1", "1.2"], 1, 1), (2, ["2.1"], 0, 3)],
+          f"detail: a late repeated heading files its task under its own stage, and closes the gate ({got})")
+
+
+def case_json_spans():
+    """`tail_spans` carries every marker in the status line's own colour and
+    dim, reset after each one, and planted escapes in the state file reach no
+    span. Each expected list is written from the marker's f-string, not read
+    back from the script."""
+    print("--json tail_spans — exact spans per marker kind:")
+    tmp = Path(tempfile.mkdtemp(prefix="pp-spans-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    home = tmp / "home"
+    home.mkdir()
+    env = dict(os.environ, HOME=str(home))
+    R, Y, G, P = PALETTE["red"], PALETTE["yellow"], PALETTE["green"], PALETTE["purple"]
+
+    def spans_of(**state):
+        write_state(repo, **state)
+        doc = jdoc(run_json(repo, env=env))
+        g = (doc.get("groups") or [{}])[0]
+        return [(sp.get("text"), sp.get("color"), sp.get("dim")) for sp in g.get("tail_spans") or []]
+
+    plan = repo / "plans" / "demo-plan.md"
+    plan.write_text(PLAN)
+    pplan = repo / "plans" / "partial-plan.md"
+    pplan.write_text(PARTIAL_PLAN)
+    head2 = [("·", None, True), (" S2/2 ", None, False)]
+    head1 = [("·", None, True), (" S1/1 ", None, False)]
+    old = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+    cases = [
+        ("blocked + dim note", dict(plan=str(pplan), phase="blocked", stage=1, task="1.2", note="budget gone"),
+         head1 + [("✘ blocked", R, False), (" ", None, False), ("budget gone", None, True)]),
+        ("gate, round 1 of 2", dict(plan=str(plan), phase="gate", stage=2, remediation_round=1),
+         head2 + [("◆ S2 gate", P, False), (" ", None, False), ("↻1/2", Y, False)]),
+        ("gate, round 2 of 2", dict(plan=str(plan), phase="gate", stage=2, remediation_round=2),
+         head2 + [("◆ S2 gate", P, False), (" ", None, False), ("↻2/2", R, False)]),
+        ("preflight", dict(plan=str(plan), phase="preflight", stage=2),
+         head2 + [("⚑ preflight", Y, False)]),
+        ("handoff + dim reason", dict(plan=str(plan), phase="handoff", stage=2, reason="ctx"),
+         head2 + [("⏸ HANDOFF", Y, False), (" ", None, False), ("ctx", None, True)]),
+        ("close-out", dict(plan=str(plan), phase="closeout", stage=2),
+         head2 + [("✔ close-out", G, False)]),
+        ("status lag", dict(plan=str(plan), phase="task", stage=2, task="2.3"),
+         head2 + [("▶ T2.3", G, False), (" ", None, False), ("⚠ status lag 2", Y, False)]),
+        ("not in plan", dict(plan=str(plan), phase="task", stage=2, task="9.9"),
+         head2 + [("▶ T9.9", G, False), (" ", None, False), ("⚠ not in plan", R, False)]),
+        ("stale, plain desc", dict(plan=str(plan), phase="task", stage=2, task="2.2",
+                                   task_desc="render output", updated=old),
+         head2 + [("▶ T2.2 ", G, False), ("render output ", None, False), ("(stale 30h)", None, True)]),
+        ("hostile note", dict(plan=str(pplan), phase="blocked", stage=1, task="1.2",
+                              note="a\x1b[31mb\u009b2Jc\u202ed"),
+         head1 + [("✘ blocked", R, False), (" ", None, False), ("a[31mb2Jcd", None, True)]),
+    ]
+    for label, state, want in cases:
+        got = spans_of(**state)
+        check(got == want, f"spans: {label} -> {want} (got {got})")
+
+    bplan = repo / "plans" / "blocked-plan.md"
+    bplan.write_text(BLOCKED_GATE_PLAN)
+    got = spans_of(plan=str(bplan), phase="gate", stage=1)
+    check(("⊘ GATE BLOCKED", R, False) in got, f"spans: `⊘ GATE BLOCKED` is RED, not dim ({got})")
+    soplan = repo / "plans" / "so-plan.md"
+    soplan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    got = spans_of(plan=str(soplan), phase="task", stage=4, task="4.1")
+    check(("⊘ STAGE ORDER", R, False) in got, f"spans: `⊘ STAGE ORDER` is RED ({got})")
+    # The id hashes the RESOLVED path: the same plan named through `..` keeps its id.
+    write_state(repo, plan="plans/../plans/demo-plan.md", phase="task", stage=2)
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    want = hashlib.sha1(str(plan.resolve()).encode()).hexdigest()[:8]
+    check(".." in str(g.get("plan")) and g.get("id") == want,
+          f"spans: a `..` plan path hashes to the resolved path's id ({g.get('plan')!r}, {g.get('id')!r} vs {want!r})")
+    mod = load_module()
+    other = mod.other_row(bplan, text=BLOCKED_GATE_PLAN)["fields"]["tail_spans"]
+    check(other == [{"text": "⊘ GATE BLOCKED", "color": R, "dim": False}],
+          f"spans: a discovered plan's only span is its RED gate marker ({other})")
+    # A colour value outside 0..255 is no colour, never a malformed hex.
+    _, odd = mod.tail_parts("\x1b[38;2;300;0;0mx\x1b[0m")
+    check(odd == [{"text": "x", "color": None, "dim": False}], f"spans: 38;2;300;0;0 is no colour ({odd})")
+    _, short = mod.tail_parts("\x1b[38;5;1;2mx\x1b[0m")
+    check(short == [{"text": "x", "color": None, "dim": False}],
+          f"spans: a 38;5 code's later parameters are never read as dim ({short})")
+    try:
+        _, huge = mod.tail_parts("\x1b[38;2;" + "9" * 5000 + ";0;0mx\x1b[0m")
+    except ValueError as e:
+        huge = f"raised {e!s:.40}"
+    check(huge == [{"text": "x", "color": None, "dim": False}],
+          f"spans: a 5000-digit colour parameter is no colour, never a ValueError ({huge!r:.80})")
+    bad = []
+    for code in ("\x1b[38;2;300;0;0m", "\x1b[38;5;1m", "\x1b[2m"):
+        try:
+            mod.sgr_hex(code)
+            bad.append(code)
+        except ValueError:
+            pass
+    check(bad == [], f"spans: sgr_hex refuses a constant that is not a 0..255 triple ({bad!r})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_json_mode():
     """`--json` — one object, built from the same model as the text bars."""
     print("--json mode — the structured twin of the text bars:")
@@ -2698,8 +2885,9 @@ def case_json_mode():
         doc = json.loads(r.stdout)
     except ValueError:
         doc = None
-    check(r.returncode == 0 and doc == {"groups": [], "detail": None},
-          f"json: nothing in flight -> {{\"groups\": [], \"detail\": null}}, rc 0 "
+    check(r.returncode == 0 and doc == {"groups": [], "detail": None, "details": {},
+                                        "palette": PALETTE},
+          f"json: nothing in flight -> no groups, detail null, details {{}}, the palette, rc 0 "
           f"(rc={r.returncode}, out={r.stdout.strip()!r}, err={r.stderr.strip()[:80]!r})")
 
     plan = repo / "plans" / "demo-plan.md"
@@ -3000,6 +3188,8 @@ def main():
     case_stage_order()
     case_palette_contrast()
     case_json_mode()
+    case_json_spans()
+    case_detail_folds_repeated_stages()
     print(f"  --json parity asserted over {len(JSON_PARITY_RUNS)} rendered fixture states")
     check(len(JSON_PARITY_RUNS) >= 50,
           f"json: parity ran across the suite's fixture states, not a token few "

@@ -25,8 +25,20 @@ export type PlanGroup = {
   stage_order?: boolean | null
   // What the text line shows after its bar, plain: drawn verbatim by the band.
   tail?: string
+  // A short stable id for the plan (8 hex of the sha1 of its resolved path): the
+  // key into PlanModel.details.
+  id?: string
+  // `tail` split at the line's own colour codes; the texts join to `tail`.
+  tail_spans?: TailSpan[]
   [field: string]: unknown
 }
+
+// One piece of a group's tail: `color` a `#rrggbb` from the status line's
+// escape codes, or null for the terminal's own; `dim` from its dim code.
+export type TailSpan = { text: string; color: string | null; dim: boolean }
+
+// The status line's five role colours as hex, read from the script's constants.
+export type PlanPalette = { green: string; red: string; yellow: string; cyan: string; purple: string }
 
 // `status` is the plan parser's own word for the marker: done, partial ([~]) or open.
 export type PlanTask = { id: string; title: string; status: 'done' | 'partial' | 'open' | null }
@@ -42,7 +54,16 @@ export type PlanStage = {
 
 export type PlanDetail = { plan: string; name?: string; stages: PlanStage[]; [field: string]: unknown }
 
-export type PlanModel = { groups: PlanGroup[]; detail: PlanDetail | null }
+// `detail` is the pinned plan's breakdown; `details` every group's, keyed by its
+// `id` (null where it could not be built; one entry per id, so two plans whose
+// 8-hex ids collide share one). Both new keys are absent from an
+// older script's output.
+export type PlanModel = {
+  groups: PlanGroup[]
+  detail: PlanDetail | null
+  details?: Record<string, PlanDetail | null>
+  palette?: PlanPalette
+}
 
 // The last model a refresh produced. `stale` is set when the latest refresh failed
 // (timeout, non-zero exit, unparseable output) and the previous model was kept.

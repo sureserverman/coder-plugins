@@ -67,6 +67,19 @@ line's text after its bar as `tail` — when a tool call in this session writes 
 or a plan file, and every 30 s; never while drawing. Everywhere else, and on older builds, the status-line bar
 is the display. Both read this file exactly as written here.
 
+What `--json` adds for the band, beside each group's counts, markers and `tail`:
+
+| Field | Where | What |
+|---|---|---|
+| `id` | each group | 8 hex of the sha1 of the plan's resolved path: the key into `details`, and the suffix of the plan's own pane, `planning-plan-<id>` |
+| `tail_spans` | each group | `tail` split at the line's own colour codes, `[{text, color, dim}]`: `color` a `#rrggbb` from a `38;2;r;g;b` code or null, `dim` from code `2`. Each text is plain (no control or hidden character), and the texts join to `tail` |
+| `palette` | the document | `{green, red, yellow, cyan, purple}` as `#rrggbb`, read from the colour constants the text uses |
+| `details` | the document | every group's stage/task breakdown keyed by its `id` (null where it could not be built); `detail` stays the pinned plan's |
+
+So the band draws each marker in the status line's own colour from `tail_spans` alone, and
+takes its bar fill and pinned name from `palette` (the other three colours are there for a
+front end that needs them), and a pane can show any plan in flight, not only the executing one.
+
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
 — the optional `Stop`-hook backstop, off unless the user sets `PLAN_CONTINUE=1` — reads
 `phase` to decide whether a plan is in flight, which is why this file's `phase` values are a

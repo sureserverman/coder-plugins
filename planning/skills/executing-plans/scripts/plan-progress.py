@@ -857,6 +857,100 @@ def plain(s):
     return "".join(c for c in s if unicodedata.category(c) not in HIDDEN_CATEGORIES)
 
 
+SGR_RE = re.compile(r"\x1b\[([0-9;]*)m")
+
+
+def rgb_hex(values):
+    """`#rrggbb` for three SGR parameters, or None unless each is 0..255 in ASCII digits.
+
+    Length is checked before int(): an SGR parameter is unbounded, and int() of a
+    string over 4300 digits raises ValueError (Python 3.11+)."""
+    if len(values) != 3 or not all(v.isascii() and v.isdigit() and len(v) <= 3 and int(v) <= 255
+                                   for v in values):
+        return None
+    return "#" + "".join(f"{int(v):02x}" for v in values)
+
+
+def sgr_hex(code):
+    """`#rrggbb` for one of this file's `38;2;r;g;b` colour constants."""
+    m = SGR_RE.fullmatch(code)
+    parts = m.group(1).split(";") if m else []
+    hexed = rgb_hex(parts[2:]) if parts[:2] == ["38", "2"] else None
+    if hexed is None:
+        raise ValueError(f"not a 24-bit colour: {code!r}")
+    return hexed
+
+
+def palette():
+    """The five role colours as hex, read from the constants the text uses."""
+    return {"green": sgr_hex(GREEN), "red": sgr_hex(RED), "yellow": sgr_hex(YELLOW),
+            "cyan": sgr_hex(CYAN), "purple": sgr_hex(PURPLE)}
+
+
+def tail_parts(raw):
+    """(`tail`, `tail_spans`) for the part of a line after its bar.
+
+    `tail` is the text plain and stripped. `tail_spans` is the same text split at
+    the line's own SGR codes into `{text, color, dim}`: `38;2;r;g;b` sets `color`
+    to `#rrggbb`, `2` sets `dim`, `0` (or an empty code) clears both. Each span's
+    text goes through plain(), so text from the plan or the state file reaches a
+    span with no control or hidden character, and the span texts join to `tail`.
+    Colours come from the escape codes themselves, so a front end drawing the
+    spans cannot drift from the status line.
+    """
+    spans, color, dim, pos = [], None, False, 0
+
+    def take(seg):
+        text = plain(seg)
+        if text:
+            spans.append({"text": text, "color": color, "dim": dim})
+
+    for m in SGR_RE.finditer(raw):
+        take(raw[pos:m.start()])
+        pos = m.end()
+        params = m.group(1).split(";") if m.group(1) else ["0"]
+        i = 0
+        while i < len(params):
+            p = params[i]
+            if p in ("", "0"):
+                color, dim = None, False
+            elif p == "2":
+                dim = True
+            elif p == "22":
+                dim = False
+            elif p == "39":
+                color = None
+            elif p == "38":
+                # Only `38;2;r;g;b` is a colour here; any other 38 form ends the
+                # code, so its parameters are never read as dim or reset.
+                if i + 4 < len(params) and params[i + 1] == "2":
+                    color = rgb_hex(params[i + 2:i + 5])
+                    i += 4
+                else:
+                    break
+            i += 1
+    take(raw[pos:])
+    # The same .strip() as `tail`, applied at the ends of the span list.
+    while spans and not spans[0]["text"].lstrip():
+        spans.pop(0)
+    if spans:
+        spans[0]["text"] = spans[0]["text"].lstrip()
+    while spans and not spans[-1]["text"].rstrip():
+        spans.pop()
+    if spans:
+        spans[-1]["text"] = spans[-1]["text"].rstrip()
+    return "".join(sp["text"] for sp in spans), spans
+
+
+def plan_id(path):
+    """A short stable id for a plan: the first 8 hex of the sha1 of its resolved path."""
+    try:
+        key = str(Path(path).resolve())
+    except (*BAD_PATH, RuntimeError):   # RuntimeError: a symlink loop, Python <= 3.12
+        key = str(path)
+    return hashlib.sha1(key.encode("utf-8", "surrogatepass")).hexdigest()[:8]
+
+
 def clip(s, width):
     """`s` cut to `width` VISIBLE columns, ending in … when anything was lost.
 
@@ -1447,8 +1541,8 @@ def render_pinned(state_file, state=None, width=0, label=None, text=None):
 
 def _group_fields(name, plan, done, total, role, gate_mark):
     """A `--json` group, every phase-part field null until a pinned row fills it."""
-    return {"name": name, "plan": str(plan), "done": done, "total": total,
-            "role": role, "depth": 0, "gate_blocked": bool(gate_mark),
+    return {"name": name, "plan": str(plan), "id": plan_id(plan),
+            "done": done, "total": total, "role": role, "depth": 0, "gate_blocked": bool(gate_mark),
             "stage": None, "stage_count": None, "task": None, "phase": None,
             "stale_hours": None, "remediation_round": None,
             "remediation_budget": None, "blocked_note": None,
@@ -1497,7 +1591,7 @@ def pinned_row(state_file, state=None, width=0, label=None, text=None):
     # Everything the line shows after its bar, as plain text: a front end that
     # draws its own bar (the Claude Code band) shows this verbatim rather than
     # re-deriving the phase part and markers.
-    fields["tail"] = plain(ANSI_RE.sub("", out[len(bar_line):])).strip()
+    fields["tail"], fields["tail_spans"] = tail_parts(out[len(bar_line):])
     fields["stage"], fields["stage_count"] = stage_pair(state, stage_count)
     task = state.get("task")
     fields["task"] = task if isinstance(task, str) and TASK_ID_RE.match(task) else None
@@ -1538,7 +1632,7 @@ def other_row(plan_path, width=0, label=None, text=None):
     gate_mark = blocked_gate_marker(text, plan_path)
     role = "master" if pu.is_master_plan(text, plan_path) else "other"
     fields = _group_fields(name, plan_path, done, total, role, gate_mark)
-    fields["tail"] = plain(ANSI_RE.sub("", gate_mark)).strip()
+    fields["tail"], fields["tail_spans"] = tail_parts(gate_mark)
     return {"line": _bar_line(name, done, total, DIM, width) + gate_mark,
             "fields": fields, "text": text, "path": plan_path}
 
@@ -1561,12 +1655,17 @@ def plan_detail(text, path):
         sh = pu.STAGEHDR_RE.match(line)
         if sh:
             num = int(sh.group(1))
+            task, gate = None, None
+            # A heading repeating a stage number (`## Stage 1 Gate Report`, a
+            # re-run's) is that stage's, as parse_plan() counts stages as a set.
+            if num in by_num:
+                cur = by_num[num]
+                continue
             nm = STAGE_NAME_RE.match(line)
             cur = {"number": num, "name": plain(nm.group(1) if nm else "") or None,
                    "gate_checked": 0, "gate_total": 0, "tasks": []}
             stages.append(cur)
-            by_num.setdefault(num, cur)
-            task, gate = None, None
+            by_num[num] = cur
             continue
         if line.startswith("#"):
             gate = None
@@ -1604,7 +1703,7 @@ def plan_detail(text, path):
 
 
 def build_model(cwd, with_detail=False):
-    """THE model: {"groups": [row, ...], "detail": dict|None}.
+    """THE model: {"groups": [row, ...], "detail": dict|None, "details": dict}.
 
     Both outputs are read off it -- render() takes each row's `line`,
     `--json` takes each row's `fields` -- so the text bars and the JSON groups
@@ -1614,7 +1713,9 @@ def build_model(cwd, with_detail=False):
     `detail` is the pinned plan's stage/task breakdown. It is built only when
     `with_detail` asks for it, so a statusline redraw never pays for a scan
     it would throw away. It is None otherwise, and None when no pinned bar
-    rendered.
+    rendered. `details` is the same breakdown for every row, keyed by its `id`,
+    built from the text each row already read (no extra file read); a row whose
+    breakdown cannot be built maps to None. Also only under `with_detail`.
 
     Every step degrades to "fewer rows", never to an exception -- see render().
     """
@@ -1669,7 +1770,7 @@ def build_model(cwd, with_detail=False):
     except Exception:
         width = 0       # unaligned bars beat no bars -- see group_plans() above
 
-    rows, detail = [], None
+    rows, detail, details = [], None, {}
     for path, prefix, label, text in grouped:
         # `width - visible_len(prefix)` goes NEGATIVE when the width fallback
         # above fired. _bar_line() is what actually handles that (and is what
@@ -1695,8 +1796,16 @@ def build_model(cwd, with_detail=False):
             row["fields"]["depth"] = 1
             if row["fields"]["role"] == "other":
                 row["fields"]["role"] = "child"
+        if with_detail:
+            try:
+                # The pinned row's breakdown is `detail`, already built: one parse per plan.
+                pinned_row_here = row["fields"]["role"] == "pinned"
+                details[row["fields"]["id"]] = (
+                    detail if pinned_row_here else plan_detail(row["text"], row["path"]))
+            except Exception:
+                details[row["fields"]["id"]] = None   # extra; never costs the bar
         rows.append(row)
-    return {"groups": rows, "detail": detail}
+    return {"groups": rows, "detail": detail, "details": details}
 
 
 def render(cwd):
@@ -1732,11 +1841,18 @@ def render_json(cwd):
     `task_not_in_plan` is the text's ` ⚠ not in plan`. `tail` is the line's
     own text after its bar, plain (no SGR, no control characters): a front end
     that draws its own bar shows it verbatim instead of re-deriving the phase
-    part and markers.
+    part and markers. `tail_spans` is that text split at the line's own colour
+    codes, `[{text, color, dim}]` (see tail_parts()), and `id` is a short stable
+    id for the plan (plan_id()).
+
+    The document also carries `palette`, the five role colours as hex, and
+    `details`, every group's stage/task breakdown keyed by its `id`. `detail`
+    stays the pinned plan's.
     """
     model = build_model(cwd, with_detail=True)
     return json.dumps({"groups": [row["fields"] for row in model["groups"]],
-                       "detail": model["detail"]}, ensure_ascii=False)
+                       "detail": model["detail"], "details": model["details"],
+                       "palette": palette()}, ensure_ascii=False)
 
 
 def budget_check(cwd):
