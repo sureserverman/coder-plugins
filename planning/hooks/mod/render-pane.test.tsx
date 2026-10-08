@@ -377,3 +377,110 @@ test('plan-view still opens planning-plan, the pinned plan with its agents', asy
   await $.command.run({ command: 'plan-view', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 } } as never)
   expect(opened.at(-1)).toBe(PLAN_PANE)
 })
+
+// ---- Stage 3 gate remediation ----
+
+// The viewed plan shares a task id with the executing one, and an agent is
+// recorded, so "no ▶" and "no Agents" can fail.
+const SHARED_DETAIL: PlanDetail = {
+  plan: '/vault/plans/2026-10-01-other-plan.md',
+  name: 'other-plan',
+  stages: [{ number: 2, name: 'Shared ids', gate_checked: 0, gate_total: 1, tasks: [{ id: '2.3', title: 'same id as the pinned task', status: 'open' }] }],
+}
+const BLOCKED_SUB = group({ name: 'blocked-sub', role: 'child', depth: 1, done: 1, total: 2, id: 'aaaa0005',
+  tail: '⊘ GATE BLOCKED', tail_spans: [{ text: '⊘ GATE BLOCKED', color: '#db3630', dim: false }] })
+const PINNED_SUB = { ...THREE_GROUPS[1]!, tail_spans: [{ text: '· S2/2 ▶ T2.3', color: null, dim: false }] }
+const MIXED: PlanGroup[] = [
+  group({ name: 'quiet-master', role: 'master', depth: 0, done: 0, total: 2, tail: '', tail_spans: [], id: MASTER_ID }),
+  PINNED_SUB,
+  BLOCKED_SUB,
+  { ...THREE_GROUPS[2]!, id: OTHER_ID },
+]
+const withMixed = (details: Record<string, PlanDetail | null>) => () =>
+  ran(JSON.stringify({ groups: MIXED, detail: DETAIL, details, palette: PALETTE }))
+
+test("a plan's own pane has no ▶ even on the executing task's id, and no Agents while agents ran", async ($, on) => {
+  const w = world(on, withMixed({ [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, aaaa0005: null, [OTHER_ID]: SHARED_DETAIL }))
+  await seed($ as never, w.clock)
+  await $.tool.call({ tool: 'Agent', description: 'a recorded reviewer', prompt: 'p', subagent_type: 'git-github:code-reviewer' } as never)
+  for (const surface of SURFACES) {
+    const executing = await $.ui.mount({ ...pane(), surface })
+    expect(await shown(executing)).toContain('Agents')
+    expect(await shown(executing)).toContain('▶')
+    await executing.unmount()
+    for (const id of [OTHER_ID, MASTER_ID]) {
+      const ui = await $.ui.mount({ ...paneFor(id), surface })
+      const text = await shown(ui)
+      expect(text).not.toContain('Agents')
+      expect(text).not.toContain('a recorded reviewer')
+      expect(text.split('\n').some(l => l.startsWith('▶'))).toBe(false)
+      if (id === OTHER_ID) expect(text).toContain('2.3 same id as the pinned task')
+      await ui.unmount()
+    }
+  }
+})
+
+test("a master's pane keeps a sub-plan's own marker, drops only the executing plan's phase, and draws the tree", async ($, on) => {
+  const w = world(on, withMixed({ [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, aaaa0005: null, [OTHER_ID]: SHARED_DETAIL }))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor(MASTER_ID, 120), surface })
+    const rows = (await ui.findAll({ type: 'Text' })).filter(t => t.props.wrap === 'truncate').map(t => t.text)
+    const blocked = rows.find(r => r.includes('blocked-sub'))
+    const pinned = rows.find(r => r.includes('fixture-plan'))
+    expect(blocked).toContain('⊘ GATE BLOCKED')
+    expect(pinned).not.toContain('▶ T2.3')
+    expect(pinned!.startsWith('├─ ')).toBe(true)
+    expect(blocked!.startsWith('└─ ')).toBe(true)
+    expect(rows.join('\n')).not.toContain('other-plan')
+    await ui.unmount()
+  }
+})
+
+test("a plan pane's header and sub-plan rows use the band's 20-cell bar and one name column when wide", async ($, on) => {
+  const w = world(on, withMixed({ [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, aaaa0005: null, [OTHER_ID]: SHARED_DETAIL }))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const [cols, cells] of [[120, 20], [80, 10]] as const) {
+      const ui = await $.ui.mount({ ...paneFor(MASTER_ID, cols), surface })
+      const bars = (await ui.findAll({ type: 'Text' })).filter(t => t.props.wrap === 'truncate' && t.text.includes('▐'))
+      expect(bars.length).toBe(3)
+      for (const b of bars) expect(/▐([█░]*)▌/.exec(b.text)?.[1]?.length).toBe(cells)
+      const cols0 = bars.map(b => [...b.text.slice(0, b.text.indexOf('▐'))].length)
+      expect(cols0.every(c => c === cols0[0])).toBe(true)
+      await ui.unmount()
+    }
+  }
+})
+
+test("a pinned master's own pane still lists its sub-plans", async ($, on) => {
+  const groups = [
+    group({ name: 'pinned-master', role: 'pinned', depth: 0, done: 0, total: 2, id: MASTER_ID }),
+    group({ name: 'its-sub', role: 'child', depth: 1, done: 1, total: 3, id: PINNED_ID }),
+    group({ name: 'unrelated', role: 'other', depth: 0, id: OTHER_ID }),
+  ]
+  const w = world(on, () => ran(JSON.stringify({ groups, detail: MASTER_DETAIL, details: { [MASTER_ID]: MASTER_DETAIL }, palette: PALETTE })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor(MASTER_ID), surface })
+    const text = await shown(ui)
+    expect(text).toContain('Sub-plans in flight')
+    expect(text).toContain('its-sub')
+    expect(text).not.toContain('unrelated')
+    await ui.unmount()
+  }
+})
+
+test("a plan whose breakdown could not be read says so, and a malformed breakdown throws nothing", async ($, on) => {
+  const w = world(on, withMixed({ [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, aaaa0005: null,
+                                  [OTHER_ID]: { plan: 'x', stages: [null, { number: 1, name: 'n', gate_checked: 0, gate_total: 0, tasks: 'bad' }] } as never }))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor('aaaa0005'), surface })
+    expect(await shown(ui)).toContain('Its stages and tasks could not be read.')
+    await ui.unmount()
+    const bad = await $.ui.mount({ ...paneFor(OTHER_ID), surface })
+    expect(await shown(bad)).toContain('other-plan')
+    await bad.unmount()
+  }
+})

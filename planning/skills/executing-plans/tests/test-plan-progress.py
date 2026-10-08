@@ -2750,6 +2750,17 @@ def case_detail_folds_repeated_stages():
     check(got == want, f"detail: gate-report headings fold into their stage ({got})")
     check(len(d["stages"]) == mod.parse_plan(text, Path("/x/y-plan.md"))[2],
           f"detail: as many stages as parse_plan counts ({len(d['stages'])})")
+    # After Stage 2's gate: a repeated Stage 1 heading carrying a task and a
+    # checked bullet. The task is Stage 1's (not Stage 2's), and the bullet is no
+    # one's gate item (the heading closed Stage 2's gate).
+    late = text + ("\n## Stage 1 Addendum\n\n### Task 1.2: late\n- **Status:** [x]\n\n"
+                   "### Stage 2 Gate\n- [ ] three\n"
+                   "## Stage 2 Gate Report — round 2\n- [x] a report bullet, not a gate item\n")
+    d = mod.plan_detail(late, Path("/x/y-plan.md"))
+    got = [(st["number"], [t["id"] for t in st["tasks"]], st["gate_checked"], st["gate_total"]) for st in d["stages"]]
+    # A second `### Stage 2 Gate` block adds to the same tally (pre-existing, keyed by number).
+    check(got == [(1, ["1.1", "1.2"], 1, 1), (2, ["2.1"], 0, 3)],
+          f"detail: a late repeated heading files its task under its own stage, and closes the gate ({got})")
 
 
 def case_json_spans():

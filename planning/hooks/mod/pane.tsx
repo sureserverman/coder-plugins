@@ -5,16 +5,17 @@
 // same regexes as the bar, and planning.agents.
 //
 // A plan's own pane, `planning-plan-<id>` (a band row's own Plan button), draws
-// that plan instead: its header row exactly as the band draws it, then its stages
-// and tasks from planning.model.details[id] — or, for a master, its in-flight
-// sub-plans — with no current-task marker and no agents, which belong to the
-// executing plan alone.
+// that plan instead: its header row built as the band builds its rows (rowSpans,
+// the band's bar size for the pane's width, one name column), then — for a master
+// — its in-flight sub-plans, then its stages and tasks from
+// planning.model.details[id], with no current-task marker and no agents, which
+// belong to the executing plan alone.
 
 import { atom, read } from 'claude-code'
 import type { On } from 'claude-code'
 
 import type { AgentRecord, PlanDetail, PlanGroup, PlanModelState, PlanTask } from '../../types'
-import { rowSpans } from './band'
+import { barCellsFor, layoutFor, rowSpans } from './band'
 import type { Span } from './band'
 import { PLAN_PANE, PLAN_PANE_TITLE, PLAN_PANES } from './pane-id'
 
@@ -57,12 +58,17 @@ type Line = { text: string; bold?: boolean; dim?: boolean; colour?: string; span
 // executing plan is on (null draws no marker).
 function stageLines(detail: PlanDetail | null, current: string | null): Line[] {
   const lines: Line[] = []
-  for (const stage of detail?.stages ?? []) {
+  // The model is the script's output: a breakdown that is not the shape it promises
+  // costs its own lines, never the pane.
+  const stages = Array.isArray(detail?.stages) ? detail.stages : []
+  for (const stage of stages) {
+    if (stage === null || typeof stage !== 'object') continue
+    const tasks = Array.isArray(stage.tasks) ? stage.tasks : []
     const head = stage.number === null ? 'Tasks' : `Stage ${stage.number}${stage.name ? ` — ${plain(stage.name)}` : ''}`
     const gate = stage.gate_total > 0 ? `  gate ${stage.gate_checked}/${stage.gate_total}` : ''
     lines.push({ text: '' })
     lines.push({ text: `${head}${gate}`, bold: true })
-    for (const t of stage.tasks) lines.push({ text: taskLine(t, current), dim: t.status === 'done' })
+    for (const t of tasks) if (t !== null && typeof t === 'object') lines.push({ text: taskLine(t, current), dim: t.status === 'done' })
   }
   return lines
 }
@@ -75,24 +81,34 @@ export function planLines(state: PlanModelState | null, id: string, width: numbe
   if (at < 0) return [{ text: 'This plan is no longer in flight.', dim: true }]
   const g = groups[at]!
   const palette = state?.model?.palette
-  const head = (row: PlanGroup): Line => ({ text: '', spans: rowSpans({ ...row, depth: 0 }, width, false, '', palette) })
-  // A sub-plan listed under its master shows its bar and counts; its tail (the
-  // executing plan's phase and task) belongs to that plan's own pane.
-  const bare = (row: PlanGroup): Line => head({ ...row, tail: '', tail_spans: [] })
-  const lines: Line[] = [head(g)]
-  if (state?.stale === true) lines.push({ text: '(stale: the last refresh failed)', dim: true })
-  if (g.role === 'master') {
-    // Its in-flight sub-plans: the depth-1 groups that follow it.
-    const subs: PlanGroup[] = []
-    for (const next of groups.slice(at + 1)) {
-      if ((next?.depth ?? 0) === 0) break
-      subs.push(next)
+  const cells = barCellsFor(width)
+  // Its in-flight sub-plans: the depth-1 groups that follow a top-level plan. A
+  // master is found by them too, so a pinned master (role `pinned`) lists them.
+  const subs: PlanGroup[] = []
+  if ((g.depth ?? 0) === 0) {
+    for (const below of groups.slice(at + 1)) {
+      if ((below?.depth ?? 0) === 0) break
+      subs.push(below)
     }
+  }
+  // A listed sub-plan keeps its own markers (⊘ GATE BLOCKED); only the executing
+  // plan's tail — its phase and task — is left to that plan's own pane.
+  const listed = subs.map(sub => (sub.role === 'pinned' ? { ...sub, tail: '', tail_spans: [] } : sub))
+  const header = { ...g, depth: 0 }
+  const layout = layoutFor([header, ...listed].map(row => ({ g: row, width, stale: false })), cells)
+  const row = (r: PlanGroup, mid = false): Line => ({ text: '', spans: rowSpans(r, width, false, '', palette, cells, layout, mid) })
+  const lines: Line[] = [row(header)]
+  if (state?.stale === true) lines.push({ text: '(stale: the last refresh failed)', dim: true })
+  if (g.role === 'master' || subs.length > 0) {
     lines.push({ text: '' })
     lines.push({ text: subs.length > 0 ? 'Sub-plans in flight' : 'No sub-plan in flight', bold: true })
-    for (const sub of subs) lines.push(bare(sub))
+    listed.forEach((sub, i) => lines.push(row(sub, i < listed.length - 1)))
   }
   const detail = state?.model?.details?.[id] ?? null
+  if (detail === null && g.role !== 'master' && subs.length === 0) {
+    lines.push({ text: '' })
+    lines.push({ text: 'Its stages and tasks could not be read.', dim: true })
+  }
   lines.push(...stageLines(detail, null))
   return lines
 }

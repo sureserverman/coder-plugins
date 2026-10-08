@@ -23,6 +23,8 @@ const CONTEXT = atom({ plugin: 'planning', key: 'context' } as const, null as Co
 const BAR_CELLS = 20
 const BAR_CELLS_NARROW = 10
 const WIDE_COLUMNS = 100
+// The bar's cells for a surface `cols` wide: the band's rule, shared with the plan pane.
+export const barCellsFor = (cols: number): number => (cols >= WIDE_COLUMNS ? BAR_CELLS : BAR_CELLS_NARROW)
 // "[ Plan ]", the space before it, and the collapse control the engine draws at
 // the band's right edge: kept off the text budget of every row with a button, so
 // the buttons line up in one column.
@@ -272,7 +274,7 @@ export function registerBand(on: On): void {
     const { Box, Button, Text } = $.ui.resolve(e)
     const cols = Math.max(1, Math.floor(e.props.bodyColumns))
     const withButton = cols >= BUTTON_MIN_COLUMNS
-    const barCells = cols >= WIDE_COLUMNS ? BAR_CELLS : BAR_CELLS_NARROW
+    const barCells = barCellsFor(cols)
     const palette = state?.model?.palette
     // With two or more plan rows, each with the script's id, every plan row has its
     // own button; otherwise row 0 keeps the one button it always had.
