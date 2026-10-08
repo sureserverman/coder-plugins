@@ -26,7 +26,10 @@ gate and surfaces only at the master close-out — the most expensive place to f
    Preflight, stages, Red-Green loops, gates, and close-out. `Parallel: YES` sub-plans
    with no repo/file overlap may run concurrently (separate sessions or worktrees), but
    the file-conflict rule applies at this level too: overlapping sub-plans run
-   sequentially regardless of the graph.
+   sequentially regardless of the graph. At each of the sub-plan's stage gates, a sub-plan's
+   gate evaluator is also briefed with its master register Goal, beside the sub-plan's own
+   goal (`stage-gate.md` § Independent evaluator for non-command checks): the register Goal
+   is what the next sub-plan reads the output against.
 2. **A sub-plan boundary hands off unless context is under 25%.** Each sub-plan is a
    natural context-reset boundary (the trunk's Context resets at stage boundaries, scaled
    up): after the `"Sub-plan N green"` commit (item 3), run `../scripts/context-usage.py

@@ -239,7 +239,7 @@ adding the three Step 3.5 rows below.
 | Step 3.5 — Stage gate | dispatched-vs-inline counts |
 | Step 3.5 — Stage gate | the agent that ran it |
 | Step 3.5 — Stage gate | Platform stage-verify hook |
-| Step 3.5 — Stage gate | briefed ONLY with the stage goal |
+| Step 3.5 — Stage gate | briefed ONLY with the plan goal |
 | Step 3.5 — Stage gate | pass with |
 | Step 3.5 — Stage gate | a **Critical** here is a |
 | Step 3.5 — Stage gate | Decisions-conformance check |

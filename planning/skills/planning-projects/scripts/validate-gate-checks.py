@@ -115,9 +115,57 @@ plan's TASK fields:
                         ran 40 times in four sessions. test-scope-tiers.md says narrow it
                         to the trees the stages touch or depend on when it crosses ~5 min.
 
+    GOAL-CHECK-MISSING  a Standard or Light plan with no gate check marked `(goal)`, or a
+                        master register entry whose `**Gate:**` block has none. `(goal)` marks
+                        the check that sweeps the plan's goal over the WHOLE artifact the goal
+                        is about; it is orthogonal to shape, so a `(goal)` check is still
+                        classified (an instance-shaped one is still INSTANCE-SHAPED). Measured
+                        incident: engineering-skills 2026-10-07 sub-01 passed every gate after
+                        a 4-round Stage 3 gate while two `-fork` rows had no ruling, a gap
+                        reported found by the close-out evaluator, the first reader of the plan
+                        goal (coder-plugins 2026-10-08-end-goal-checks research). It checks
+                        presence, not placement: one `(goal)` check in the final gate reports
+                        zero, so placement from the first gate is the author's to check.
+                        ADVISORY (DEC-032), because the marker postdates the corpus:
+                        goal-check-missing: measured 2026-10-08 over 800 plans: 735 hits (512
+                        plans and 223 master register entries; 2 plans already carried the
+                        marker). "800 plans" is every .md in the vault plans/ folders, about
+                        190 of them design or architecture files; the `*-plan.md` glob holds
+                        610. The marker is matched anywhere in a check's text, so a prose
+                        mention of `(goal)` also counts as presence. Every hit predates the rule, so the rate says nothing about
+                        precision yet. planning-projects' authoring checklist requires zero on
+                        a NEW plan, as it does for INSTANCE-SHAPED.
+
+    FILTERED-SUBSET     an EXECUTABLE sweep restricted by a category filter: an awk field
+                        match (`$3 ~ /-new/`, `$2 == "x"`), or a grep narrowing the rows of a
+                        command that enumerates the set (`git ls-files | grep -v …`). The
+                        incident check above was `awk -F'|' '$3 ~ /-new/'`, which swept the
+                        `-new` rows only while six `-fork` rows needed rulings too, and this
+                        script read it as a plural sweep. The note asks the author to state
+                        why the excluded members need no check — `(scoped)` is that
+                        statement — or to widen the sweep. Not noted: `grep -q` (an assertion),
+                        a positive grep closing the command or followed only by counting
+                        stages (`| wc -l`; the check's own predicate), unless a `)` closes a
+                        substitution after it, whose output IS the outer set; an
+                        anchors-only pattern (`grep .`), and a grep after a stage that changes
+                        what the rows are (`xargs grep -c`, `while read`). ADVISORY (DEC-032):
+                        filtered-subset: measured 2026-10-08 over 800 plans: 13 hits in 10
+                        plans; sampled 13 hits: 1 true positive (the incident). The other 12
+                        exclude by design — the current dated window from a "no prior record
+                        changed" diff (6), a sandbox, a test run separately in the same check —
+                        and most say so in prose. So a hit is a question, rarely a defect.
+                        Limits: a `"$(…)"` span is read through to its matching `)`, and a
+                        `"…"` with `$(` later inside it is treated as quoted; a backslash-escaped
+                        `\\|` is read as a pipe, which splits a filter wrongly; and three lists are
+                        fixed: enumerators (ls, find, fd, rg --files, git ls-files / ls-tree /
+                        diff --name-only), row-preserving stages (sed sort uniq cut tr awk
+                        grep — `head`, `tee`, `egrep` and a leading `cd …&&` are missed), and
+                        counting stages (wc head sort uniq). `--invert-match` is not read as
+                        `-v`. Each list member missing is a false negative.
+
 Exit 0 when no INSTANCE-SHAPED, no SELECTOR-UNMATCHED and no TASK-TEST-UNSCOPED finding
-is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP and STAGE-SCOPE-WIDE never
-change the exit code. Always prints a per-class count and the total
+is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP, STAGE-SCOPE-WIDE,
+GOAL-CHECK-MISSING and FILTERED-SUBSET never change the exit code. Always prints a per-class count and the total
 examined: an empty sweep must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
@@ -870,6 +918,197 @@ def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
     return out
 
 
+# --- GOAL-CHECK-MISSING --------------------------------------------------------------
+# A FIFTH axis, orthogonal to shape: not "is this check well formed" but "does any check
+# test what the plan is FOR". `(goal)` marks the check that sweeps the plan's goal over the
+# whole artifact it is about; it is classified like any other check, so an instance-shaped
+# goal check is still INSTANCE-SHAPED. See the module docstring for the incident and rate.
+GOAL_MARKER = re.compile(r"\(goal\)", re.I)
+SUB_PLAN_HEADING = re.compile(r"^###\s+Sub-plan\s+(\S+?):?\s", re.MULTILINE)
+
+
+def goal_check_missing(text, path=None):
+    """-> ["plan"] for a plan with no `(goal)` check in any gate, or the `Sub-plan N` label of
+    every master register entry whose `**Gate:**` block has none. A plan with no gate checks
+    at all is left to the existing 0-checks note rather than reported twice, and a master
+    entry with no gate checks at all is likewise not reported (7 of 230 corpus entries,
+    2026-10-08): the authoring checklist's "every register entry ends with a `**Gate:**` block"
+    item owns that, and no script checks it."""
+    if is_master_plan(text, path):
+        heads = list(SUB_PLAN_HEADING.finditer(text))
+        out = []
+        for i, m in enumerate(heads):
+            # An entry ends at the next entry or the next `#`/`##` heading — a master-level
+            # gate after the register must not lend the last entry its `(goal)` check.
+            nxt = re.compile(r"^#{1,2}\s", re.M).search(text, m.end())
+            end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+            if nxt and nxt.start() < end:
+                end = nxt.start()
+            seg = text[m.start(): end]
+            checks = gate_checks(seg)
+            if checks and not any(GOAL_MARKER.search(c) for c in checks):
+                out.append(f"Sub-plan {m.group(1).rstrip(':')}")
+        return out
+    checks = gate_checks(text)
+    if checks and not any(GOAL_MARKER.search(c) for c in checks):
+        return ["plan"]
+    return []
+
+
+# --- FILTERED-SUBSET -----------------------------------------------------------------
+# A SIXTH axis, read only on EXECUTABLE checks: the sweep is plural, but restricted to a
+# category of the set. Nothing is wrong with a filter as such; what is missing is the
+# author's statement of why the excluded members need no check. `(scoped)` is that statement.
+# An awk FIELD match (`$3 ~ /-new/`, `$2 == "x"`). `$0` is the whole row, which is a grep, not
+# a category, so the field number starts at 1.
+AWK_FIELD_FILTER = re.compile(r"\$[1-9]\d*\s*(?:!~|~|==|!=)\s*(?:/[^/]*/|\"[^\"]*\"|'[^']*'|\S+)")
+# Commands whose output IS the set: a filter after one of these narrows the set itself.
+# Matched at the head of a stage's source (`_stage_source`), never anywhere in it.
+ENUMERATOR = re.compile(
+    r"^(?:ls|find|fd|rg\s+--files|"
+    r"git(?:\s+-C\s+\S+)?\s+(?:ls-files|ls-tree|diff\b[^|]*--name-only))\b")
+# Stages that pass the enumerated rows through as rows. Any other stage (`xargs grep -c`,
+# `while read`, `diff`) turns the set into something else, and a grep after it filters
+# results, not members — measured: those were the false positives of the first cut.
+ROW_PRESERVING = re.compile(r"(?:sed|sort|uniq|cut|tr|awk|grep)\b")
+# A pattern of anchors and wildcards only (`grep .`, `grep -v '^$'`) drops blank lines; it
+# names no category.
+TRIVIAL_PATTERN = re.compile(r"""^['"]?(?:\.|\^|\$|\s|\.\*)*['"]?$""")
+
+
+# Stages that only count or order what reaches them. A positive grep followed by these alone
+# is still the check's predicate.
+COUNTING = re.compile(r"(?:wc|head|sort|uniq)\b")
+
+
+def _pipe_stages(span):
+    """Split a command at single `|` outside quotes — `grep -E 'a|b'` is one stage. A double
+    quote opening `"$(… | …)"` is not quoting: those pipes are real, so the span is read
+    through to its matching `)` (`sed "s|a||"` inside it still protects its own `|`)."""
+    stages, cur, quote = [], "", None
+    read_through = set()       # closing quotes of `"$(…)"` spans, which open nothing
+    i = 0
+    while i < len(span):
+        ch = span[i]
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch == "'":
+            quote = ch
+        elif ch == '"' and i not in read_through:
+            if span.startswith("$(", i + 1):
+                # Read through to the `)` matching this `$(` (single-quoted text skipped);
+                # the `"` after it closes the span and opens nothing.
+                depth, j = 0, i + 1
+                while j < len(span):
+                    c = span[j]
+                    if c == "'":
+                        k = span.find("'", j + 1)
+                        j = k if k != -1 else len(span)
+                    elif c == "(":
+                        depth += 1
+                    elif c == ")":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    j += 1
+                if span[j + 1: j + 2] == '"':
+                    read_through.add(j + 1)
+            else:
+                quote = ch
+        elif ch == "|":
+            if span[i + 1: i + 2] == "|" or span[i - 1: i] == "|":
+                cur += ch
+                i += 1
+                continue
+            stages.append(cur)
+            cur = ""
+            i += 1
+            continue
+        cur += ch
+        i += 1
+    stages.append(cur)
+    return stages
+
+
+def _stage_source(stage):
+    """The command whose output a stage passes on. A `$(…)` closed inside the stage became
+    ARGUMENTS (`grep -rn x $(git ls-files)` prints matches, not files), so it is dropped;
+    an unclosed `$(`/`<(` opens a pipeline whose head is what follows it."""
+    prev = None
+    while prev != stage:
+        prev, stage = stage, re.sub(r"[$<]\([^()]*\)", " ", stage)
+    opened = list(re.finditer(r"[$<]\(", stage))
+    return (stage[opened[-1].end():] if opened else stage).strip().lstrip("!(").strip()
+
+
+def _grep_filter(stage):
+    """-> the grep's text up to its pattern, when `stage` is a narrowing grep; else None."""
+    try:
+        toks = shlex.split(stage, posix=True)
+    except ValueError:
+        toks = stage.split()
+    if not toks or toks[0] != "grep":
+        return None
+    flags = [t for t in toks[1:] if t.startswith("-")]
+    if any(re.fullmatch(r"-\w*q\w*", f) or f == "--quiet" for f in flags):
+        return None                      # an assertion over the output, not a filter
+    rest = [t for t in toks[1:] if not t.startswith("-")]
+    if not rest or TRIVIAL_PATTERN.match(rest[0]):
+        return None
+    # Shown as written, cut at the first shell terminator after the pattern.
+    shown = re.split(r"\)\s*;|\)\s*$|;\s", stage.strip(), maxsplit=1)[0]
+    return shown.strip()
+
+
+def filtered_subsets(text):
+    """-> [(check, command, filter)] for every EXECUTABLE gate check whose sweep is restricted
+    by a category filter: an awk field match, or a grep narrowing the rows a command that
+    enumerates the set printed (only row-preserving stages between them). `grep -q` is an
+    assertion over output, not a narrowing of the set, and an anchors-only pattern names no
+    category. `(scoped)` and `(judgment)` exempt. One entry per check — the first filter."""
+    out = []
+    for check in gate_checks(text):
+        if classify(check)[0] != "EXECUTABLE":
+            continue
+        found = None
+        for span in backticked(check):
+            if not is_command(span):
+                continue
+            if "awk" in span:
+                m = AWK_FIELD_FILTER.search(span)
+                if m:
+                    found = (span, m.group(0).strip())
+                    break
+            seen_enum = False
+            stages = _pipe_stages(span)
+            for i, stage in enumerate(stages):
+                st = stage.strip().lstrip("(").strip()
+                if seen_enum:
+                    filt = _grep_filter(st)
+                    # A positive grep closing the whole command is the check's predicate
+                    # (`! git ls-files | grep keystore`), not a narrowing of the set; `-v`
+                    # excludes members wherever it sits.
+                    # Counting stages after it (`| wc -l` → "prints 0") keep it the
+                    # predicate; a `)` closes a substitution whose output the outer command
+                    # reads as the set, so a grep inside one narrows it.
+                    tail = [re.sub(r"'[^']*'", "", x) for x in stages[i:]]
+                    last = (all(COUNTING.match(x.strip()) for x in stages[i + 1:])
+                            and not any(")" in x for x in tail))
+                    if filt and (not last or re.search(r"(?:^|\s)-\w*v", st)):
+                        found = (span, filt)
+                        break
+                    if not ROW_PRESERVING.match(st):
+                        seen_enum = False
+                if ENUMERATOR.match(_stage_source(st)):
+                    seen_enum = True
+            if found:
+                break
+        if found:
+            out.append((check, *found))
+    return out
+
+
 TASK_HEADING = re.compile(r"^#{2,6}\s+(?:\*\*)?Task\b", re.MULTILINE)
 ANY_HEADING = re.compile(r"^#{1,6}\s", re.MULTILINE)
 
@@ -1148,6 +1387,8 @@ def main(argv=None):
     runner_selector_notes = []
     prose_blind_failures = []
     wide_stage_notes = []
+    goal_notes = []
+    filtered_notes = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -1171,6 +1412,10 @@ def main(argv=None):
             wide_stage_notes.append((path, cmd, n, missing))
         for c, cmd, word in prose_blind_sweeps(raw):
             prose_blind_failures.append((path, c, cmd, word))
+        for c, cmd, filt in filtered_subsets(raw):
+            filtered_notes.append((path, c, cmd, filt))
+        for where in goal_check_missing(raw, path):
+            goal_notes.append((path, where))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -1259,6 +1504,23 @@ def main(argv=None):
         print(f"\nnote: {path.name}: stage(s) {', '.join(stages)} declare a Scope: "
               f"but their gate has no executable sweep — the set was named, not swept")
 
+    # Advisory, never a failure (DEC-032): a filter is often right. What the note asks for is
+    # the sentence saying why the excluded members need no check, or a wider sweep.
+    for path, c, cmd, filt in filtered_notes:
+        print(f"\nnote: {path.name}: `{cmd[:72]}` restricts its sweep by a category filter "
+              f"(`{filt}`) — state why the excluded members need no check and mark it "
+              f"(scoped), or widen the sweep to the whole set (set-valued-checks.md)")
+
+    # Advisory, never a failure (DEC-032): old plans predate the marker. A new plan must
+    # report zero (planning-projects' authoring checklist), as it must for INSTANCE-SHAPED.
+    for path, where in goal_notes:
+        whose = ("no gate check" if where == "plan"
+                 else f"{where}'s **Gate:** block has no check")
+        print(f"\nnote: {path.name}: {whose} marked (goal) — add one that sweeps the "
+              f"goal over the whole artifact it is about, in every gate from the first one "
+              f"whose artifact exists (gate-authoring.md § The plan's goal is a check from "
+              f"the first gate)")
+
     print(f"\n{total} gate check(s) across {examined_files} file(s): "
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))
     if selector_failures:
@@ -1272,6 +1534,10 @@ def main(argv=None):
     if runner_selector_notes:
         print(f"selector-unmatched (gradle/cargo) {len(runner_selector_notes)} "
               f"(advisory — see notes above)")
+    if filtered_notes:
+        print(f"filtered-subset {len(filtered_notes)} (advisory — see notes above)")
+    if goal_notes:
+        print(f"goal-check-missing {len(goal_notes)} (advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 

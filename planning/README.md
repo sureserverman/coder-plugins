@@ -1,6 +1,14 @@
 # planning
 
-A fifteen-skill pipeline (v0.57.1) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.58.0
+
+**A plan's end goal is checked from the first gate, not first at close-out** (DEC-033).
+
+- **A `(goal)` gate check.** Every Standard plan, Light plan and master register entry carries at least one gate check marked `(goal)`: the plan's goal as one cheap sweep over the whole artifact it is about, never a subset by category, in every gate from the first one whose artifact exists (`planning-projects/references/gate-authoring.md` § The plan's goal is a check from the first gate). The templates and the authoring checklist carry it. The Light plan's "goal-level end-to-end check" is replaced by it.
+- **Two advisory validator notes.** `validate-gate-checks.py` reports `GOAL-CHECK-MISSING` when a plan, or a master entry, has no `(goal)` check (presence only, not placement). It reports `FILTERED-SUBSET` when a sweep is restricted by a category filter, such as an awk field match or a grep narrowing what `git ls-files`, `find` or `ls` printed. `(scoped)` answers it. Both are advisory (DEC-032). Measured 2026-10-08 over 800 vault plan-folder files: 735 and 13 hits; 1 of the 13 was a true positive, the incident's own filter.
+- **The gate evaluator reads the plan goal.** It is briefed with the plan goal, the stage goal and the gate criteria, and a sub-plan's evaluator also gets its master register Goal. A Blocking finding at a gate now also covers a stage whose output already falls short of the plan goal, with no later stage planned to change it. When an evaluator runs is unchanged.
 
 ## What's new in 0.57.1
 

@@ -81,6 +81,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
      `**Blocked-accepted:** <date> — <why>` line beside the close-out line. That is
      the author's answer, and it is the ONLY thing that retires such a plan; do not
      edit the `[~]` to `[x]`, which falsifies the record the marker exists to keep. -->
+- [ ] **(goal)** [the plan's goal as one cheap sweep over the WHOLE artifact it is about, in every gate from the first one whose artifact exists — gate-authoring.md § The plan's goal is a check from the first gate]
 - [ ] [Integration check]
 - [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<the stale claim>' <scope>`]
 - [ ] [No regressions in touched scope (stage-scope — see references/test-scope-tiers.md)]
@@ -103,6 +104,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 [Tasks with Depends on / Blocks / Dispatch fields...]
 
 ### Stage 2 Gate
+- [ ] **(goal)** [the same goal sweep as Stage 1 — every gate from the first one whose artifact exists repeats it]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]

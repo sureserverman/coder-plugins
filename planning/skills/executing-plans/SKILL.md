@@ -550,8 +550,8 @@ evaluator (the finished plan). Why, and what serialising cost:
 **Independent evaluator for non-command checks.** **Whether it runs comes from
 `references/review-scope.md` — do not re-derive it**: never at `none`, at `light` and
 `standard` when the gate carries a `(judgment)` check, always at `high`. Run command checks
-yourself; dispatch a fresh evaluator for the judgment checks, briefed ONLY with the stage goal
-and the gate's pass criteria — never the implementation transcript or your own summary. The
+yourself; dispatch a fresh evaluator for the judgment checks, briefed ONLY with the plan goal,
+the stage goal and the gate's pass criteria — never the transcript or your own summary. The
 session that wrote the code grades its own work too generously. A declared tier that does not
 mandate one is **scope**, reported as such and never as an opt-out; an evaluator that cannot
 be dispatched is a Stop condition, not a skip.

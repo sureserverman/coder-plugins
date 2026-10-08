@@ -41,6 +41,7 @@ Run every item before showing the plan to the user.
 - [ ] A sweep that forbids a call matches the bare name at a word boundary, not one qualified spelling an import can bypass (`../SKILL.md` § Write a set-valued check; `set-valued-checks.md` § The fifth error)
 - [ ] **One owner per fact**: no gate check re-proves what a task's `Test:` already decides, unless it sweeps a strictly wider, nameable set; and no `(judgment)` line restates a fact an executable check in this plan already answers (`../SKILL.md` § Every fact has one owner)
 - [ ] **Every gate check can fail in the direction its hazard runs.** For each set-valued check, name what the defect would look like in the tree: an unwanted presence is a new line and an allow-list sweep catches it; a *missing* call adds nothing for a grep to find, so it needs an invariant asserted over every operation — a test the gate runs, not a sweep of the sites the plan chose. No validator can tell these apart, because the syntax is identical and only the hazard differs (`set-valued-checks.md` § The third error)
+- [ ] **The plan's goal is a check from the first gate**: every gate from the first one whose artifact exists carries a `(goal)` check sweeping the plan's goal over the whole artifact, never a subset by category — `../scripts/validate-gate-checks.py` reports zero GOAL-CHECK-MISSING, and any FILTERED-SUBSET note on it is answered. The validator checks presence, not placement: zero means some gate carries one, so placement from the first gate is checked here by the author (`gate-authoring.md` § The plan's goal is a check from the first gate)
 - [ ] **Every gate check can pass as authored**: `validate-gate-checks.py` reports zero SELECTOR-UNMATCHED — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (the defect that shipped twice; `executing-plans` re-checks it at Preflight with `--collect-only`, where the tests actually exist)
 
 **Research and Preflight**
@@ -72,6 +73,7 @@ Run every item before showing the plan to the user.
 - [ ] The decomposition trigger actually held (`../SKILL.md` § Phase 2.5 — Decomposition decision (master plan + sub-plans)) — 2–7 sub-plans, each independently executable
 - [ ] Register `Depends on` / `Blocks` fields are symmetric across sub-plan entries
 - [ ] Every register entry ends with a `**Gate:**` block containing at least one cross-plan integration check
+- [ ] Every register entry's `**Gate:**` block, and every sub-plan's gates from the first whose artifact exists, carry a `(goal)` check — `validate-gate-checks.py` reports zero GOAL-CHECK-MISSING on the master and on each sub-plan. It checks presence, not placement, so a sub-plan's placement from its first gate is the author's to check (`gate-authoring.md` § The plan's goal is a check from the first gate)
 - [ ] Every sub-plan carries the `Master: ./<master-file>` backlink; every register `Plan:` link resolves
 - [ ] The master plan is parser-safe: no raw `- [ ]` bullets outside `**Gate:**` blocks, no tasks, no Preflight (`master-plan-format.md`)
 
@@ -83,7 +85,7 @@ these eight — the Standard checklist does not apply:
 - [ ] Every task has a concrete, runnable `Test:` that asserts the outcome and could go red — the same bar as any plan
 - [ ] Tasks are in dependency order; any `Depends on` points only backward within the stage
 - [ ] Exactly one stage, with 2–5 tasks (a 6th task or a second stage means re-issue as Standard)
-- [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a goal-level end-to-end check
+- [ ] The single `### Stage 1 Gate` includes "full existing test suite passes" and a `(goal)` check sweeping the plan's goal over the whole artifact — `../scripts/validate-gate-checks.py` reports zero GOAL-CHECK-MISSING (`gate-authoring.md` § The plan's goal is a check from the first gate)
 - [ ] The `Format: Light — …` line is present at the top; the file is saved to `<portfolio_home>/plans/` as `*-light-plan.md`
 - [ ] Open backlog items in scope were reviewed (the scan runs at every size); folded-in items carry `Closes BL-NNN`
 - [ ] If `docs/workflows/` exists and the change touches a documented flow, the altered/removed behavior is declared on the task (`Changes WF-NNN` / `Removes WF-NNN`) — behavior contracts don't get a size exemption

@@ -148,7 +148,7 @@ Include any decision in force that bears on the change, inline:
 - **Red-Green max cycles:** 3
 
 ### Stage 1 Gate
-- [ ] [Integration check — the plan's goal proven end-to-end]
+- [ ] **(goal)** [the plan's goal as one cheap sweep over the WHOLE artifact it is about, in every gate from the first one whose artifact exists — gate-authoring.md § The plan's goal is a check from the first gate]
 - [ ] [Class predicate — the sweep that proves a set-wide property, e.g. `! grep -rl '<claim>' <scope>`]
 - [ ] Full existing test suite passes (regressions check)
 <!-- (judgment) only where a reader decides what no command can — it buys an evaluator; most

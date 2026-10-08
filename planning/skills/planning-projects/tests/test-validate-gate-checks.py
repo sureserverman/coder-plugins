@@ -814,6 +814,122 @@ for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
 check(f"{sum(frozen.values())} gate checks" in doc,
       f"docstring states the corpus total ({sum(frozen.values())})")
 
+print("group 10b — the script compiles with no warning")
+# A `\|` in the docstring (Stage 1, round 1) raised SyntaxWarning on every run of a validator
+# the authoring checklist tells every author to run. Found by the Stage 2 Tier-2 review.
+_cw = subprocess.run([sys.executable, "-W", "error", "-c",
+                      "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')", SCRIPT],
+                     capture_output=True, text=True)
+check(_cw.returncode == 0, f"compiles under -W error ({_cw.stderr.strip()[-80:]})")
+
+print("group 11 — GOAL-CHECK-MISSING: a plan or master entry with no (goal) check")
+# Measured incident (engineering-skills 2026-10-07 sub-01): every gate passed while the plan's
+# goal was never swept over the whole artifact; a 4-round gate passed, and the gap was reported
+# found at close-out (2026-10-08-end-goal-checks research). A note, never an exit code (DEC-032), so a legacy plan is unaffected.
+GOAL = pathlib.Path(HERE) / "fixtures" / "goal-check"
+_missing = (GOAL / "missing-plan.md").read_text()
+_present = (GOAL / "present-plan.md").read_text()
+_master = (GOAL / "master-missing-plan.md").read_text()
+check(vgc.goal_check_missing(_missing) == ["plan"],
+      "a Standard plan with no (goal) check in any gate is reported once")
+check(vgc.goal_check_missing(_present) == [],
+      "a Standard plan carrying a (goal) check is not reported")
+check(vgc.goal_check_missing(_master, GOAL / "master-missing-plan.md") == ["Sub-plan 2"],
+      "a master entry whose **Gate:** block has no (goal) check is reported, by entry")
+check(kind("**(goal)** `grep -q 'Triggers' skills/one/SKILL.md`") == "INSTANCE-SHAPED",
+      "(goal) is orthogonal to shape: an instance-shaped goal check is still flagged")
+check(kind("**(goal)** `! grep -L 'Triggers' skills/*/SKILL.md | grep -q .`") == "EXECUTABLE",
+      "a (goal) sweep classifies EXECUTABLE like any other sweep")
+rc, out = run(_missing)
+check(rc == 0 and "goal-check-missing 1 (advisory" in out,
+      "the note is advisory: exit 0, counted on its own summary line")
+rc, out = run(_present)
+check(rc == 0 and "goal-check-missing" not in out, "a plan with a (goal) check prints no note")
+_r = subprocess.run([sys.executable, SCRIPT, str(GOAL / "master-missing-plan.md")],
+                    capture_output=True, text=True)
+check("Sub-plan 2's **Gate:** block has no check marked (goal)" in _r.stdout,
+      "the master-entry note reads as a sentence, naming the entry")
+check(re.search(r"goal-check-missing: measured 2026-10-08 over \d+ plans: \d+ hits",
+                " ".join(vgc.__doc__.split())) is not None,
+      "the docstring states the measured trigger rate (DEC-032)")
+
+print("group 12 — FILTERED-SUBSET: a sweep restricted by a category filter")
+# The incident's own check: `awk -F'|' '$3 ~ /-new/'` swept the `-new` rows only, while six
+# `-fork` rows needed rulings too. The validator read it as a plural sweep and said nothing.
+_filtered = (GOAL / "filtered-plan.md").read_text()
+_scoped_f = (GOAL / "scoped-filtered-plan.md").read_text()
+_fs = vgc.filtered_subsets(_filtered)
+_noted = [c for c, _cmd, _f in _fs]
+check(any("$3 ~ /-new/" in c for c in _noted) and
+      any(f == "$3 ~ /-new/" for _c, _cmd, f in _fs),
+      "an awk field-filtered sweep is noted, naming its filter")
+check(any("grep -v '^docs/archive/'" in c for c in _noted),
+      "a grep filtering an enumerating command's output is noted")
+check(not any("grep -rL" in c for c in _noted), "an unfiltered sweep is not noted")
+check(not any("verify-rulings.py | grep -q" in c for c in _noted),
+      "grep -q over a program's output is an assertion, not a filtered set")
+check(len(_fs) == 2, f"exactly the two filtered sweeps are noted ({len(_fs)})")
+check(vgc.filtered_subsets(_scoped_f) == [],
+      "(scoped) silences it: the author states the subset is the whole set")
+# Shapes measured on the vault corpus while calibrating, each a false positive of an earlier cut.
+check(not vgc.filtered_subsets(plan("`! git ls-files | grep -iE 'keystore|\\.p12'` — no key is tracked")),
+      "a positive grep as the LAST stage is the check's predicate, not a narrowed set")
+check(not vgc.filtered_subsets(plan("`! grep -rn 'legacy' $(git ls-files) | grep -v 'git history'` — none left")),
+      "a grep over grep's RESULTS filters matches, not members of the set")
+check(not vgc.filtered_subsets(plan("`find docs -name '*.md' | xargs grep -c x | grep -v ':0$'` — every doc")),
+      "a grep after a stage that changes what the rows are (xargs) filters results")
+check(not vgc.filtered_subsets(plan("`find docs -name '*.md' | grep . | wc -l` — every doc counted")),
+      "an anchors-only pattern names no category")
+check(len(vgc.filtered_subsets(plan(
+      "`test -z \"$(git ls-files docs/ | grep -v '^docs/old/' | xargs grep -L x)\"` — every doc"))) == 1,
+      "a double-quoted $(...) does not hide the pipes inside it")
+check(len(vgc.filtered_subsets(plan(
+      "`for f in $(ls tests/*.py | grep -E 'unit|fast'); do python3 $f || exit 1; done` — all pass"))) == 1,
+      "a positive grep narrowing what a loop iterates is a filter, and `a|b` stays one pattern")
+# Gate round 1 (Tier-2 review): the two exemptions above had no enumerator before them, so
+# they passed with the exemption deleted. These carry one.
+check(not vgc.filtered_subsets(plan("`x=$(git ls-files | grep -q keystore) || true; test -z \"$x\"` — every file")),
+      "grep -q after an enumerator, in a non-final stage, is an assertion, not a filter")
+check(not vgc.filtered_subsets(plan("`git ls-files | grep keystore | wc -l` prints 0 — no key is tracked")),
+      "a positive grep followed only by a counting stage is still the check's predicate")
+check(len(vgc.filtered_subsets(plan("`git ls-files | grep -v '^old/' | wc -l` prints 0 — every file"))) == 1,
+      "a grep -v before a counting stage still excludes members")
+check(len(vgc.filtered_subsets(plan(
+      "`comm -23 <(git ls-files | grep -E '/tests/' | sort) <(ls t)` is empty — every test is ported"))) == 1,
+      "a positive grep inside a process substitution narrows the set the outer command reads")
+check(len(vgc.filtered_subsets(plan("`git ls-files | grep -v '\\.$' | xargs wc -l` — every file"))) == 1,
+      "an escaped literal (`\\.$`) is a real filter, not an anchors-only pattern")
+check(vgc._pipe_stages('x "$(a | b)" | c "d|e"') == ['x "$(a ', ' b)" ', ' c "d|e"'],
+      "the closing quote of a \"$(...)\" span is not read as an opening one")
+check(len(vgc.filtered_subsets(plan(
+      "`test -z \"$(git ls-tree -r --name-only HEAD | sed \"s|a/||\" | grep -v '^tests/' | while read f; do echo $f; done)\"` — every file"))) == 1,
+      "a quoted sed pattern nested inside \"$(...)\" does not hide the filter after it")
+_mm = """# Master Plan: x
+
+## Sub-plans
+
+### Sub-plan 1: A
+- **Status:** [ ]
+- **Goal:** every row is ruled.
+
+**Gate:**
+- [ ] `python3 docs/verify.py` exits 0
+
+## Master gate
+
+**Gate:**
+- [ ] **(goal)** `python3 docs/verify.py --all` exits 0 — every row in every lane
+"""
+check(vgc.goal_check_missing(_mm, "x-master-plan.md") == ["Sub-plan 1"],
+      "a (goal) check after the register does not mask the last entry's missing one")
+rc, out = run(_filtered)
+check(rc == 0 and "filtered-subset 2 (advisory" in out,
+      "the note is advisory: exit 0, counted on its own summary line")
+check(re.search(r"filtered-subset: measured 2026-10-08 over \d+ plans: \d+ hits",
+                " ".join(vgc.__doc__.split())) is not None
+      and re.search(r"sampled \d+ hits?: \d+ true positives?", " ".join(vgc.__doc__.split())),
+      "the docstring states the measured rate and a sampled true-positive count (DEC-032)")
+
 print()
 if FAILURES:
     print(f"FAILED — {len(FAILURES)} check(s):")
