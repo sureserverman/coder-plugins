@@ -583,3 +583,219 @@ test('at 20 columns no row has a button; every row and its button fit bodyColumn
     }
   }
 })
+
+// ---- Stage 2 gate remediation ----
+
+test('the fill rounds half to even, as the status line does: 1/8 and 5/8 at 20 cells', async ($, on) => {
+  const w = world(on, answeringPalette([
+    group({ name: 'one-eighth', role: 'pinned', done: 1, total: 8, id: 'aaaa0001' }),
+    group({ name: 'five-eighths', role: 'other', done: 5, total: 8, id: 'aaaa0002' }),
+    group({ name: 'over', role: 'other', done: 9, total: 8, id: 'aaaa0003' }),
+  ]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(140), surface })
+    const fills = (await rowsOf(ui)).map(r => /▐(█*)(░*)▌/.exec(r.text))
+    // Python round(): 20*1/8 = 2.5 -> 2, 20*5/8 = 12.5 -> 12
+    expect(fills[0]?.[1]?.length).toBe(2)
+    expect(fills[1]?.[1]?.length).toBe(12)
+    // done > total: the band never draws past its 20 cells
+    expect((fills[2]?.[1]?.length ?? 0) + (fills[2]?.[2]?.length ?? 0)).toBe(20)
+    await ui.unmount()
+  }
+})
+
+test('every row with a button pads its text to one width, so the buttons line up', async ($, on) => {
+  const w = world(on, answeringPalette(WITH_IDS))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [60, 120, 200]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows.length).toBe(3)
+      for (const row of rows) expect([...row.text].length).toBe(cols - 12)
+      await ui.unmount()
+    }
+  }
+})
+
+test('a pinned sub-plan stays drawn at maxRows 1 and 2, its master giving way', async ($, on) => {
+  const groups = [
+    group({ name: 'the-master', role: 'master', depth: 0 }),
+    group({ name: 'the-sub', role: 'pinned', depth: 1 }),
+    group({ name: 'an-other', role: 'other', depth: 0 }),
+  ]
+  const w = world(on, answeringPalette(groups))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const maxRows of [1, 2]) {
+      const ui = await $.ui.mount({ ...band(80, maxRows), surface })
+      const rows = (await rowsOf(ui)).map(r => r.text)
+      expect(rows.length).toBe(maxRows)
+      expect(rows.some(r => r.includes('the-sub'))).toBe(true)
+      await ui.unmount()
+    }
+  }
+})
+
+test('the stale marker and the counts survive every width the row floor allows', async ($, on) => {
+  let fail = false
+  const w = world(on, () => {
+    if (fail) throw new Error('timed out')
+    return ran(JSON.stringify({ groups: [group()], detail: null, palette: PALETTE }))
+  })
+  await seed($ as never, w.clock)
+  fail = true
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (let cols = 12; cols <= 80; cols += 1) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const row = (await rowsOf(ui))[0]!.text
+      const width = cols >= 24 ? cols - 12 : cols
+      expect([...row].length).toBeLessThanOrEqual(width)
+      // '⚙ ' (2) + NAME_MIN (8) + ' ▐██████████▌ 2/5' (17) + ' (stale)' (8): the pct gives way first.
+      if (width >= 35) {
+        expect(row).toContain('2/5')
+        expect(row).toContain('(stale)')
+      }
+      await ui.unmount()
+    }
+  }
+})
+
+test('only a #rrggbb from the script, or a theme key, ever reaches a Text colour', async ($, on) => {
+  const bad = { green: 'red', cyan: 7, red: '#12', yellow: '\x1b[31m', purple: null }
+  const groups = [
+    group({ name: 'p', role: 'pinned', tail: 'abcd', tail_spans: [
+      { text: 'a', color: 'red', dim: false }, { text: 'b', color: '#12', dim: false },
+      { text: 'c', color: '#db3630\n', dim: false }, { text: 'd', color: 42 as never, dim: 'yes' as never },
+    ] }),
+    group({ name: 'q', role: 'other' }),
+  ]
+  const w = world(on, () => ran(JSON.stringify({ groups, detail: null, palette: bad })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const colours = (await ui.findAll({ type: 'Text' })).map(t => t.props.color).filter(c => c !== undefined)
+    for (const c of colours) expect(c === 'success' || c === 'suggestion' || /^#[0-9a-f]{6}$/i.test(String(c))).toBe(true)
+    const p = pieces((await rowsOf(ui))[0] as Found)
+    expect(p.find(x => x.text.includes('█'))?.color).toBe('success')
+    expect(p.find(x => x.text.includes('⚙'))?.color).toBe('suggestion')
+    await ui.unmount()
+  }
+})
+
+for (const [label, ids] of [
+  ['one missing', ['aaaa0001', undefined]],
+  ['9 hex', ['aaaa0001', 'aaaa00022']],
+  ['uppercase', ['aaaa0001', 'AAAA0002']],
+  ['a slash', ['aaaa0001', 'aaa/0002']],
+  ['a duplicate', ['aaaa0001', 'aaaa0001']],
+] as const) {
+  test(`two plans with an id that is ${label}: one button, on row 0`, async ($, on) => {
+    const groups = [group({ name: 'p', role: 'pinned', id: ids[0] }), group({ name: 'q', role: 'other', id: ids[1] })]
+    const w = world(on, answeringPalette(groups))
+    await seed($ as never, w.clock)
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ ...band(120), surface })
+      expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['open-plan'])
+      await ui.unmount()
+    }
+  })
+}
+
+test('buttons appear from 24 columns, not at 23', async ($, on) => {
+  const w = world(on, answeringPalette(WITH_IDS))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const [cols, n] of [[23, 0], [24, 3]] as const) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      expect((await ui.findAll({ type: 'Button' })).length).toBe(n)
+      await ui.unmount()
+    }
+  }
+})
+
+test('stale, context and buttons at once: the bars still line up and every row fits', async ($, on) => {
+  let fail = false
+  const w = world(on, () => {
+    if (fail) throw new Error('timed out')
+    return ran(JSON.stringify({ groups: WITH_IDS, detail: null, palette: PALETTE }))
+  })
+  engineUsage(on, 25)
+  await seed($ as never, w.clock)
+  await turnEnds($)
+  fail = true
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [100, 160]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows[0]!.text).toContain('(stale)')
+      expect(rows[1]!.text).toContain('context 25%')
+      const bars = rows.map(r => columnOf(r.text, /▐/))
+      expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
+      for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols - 12)
+      await ui.unmount()
+    }
+  }
+})
+
+test('a sub-plan with another sub-plan below it is drawn ├─, the last └─', async ($, on) => {
+  const w = world(on, answeringPalette(FIVE))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const rows = (await rowsOf(ui)).map(r => r.text)
+    expect(rows[1]!.startsWith('├─ ')).toBe(true)
+    expect(rows[2]!.startsWith('└─ ')).toBe(true)
+    await ui.unmount()
+  }
+})
+
+test('the name column is the status line\'s: 46 cells of tree glyph and name, ⚙ beside them', async ($, on) => {
+  const name = 'n'.repeat(60)
+  const w = world(on, answeringPalette([group({ name, role: 'pinned', id: 'aaaa0001' }), group({ name: 'x', role: 'other', id: 'aaaa0002' })]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(200), surface })
+    const row = (await rowsOf(ui))[0]!.text
+    // '⚙ ' + 46 cells of name (45 + …), then the bar
+    expect(columnOf(row, /▐/)).toBe(2 + 46 + 1)
+    await ui.unmount()
+  }
+})
+
+test('non-finite counts or width draw no NaN and throw nothing', async ($, on) => {
+  const w = world(on, answeringPalette([group({ done: null as never, total: 5 }), group({ name: 'y', role: 'other', done: 1, total: 'x' as never })]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [80, Number.NaN]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      for (const t of await ui.findAll({ type: 'Text' })) expect(t.text.includes('NaN')).toBe(false)
+      await ui.unmount()
+    }
+  }
+})
+
+test('a stale first row with a long name: its mark is reserved in the shared column', async ($, on) => {
+  const long = WITH_IDS.map(g => ({ ...g, name: `${g.name}-${'z'.repeat(50)}` }))
+  let fail = false
+  const w = world(on, () => {
+    if (fail) throw new Error('timed out')
+    return ran(JSON.stringify({ groups: long, detail: null, palette: PALETTE }))
+  })
+  await seed($ as never, w.clock)
+  fail = true
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [100, 120]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows[0]!.text).toContain('(stale)')
+      const bars = rows.map(r => columnOf(r.text, /▐/))
+      expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
+      await ui.unmount()
+    }
+  }
+})

@@ -2,8 +2,11 @@
 // sized to the band's own width, drawn in the status line's pieces and colours.
 // It draws what plan-progress.py --json computed — the counts, `tail_spans` (the
 // script's own text after its bar, split at its colour codes) and the `palette` —
-// and never derives a phase, a marker or a marker's colour itself, so the band and
-// the status line cannot disagree.
+// and never derives a phase, a marker or a marker's colour itself, so on those the
+// band and the status line cannot disagree. The bar it builds itself, rounding as
+// the status line rounds; it differs on purpose in three ways: 10 cells below
+// WIDE_COLUMNS, a fill held to the bar when done > total, and its own (stale) mark
+// for a refresh that failed.
 
 import { atom, read } from 'claude-code'
 import type { On } from 'claude-code'
@@ -28,10 +31,10 @@ const BUTTON_CELLS = 12
 const BUTTON_MIN_COLUMNS = 24
 // A name is never clipped below this while the row has room for it.
 const NAME_MIN = 8
-// The status line's name column cap (plan-progress.py NAME_WIDTH), indent and ⚙ included.
+// The status line's name column cap (plan-progress.py NAME_WIDTH): the tree glyph
+// and the name, with `⚙ ` drawn beside them.
 const NAME_WIDTH = 46
 const HEAD = '⚙ '
-// C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
 // Controls (Cc: C0, DEL and C1, among them U+009B, a one-byte CSI), invisible
 // format characters (Cf: bidi overrides, zero-width marks) and lone surrogates
 // (Cs) — the classes plan_continue_classify.py's clean() drops.
@@ -109,13 +112,29 @@ function tailSpans(g: PlanGroup): Span[] {
 // `⚙ ` included), counts right-aligned to `countWidth`.
 export type Layout = { nameColumn: number; countWidth: number }
 
-const indentOf = (g: PlanGroup): string => ((g.depth ?? 0) > 0 ? '└─ ' : '')
-const countOf = (g: PlanGroup): string => (g.total > 0 ? `${g.done}/${g.total}` : '')
-const pctOf = (g: PlanGroup): string =>
-  g.total > 0 ? `(${Math.floor((Math.min(Math.max(g.done, 0), g.total) * 100) / g.total)}%)` : ''
+// A count the script sent as a whole number, else none: no NaN reaches a Text.
+const whole = (n: unknown): number | null => (typeof n === 'number' && Number.isSafeInteger(n) ? n : null)
+const totalOf = (g: PlanGroup): number => Math.max(0, whole(g.total) ?? 0)
+const doneOf = (g: PlanGroup): number => Math.min(Math.max(whole(g.done) ?? 0, 0), totalOf(g))
+
+// `├─ ` for a sub-plan with another sub-plan drawn below it, `└─ ` for the last,
+// as the status line draws its tree.
+const indentOf = (g: PlanGroup, mid = false): string => ((g.depth ?? 0) > 0 ? (mid ? '├─ ' : '└─ ') : '')
+const countOf = (g: PlanGroup): string => (totalOf(g) > 0 ? `${whole(g.done) ?? 0}/${totalOf(g)}` : '')
+const pctOf = (g: PlanGroup): string => (totalOf(g) > 0 ? `(${Math.floor((doneOf(g) * 100) / totalOf(g))}%)` : '')
+
+// The bar's filled cells: round(cells * done / total) with ties to even, as
+// Python's round() in plan-progress.py's bar() — in integers, so a tie is exact.
+export function filledCells(done: number, total: number, barCells: number): number {
+  if (total <= 0) return 0
+  const n = barCells * done
+  const q = Math.floor(n / total)
+  const r2 = 2 * (n - q * total)
+  return r2 > total || (r2 === total && q % 2 === 1) ? q + 1 : q
+}
 
 // The shared column for `rows`, each drawn in its own `width`: the widest indent +
-// `⚙ ` + name, capped at NAME_WIDTH and at what the narrowest row leaves beside its
+// `⚙ ` + name, capped at NAME_WIDTH + `⚙ ` and at what the narrowest row leaves beside its
 // bar and counts — so every `▐` and every `(pct%)` starts at one column. A row's
 // `context` is reserved too, when the column still leaves every row its NAME_MIN:
 // the context figure outranks the names' extra width, as it does in rowSpans.
@@ -126,10 +145,10 @@ export function layoutFor(
   const countWidth = Math.max(0, ...rows.map(r => cells(countOf(r.g))))
   const column = (withContext: boolean): number => {
     let widest = 0
-    let room = NAME_WIDTH
+    let room = NAME_WIDTH + cells(HEAD)
     for (const { g, width, stale, context } of rows) {
       widest = Math.max(widest, cells(indentOf(g)) + cells(HEAD) + cells(plain(g.name)))
-      const rest = g.total > 0 ? 1 + barCells + 2 + 1 + countWidth + 1 + cells(pctOf(g)) : 0
+      const rest = totalOf(g) > 0 ? 1 + barCells + 2 + 1 + countWidth + 1 + cells(pctOf(g)) : 0
       const ctx = withContext ? cells(context ?? '') : 0
       room = Math.min(room, width - rest - (stale ? cells(' (stale)') : 0) - ctx)
     }
@@ -148,8 +167,9 @@ export function layoutFor(
 // whole; the context figure is shown whole or not at all, and only while the name
 // keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
 // free text from the script, gives way first. Only a row too narrow for even
-// that is clipped as a whole. With a `layout` whose column leaves this row its
-// NAME_MIN, the name is padded or clipped to that column instead.
+// that is clipped as a whole. The `(pct%)` gives way before that cut, so the
+// counts and the stale mark outlast it. With a `layout` whose column leaves this
+// row its NAME_MIN, the name is padded or clipped to that column instead.
 export function rowSpans(
   g: PlanGroup,
   width: number,
@@ -158,13 +178,19 @@ export function rowSpans(
   palette: PlanPalette | undefined = undefined,
   barCells = BAR_CELLS_NARROW,
   layout: Layout | undefined = undefined,
+  mid = false,
 ): Span[] {
   const green = typeof palette?.green === 'string' && HEX.test(palette.green) ? palette.green : FALLBACK.green
   const cyan = typeof palette?.cyan === 'string' && HEX.test(palette.cyan) ? palette.cyan : FALLBACK.cyan
-  const indent: Span[] = indentOf(g) === '' ? [] : [{ text: indentOf(g), dim: true }]
+  const glyph = indentOf(g, mid)
+  const indent: Span[] = glyph === '' ? [] : [{ text: glyph, dim: true }]
+  const mark: Span[] = stale ? [{ text: ' (stale)', dim: true }] : []
+  const name = plain(g.name)
+  const pinned = g.role === 'pinned'
+  const head = HEAD
   const counts: Span[] = []
-  if (g.total > 0) {
-    const filled = Math.round((Math.min(Math.max(g.done, 0), g.total) / g.total) * barCells)
+  if (totalOf(g) > 0) {
+    const filled = filledCells(doneOf(g), totalOf(g), barCells)
     const count = countOf(g)
     const pad = layout === undefined ? 0 : Math.max(0, layout.countWidth - cells(count))
     counts.push(
@@ -172,14 +198,13 @@ export function rowSpans(
       { text: '▐', dim: true },
       { text: '█'.repeat(filled), color: green },
       { text: `${'░'.repeat(barCells - filled)}▌`, dim: true },
-      { text: ` ${' '.repeat(pad)}${count} ` },
-      { text: pctOf(g), dim: true },
+      { text: ` ${' '.repeat(pad)}${count}` },
     )
+    // The percentage, with its space, only where the row floor leaves room for it.
+    const pct = ` ${pctOf(g)}`
+    const floor = width_(indent) + cells(head) + Math.min(cells(name), NAME_MIN) + width_(counts) + width_(mark)
+    if (floor + cells(pct) <= width) counts.push({ text: ' ' }, { text: pctOf(g), dim: true })
   }
-  const mark: Span[] = stale ? [{ text: ' (stale)', dim: true }] : []
-  const name = plain(g.name)
-  const pinned = g.role === 'pinned'
-  const head = HEAD
   const fixed0 = width_(indent) + cells(head) + width_(counts) + width_(mark)
   // The shared column, when it leaves this row its NAME_MIN; else the row fits alone.
   const column = layout === undefined ? -1 : layout.nameColumn - width_(indent) - cells(head)
@@ -226,6 +251,8 @@ export function bandRows(groups: PlanGroup[], maxRows: number): (PlanGroup | num
     keep.push(pinned)
   }
   const room = limit === 1 ? 1 : limit - 1
+  // The pinned plan outranks its master: with room for one of them, it is the one.
+  if (keep.length > room) keep.splice(0, keep.length - room)
   const rest = groups.filter(g => !keep.includes(g))
   const shown = [...keep, ...rest].slice(0, room)
   return limit === 1 ? shown : [...shown, groups.length - shown.length]
@@ -249,7 +276,9 @@ export function registerBand(on: On): void {
     // own button; otherwise row 0 keeps the one button it always had.
     const planRows = rows.filter((row): row is PlanGroup => typeof row !== 'number')
     const perRow =
-      planRows.length >= 2 && planRows.every(g => typeof g.id === 'string' && PLAN_ID.test(g.id))
+      planRows.length >= 2 &&
+      planRows.every(g => typeof g.id === 'string' && PLAN_ID.test(g.id)) &&
+      new Set(planRows.map(g => g.id)).size === planRows.length
     const hasButton = (i: number): boolean =>
       withButton && typeof rows[i] !== 'number' && (perRow || i === 0)
     const widthOf = (i: number): number => (hasButton(i) ? cols - BUTTON_CELLS : cols)
@@ -268,11 +297,13 @@ export function registerBand(on: On): void {
         {rows.map((row, i) => {
           if (typeof row === 'number') {
             return (
-              <Text dimColor wrap="truncate">
+              <Text key="more" dimColor wrap="truncate">
                 {clip(`… ${row} more`, cols)}
               </Text>
             )
           }
+          const below = rows[i + 1]
+          const mid = typeof below !== 'number' && below !== undefined && (below.depth ?? 0) > 0
           const spans = rowSpans(
             row,
             widthOf(i),
@@ -281,11 +312,16 @@ export function registerBand(on: On): void {
             palette,
             barCells,
             layout,
+            mid,
           )
+          // A row with a button is padded to its width, so every button starts at
+          // one column.
+          const pad = hasButton(i) ? widthOf(i) - width_(spans) : 0
+          const drawn = pad > 0 ? [...spans, { text: ' '.repeat(pad) }] : spans
           const line = (
-            <Text wrap="truncate">
-              {spans.map(s => (
-                <Text color={s.color} dimColor={s.dim}>
+            <Text key={`line-${i}`} wrap="truncate">
+              {drawn.map((s, j) => (
+                <Text key={`span-${j}`} color={s.color} dimColor={s.dim}>
                   {s.text}
                 </Text>
               ))}
