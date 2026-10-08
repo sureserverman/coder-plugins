@@ -47,7 +47,10 @@ Each claim needs its own `dispatch` line of that subagent_type whose description
 `Stage N` and the claim's role (the word review or pass, or evaluator) and names no `Task N.M`,
 logged at or after the newest `Stage N-1 green` commit (for Stage 1, the log's start).
 So the executor writes the dispatch description as `Stage N Tier-2 review` or
-`Stage N gate evaluator`. Two claimed passes need two dispatches.
+`Stage N gate evaluator`. Two claimed passes need two dispatches. A claim whose head names
+`Task N.M` (a Tier-1 line, "review: Tier-1 <type> over the Task 2.1 diff — …") is that
+task's: it takes a dispatch naming exactly that task and the role (`Stage 2 Task 2.1 quick
+review`), N must be this gate's stage, and it never takes a stage pass's dispatch.
 
 WHAT THIS DOES NOT DO. It cannot tell whether the agent was briefed on the right diff,
 or whether the verdict quoted is the one it returned — only that a dispatch of the
@@ -118,6 +121,7 @@ LIST_MARKER = re.compile(r"^(?:[-*+>]|\d+[.)])\s+")
 ROLE = {"review": re.compile(r"\breview|\bpass\b", re.I),
         "evaluator": re.compile(r"evaluat", re.I)}
 TASK_REF = re.compile(r"\bTask\s+\d+\.\d+\b", re.I)
+TASK_ID = re.compile(r"\bTask\s+(\d+)\.(\d+)\b", re.I)
 
 
 def _warn_if_stale():
@@ -195,10 +199,18 @@ def classify(line):
     return ("scope" if reason and not VERDICT.search(line) else "unnamed"), role, None
 
 
-def counts_for(row, stage, role):
+def counts_for(row, stage, role, task=None):
+    """A stage claim takes a dispatch naming `Stage N` and the role and no task. A per-task
+    (Tier-1) claim, `task` = (N, M), takes one naming that `Task N.M` and the role: the
+    task's own number carries its stage, so N must be this gate's."""
     d = row.get("description") or ""
+    if ROLE[role].search(d) is None:
+        return False
+    if task is not None:
+        named = [(int(a), int(b)) for a, b in TASK_ID.findall(d)]
+        return task[0] == stage and named == [task]
     return (re.search(rf"\bStage\s+{stage}\b", d, re.I) is not None
-            and ROLE[role].search(d) is not None and not TASK_REF.search(d))
+            and not TASK_REF.search(d))
 
 
 def previous_green(repo, stage):
@@ -263,13 +275,18 @@ def gate(args):
     for line in lines:
         kind, role, stype = classify(line)
         if kind == "claim":
+            # A claim whose head names `Task N.M` is that task's Tier-1 review.
+            t = TASK_ID.search(VERDICT_SEP.split(line, maxsplit=1)[0])
+            task = (int(t.group(1)), int(t.group(2))) if t else None
             hit = next((r for r in pool if r.get("subagent_type") == stype
-                        and counts_for(r, args.stage, role)), None)
+                        and counts_for(r, args.stage, role, task)), None)
             if hit is not None:
                 pool.remove(hit)
                 print(f"  matched      {stype} ({hit.get('description')}): {line[:90]}")
             else:
-                bad.append(f"no `{stype}` dispatch whose description names Stage {args.stage} "
+                whom = (f"Task {task[0]}.{task[1]}" if task is not None
+                        else f"Stage {args.stage}")
+                bad.append(f"no `{stype}` dispatch whose description names {whom} "
                            f"and the {role} role, logged since "
                            f"{'the log start' if since is None else since.isoformat()}: {line}")
         elif kind == "unnamed":
