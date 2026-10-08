@@ -7,7 +7,7 @@ A fifteen-skill pipeline (v0.57.0) that turns a vague idea into executed work �
 **The band looks like the status line, and every plan has its pane.**
 
 - **Status-line look.** The band draws `⚙`, one shared name column, the green bar (20 cells from 100 columns), `done/total` aligned, a dim `(pct%)`, and each marker in its own colour. The colours come from the script (`plan-progress.py --json` gains `palette` and each group's `tail_spans`), so the two cannot drift.
-- **A Plan button per plan.** With more than one plan in flight, every row gets its own button. The executing plan's opens `/plan-view`'s pane; any other opens `planning-plan-<id>`, which shows that plan (`--json` gains each group's `id` and every group's `details`).
+- **A Plan button per plan.** When the band draws two or more plan rows, every plan row gets its own button. The executing plan's opens `/plan-view`'s pane; any other opens `planning-plan-<id>`, which shows that plan (`--json` gains each group's `id`, and a document-level `details` keyed by it). Its markers (`✘ blocked`, `⊘ GATE BLOCKED`) are the last thing a narrow row gives up.
 - **`plan_detail()` lists each stage once.** A `## Stage N Gate Report` heading no longer shows as an empty extra stage.
 - **`review-ledger-check.py` reads a Tier-1 line as its task's.** A gate report's `review: Tier-1 <type> over the Task N.M diff — …` line takes only that task's dispatch, never a stage review's.
 
@@ -45,7 +45,7 @@ A fifteen-skill pipeline (v0.57.0) that turns a vague idea into executed work �
 
 On Claude Code 2.1.288+, the plugin ships a mod (`hooks/mod/`) — the Claude Code layer over the shared scripts, which stay the only place anything is decided (DEC-027):
 
-- **A progress band above the prompt** draws `plan-progress.py --json` in the status line's look — `⚙`, one name column, the green bar, the dim percentage, each marker in its own colour — fitted to the band's width, with no status-line wiring. `/plan-view` (or the executing plan's `[ Plan ]` button) opens a pane with every stage, gate, task and dispatched agent; with more than one plan in flight, every row has its own `[ Plan ]` button, opening that plan's pane. `/planning:statusline` still wires the status-line bar for other setups.
+- **A progress band above the prompt** draws `plan-progress.py --json` in the status line's look — `⚙`, one name column, the green bar, the dim percentage, each marker in its own colour — fitted to the band's width, with no status-line wiring. `/plan-view` (or the executing plan's `[ Plan ]` button) opens a pane with every stage, gate, task and dispatched agent; when the band draws two or more plan rows, every row has its own `[ Plan ]` button, opening that plan's pane. `/planning:statusline` still wires the status-line bar for other setups.
 - **The run-to-completion Stop check runs in the mod** when `PLAN_CONTINUE=1`, reading the last assistant message from the event and classifying it with `hooks/plan_continue_classify.py` — the same module `plan-continue.sh` now imports. The command hook steps aside when the mod answered.
 - **A short note at each stage boundary** restates the run-to-completion rules once per stage, as a user-role row, never in the system prompt.
 - **The live context window.** The band's pinned row shows `context NN%`, and `context-usage.py` takes the window from the session (`.claude/plan-context.json`, checked against `CLAUDE_CODE_SESSION_ID` and 15 minutes of freshness) before its model table, so an unlisted model no longer reads `unknown`.

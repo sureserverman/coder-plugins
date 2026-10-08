@@ -110,6 +110,36 @@ function tailSpans(g: PlanGroup): Span[] {
   return out
 }
 
+// The cells a group's coloured tail spans — its markers, `✘ blocked`, `⊘ GATE
+// BLOCKED`, `↻N/M` — need whole: each with a space before it. Free text (a note,
+// a task description, the stage position) carries no colour and is not counted.
+function markCells(g: PlanGroup): number {
+  return tailSpans(g).reduce((n, s) => (s.color === undefined ? n : n + 1 + cells(s.text)), 0)
+}
+
+// The tail fitted to `room` cells, its leading space included: whole when it fits;
+// else every coloured marker kept whole and the free text around them cut, in
+// order, to what is left. A marker never loses its space before it.
+export function fitTail(tail: Span[], room: number): Span[] {
+  if (1 + width_(tail) <= room) return [{ text: ' ' }, ...tail]
+  const marks = tail.reduce((n, s) => (s.color === undefined ? n : n + 1 + cells(s.text)), 0)
+  if (1 + marks > room) return clipSpans([{ text: ' ' }, ...tail], room)
+  let budget = room - 1 - marks
+  const out: Span[] = [{ text: ' ' }]
+  for (const s of tail) {
+    if (s.color !== undefined) {
+      if (!/\s$/.test(out[out.length - 1]!.text)) out.push({ text: ' ' })
+      out.push(s)
+      continue
+    }
+    if (budget <= 0) continue
+    const text = cells(s.text) <= budget ? s.text : budget >= 2 ? clip(s.text, budget) : ''
+    budget = text === s.text ? budget - cells(text) : 0
+    if (text !== '') out.push({ ...s, text })
+  }
+  return out
+}
+
 // One column for every row drawn: names padded to `nameColumn` cells (indent and
 // `⚙ ` included), counts right-aligned to `countWidth`.
 export type Layout = { nameColumn: number; countWidth: number }
@@ -140,28 +170,33 @@ export function filledCells(done: number, total: number, barCells: number): numb
 // The shared column for `rows`, each drawn in its own `width`: the widest indent +
 // `⚙ ` + name, capped at NAME_WIDTH + `⚙ ` and at what the narrowest row leaves beside its
 // bar and counts — so every `▐` and every `(pct%)` starts at one column. A row's
-// `context` is reserved too, when the column still leaves every row its NAME_MIN:
-// the context figure outranks the names' extra width, as it does in rowSpans.
+// coloured markers, then its `context`, are reserved too, each while the column
+// still leaves every row its NAME_MIN: both outrank the names' extra width, in
+// that order, as they do in rowSpans.
 export function layoutFor(
   rows: { g: PlanGroup; width: number; stale: boolean; context?: string }[],
   barCells: number,
 ): Layout {
   const countWidth = Math.max(0, ...rows.map(r => cells(countOf(r.g))))
-  const column = (withContext: boolean): number => {
+  const column = (withMarks: boolean, withContext: boolean): number => {
     let widest = 0
     let room = NAME_WIDTH + cells(HEAD)
     for (const { g, width, stale, context } of rows) {
       widest = Math.max(widest, cells(indentOf(g)) + cells(HEAD) + cells(plain(g.name)))
       const rest = totalOf(g) > 0 ? 1 + barCells + 2 + 1 + countWidth + 1 + cells(pctOf(g)) : 0
+      const marks = withMarks && markCells(g) > 0 ? 1 + markCells(g) : 0
       const ctx = withContext ? cells(context ?? '') : 0
-      room = Math.min(room, width - rest - (stale ? cells(' (stale)') : 0) - ctx)
+      room = Math.min(room, width - rest - (stale ? cells(' (stale)') : 0) - marks - ctx)
     }
     return Math.min(widest, room)
   }
   const keepsMin = (col: number): boolean =>
     rows.every(({ g }) => col - cells(indentOf(g)) - cells(HEAD) >= Math.min(cells(plain(g.name)), NAME_MIN))
-  const withContext = column(true)
-  return { nameColumn: keepsMin(withContext) ? withContext : column(false), countWidth }
+  for (const [marks, ctx] of [[true, true], [true, false]] as const) {
+    const col = column(marks, ctx)
+    if (keepsMin(col)) return { nameColumn: col, countWidth }
+  }
+  return { nameColumn: column(false, false), countWidth }
 }
 
 // One row as the status line draws it — `└─ ` for a sub-plan, `⚙ ` and the name
@@ -169,8 +204,9 @@ export function layoutFor(
 // `done/total`, a dim `(pct%)`, the tail's spans, the pinned row's context — fitted
 // to `width` by priority: the indent, the counts and the stale marker are kept
 // whole; the context figure is shown whole or not at all, and only while the name
-// keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
-// free text from the script, gives way first. Only a row too narrow for even
+// keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail's
+// free text gives way first, while its coloured markers are kept whole ahead of
+// the context and the names' extra width (fitTail). Only a row too narrow for even
 // that is clipped as a whole. The `(pct%)` gives way before that cut, so the
 // counts and the stale mark outlast it. With a `layout` whose column leaves this
 // row its NAME_MIN, the name is padded or clipped to that column instead.
@@ -210,18 +246,23 @@ export function rowSpans(
     if (floor + cells(pct) <= width) counts.push({ text: ' ' }, { text: pctOf(g), dim: true })
   }
   const fixed0 = width_(indent) + cells(head) + width_(counts) + width_(mark)
-  // The shared column, when it leaves this row its NAME_MIN; else the row fits alone.
+  const nameMin = Math.min(cells(name), NAME_MIN)
+  // The coloured markers' cells, kept whole while the name keeps NAME_MIN beside them.
+  const tail = tailSpans(g)
+  const marks = markCells(g) > 0 ? 1 + markCells(g) : 0
+  const reserve = fixed0 + nameMin + marks <= width ? marks : 0
+  // The shared column, when it leaves this row its NAME_MIN and its markers; else the
+  // row fits alone.
   const column = layout === undefined ? -1 : layout.nameColumn - width_(indent) - cells(head)
-  const aligned = column >= Math.min(cells(name), NAME_MIN) && fixed0 + column <= width
-  const minName = aligned ? column : Math.min(cells(name), NAME_MIN)
-  const ctx = fixed0 + minName + cells(context) <= width ? context : ''
+  const aligned = column >= nameMin && fixed0 + column + reserve <= width
+  const minName = aligned ? column : nameMin
+  const ctx = fixed0 + minName + reserve + cells(context) <= width ? context : ''
   const fixed = fixed0 + cells(ctx)
-  const nameRoom = aligned ? column : Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
+  const nameRoom = aligned ? column : Math.max(nameMin, width - fixed - reserve)
   const clipped = clip(name, nameRoom)
   const shownName = aligned ? clipped + ' '.repeat(Math.max(0, column - cells(clipped))) : clipped
-  const tailRoom = width - fixed - cells(shownName) - 1
-  const tail = tailSpans(g)
-  const shownTail = tail.length > 0 && tailRoom >= 2 ? [{ text: ' ' }, ...clipSpans(tail, tailRoom)] : []
+  const tailRoom = width - fixed - cells(shownName)
+  const shownTail = tail.length > 0 && tailRoom >= 3 ? fitTail(tail, tailRoom) : []
   const row: Span[] = [
     ...indent,
     pinned ? { text: `${head}${shownName}`, color: cyan } : { text: `${head}${shownName}`, dim: true },

@@ -2839,6 +2839,9 @@ def case_json_spans():
     # A colour value outside 0..255 is no colour, never a malformed hex.
     _, odd = mod.tail_parts("\x1b[38;2;300;0;0mx\x1b[0m")
     check(odd == [{"text": "x", "color": None, "dim": False}], f"spans: 38;2;300;0;0 is no colour ({odd})")
+    _, short = mod.tail_parts("\x1b[38;5;1;2mx\x1b[0m")
+    check(short == [{"text": "x", "color": None, "dim": False}],
+          f"spans: a 38;5 code's later parameters are never read as dim ({short})")
     try:
         _, huge = mod.tail_parts("\x1b[38;2;" + "9" * 5000 + ";0;0mx\x1b[0m")
     except ValueError as e:

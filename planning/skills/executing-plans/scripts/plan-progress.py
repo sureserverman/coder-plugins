@@ -920,9 +920,14 @@ def tail_parts(raw):
                 dim = False
             elif p == "39":
                 color = None
-            elif p == "38" and i + 4 < len(params) and params[i + 1] == "2":
-                color = rgb_hex(params[i + 2:i + 5])
-                i += 4
+            elif p == "38":
+                # Only `38;2;r;g;b` is a colour here; any other 38 form ends the
+                # code, so its parameters are never read as dim or reset.
+                if i + 4 < len(params) and params[i + 1] == "2":
+                    color = rgb_hex(params[i + 2:i + 5])
+                    i += 4
+                else:
+                    break
             i += 1
     take(raw[pos:])
     # The same .strip() as `tail`, applied at the ends of the span list.

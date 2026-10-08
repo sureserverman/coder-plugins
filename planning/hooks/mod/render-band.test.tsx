@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { PlanGroup } from '../../types'
+import { rowSpans } from './band'
 import { group, PALETTE, ran, seed, world } from './testing'
 
 const SURFACES = ['terminal', 'desktop'] as const
@@ -860,5 +861,55 @@ test('two rows claiming pinned share no button key', async ($, on) => {
     const keys = (await ui.findAll({ type: 'Button' })).map(b => b.key)
     expect(new Set(keys).size).toBe(keys.length)
     await ui.unmount()
+  }
+})
+
+// openclaw-improve's real shape: a blocked pinned plan with a long note, two
+// masters, one of them gate-blocked with a gate-blocked sub-plan.
+const REAL: PlanGroup[] = [
+  group({ name: '2026-10-02-interpretation-checker-recovery', role: 'pinned', depth: 0, done: 5, total: 10, id: 'dbcc30ac',
+          tail: '· S2/3 ✘ blocked Ollama Cloud weekly usage limit reached (HTTP 429)',
+          tail_spans: [{ text: '·', color: null, dim: true }, { text: ' S2/3 ', color: null, dim: false },
+                       { text: '✘ blocked', color: '#db3630', dim: false }, { text: ' ', color: null, dim: false },
+                       { text: 'Ollama Cloud weekly usage limit reached (HTTP 429)', color: null, dim: true }] }),
+  group({ name: '2026-09-22-health-report-interpretation-master', role: 'master', depth: 0, done: 1, total: 2, id: 'f4cc12ed', tail: '', tail_spans: [] }),
+  group({ name: 'sub-02-evaluation-rollout', role: 'child', depth: 1, done: 2, total: 6, id: '4e2a244a', tail: '', tail_spans: [] }),
+  group({ name: '2026-09-18-health-report-v3-master', role: 'master', depth: 0, done: 4, total: 4, id: '5fdd38c2',
+          tail: '⊘ GATE BLOCKED', tail_spans: [{ text: '⊘ GATE BLOCKED', color: '#db3630', dim: false }] }),
+  group({ name: 'sub-02-sleep-debt-nudge', role: 'child', depth: 1, done: 6, total: 6, id: 'cdedf90c',
+          tail: '⊘ GATE BLOCKED', tail_spans: [{ text: '⊘ GATE BLOCKED', color: '#db3630', dim: false }] }),
+]
+
+test('a coloured marker outlasts the free text, the context and the name column: whole and aligned from 70 columns', async ($, on) => {
+  const w = world(on, answeringPalette(REAL))
+  engineUsage(on, 25)
+  await seed($ as never, w.clock)
+  await turnEnds($)
+  for (const surface of SURFACES) {
+    for (const cols of [70, 76, 88, 100, 120, 160]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows[0]!.text).toContain('✘ blocked')
+      expect(rows[3]!.text).toContain('⊘ GATE BLOCKED')
+      expect(rows[4]!.text).toContain('⊘ GATE BLOCKED')
+      const red = pieces(rows[0] as Found).find(x => x.text.includes('✘ blocked'))
+      expect(red?.color).toBe('#db3630')
+      const bars = rows.map(r => columnOf(r.text, /▐/))
+      expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
+      for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols - 12)
+      if (cols >= 160) expect(rows[0]!.text).toContain('context 25%')
+      await ui.unmount()
+    }
+  }
+})
+
+test('a row fitted alone keeps its marker whole before the name\'s extra width', () => {
+  const g = group({ name: 'a-plan-name-long-enough-to-take-the-whole-row-by-itself', role: 'other',
+                    tail: 'note ⊘ GATE BLOCKED', tail_spans: [{ text: 'note ', color: null, dim: true },
+                                                          { text: '⊘ GATE BLOCKED', color: '#db3630', dim: false }] })
+  for (const width of [50, 60, 70]) {
+    const text = rowSpans(g, width, false, '', PALETTE, 10).map(s => s.text).join('')
+    expect(text).toContain('⊘ GATE BLOCKED')
+    expect([...text].length).toBeLessThanOrEqual(width)
   }
 })

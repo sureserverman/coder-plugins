@@ -76,8 +76,9 @@ What `--json` adds for the band, beside each group's counts, markers and `tail`:
 | `palette` | the document | `{green, red, yellow, cyan, purple}` as `#rrggbb`, read from the colour constants the text uses |
 | `details` | the document | every group's stage/task breakdown keyed by its `id` (null where it could not be built); `detail` stays the pinned plan's |
 
-So the band draws each marker in the status line's own colour without a copy of the
-palette, and a pane can show any plan in flight, not only the executing one.
+So the band draws each marker in the status line's own colour from `tail_spans` alone, and
+takes its bar fill and pinned name from `palette` (the other three colours are there for a
+front end that needs them), and a pane can show any plan in flight, not only the executing one.
 
 **The renderer is not the file's only automated reader.** `../../../hooks/plan-continue.sh`
 — the optional `Stop`-hook backstop, off unless the user sets `PLAN_CONTINUE=1` — reads
