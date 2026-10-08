@@ -2733,6 +2733,25 @@ def jdoc(r):
     return doc if isinstance(doc, dict) else {}
 
 
+def case_detail_folds_repeated_stages():
+    """A `## Stage N …` heading repeating a stage number already seen (a gate
+    report, a re-run) is that stage's, not a new one: plan_detail() lists each
+    stage once, as parse_plan() counts them."""
+    print("detail — one entry per stage number:")
+    mod = load_module()
+    text = ("# Plan: x\n\n## Stage 1: First\n\n### Task 1.1: a\n- **Status:** [x]\n\n"
+            "### Stage 1 Gate\n- [x] ok\n\n## Stage 1 Gate Report — 2026-09-09\nprose\n\n"
+            "## Stage 2: Second\n\n### Task 2.1: b\n- **Status:** [ ]\n\n### Stage 2 Gate\n- [ ] ok\n- [ ] two\n\n"
+            "## Stage 2 Gate — round 3 (authorized)\nprose\n")
+    d = mod.plan_detail(text, Path("/x/y-plan.md"))
+    got = [(st["number"], st["name"], [t["id"] for t in st["tasks"]], st["gate_checked"], st["gate_total"])
+           for st in d["stages"]]
+    want = [(1, "First", ["1.1"], 1, 1), (2, "Second", ["2.1"], 0, 2)]
+    check(got == want, f"detail: gate-report headings fold into their stage ({got})")
+    check(len(d["stages"]) == mod.parse_plan(text, Path("/x/y-plan.md"))[2],
+          f"detail: as many stages as parse_plan counts ({len(d['stages'])})")
+
+
 def case_json_spans():
     """`tail_spans` carries every marker in the status line's own colour and
     dim, reset after each one, and planted escapes in the state file reach no
@@ -3156,6 +3175,7 @@ def main():
     case_palette_contrast()
     case_json_mode()
     case_json_spans()
+    case_detail_folds_repeated_stages()
     print(f"  --json parity asserted over {len(JSON_PARITY_RUNS)} rendered fixture states")
     check(len(JSON_PARITY_RUNS) >= 50,
           f"json: parity ran across the suite's fixture states, not a token few "

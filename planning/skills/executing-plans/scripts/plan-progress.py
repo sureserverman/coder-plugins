@@ -1650,12 +1650,17 @@ def plan_detail(text, path):
         sh = pu.STAGEHDR_RE.match(line)
         if sh:
             num = int(sh.group(1))
+            task, gate = None, None
+            # A heading repeating a stage number (`## Stage 1 Gate Report`, a
+            # re-run's) is that stage's, as parse_plan() counts stages as a set.
+            if num in by_num:
+                cur = by_num[num]
+                continue
             nm = STAGE_NAME_RE.match(line)
             cur = {"number": num, "name": plain(nm.group(1) if nm else "") or None,
                    "gate_checked": 0, "gate_total": 0, "tasks": []}
             stages.append(cur)
-            by_num.setdefault(num, cur)
-            task, gate = None, None
+            by_num[num] = cur
             continue
         if line.startswith("#"):
             gate = None
