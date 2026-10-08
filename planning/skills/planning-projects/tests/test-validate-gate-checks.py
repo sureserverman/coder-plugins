@@ -874,6 +874,42 @@ check(len(vgc.filtered_subsets(plan(
 check(len(vgc.filtered_subsets(plan(
       "`for f in $(ls tests/*.py | grep -E 'unit|fast'); do python3 $f || exit 1; done` — all pass"))) == 1,
       "a positive grep narrowing what a loop iterates is a filter, and `a|b` stays one pattern")
+# Gate round 1 (Tier-2 review): the two exemptions above had no enumerator before them, so
+# they passed with the exemption deleted. These carry one.
+check(not vgc.filtered_subsets(plan("`x=$(git ls-files | grep -q keystore) || true; test -z \"$x\"` — every file")),
+      "grep -q after an enumerator, in a non-final stage, is an assertion, not a filter")
+check(not vgc.filtered_subsets(plan("`git ls-files | grep keystore | wc -l` prints 0 — no key is tracked")),
+      "a positive grep followed only by a counting stage is still the check's predicate")
+check(len(vgc.filtered_subsets(plan("`git ls-files | grep -v '^old/' | wc -l` prints 0 — every file"))) == 1,
+      "a grep -v before a counting stage still excludes members")
+check(len(vgc.filtered_subsets(plan(
+      "`comm -23 <(git ls-files | grep -E '/tests/' | sort) <(ls t)` is empty — every test is ported"))) == 1,
+      "a positive grep inside a process substitution narrows the set the outer command reads")
+check(len(vgc.filtered_subsets(plan("`git ls-files | grep -v '\\.$' | xargs wc -l` — every file"))) == 1,
+      "an escaped literal (`\\.$`) is a real filter, not an anchors-only pattern")
+check(vgc._pipe_stages('x "$(a | b)" | c "d|e"') == ['x "$(a ', ' b)" ', ' c "d|e"'],
+      "the closing quote of a \"$(...)\" span is not read as an opening one")
+check(len(vgc.filtered_subsets(plan(
+      "`test -z \"$(git ls-tree -r --name-only HEAD | sed \"s|a/||\" | grep -v '^tests/' | while read f; do echo $f; done)\"` — every file"))) == 1,
+      "a quoted sed pattern nested inside \"$(...)\" does not hide the filter after it")
+_mm = """# Master Plan: x
+
+## Sub-plans
+
+### Sub-plan 1: A
+- **Status:** [ ]
+- **Goal:** every row is ruled.
+
+**Gate:**
+- [ ] `python3 docs/verify.py` exits 0
+
+## Master gate
+
+**Gate:**
+- [ ] **(goal)** `python3 docs/verify.py --all` exits 0 — every row in every lane
+"""
+check(vgc.goal_check_missing(_mm, "x-master-plan.md") == ["Sub-plan 1"],
+      "a (goal) check after the register does not mask the last entry's missing one")
 rc, out = run(_filtered)
 check(rc == 0 and "filtered-subset 2 (advisory" in out,
       "the note is advisory: exit 0, counted on its own summary line")
