@@ -137,8 +137,9 @@ for the judgment checks, briefed ONLY with the plan goal, the stage goal and the
 criteria — never the implementation transcript or your own summary. The session that wrote the
 code grades its own work too generously. A sub-plan's gate evaluator is also briefed with its
 master register Goal. The plan goal is there so a stage gate can see what only close-out saw
-before: in engineering-skills 2026-10-07 sub-01, an end-goal gap survived 4 gate rounds and was
-first found by the close-out evaluator, the first reader given the plan goal. Whether an
+before: in engineering-skills 2026-10-07 sub-01, an end-goal gap survived a 4-round gate and
+was reported found by the close-out evaluator, the first reader given the plan goal
+(coder-plugins `2026-10-08-end-goal-checks` research; DEC-033). Whether an
 evaluator runs is unchanged (`../references/review-scope.md`).
 
 **Once the tier mandates it, the list of excuses is closed at two** — an **evidenced** user

@@ -114,14 +114,19 @@ has not left the plan's goal short.
 `../scripts/validate-gate-checks.py` reports a plan or master entry with no `(goal)` check as
 GOAL-CHECK-MISSING, and a filtered sweep as FILTERED-SUBSET. Both are advisory notes (DEC-032).
 A **new** plan is presented with zero GOAL-CHECK-MISSING, as it is with zero INSTANCE-SHAPED.
+It checks presence, not placement: a plan whose one `(goal)` check sits in its final gate
+reports zero. Placement from the first gate is the author's call, and the Tier-2 reviewer's
+to question.
 
 **Measured incident (engineering-skills `2026-10-07-upstream-delta-sub-01`, 2026-10-08).** The
-sub-plan's goal was "the three lane sub-plans can execute from the spec alone". Its Stage 2
-gate swept `awk -F'|' '$3 ~ /-new/'`, the `-new` rows only, while six `-fork` rows needed
-rulings too. No check swept the goal over the whole lane table. The Stage 3 gate spent 4
-remediation rounds against a budget of 2, and the close-out evaluator, the first reader given
-the plan goal, found two `-fork` rows with no ruling. Raising the budget buys repair attempts,
-not earlier detection; a `(goal)` check at the Stage 2 gate would have failed there.
+sub-plan's register Goal ends "the three lane sub-plans can then execute from the spec
+alone". Its Stage 2 gate swept `awk -F'|' '$3 ~ /-new/'`, the `-new` rows only, while six
+`-fork` rows needed rulings too. No check swept the goal over the whole lane table. The
+Stage 3 gate spent 4 remediation rounds against a budget of 2 (its handoff note records
+both). The close-out evaluator, the first reader given the plan goal, then found two `-fork`
+rows with no ruling — reported in coder-plugins `2026-10-08-end-goal-checks` research, and
+not yet in the engineering-skills record. Raising the budget buys repair attempts, not
+earlier detection; a `(goal)` check at the Stage 2 gate would have failed there.
 
 ## When a stage gate fails
 

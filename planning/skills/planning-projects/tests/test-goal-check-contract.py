@@ -18,8 +18,8 @@ of the rule states that part, using the shared negation screening (DEC-008). Wha
   5. SKILL.md's validator checklist line names GOAL-CHECK-MISSING.
 
 The incident: engineering-skills 2026-10-07 sub-01 passed every gate while two `-fork` rows
-had no ruling; its sweep was `awk -F'|' '$3 ~ /-new/'`, and the close-out evaluator — the
-first reader of the plan goal — found the gap after 4 remediation rounds.
+had no ruling; its sweep was `awk -F'|' '$3 ~ /-new/'`. After a 4-round gate, the gap was
+reported found by the close-out evaluator, the first reader of the plan goal (DEC-033).
 """
 import importlib.util
 import os
@@ -107,9 +107,22 @@ def main():
           and "$3 ~ /-new/" in sec,
           "the incident (plan, rounds, filter) is not cited")
 
+    check("gate-authoring: says the validator checks presence, not placement",
+          # a stated limit carries its own "not", so it is pinned by presence, like the
+          # subset prohibition above
+          re.search(ws(r"It checks presence, not placement: a plan whose one `\(goal\)` check "
+                       r"sits in its final gate reports zero"), sec) is not None,
+          "the validator's limit is unstated, so its zero reads as proof of placement")
+    check("gate-authoring: the close-out finding is attributed to its source",
+          re.search(ws(r"reported in coder-plugins `2026-10-08-end-goal-checks` research"), sec)
+          is not None,
+          "the unrecorded close-out finding is stated as recorded fact")
+
     tpl = read(REF, "plan-document-template.md")
-    check("plan-document-template: a gate block carries a (goal) line",
-          any("**(goal)**" in b for b in gate_blocks(tpl)), "no (goal) line in a gate block")
+    tblocks = gate_blocks(tpl)
+    check("plan-document-template: every gate block carries a (goal) line",
+          len(tblocks) >= 2 and all("**(goal)**" in b for b in tblocks),
+          f"{sum('**(goal)**' not in b for b in tblocks)} of {len(tblocks)} gate block(s) lack one")
 
     mpf = read(REF, "master-plan-format.md")
     blocks = gate_blocks(mpf)
@@ -131,6 +144,12 @@ def main():
     std = section(ac, r"^## Checklist — Standard plans")
     mas = section(ac, r"^## Additionally, for a decomposed project")
     lig = section(ac, r"^## Checklist — Light plans")
+    for name, part in (("Standard", std), ("master", mas)):
+        check(f"authoring-checklist: the {name} item says placement is not validator-checked",
+              re.search(r"^- \[ \] .*(?:GOAL-CHECK-MISSING.*placement|placement.*GOAL-CHECK-MISSING)",
+                        part, re.M) is not None
+              and re.search(ws(r"checks presence, not placement"), part) is not None,
+              f"the {name} item offers the validator as proof of placement")
     for name, part in (("Standard", std), ("master", mas), ("Light", lig)):
         check(f"authoring-checklist: the {name} list asks for zero GOAL-CHECK-MISSING",
               re.search(r"^- \[ \] .*zero GOAL-CHECK-MISSING", part, re.M) is not None,

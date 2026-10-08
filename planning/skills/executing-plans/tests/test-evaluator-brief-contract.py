@@ -18,8 +18,8 @@ gate evaluator is briefed with names the PLAN goal, using the shared negation sc
   5. No executing-plans file still says the stage goal is the whole brief.
 
 The incident: until close-out, no reader was given the plan goal, so an end-goal gap in
-engineering-skills 2026-10-07 sub-01 survived 4 gate rounds and was first found by the
-close-out evaluator.
+engineering-skills 2026-10-07 sub-01 survived a 4-round gate and was reported found by the
+close-out evaluator (DEC-033).
 """
 import importlib.util
 import os
@@ -90,6 +90,10 @@ def main():
           affirms_claim(ie, ws(r"a sub-plan's gate evaluator is also briefed with its master "
                                r"register Goal")),
           "the register-Goal half is absent or negated")
+    check("stage-gate: says why the plan goal is in the brief",
+          affirms_claim(ie, ws(r"The plan goal is there so a stage gate can see what only "
+                               r"close-out saw")),
+          "the reason is absent or negated")
     row = re.search(r"^\| \*\*Blocking\*\* \|.*$", ie, re.M)
     row = row.group(0) if row else ""
     check("stage-gate: the Blocking row covers a stage already short of the plan goal",

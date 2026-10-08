@@ -814,10 +814,18 @@ for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
 check(f"{sum(frozen.values())} gate checks" in doc,
       f"docstring states the corpus total ({sum(frozen.values())})")
 
+print("group 10b — the script compiles with no warning")
+# A `\|` in the docstring (Stage 1, round 1) raised SyntaxWarning on every run of a validator
+# the authoring checklist tells every author to run. Found by the Stage 2 Tier-2 review.
+_cw = subprocess.run([sys.executable, "-W", "error", "-c",
+                      "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')", SCRIPT],
+                     capture_output=True, text=True)
+check(_cw.returncode == 0, f"compiles under -W error ({_cw.stderr.strip()[-80:]})")
+
 print("group 11 — GOAL-CHECK-MISSING: a plan or master entry with no (goal) check")
 # Measured incident (engineering-skills 2026-10-07 sub-01): every gate passed while the plan's
-# goal was never swept over the whole artifact, and the close-out evaluator found the gap after
-# four remediation rounds. A note, never an exit code (DEC-032), so a legacy plan is unaffected.
+# goal was never swept over the whole artifact; a 4-round gate passed, and the gap was reported
+# found at close-out (2026-10-08-end-goal-checks research). A note, never an exit code (DEC-032), so a legacy plan is unaffected.
 GOAL = pathlib.Path(HERE) / "fixtures" / "goal-check"
 _missing = (GOAL / "missing-plan.md").read_text()
 _present = (GOAL / "present-plan.md").read_text()

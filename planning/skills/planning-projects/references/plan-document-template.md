@@ -104,6 +104,7 @@ deferred work by the portfolio parser and become a false backlog candidate.]
 [Tasks with Depends on / Blocks / Dispatch fields...]
 
 ### Stage 2 Gate
+- [ ] **(goal)** [the same goal sweep as Stage 1 — every gate from the first one whose artifact exists repeats it]
 [Checks...] — if Stage 2 is the plan's final stage, its gate replaces the
 regression check above with the plan-scope bullet instead:
 - [ ] [Full clean test pass (plan-scope — the plan's single full run)]

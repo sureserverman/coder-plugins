@@ -222,7 +222,8 @@ awk -F'|' '$3 ~ /-new/ {gsub(/[ `]/,"",$2); print $2}' docs/<spec>.md | sort -u 
 ```
 
 It proved every `-new` row had a ruling. Six `-fork` rows needed rulings too, and the filter
-kept every one of them out of the sweep. The gate passed, and the gap reached close-out.
+kept every one of them out of the sweep. The gate passed, and the gap was found only at
+close-out (as reported in coder-plugins `2026-10-08-end-goal-checks` research).
 
 The filter is not the defect. The unstated exclusion is: nothing in the check says why the
 rows it drops need no check. So for a sweep restricted by a category — an awk field match

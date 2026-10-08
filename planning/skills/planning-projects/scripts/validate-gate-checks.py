@@ -120,9 +120,12 @@ plan's TASK fields:
                         the check that sweeps the plan's goal over the WHOLE artifact the goal
                         is about; it is orthogonal to shape, so a `(goal)` check is still
                         classified (an instance-shaped one is still INSTANCE-SHAPED). Measured
-                        incident: engineering-skills 2026-10-07 sub-01 passed every gate while
-                        two `-fork` rows had no ruling, and only the close-out evaluator — the
-                        first reader of the plan goal — found it, after 4 remediation rounds.
+                        incident: engineering-skills 2026-10-07 sub-01 passed every gate after
+                        a 4-round Stage 3 gate while two `-fork` rows had no ruling, a gap
+                        reported found by the close-out evaluator, the first reader of the plan
+                        goal (coder-plugins 2026-10-08-end-goal-checks research). It checks
+                        presence, not placement: one `(goal)` check in the final gate reports
+                        zero, so placement from the first gate is the author's to check.
                         ADVISORY (DEC-032), because the marker postdates the corpus:
                         goal-check-missing: measured 2026-10-08 over 800 plans: 735 hits (512
                         plans and 223 master register entries; 2 plans already carried the
@@ -150,7 +153,7 @@ plan's TASK fields:
                         and most say so in prose. So a hit is a question, rarely a defect.
                         Limits: a `"$(…)"` span is read through to its matching `)`, and a
                         `"…"` with `$(` later inside it is treated as quoted; a backslash-escaped
-                        `\|` is read as a pipe, which splits a filter wrongly; and three lists are
+                        `\\|` is read as a pipe, which splits a filter wrongly; and three lists are
                         fixed: enumerators (ls, find, fd, rg --files, git ls-files / ls-tree /
                         diff --name-only), row-preserving stages (sed sort uniq cut tr awk
                         grep — `head`, `tee`, `egrep` and a leading `cd …&&` are missed), and
