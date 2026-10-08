@@ -115,9 +115,24 @@ plan's TASK fields:
                         ran 40 times in four sessions. test-scope-tiers.md says narrow it
                         to the trees the stages touch or depend on when it crosses ~5 min.
 
+    GOAL-CHECK-MISSING  a Standard or Light plan with no gate check marked `(goal)`, or a
+                        master register entry whose `**Gate:**` block has none. `(goal)` marks
+                        the check that sweeps the plan's goal over the WHOLE artifact the goal
+                        is about; it is orthogonal to shape, so a `(goal)` check is still
+                        classified (an instance-shaped one is still INSTANCE-SHAPED). Measured
+                        incident: engineering-skills 2026-10-07 sub-01 passed every gate while
+                        two `-fork` rows had no ruling, and only the close-out evaluator — the
+                        first reader of the plan goal — found it, after 4 remediation rounds.
+                        ADVISORY (DEC-032), because the marker postdates the corpus:
+                        goal-check-missing: measured 2026-10-08 over 800 plans: 735 hits (512
+                        plans and 223 master register entries; 2 plans already carried the
+                        marker). Every hit predates the rule, so the rate says nothing about
+                        precision yet. planning-projects' authoring checklist requires zero on
+                        a NEW plan, as it does for INSTANCE-SHAPED.
+
 Exit 0 when no INSTANCE-SHAPED, no SELECTOR-UNMATCHED and no TASK-TEST-UNSCOPED finding
-is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP and STAGE-SCOPE-WIDE never
-change the exit code. Always prints a per-class count and the total
+is present, 1 otherwise, 2 on bad usage. PROSE-BLIND-SWEEP, STAGE-SCOPE-WIDE and
+GOAL-CHECK-MISSING never change the exit code. Always prints a per-class count and the total
 examined: an empty sweep must not read as a pass (honest-gates).
 
 Known limits, stated rather than implied (honest-gates). CALIBRATION is asserted by
@@ -870,6 +885,34 @@ def wide_stage_scopes(text, min_trees=STAGE_SCOPE_WIDE_MIN):
     return out
 
 
+# --- GOAL-CHECK-MISSING --------------------------------------------------------------
+# A FIFTH axis, orthogonal to shape: not "is this check well formed" but "does any check
+# test what the plan is FOR". `(goal)` marks the check that sweeps the plan's goal over the
+# whole artifact it is about; it is classified like any other check, so an instance-shaped
+# goal check is still INSTANCE-SHAPED. See the module docstring for the incident and rate.
+GOAL_MARKER = re.compile(r"\(goal\)", re.I)
+SUB_PLAN_HEADING = re.compile(r"^###\s+Sub-plan\s+(\S+?):?\s", re.MULTILINE)
+
+
+def goal_check_missing(text, path=None):
+    """-> ["plan"] for a plan with no `(goal)` check in any gate, or the `Sub-plan N` label of
+    every master register entry whose `**Gate:**` block has none. A plan with no gate checks
+    at all is left to the existing 0-checks note rather than reported twice."""
+    if is_master_plan(text, path):
+        heads = list(SUB_PLAN_HEADING.finditer(text))
+        out = []
+        for i, m in enumerate(heads):
+            seg = text[m.start(): heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+            checks = gate_checks(seg)
+            if checks and not any(GOAL_MARKER.search(c) for c in checks):
+                out.append(f"Sub-plan {m.group(1).rstrip(':')}")
+        return out
+    checks = gate_checks(text)
+    if checks and not any(GOAL_MARKER.search(c) for c in checks):
+        return ["plan"]
+    return []
+
+
 TASK_HEADING = re.compile(r"^#{2,6}\s+(?:\*\*)?Task\b", re.MULTILINE)
 ANY_HEADING = re.compile(r"^#{1,6}\s", re.MULTILINE)
 
@@ -1148,6 +1191,7 @@ def main(argv=None):
     runner_selector_notes = []
     prose_blind_failures = []
     wide_stage_notes = []
+    goal_notes = []
     examined_files = 0
     empty_files = []
     scope_notes = []
@@ -1171,6 +1215,8 @@ def main(argv=None):
             wide_stage_notes.append((path, cmd, n, missing))
         for c, cmd, word in prose_blind_sweeps(raw):
             prose_blind_failures.append((path, c, cmd, word))
+        for where in goal_check_missing(raw, path):
+            goal_notes.append((path, where))
         examined_files += 1
         if not checks:
             empty_files.append(path.name)
@@ -1259,6 +1305,16 @@ def main(argv=None):
         print(f"\nnote: {path.name}: stage(s) {', '.join(stages)} declare a Scope: "
               f"but their gate has no executable sweep — the set was named, not swept")
 
+    # Advisory, never a failure (DEC-032): old plans predate the marker. A new plan must
+    # report zero (planning-projects' authoring checklist), as it must for INSTANCE-SHAPED.
+    for path, where in goal_notes:
+        whose = ("no gate check" if where == "plan"
+                 else f"{where}'s **Gate:** block has no check")
+        print(f"\nnote: {path.name}: {whose} is marked (goal) — add one that sweeps the "
+              f"goal over the whole artifact it is about, in every gate from the first one "
+              f"whose artifact exists (gate-authoring.md § The plan's goal is a check from "
+              f"the first gate)")
+
     print(f"\n{total} gate check(s) across {examined_files} file(s): "
           + ", ".join(f"{k.lower()} {v}" for k, v in totals.items()))
     if selector_failures:
@@ -1272,6 +1328,8 @@ def main(argv=None):
     if runner_selector_notes:
         print(f"selector-unmatched (gradle/cargo) {len(runner_selector_notes)} "
               f"(advisory — see notes above)")
+    if goal_notes:
+        print(f"goal-check-missing {len(goal_notes)} (advisory — see notes above)")
     return 1 if (failures or selector_failures or task_test_failures) else 0
 
 

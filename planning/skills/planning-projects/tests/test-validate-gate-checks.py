@@ -814,6 +814,33 @@ for label in ("EXECUTABLE", "JUDGMENT", "INSTANCE-SHAPED", "PROSE"):
 check(f"{sum(frozen.values())} gate checks" in doc,
       f"docstring states the corpus total ({sum(frozen.values())})")
 
+print("group 11 — GOAL-CHECK-MISSING: a plan or master entry with no (goal) check")
+# Measured incident (engineering-skills 2026-10-07 sub-01): every gate passed while the plan's
+# goal was never swept over the whole artifact, and the close-out evaluator found the gap after
+# four remediation rounds. A note, never an exit code (DEC-032), so a legacy plan is unaffected.
+GOAL = pathlib.Path(HERE) / "fixtures" / "goal-check"
+_missing = (GOAL / "missing-plan.md").read_text()
+_present = (GOAL / "present-plan.md").read_text()
+_master = (GOAL / "master-missing-plan.md").read_text()
+check(vgc.goal_check_missing(_missing) == ["plan"],
+      "a Standard plan with no (goal) check in any gate is reported once")
+check(vgc.goal_check_missing(_present) == [],
+      "a Standard plan carrying a (goal) check is not reported")
+check(vgc.goal_check_missing(_master, GOAL / "master-missing-plan.md") == ["Sub-plan 2"],
+      "a master entry whose **Gate:** block has no (goal) check is reported, by entry")
+check(kind("**(goal)** `grep -q 'Triggers' skills/one/SKILL.md`") == "INSTANCE-SHAPED",
+      "(goal) is orthogonal to shape: an instance-shaped goal check is still flagged")
+check(kind("**(goal)** `! grep -L 'Triggers' skills/*/SKILL.md | grep -q .`") == "EXECUTABLE",
+      "a (goal) sweep classifies EXECUTABLE like any other sweep")
+rc, out = run(_missing)
+check(rc == 0 and "goal-check-missing 1 (advisory" in out,
+      "the note is advisory: exit 0, counted on its own summary line")
+rc, out = run(_present)
+check(rc == 0 and "goal-check-missing" not in out, "a plan with a (goal) check prints no note")
+check(re.search(r"goal-check-missing: measured 2026-10-08 over \d+ plans: \d+ hits",
+                " ".join(vgc.__doc__.split())) is not None,
+      "the docstring states the measured trigger rate (DEC-032)")
+
 print()
 if FAILURES:
     print(f"FAILED — {len(FAILURES)} check(s):")
