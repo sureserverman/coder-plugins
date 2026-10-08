@@ -158,6 +158,51 @@ def marker_disagreements(i, line, g):
     return out
 
 
+# The five role colours as the band reads them: `palette` in --json, each the hex
+# of the script's own SGR constant.
+PALETTE = {"green": "#008c2f", "red": "#db3630", "yellow": "#947006",
+           "cyan": "#168191", "purple": "#a23efa"}
+ID_RE = re.compile(r"^[0-9a-f]{8}$")
+HEX_RE = re.compile(r"^#[0-9a-f]{6}$")
+SPAN_FORBIDDEN = re.compile("[\x00-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def contract_problems(doc, groups):
+    """The band's fields, on every group of every rendered fixture state: an
+    8-hex `id` unique in the document, `details` keyed by exactly those ids,
+    `tail_spans` whose texts join to `tail`, and the `palette`."""
+    out = []
+    ids = [g.get("id") if isinstance(g, dict) else None for g in groups]
+    for i, gid in enumerate(ids):
+        if not (isinstance(gid, str) and ID_RE.match(gid)):
+            out.append(f"group {i} id {gid!r} is not 8 hex")
+    if len(set(ids)) != len(ids):
+        out.append(f"ids not unique {ids}")
+    details = doc.get("details")
+    if not isinstance(details, dict) or set(details) != set(ids):
+        out.append(f"details keys {sorted(details) if isinstance(details, dict) else details!r} != ids {ids}")
+    for i, g in enumerate(groups):
+        if not isinstance(g, dict):
+            continue
+        spans = g.get("tail_spans")
+        if not isinstance(spans, list) or not all(isinstance(sp, dict) for sp in spans):
+            out.append(f"group {i} tail_spans {spans!r} is not a list of objects")
+            continue
+        joined = "".join(str(sp.get("text")) for sp in spans)
+        if joined != g.get("tail"):
+            out.append(f"group {i} joined spans {joined!r} != tail {g.get('tail')!r}")
+        for sp in spans:
+            if not isinstance(sp.get("text"), str) or sp["text"] == "" or SPAN_FORBIDDEN.search(sp["text"]):
+                out.append(f"group {i} span text {sp.get('text')!r}")
+            if not (sp.get("color") is None or (isinstance(sp.get("color"), str) and HEX_RE.match(sp["color"]))):
+                out.append(f"group {i} span color {sp.get('color')!r}")
+            if not isinstance(sp.get("dim"), bool):
+                out.append(f"group {i} span dim {sp.get('dim')!r}")
+    if doc.get("palette") != PALETTE:
+        out.append(f"palette {doc.get('palette')!r} != {PALETTE}")
+    return out
+
+
 JSON_PARITY_RUNS = []
 
 
@@ -218,6 +263,8 @@ def json_parity(lines, json_text, where, rc=0):
                         problems.append(f"line {i} tail {tail!r} != the text after its bar {m.group(1).strip()!r}")
                 elif "…" not in ln and not shown_line.endswith(tail):
                     problems.append(f"line {i} tail {tail!r} is not the end of {shown_line!r}")
+    if isinstance(groups, list):
+        problems.extend(contract_problems(doc, groups))
     check(not problems,
           f"--json parity [{where}]: {len(lines)} line(s) — parses, one group per "
           f"line, name/done/total agree" + (f" — {'; '.join(problems)}" if problems else ""))
@@ -2672,6 +2719,49 @@ def jdoc(r):
     return doc if isinstance(doc, dict) else {}
 
 
+def case_json_spans():
+    """`tail_spans` carries each marker in the status line's own colour, and
+    planted escapes in the state file reach no span."""
+    print("--json tail_spans — the markers' colours, text plain:")
+    tmp = Path(tempfile.mkdtemp(prefix="pp-spans-"))
+    repo = tmp / "repo"
+    (repo / "plans").mkdir(parents=True)
+    home = tmp / "home"
+    home.mkdir()
+    env = dict(os.environ, HOME=str(home))
+
+    def pinned(**state):
+        write_state(repo, **state)
+        doc = jdoc(run_json(repo, env=env))
+        return (doc.get("groups") or [{}])[0], doc
+
+    def span_with(g, needle):
+        return next((sp for sp in g.get("tail_spans") or [] if needle in str(sp.get("text"))), {})
+
+    pplan = repo / "plans" / "partial-plan.md"
+    pplan.write_text(PARTIAL_PLAN)
+    g, _ = pinned(plan=str(pplan), phase="blocked", stage=1, task="1.2", note="budget gone")
+    sp = span_with(g, "✘ blocked")
+    check(sp.get("color") == PALETTE["red"], f"spans: `✘ blocked` carries RED ({sp})")
+    note = span_with(g, "budget gone")
+    check(note.get("dim") is True, f"spans: the blocked note is dim ({note})")
+
+    bplan = repo / "plans" / "blocked-plan.md"
+    bplan.write_text(BLOCKED_GATE_PLAN)
+    g, _ = pinned(plan=str(bplan), phase="gate", stage=1)
+    sp = span_with(g, "⊘ GATE BLOCKED")
+    check(sp.get("color") == PALETTE["red"], f"spans: `⊘ GATE BLOCKED` carries RED ({sp})")
+
+    hostile = "a\x1b[31mb\u009b2Jc\u202ed"
+    g, doc = pinned(plan=str(pplan), phase="blocked", stage=1, task="1.2", note=hostile)
+    texts = "".join(str(sp.get("text")) for sp in g.get("tail_spans") or [])
+    check("abcd" in texts.replace("[31m", "").replace("2J", "")
+          and not any(c in texts for c in ("\x1b", "\u009b", "\u202e")),
+          f"spans: ESC, U+009B and U+202E in a note reach no span ({texts!r})")
+    check(doc.get("palette") == PALETTE, f"spans: palette is the five constants ({doc.get('palette')})")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 def case_json_mode():
     """`--json` — one object, built from the same model as the text bars."""
     print("--json mode — the structured twin of the text bars:")
@@ -2698,8 +2788,9 @@ def case_json_mode():
         doc = json.loads(r.stdout)
     except ValueError:
         doc = None
-    check(r.returncode == 0 and doc == {"groups": [], "detail": None},
-          f"json: nothing in flight -> {{\"groups\": [], \"detail\": null}}, rc 0 "
+    check(r.returncode == 0 and doc == {"groups": [], "detail": None, "details": {},
+                                        "palette": PALETTE},
+          f"json: nothing in flight -> no groups, detail null, details {{}}, the palette, rc 0 "
           f"(rc={r.returncode}, out={r.stdout.strip()!r}, err={r.stderr.strip()[:80]!r})")
 
     plan = repo / "plans" / "demo-plan.md"
@@ -3000,6 +3091,7 @@ def main():
     case_stage_order()
     case_palette_contrast()
     case_json_mode()
+    case_json_spans()
     print(f"  --json parity asserted over {len(JSON_PARITY_RUNS)} rendered fixture states")
     check(len(JSON_PARITY_RUNS) >= 50,
           f"json: parity ran across the suite's fixture states, not a token few "
