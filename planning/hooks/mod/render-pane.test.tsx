@@ -254,3 +254,126 @@ test('bidi, zero-width, lone surrogate and control characters never reach the pa
     await ui.unmount()
   }
 })
+
+// ---- a pane per plan (planning-plan-<id>) ----
+
+const MASTER_ID = 'aaaa0001'
+const PINNED_ID = 'aaaa0002'
+const OTHER_ID = 'aaaa0003'
+const OTHER_DETAIL: PlanDetail = {
+  plan: '/vault/plans/2026-10-01-other-plan.md',
+  name: 'other-plan',
+  stages: [
+    {
+      number: 1,
+      name: 'Other groundwork',
+      gate_checked: 1,
+      gate_total: 2,
+      tasks: [
+        { id: '9.1', title: 'other first', status: 'done' },
+        { id: '9.2', title: 'other second', status: 'open' },
+      ],
+    },
+  ],
+}
+const MASTER_DETAIL: PlanDetail = { plan: '/vault/plans/2026-10-02-fixture-master-plan.md', name: 'fixture-master', stages: [] }
+const THREE_GROUPS: PlanGroup[] = [
+  group({ name: 'fixture-master', role: 'master', depth: 0, done: 1, total: 3, tail: '⊘ GATE BLOCKED',
+          tail_spans: [{ text: '⊘ GATE BLOCKED', color: '#db3630', dim: false }], id: MASTER_ID }),
+  { ...GROUPS[1]!, id: PINNED_ID },
+  group({ name: 'other-plan', role: 'other', depth: 0, done: 1, total: 2, tail: '', tail_spans: [], id: OTHER_ID }),
+]
+const PALETTE = { green: '#008c2f', red: '#db3630', yellow: '#947006', cyan: '#168191', purple: '#a23efa' }
+const withThree = () =>
+  ran(JSON.stringify({
+    groups: THREE_GROUPS,
+    detail: DETAIL,
+    details: { [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, [OTHER_ID]: OTHER_DETAIL },
+    palette: PALETTE,
+  }))
+const paneFor = (id: string, bodyColumns = 100) => ({ ...pane(bodyColumns), requestId: `planning-plan-${id}` })
+const PINNED_TASKS = ['1.1', '1.2', '2.1', '2.2', '2.3']
+
+test("a plan's own pane draws its stages and tasks, none of the pinned plan's, no agents and no ▶", async ($, on) => {
+  const w = world(on, withThree)
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor(OTHER_ID), surface })
+    const text = await shown(ui)
+    expect(text).toContain('other-plan')
+    expect(text).toContain('1/2')
+    expect(text).toContain('Stage 1 — Other groundwork')
+    expect(text).toContain('9.1')
+    expect(text).toContain('9.2')
+    for (const id of PINNED_TASKS) expect(text.includes(` ${id} `)).toBe(false)
+    expect(text).not.toContain('Agents')
+    expect(text).not.toContain('▶')
+    await ui.unmount()
+  }
+})
+
+test("the master's pane draws its header in the band's colours and lists its in-flight sub-plans", async ($, on) => {
+  const w = world(on, withThree)
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor(MASTER_ID), surface })
+    const text = await shown(ui)
+    expect(text).toContain('fixture-master')
+    expect(text).toContain('fixture-plan')
+    expect(text).not.toContain('other-plan')
+    const coloured = (await ui.findAll({ type: 'Text' })).map(t => t.props.color)
+    expect(coloured).toContain('#db3630')
+    expect(coloured).toContain('#008c2f')
+    expect(text).not.toContain('Agents')
+    expect(text).not.toContain('▶')
+    await ui.unmount()
+  }
+})
+
+test('a pane for a plan no longer in the model says so', async ($, on) => {
+  const w = world(on, withThree)
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor('ffffffff'), surface })
+    expect(await shown(ui)).toContain('This plan is no longer in flight.')
+    await ui.unmount()
+  }
+})
+
+test('every non-pinned pane line fits the pane, and none carries a control character', async ($, on) => {
+  const w = world(on, withThree)
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const id of [MASTER_ID, OTHER_ID]) {
+      for (const cols of [30, 100]) {
+        const ui = await $.ui.mount({ ...paneFor(id, cols), surface })
+        const rows = (await ui.findAll({ type: 'Text' })).filter(t => t.props.wrap === 'truncate')
+        for (const r of rows) expect([...r.text].length).toBeLessThanOrEqual(cols)
+        for (const r of rows) expect(/[\p{Cc}\p{Cf}\p{Cs}]/u.test(r.text)).toBe(false)
+        await ui.unmount()
+      }
+    }
+  }
+})
+
+test("pressing a row's own Plan button, then drawing that pane, shows that plan", async ($, on) => {
+  const opened = opens(on)
+  const w = world(on, withThree)
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const b = await $.ui.mount({ ...band, props: { ...band.props, bodyColumns: 120 }, surface })
+    await b.press({ key: `open-plan:${OTHER_ID}` })
+    expect(opened.at(-1)).toBe(`planning-plan-${OTHER_ID}`)
+    await b.unmount()
+    const ui = await $.ui.mount({ ...paneFor(OTHER_ID), surface })
+    expect(await shown(ui)).toContain('9.2')
+    await ui.unmount()
+  }
+})
+
+test('plan-view still opens planning-plan, the pinned plan with its agents', async ($, on) => {
+  const opened = opens(on)
+  world(on, withThree)
+  await $.command.run({ command: 'plan-view', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 } } as never)
+  expect(opened.at(-1)).toBe(PLAN_PANE)
+})
