@@ -9,7 +9,7 @@ import { atom, read } from 'claude-code'
 import type { On } from 'claude-code'
 
 import type { ContextFigures, PlanGroup, PlanModelState, PlanPalette } from '../../types'
-import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
+import { PLAN_ID, PLAN_PANE, PLAN_PANE_TITLE, planPaneId } from './pane-id'
 
 // Declared in each file that reads it: the engine's scan lists a module's state
 // reads from atoms written in the reading file itself.
@@ -21,7 +21,8 @@ const BAR_CELLS = 20
 const BAR_CELLS_NARROW = 10
 const WIDE_COLUMNS = 100
 // "[ Plan ]", the space before it, and the collapse control the engine draws at
-// the band's right edge: kept off the first row's text budget.
+// the band's right edge: kept off the text budget of every row with a button, so
+// the buttons line up in one column.
 const BUTTON_CELLS = 12
 // Below this the button is not drawn at all; the row keeps the whole width.
 const BUTTON_MIN_COLUMNS = 24
@@ -244,7 +245,14 @@ export function registerBand(on: On): void {
     const withButton = cols >= BUTTON_MIN_COLUMNS
     const barCells = cols >= WIDE_COLUMNS ? BAR_CELLS : BAR_CELLS_NARROW
     const palette = state?.model?.palette
-    const widthOf = (i: number): number => (i === 0 && withButton ? cols - BUTTON_CELLS : cols)
+    // With two or more plan rows, each with the script's id, every plan row has its
+    // own button; otherwise row 0 keeps the one button it always had.
+    const planRows = rows.filter((row): row is PlanGroup => typeof row !== 'number')
+    const perRow =
+      planRows.length >= 2 && planRows.every(g => typeof g.id === 'string' && PLAN_ID.test(g.id))
+    const hasButton = (i: number): boolean =>
+      withButton && typeof rows[i] !== 'number' && (perRow || i === 0)
+    const widthOf = (i: number): number => (hasButton(i) ? cols - BUTTON_CELLS : cols)
     const staleAt = (i: number): boolean => i === 0 && state?.stale === true
     const layout = layoutFor(
       rows.flatMap((row, i) =>
@@ -283,15 +291,27 @@ export function registerBand(on: On): void {
               ))}
             </Text>
           )
-          if (i !== 0 || !withButton) return line
+          if (!hasButton(i)) return line
+          // The pinned plan's button (and the lone button) opens the plan pane; any
+          // other plan's opens that plan's own pane, titled with its name. No keyboard shortcut:
+          // a bare digit typed into an empty composer would press it.
+          const own = perRow && row.role !== 'pinned'
+          const name = clip(plain(row.name), NAME_WIDTH)
           return (
-            <Box key="first" flexDirection="row">
+            <Box key={`row-${i}`} flexDirection="row">
               {line}
               <Text> </Text>
               <Button
-                key="open-plan"
+                key={own ? `open-plan:${row.id}` : 'open-plan'}
                 label="Plan"
-                onPress={() => void $.ui.open({ id: PLAN_PANE, title: PLAN_PANE_TITLE })}
+                dimColor={own ? true : undefined}
+                onPress={() =>
+                  void $.ui.open(
+                    own
+                      ? { id: planPaneId(row.id as string), title: name === '' ? PLAN_PANE_TITLE : name }
+                      : { id: PLAN_PANE, title: PLAN_PANE_TITLE },
+                  )
+                }
               />
             </Box>
           )

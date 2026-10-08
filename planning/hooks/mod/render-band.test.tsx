@@ -499,3 +499,87 @@ for (const [label, groups] of [['3 groups', COLOURED], ['5 groups', FIVE]] as co
     }
   }
 })
+
+const IDS = ['aaaa0001', 'bbbb0002', 'cccc0003']
+const WITH_IDS: PlanGroup[] = COLOURED.map((g, i) => ({ ...g, id: IDS[i] }))
+
+function opensPanes(on: Parameters<typeof world>[0]): { id: string; title?: string }[] {
+  const opened: { id: string; title?: string }[] = []
+  on('ui.open', (_$, e) => {
+    opened.push({ id: e.id, title: (e as { title?: string }).title })
+    return { value: { isPlaced: true } } as never
+  })
+  return opened
+}
+
+test('with 3 plans, every plan row has its own Plan button opening its own pane', async ($, on) => {
+  const opened = opensPanes(on)
+  const w = world(on, answeringPalette(WITH_IDS))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const buttons = await ui.findAll({ type: 'Button' })
+    expect(buttons.length).toBe(3)
+    expect(new Set(buttons.map(b => b.key)).size).toBe(3)
+    // Exactly these props and no other: no keyboard shortcut is bound to a band Button.
+    for (const b of buttons) expect(Object.keys(b.props).filter(k => k !== 'key').sort()).toEqual(
+      b.key === 'open-plan' ? ['label'] : ['dimColor', 'label'],
+    )
+    // the pinned row (sub-plan-01) keeps the plain pane; the others open their own
+    await ui.press({ key: 'open-plan' })
+    expect(opened.at(-1)?.id).toBe('planning-plan')
+    for (const i of [0, 2]) {
+      await ui.press({ key: `open-plan:${IDS[i]}` })
+      expect(opened.at(-1)?.id).toBe(`planning-plan-${IDS[i]}`)
+      expect(opened.at(-1)?.title).toBe(WITH_IDS[i]!.name)
+    }
+    const pinnedButton = buttons.find(b => b.key === 'open-plan')
+    expect(pinnedButton?.props.dimColor).not.toBe(true)
+    for (const b of buttons.filter(b => b.key !== 'open-plan')) expect(b.props.dimColor).toBe(true)
+    await ui.unmount()
+  }
+})
+
+test('a 1-plan model draws exactly one Plan button', async ($, on) => {
+  const w = world(on, answeringPalette([{ ...WITH_IDS[1]!, depth: 0 }]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const buttons = await ui.findAll({ type: 'Button' })
+    expect(buttons.map(b => b.key)).toEqual(['open-plan'])
+    await ui.unmount()
+  }
+})
+
+test('12 plans at maxRows 4 draw 3 buttons and none on the "more" row', async ($, on) => {
+  const twelve = Array.from({ length: 12 }, (_, i) =>
+    group({ name: `plan-${i}`, role: i === 0 ? 'pinned' : 'other', id: `0000000${i.toString(16)}`.slice(-8) }),
+  )
+  const w = world(on, answeringPalette(twelve))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80, 4), surface })
+    const buttons = await ui.findAll({ type: 'Button' })
+    expect(buttons.length).toBe(3)
+    const rows = await rowsOf(ui)
+    expect(rows[3]!.text).toContain('9 more')
+    await ui.unmount()
+  }
+})
+
+test('at 20 columns no row has a button; every row and its button fit bodyColumns', async ($, on) => {
+  const w = world(on, answeringPalette(WITH_IDS))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const narrow = await $.ui.mount({ ...band(20), surface })
+    expect((await narrow.findAll({ type: 'Button' })).length).toBe(0)
+    await narrow.unmount()
+    for (const cols of [40, 80, 200]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      for (const row of await rowsOf(ui)) {
+        expect([...row.text].length + ' [ Plan ]'.length).toBeLessThanOrEqual(cols)
+      }
+      await ui.unmount()
+    }
+  }
+})
