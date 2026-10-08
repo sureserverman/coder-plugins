@@ -27,6 +27,9 @@ const BUTTON_CELLS = 12
 const BUTTON_MIN_COLUMNS = 24
 // A name is never clipped below this while the row has room for it.
 const NAME_MIN = 8
+// The status line's name column cap (plan-progress.py NAME_WIDTH), indent and ⚙ included.
+const NAME_WIDTH = 46
+const HEAD = '⚙ '
 // C0, DEL and C1 (U+0080-U+009F, among them U+009B, a one-byte CSI).
 // Controls (Cc: C0, DEL and C1, among them U+009B, a one-byte CSI), invisible
 // format characters (Cf: bidi overrides, zero-width marks) and lone surrogates
@@ -101,6 +104,42 @@ function tailSpans(g: PlanGroup): Span[] {
   return out
 }
 
+// One column for every row drawn: names padded to `nameColumn` cells (indent and
+// `⚙ ` included), counts right-aligned to `countWidth`.
+export type Layout = { nameColumn: number; countWidth: number }
+
+const indentOf = (g: PlanGroup): string => ((g.depth ?? 0) > 0 ? '└─ ' : '')
+const countOf = (g: PlanGroup): string => (g.total > 0 ? `${g.done}/${g.total}` : '')
+const pctOf = (g: PlanGroup): string =>
+  g.total > 0 ? `(${Math.floor((Math.min(Math.max(g.done, 0), g.total) * 100) / g.total)}%)` : ''
+
+// The shared column for `rows`, each drawn in its own `width`: the widest indent +
+// `⚙ ` + name, capped at NAME_WIDTH and at what the narrowest row leaves beside its
+// bar and counts — so every `▐` and every `(pct%)` starts at one column. A row's
+// `context` is reserved too, when the column still leaves every row its NAME_MIN:
+// the context figure outranks the names' extra width, as it does in rowSpans.
+export function layoutFor(
+  rows: { g: PlanGroup; width: number; stale: boolean; context?: string }[],
+  barCells: number,
+): Layout {
+  const countWidth = Math.max(0, ...rows.map(r => cells(countOf(r.g))))
+  const column = (withContext: boolean): number => {
+    let widest = 0
+    let room = NAME_WIDTH
+    for (const { g, width, stale, context } of rows) {
+      widest = Math.max(widest, cells(indentOf(g)) + cells(HEAD) + cells(plain(g.name)))
+      const rest = g.total > 0 ? 1 + barCells + 2 + 1 + countWidth + 1 + cells(pctOf(g)) : 0
+      const ctx = withContext ? cells(context ?? '') : 0
+      room = Math.min(room, width - rest - (stale ? cells(' (stale)') : 0) - ctx)
+    }
+    return Math.min(widest, room)
+  }
+  const keepsMin = (col: number): boolean =>
+    rows.every(({ g }) => col - cells(indentOf(g)) - cells(HEAD) >= Math.min(cells(plain(g.name)), NAME_MIN))
+  const withContext = column(true)
+  return { nameColumn: keepsMin(withContext) ? withContext : column(false), countWidth }
+}
+
 // One row as the status line draws it — `└─ ` for a sub-plan, `⚙ ` and the name
 // (cyan when pinned, dim otherwise), `▐` + the green fill + the `░` track `▌`,
 // `done/total`, a dim `(pct%)`, the tail's spans, the pinned row's context — fitted
@@ -108,7 +147,8 @@ function tailSpans(g: PlanGroup): Span[] {
 // whole; the context figure is shown whole or not at all, and only while the name
 // keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
 // free text from the script, gives way first. Only a row too narrow for even
-// that is clipped as a whole.
+// that is clipped as a whole. With a `layout` whose column leaves this row its
+// NAME_MIN, the name is padded or clipped to that column instead.
 export function rowSpans(
   g: PlanGroup,
   width: number,
@@ -116,32 +156,39 @@ export function rowSpans(
   context = '',
   palette: PlanPalette | undefined = undefined,
   barCells = BAR_CELLS_NARROW,
+  layout: Layout | undefined = undefined,
 ): Span[] {
   const green = typeof palette?.green === 'string' && HEX.test(palette.green) ? palette.green : FALLBACK.green
   const cyan = typeof palette?.cyan === 'string' && HEX.test(palette.cyan) ? palette.cyan : FALLBACK.cyan
-  const indent: Span[] = (g.depth ?? 0) > 0 ? [{ text: '└─ ', dim: true }] : []
+  const indent: Span[] = indentOf(g) === '' ? [] : [{ text: indentOf(g), dim: true }]
   const counts: Span[] = []
   if (g.total > 0) {
     const filled = Math.round((Math.min(Math.max(g.done, 0), g.total) / g.total) * barCells)
-    const pct = Math.floor((Math.min(Math.max(g.done, 0), g.total) * 100) / g.total)
+    const count = countOf(g)
+    const pad = layout === undefined ? 0 : Math.max(0, layout.countWidth - cells(count))
     counts.push(
       { text: ' ' },
       { text: '▐', dim: true },
       { text: '█'.repeat(filled), color: green },
       { text: `${'░'.repeat(barCells - filled)}▌`, dim: true },
-      { text: ` ${g.done}/${g.total} ` },
-      { text: `(${pct}%)`, dim: true },
+      { text: ` ${' '.repeat(pad)}${count} ` },
+      { text: pctOf(g), dim: true },
     )
   }
   const mark: Span[] = stale ? [{ text: ' (stale)', dim: true }] : []
   const name = plain(g.name)
   const pinned = g.role === 'pinned'
-  const head = '⚙ '
+  const head = HEAD
   const fixed0 = width_(indent) + cells(head) + width_(counts) + width_(mark)
-  const ctx = fixed0 + Math.min(cells(name), NAME_MIN) + cells(context) <= width ? context : ''
+  // The shared column, when it leaves this row its NAME_MIN; else the row fits alone.
+  const column = layout === undefined ? -1 : layout.nameColumn - width_(indent) - cells(head)
+  const aligned = column >= Math.min(cells(name), NAME_MIN) && fixed0 + column <= width
+  const minName = aligned ? column : Math.min(cells(name), NAME_MIN)
+  const ctx = fixed0 + minName + cells(context) <= width ? context : ''
   const fixed = fixed0 + cells(ctx)
-  const nameRoom = Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
-  const shownName = clip(name, nameRoom)
+  const nameRoom = aligned ? column : Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
+  const clipped = clip(name, nameRoom)
+  const shownName = aligned ? clipped + ' '.repeat(Math.max(0, column - cells(clipped))) : clipped
   const tailRoom = width - fixed - cells(shownName) - 1
   const tail = tailSpans(g)
   const shownTail = tail.length > 0 && tailRoom >= 2 ? [{ text: ' ' }, ...clipSpans(tail, tailRoom)] : []
@@ -197,6 +244,16 @@ export function registerBand(on: On): void {
     const withButton = cols >= BUTTON_MIN_COLUMNS
     const barCells = cols >= WIDE_COLUMNS ? BAR_CELLS : BAR_CELLS_NARROW
     const palette = state?.model?.palette
+    const widthOf = (i: number): number => (i === 0 && withButton ? cols - BUTTON_CELLS : cols)
+    const staleAt = (i: number): boolean => i === 0 && state?.stale === true
+    const layout = layoutFor(
+      rows.flatMap((row, i) =>
+        typeof row === 'number'
+          ? []
+          : [{ g: row, width: widthOf(i), stale: staleAt(i), context: row.role === 'pinned' ? context : '' }],
+      ),
+      barCells,
+    )
 
     return (
       <Box flexDirection="column">
@@ -208,14 +265,14 @@ export function registerBand(on: On): void {
               </Text>
             )
           }
-          const width = i === 0 && withButton ? cols - BUTTON_CELLS : cols
           const spans = rowSpans(
             row,
-            width,
-            i === 0 && state?.stale === true,
+            widthOf(i),
+            staleAt(i),
             row.role === 'pinned' ? context : '',
             palette,
             barCells,
+            layout,
           )
           const line = (
             <Text wrap="truncate">

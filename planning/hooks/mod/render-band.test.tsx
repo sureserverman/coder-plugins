@@ -310,6 +310,9 @@ test('the pinned row shows the context in use, and only the pinned row', async (
       expect(rows[0]!.text).not.toContain('context')
       expect(rows[2]!.text).not.toContain('context')
       for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols)
+      // The context is reserved in the shared column, so the bars still line up.
+      const bars = rows.map(r => columnOf(r.text, /▐/))
+      expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
       await ui.unmount()
     }
   }
@@ -460,5 +463,39 @@ test('an older script (no palette, no tail_spans) still draws every row, colours
     expect(rows[1]!.text).toContain('▶ T1.3')
     expect(pieces(rows[1] as Found).find(x => x.text.includes('█'))?.color).toBe('success')
     await ui.unmount()
+  }
+})
+
+const FIVE: PlanGroup[] = [
+  group({ name: 'a-master-with-a-name', role: 'master', depth: 0, done: 9, total: 10, tail: '', tail_spans: [] }),
+  group({ name: 'sub-01', role: 'child', depth: 1, done: 1, total: 2, tail: '', tail_spans: [] }),
+  group({ name: 'sub-02-the-executing-one', role: 'pinned', depth: 1, done: 12, total: 40 }),
+  group({ name: 'x', role: 'other', depth: 0, done: 9, total: 10, tail: '⊘ GATE BLOCKED' }),
+  group({ name: 'an-other-plan-whose-name-runs-on-and-on-past-the-cap', role: 'other', depth: 0, done: 1, total: 2 }),
+]
+
+// The column of the bar's `▐` and of the `(` opening the percentage, on every row.
+const columnOf = (text: string, re: RegExp): number => {
+  const m = re.exec(text)
+  return m === null ? -1 : [...text.slice(0, m.index)].length
+}
+
+for (const [label, groups] of [['3 groups', COLOURED], ['5 groups', FIVE]] as const) test(`every plan row starts its bar and its percentage at one column: ${label}`, async ($, on) => {
+  {
+    const w = world(on, answeringPalette(groups))
+    await seed($ as never, w.clock)
+    for (const surface of SURFACES) {
+      for (const cols of [60, 120, 200]) {
+        const ui = await $.ui.mount({ ...band(cols), surface })
+        const rows = await rowsOf(ui)
+        expect(rows.length).toBe(groups.length)
+        const bars = rows.map(r => columnOf(r.text, /▐/))
+        const pcts = rows.map(r => columnOf(r.text, /\(\d+%\)/))
+        expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
+        expect(pcts.every(c => c > 0 && c === pcts[0])).toBe(true)
+        for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols)
+        await ui.unmount()
+      }
+    }
   }
 })
