@@ -1,0 +1,11 @@
+{
+ "covered_by_claim": 1,
+ "created": "2026-10-08T13:13:43+00:00",
+ "fingerprint": "930dbfe454f0582ebd9e0d9e8d2f25105da3ad4c4276e2e86eb2d75dcd888a0c",
+ "index": 1,
+ "kind": "req",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-07-band-look-and-plan-buttons-plan.md",
+ "schema": 2,
+ "task": "1.2",
+ "text": "Each group gains `id`: `hashlib.sha1(str(resolved path).encode()).hexdigest()[:8]`"
+}

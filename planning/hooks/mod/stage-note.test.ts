@@ -5,9 +5,10 @@ import { NOTE_MAX, noteMessage, stageNote } from './stage-note'
 import { group, ran, seed, world } from './testing'
 
 // The test kit (2.1.293+) stores a plugin's own $.session.append as a session
-// does, and mock.session reads the rows back. A refused or failed append is one
-// transcript line the mod logs instead, so an attempt is a stored note row or one
-// such line. The note's text is checked through stageNote, the builder the hook sends.
+// does, and mock.session reads the rows back, so this suite needs 2.1.293 or later.
+// A refused or failed append is one transcript line the mod logs instead, so an
+// attempt is a stored note row or one such line. `delivered` holds the success
+// path to stored rows only: every attempt stored, no failure logged.
 const FAILED = 'planning: stage note not delivered'
 
 const DETAIL: PlanDetail = {
@@ -31,11 +32,15 @@ function harness(on: Parameters<typeof world>[0], first: PlanGroup, refuse = fal
     logs.push(String((e as { text?: unknown }).text))
     return { value: undefined } as never
   })
-  const session = refuse ? null : mock.session(on)
   if (refuse) on('session.append', { door: 'note' }, () => ({ deny: 'refused by the test' }) as never)
-  const stored = () => (session === null ? 0 : session.appended().filter(r => r.door === 'note').length)
-  const attempts = () => stored() + logs.filter(l => l.startsWith(FAILED)).length
-  return { w, box, logs, stored, attempts }
+  const session = mock.session(on)
+  const rows = () => session.appended().filter(r => r.door === 'note')
+  const stored = () => rows().length
+  const failures = () => logs.filter(l => l.startsWith(FAILED))
+  const attempts = () => stored() + failures().length
+  const delivered = () => failures().length === 0 && stored() === attempts()
+  const texts = () => rows().map(r => (r.message.content as { text?: string }[])[0]?.text)
+  return { w, box, logs, stored, attempts, delivered, texts }
 }
 
 test('a stage 1 -> 2 change appends exactly one note', async ($, on) => {
@@ -45,6 +50,11 @@ test('a stage 1 -> 2 change appends exactly one note', async ($, on) => {
   h.box.current = at({ stage: 2, task: '2.1', phase: 'task' })
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(2)
+  expect(h.delivered()).toBe(true)
+  expect(h.texts()).toEqual([
+    stageNote(at({ stage: 1, task: '1.3', phase: 'task' }), DETAIL),
+    stageNote(at({ stage: 2, task: '2.1', phase: 'task' }), DETAIL),
+  ])
   expect(h.w.seen.keys.notedStages).toEqual([
     JSON.stringify(['/vault/plans/x-plan.md', 1]),
     JSON.stringify(['/vault/plans/x-plan.md', 2]),
@@ -57,6 +67,7 @@ test('a second refresh at the same stage appends none', async ($, on) => {
   await seed($ as never, h.w.clock)
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(1)
+  expect(h.delivered()).toBe(true)
 })
 
 test('a task change within a stage appends none', async ($, on) => {
@@ -65,6 +76,7 @@ test('a task change within a stage appends none', async ($, on) => {
   h.box.current = at({ stage: 2, task: '2.2', phase: 'gate' })
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(1)
+  expect(h.delivered()).toBe(true)
 })
 
 test('phase closeout, blocked or handoff appends none, even at a new stage', async ($, on) => {
@@ -107,6 +119,7 @@ test('the same stage number in another plan is a new note', async ($, on) => {
   h.box.current = group({ plan: '/vault/plans/y-plan.md', name: 'y', stage: 2, phase: 'task' })
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(2)
+  expect(h.delivered()).toBe(true)
 })
 
 test('a 100 KB or non-string plan path is bounded in the stored key', async ($, on) => {
@@ -126,6 +139,7 @@ test('a failed append is not retried, and the model is still stored', async ($, 
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(1)
   expect(h.stored()).toBe(0)
+  expect(h.logs.some(l => l.startsWith(FAILED) && l.includes('refused by the test'))).toBe(true)
   expect(h.w.seen.last?.model?.groups[0]?.stage).toBe(2)
   expect(h.w.seen.last?.stale).toBe(false)
 })

@@ -860,13 +860,21 @@ def plain(s):
 SGR_RE = re.compile(r"\x1b\[([0-9;]*)m")
 
 
+def rgb_hex(values):
+    """`#rrggbb` for three SGR parameters, or None unless each is 0..255 in ASCII digits."""
+    if len(values) != 3 or not all(v.isascii() and v.isdigit() and int(v) <= 255 for v in values):
+        return None
+    return "#" + "".join(f"{int(v):02x}" for v in values)
+
+
 def sgr_hex(code):
     """`#rrggbb` for one of this file's `38;2;r;g;b` colour constants."""
     m = SGR_RE.fullmatch(code)
     parts = m.group(1).split(";") if m else []
-    if len(parts) != 5 or parts[:2] != ["38", "2"]:
+    hexed = rgb_hex(parts[2:]) if parts[:2] == ["38", "2"] else None
+    if hexed is None:
         raise ValueError(f"not a 24-bit colour: {code!r}")
-    return "#" + "".join(f"{int(v):02x}" for v in parts[2:])
+    return hexed
 
 
 def palette():
@@ -909,10 +917,7 @@ def tail_parts(raw):
             elif p == "39":
                 color = None
             elif p == "38" and i + 4 < len(params) and params[i + 1] == "2":
-                try:
-                    color = "#" + "".join(f"{int(v):02x}" for v in params[i + 2:i + 5])
-                except ValueError:
-                    color = None
+                color = rgb_hex(params[i + 2:i + 5])
                 i += 4
             i += 1
     take(raw[pos:])
@@ -932,7 +937,7 @@ def plan_id(path):
     """A short stable id for a plan: the first 8 hex of the sha1 of its resolved path."""
     try:
         key = str(Path(path).resolve())
-    except BAD_PATH:
+    except (*BAD_PATH, RuntimeError):   # RuntimeError: a symlink loop, Python <= 3.12
         key = str(path)
     return hashlib.sha1(key.encode("utf-8", "surrogatepass")).hexdigest()[:8]
 

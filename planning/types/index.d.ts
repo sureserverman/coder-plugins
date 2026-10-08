@@ -26,7 +26,7 @@ export type PlanGroup = {
   // What the text line shows after its bar, plain: drawn verbatim by the band.
   tail?: string
   // A short stable id for the plan (8 hex of the sha1 of its resolved path): the
-  // key into PlanModel.details and the suffix of its pane id.
+  // key into PlanModel.details.
   id?: string
   // `tail` split at the line's own colour codes; the texts join to `tail`.
   tail_spans?: TailSpan[]
@@ -55,7 +55,8 @@ export type PlanStage = {
 export type PlanDetail = { plan: string; name?: string; stages: PlanStage[]; [field: string]: unknown }
 
 // `detail` is the pinned plan's breakdown; `details` every group's, keyed by its
-// `id` (null where it could not be built). Both new keys are absent from an
+// `id` (null where it could not be built; one entry per id, so two plans whose
+// 8-hex ids collide share one). Both new keys are absent from an
 // older script's output.
 export type PlanModel = {
   groups: PlanGroup[]

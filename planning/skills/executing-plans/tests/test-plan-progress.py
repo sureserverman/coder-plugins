@@ -8,6 +8,7 @@ JSON, and asserts: silence when idle/broken (never a traceback), the Status
 counts via the shared portfolio-unify regexes, the bar geometry, the per-phase
 glyphs, walk-up discovery from a subdirectory, and staleness marking.
 """
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -181,6 +182,19 @@ def contract_problems(doc, groups):
     details = doc.get("details")
     if not isinstance(details, dict) or set(details) != set(ids):
         out.append(f"details keys {sorted(details) if isinstance(details, dict) else details!r} != ids {ids}")
+        details = {}
+    for i, g in enumerate(groups):
+        if not isinstance(g, dict) or not isinstance(g.get("plan"), str):
+            continue
+        want = hashlib.sha1(str(Path(g["plan"]).resolve()).encode()).hexdigest()[:8]
+        if g.get("id") != want:
+            out.append(f"group {i} id {g.get('id')!r} != sha1(resolved plan)[:8] {want!r}")
+        d = details.get(g.get("id"))
+        # Each group's own breakdown: built from ITS plan, and the pinned one is `detail`.
+        if not isinstance(d, dict) or d.get("plan") != g["plan"]:
+            out.append(f"group {i} details entry is not its own plan's ({(d or {}).get('plan')!r} vs {g['plan']!r})")
+        elif g.get("role") == "pinned" and d != doc.get("detail"):
+            out.append(f"group {i} pinned details entry differs from `detail`")
     for i, g in enumerate(groups):
         if not isinstance(g, dict):
             continue
@@ -2720,45 +2734,81 @@ def jdoc(r):
 
 
 def case_json_spans():
-    """`tail_spans` carries each marker in the status line's own colour, and
-    planted escapes in the state file reach no span."""
-    print("--json tail_spans — the markers' colours, text plain:")
+    """`tail_spans` carries every marker in the status line's own colour and
+    dim, reset after each one, and planted escapes in the state file reach no
+    span. Each expected list is written from the marker's f-string, not read
+    back from the script."""
+    print("--json tail_spans — exact spans per marker kind:")
     tmp = Path(tempfile.mkdtemp(prefix="pp-spans-"))
     repo = tmp / "repo"
     (repo / "plans").mkdir(parents=True)
     home = tmp / "home"
     home.mkdir()
     env = dict(os.environ, HOME=str(home))
+    R, Y, G, P = PALETTE["red"], PALETTE["yellow"], PALETTE["green"], PALETTE["purple"]
 
-    def pinned(**state):
+    def spans_of(**state):
         write_state(repo, **state)
         doc = jdoc(run_json(repo, env=env))
-        return (doc.get("groups") or [{}])[0], doc
+        g = (doc.get("groups") or [{}])[0]
+        return [(sp.get("text"), sp.get("color"), sp.get("dim")) for sp in g.get("tail_spans") or []]
 
-    def span_with(g, needle):
-        return next((sp for sp in g.get("tail_spans") or [] if needle in str(sp.get("text"))), {})
-
+    plan = repo / "plans" / "demo-plan.md"
+    plan.write_text(PLAN)
     pplan = repo / "plans" / "partial-plan.md"
     pplan.write_text(PARTIAL_PLAN)
-    g, _ = pinned(plan=str(pplan), phase="blocked", stage=1, task="1.2", note="budget gone")
-    sp = span_with(g, "✘ blocked")
-    check(sp.get("color") == PALETTE["red"], f"spans: `✘ blocked` carries RED ({sp})")
-    note = span_with(g, "budget gone")
-    check(note.get("dim") is True, f"spans: the blocked note is dim ({note})")
+    head2 = [("·", None, True), (" S2/2 ", None, False)]
+    head1 = [("·", None, True), (" S1/1 ", None, False)]
+    old = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+    cases = [
+        ("blocked + dim note", dict(plan=str(pplan), phase="blocked", stage=1, task="1.2", note="budget gone"),
+         head1 + [("✘ blocked", R, False), (" ", None, False), ("budget gone", None, True)]),
+        ("gate, round 1 of 2", dict(plan=str(plan), phase="gate", stage=2, remediation_round=1),
+         head2 + [("◆ S2 gate", P, False), (" ", None, False), ("↻1/2", Y, False)]),
+        ("gate, round 2 of 2", dict(plan=str(plan), phase="gate", stage=2, remediation_round=2),
+         head2 + [("◆ S2 gate", P, False), (" ", None, False), ("↻2/2", R, False)]),
+        ("preflight", dict(plan=str(plan), phase="preflight", stage=2),
+         head2 + [("⚑ preflight", Y, False)]),
+        ("handoff + dim reason", dict(plan=str(plan), phase="handoff", stage=2, reason="ctx"),
+         head2 + [("⏸ HANDOFF", Y, False), (" ", None, False), ("ctx", None, True)]),
+        ("close-out", dict(plan=str(plan), phase="closeout", stage=2),
+         head2 + [("✔ close-out", G, False)]),
+        ("status lag", dict(plan=str(plan), phase="task", stage=2, task="2.3"),
+         head2 + [("▶ T2.3", G, False), (" ", None, False), ("⚠ status lag 2", Y, False)]),
+        ("not in plan", dict(plan=str(plan), phase="task", stage=2, task="9.9"),
+         head2 + [("▶ T9.9", G, False), (" ", None, False), ("⚠ not in plan", R, False)]),
+        ("stale, plain desc", dict(plan=str(plan), phase="task", stage=2, task="2.2",
+                                   task_desc="render output", updated=old),
+         head2 + [("▶ T2.2 ", G, False), ("render output ", None, False), ("(stale 30h)", None, True)]),
+        ("hostile note", dict(plan=str(pplan), phase="blocked", stage=1, task="1.2",
+                              note="a\x1b[31mb\u009b2Jc\u202ed"),
+         head1 + [("✘ blocked", R, False), (" ", None, False), ("a[31mb2Jcd", None, True)]),
+    ]
+    for label, state, want in cases:
+        got = spans_of(**state)
+        check(got == want, f"spans: {label} -> {want} (got {got})")
 
     bplan = repo / "plans" / "blocked-plan.md"
     bplan.write_text(BLOCKED_GATE_PLAN)
-    g, _ = pinned(plan=str(bplan), phase="gate", stage=1)
-    sp = span_with(g, "⊘ GATE BLOCKED")
-    check(sp.get("color") == PALETTE["red"], f"spans: `⊘ GATE BLOCKED` carries RED ({sp})")
-
-    hostile = "a\x1b[31mb\u009b2Jc\u202ed"
-    g, doc = pinned(plan=str(pplan), phase="blocked", stage=1, task="1.2", note=hostile)
-    texts = "".join(str(sp.get("text")) for sp in g.get("tail_spans") or [])
-    check("abcd" in texts.replace("[31m", "").replace("2J", "")
-          and not any(c in texts for c in ("\x1b", "\u009b", "\u202e")),
-          f"spans: ESC, U+009B and U+202E in a note reach no span ({texts!r})")
-    check(doc.get("palette") == PALETTE, f"spans: palette is the five constants ({doc.get('palette')})")
+    got = spans_of(plan=str(bplan), phase="gate", stage=1)
+    check(("⊘ GATE BLOCKED", R, False) in got, f"spans: `⊘ GATE BLOCKED` is RED, not dim ({got})")
+    soplan = repo / "plans" / "so-plan.md"
+    soplan.write_text(STAGE_ORDER_PLAN.format(second="[ ]", deps="Stage 3 gate passing"))
+    got = spans_of(plan=str(soplan), phase="task", stage=4, task="4.1")
+    check(("⊘ STAGE ORDER", R, False) in got, f"spans: `⊘ STAGE ORDER` is RED ({got})")
+    # The id hashes the RESOLVED path: the same plan named through `..` keeps its id.
+    write_state(repo, plan="plans/../plans/demo-plan.md", phase="task", stage=2)
+    g = (jdoc(run_json(repo, env=env)).get("groups") or [{}])[0]
+    want = hashlib.sha1(str(plan.resolve()).encode()).hexdigest()[:8]
+    check(".." in str(g.get("plan")) and g.get("id") == want,
+          f"spans: a `..` plan path hashes to the resolved path's id ({g.get('plan')!r}, {g.get('id')!r} vs {want!r})")
+    mod = load_module()
+    other = mod.other_row(bplan, text=BLOCKED_GATE_PLAN)["fields"]["tail_spans"]
+    check(other == [{"text": "⊘ GATE BLOCKED", "color": R, "dim": False}],
+          f"spans: a discovered plan's only span is its RED gate marker ({other})")
+    # A colour value outside 0..255 is no colour, never a malformed hex.
+    _, odd = mod.tail_parts("\x1b[38;2;300;0;0mx\x1b[0m")
+    check(odd == [{"text": "x", "color": None, "dim": False}], f"spans: 38;2;300;0;0 is no colour ({odd})")
     shutil.rmtree(tmp, ignore_errors=True)
 
 

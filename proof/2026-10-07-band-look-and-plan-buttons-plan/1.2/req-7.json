@@ -1,0 +1,27 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": ""
+ },
+ "break_patch": "diff --git a/planning/types/index.d.ts b/planning/types/index.d.ts\nindex 90adebe..5d3f080 100644\n--- a/planning/types/index.d.ts\n+++ b/planning/types/index.d.ts\n@@ -27,9 +27,9 @@ export type PlanGroup = {\n   tail?: string\n   // A short stable id for the plan (8 hex of the sha1 of its resolved path): the\n   // key into PlanModel.details and the suffix of its pane id.\n-  id?: string\n+  idX?: string\n   // `tail` split at the line's own colour codes; the texts join to `tail`.\n-  tail_spans?: TailSpan[]\n+  tail_spansX?: TailSpan[]\n   [field: string]: unknown\n }\n \n@@ -60,8 +60,8 @@ export type PlanDetail = { plan: string; name?: string; stages: PlanStage[]; [fi\n export type PlanModel = {\n   groups: PlanGroup[]\n   detail: PlanDetail | null\n-  details?: Record<string, PlanDetail | null>\n-  palette?: PlanPalette\n+  detailsX?: Record<string, PlanDetail | null>\n+  paletteX?: PlanPalette\n }\n \n // The last model a refresh produced. `stale` is set when the latest refresh failed\n",
+ "build": null,
+ "check": "grep -qE '^  palette\\?: PlanPalette$' planning/types/index.d.ts && grep -qE '^  details\\?: Record<string, PlanDetail \\| null>$' planning/types/index.d.ts",
+ "created": "2026-10-08T13:13:44+00:00",
+ "fingerprint": "930dbfe454f0582ebd9e0d9e8d2f25105da3ad4c4276e2e86eb2d75dcd888a0c",
+ "index": 7,
+ "kind": "req",
+ "no_build_reason": "grep only",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-07-band-look-and-plan-buttons-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": ""
+ },
+ "schema": 2,
+ "task": "1.2",
+ "text": "The document gains `details`: one `plan_detail()` per group, keyed by `id`",
+ "touched": [
+  "planning/types/index.d.ts"
+ ]
+}
