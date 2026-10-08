@@ -841,6 +841,47 @@ check(re.search(r"goal-check-missing: measured 2026-10-08 over \d+ plans: \d+ hi
                 " ".join(vgc.__doc__.split())) is not None,
       "the docstring states the measured trigger rate (DEC-032)")
 
+print("group 12 — FILTERED-SUBSET: a sweep restricted by a category filter")
+# The incident's own check: `awk -F'|' '$3 ~ /-new/'` swept the `-new` rows only, while six
+# `-fork` rows needed rulings too. The validator read it as a plural sweep and said nothing.
+_filtered = (GOAL / "filtered-plan.md").read_text()
+_scoped_f = (GOAL / "scoped-filtered-plan.md").read_text()
+_fs = vgc.filtered_subsets(_filtered)
+_noted = [c for c, _cmd, _f in _fs]
+check(any("$3 ~ /-new/" in c for c in _noted) and
+      any(f == "$3 ~ /-new/" for _c, _cmd, f in _fs),
+      "an awk field-filtered sweep is noted, naming its filter")
+check(any("grep -v '^docs/archive/'" in c for c in _noted),
+      "a grep filtering an enumerating command's output is noted")
+check(not any("grep -rL" in c for c in _noted), "an unfiltered sweep is not noted")
+check(not any("verify-rulings.py | grep -q" in c for c in _noted),
+      "grep -q over a program's output is an assertion, not a filtered set")
+check(len(_fs) == 2, f"exactly the two filtered sweeps are noted ({len(_fs)})")
+check(vgc.filtered_subsets(_scoped_f) == [],
+      "(scoped) silences it: the author states the subset is the whole set")
+# Shapes measured on the vault corpus while calibrating, each a false positive of an earlier cut.
+check(not vgc.filtered_subsets(plan("`! git ls-files | grep -iE 'keystore|\\.p12'` — no key is tracked")),
+      "a positive grep as the LAST stage is the check's predicate, not a narrowed set")
+check(not vgc.filtered_subsets(plan("`! grep -rn 'legacy' $(git ls-files) | grep -v 'git history'` — none left")),
+      "a grep over grep's RESULTS filters matches, not members of the set")
+check(not vgc.filtered_subsets(plan("`find docs -name '*.md' | xargs grep -c x | grep -v ':0$'` — every doc")),
+      "a grep after a stage that changes what the rows are (xargs) filters results")
+check(not vgc.filtered_subsets(plan("`find docs -name '*.md' | grep . | wc -l` — every doc counted")),
+      "an anchors-only pattern names no category")
+check(len(vgc.filtered_subsets(plan(
+      "`test -z \"$(git ls-files docs/ | grep -v '^docs/old/' | xargs grep -L x)\"` — every doc"))) == 1,
+      "a double-quoted $(...) does not hide the pipes inside it")
+check(len(vgc.filtered_subsets(plan(
+      "`for f in $(ls tests/*.py | grep -E 'unit|fast'); do python3 $f || exit 1; done` — all pass"))) == 1,
+      "a positive grep narrowing what a loop iterates is a filter, and `a|b` stays one pattern")
+rc, out = run(_filtered)
+check(rc == 0 and "filtered-subset 2 (advisory" in out,
+      "the note is advisory: exit 0, counted on its own summary line")
+check(re.search(r"filtered-subset: measured 2026-10-08 over \d+ plans: \d+ hits",
+                " ".join(vgc.__doc__.split())) is not None
+      and re.search(r"sampled \d+ hits?: \d+ true positives?", " ".join(vgc.__doc__.split())),
+      "the docstring states the measured rate and a sampled true-positive count (DEC-032)")
+
 print()
 if FAILURES:
     print(f"FAILED — {len(FAILURES)} check(s):")
