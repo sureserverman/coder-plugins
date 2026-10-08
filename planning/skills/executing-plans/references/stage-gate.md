@@ -41,7 +41,7 @@ a dispatch nobody can reproduce. Write the type that ran, then the role:
 
 ```
 review: Tier-2 git-github:code-reviewer over <base>..HEAD — APPROVE, 0 Critical
-evaluator: general-purpose in the goal-evaluator role, briefed on the stage goal + gate criteria — PASS, 2 Material
+evaluator: general-purpose in the goal-evaluator role, briefed on the plan goal + stage goal + gate criteria — PASS, 2 Material
 evidence: pytest tests/integration — host; Playwright e2e — container (compose); device acceptance — target device (CM4 over ssh)
 ```
 
@@ -133,9 +133,13 @@ not marked (judgment)`. What you may not do is dispatch the loop and let the exe
 **Whether it runs comes from `../references/review-scope.md` — do not re-derive it**: never at
 `none`, at `light` and `standard` when the gate carries a `(judgment)` check, always at
 `high`. Run command checks yourself. When the tier mandates an evaluator, dispatch a fresh one
-for the judgment checks, briefed ONLY with the stage goal and the gate's pass criteria — never
-the implementation transcript or your own summary. The session that wrote the code grades its
-own work too generously.
+for the judgment checks, briefed ONLY with the plan goal, the stage goal and the gate's pass
+criteria — never the implementation transcript or your own summary. The session that wrote the
+code grades its own work too generously. A sub-plan's gate evaluator is also briefed with its
+master register Goal. The plan goal is there so a stage gate can see what only close-out saw
+before: in engineering-skills 2026-10-07 sub-01, an end-goal gap survived 4 gate rounds and was
+first found by the close-out evaluator, the first reader given the plan goal. Whether an
+evaluator runs is unchanged (`../references/review-scope.md`).
 
 **Once the tier mandates it, the list of excuses is closed at two** — an **evidenced** user
 opt-out, or, **below `high` only**, a gate whose every check is a command. There is no third
@@ -168,7 +172,7 @@ each finding, exactly one of:
 
 | Severity | Meaning | Consequence |
 |----------|---------|-------------|
-| **Blocking** | the goal in scope is not met — the stage's at a gate, the plan's at close-out | must be fixed; the gate does not pass |
+| **Blocking** | the goal in scope is not met — the stage's at a gate, the plan's at close-out; at a gate also when the stage's finished output already falls short of the plan goal and no later stage is planned to change it | must be fixed; the gate does not pass |
 | **Material** | real defect, goal still met | **fixed**, with its class swept; the `backlog` is not where a defect goes |
 | **Minor** | nit, polish, taste | recorded in the gate report and carried into the stage handoff note; never blocks |
 
@@ -194,7 +198,7 @@ Material-only rounds cost 28 minutes for no changed verdict.
 handed *"the stage-scope suite passes over the committed tree"* as a criterion re-runs the
 suite itself. Measured (remote-agents, 2026-09-11): a gate evaluator ran the 11-minute
 suite and took 16.6 minutes, the close-out evaluator ran `tests/unit` and took 20. Brief it
-with the goal and the `(judgment)` lines only.
+with the plan goal, the stage goal and the `(judgment)` lines only.
 
 ## Deep code review (Tier 2)
 
