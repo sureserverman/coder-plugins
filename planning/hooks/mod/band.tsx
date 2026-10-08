@@ -325,6 +325,9 @@ export function registerBand(on: On): void {
       planRows.every(g => typeof g.id === 'string' && PLAN_ID.test(g.id)) &&
       new Set(planRows.map(g => g.id)).size === planRows.length &&
       planRows.filter(g => g.role === 'pinned').length <= 1
+    // What the executing-plan pane reads (pane.tsx): with neither, it would say no
+    // plan is executing, so the lone button opens its row's own pane instead.
+    const noneExecuting = !groups.some(g => g.role === 'pinned') && (state?.model?.detail ?? null) === null
     const hasButton = (i: number): boolean =>
       withButton && typeof rows[i] !== 'number' && (perRow || i === 0)
     const widthOf = (i: number): number => (hasButton(i) ? cols - BUTTON_CELLS : cols)
@@ -375,9 +378,12 @@ export function registerBand(on: On): void {
           )
           if (!hasButton(i)) return line
           // The pinned plan's button (and the lone button) opens the plan pane; any
-          // other plan's opens that plan's own pane, titled with its name. No keyboard shortcut:
+          // other plan's opens that plan's own pane, titled with its name, as does a
+          // lone button when nothing is executing. No keyboard shortcut:
           // a bare digit typed into an empty composer would press it.
-          const own = perRow && row.role !== 'pinned'
+          const own =
+            row.role !== 'pinned' &&
+            (perRow || (noneExecuting && typeof row.id === 'string' && PLAN_ID.test(row.id)))
           const name = clip(plain(row.name), NAME_WIDTH)
           return (
             <Box key={`row-${i}`} flexDirection="row">

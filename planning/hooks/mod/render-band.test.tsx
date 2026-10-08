@@ -552,6 +552,59 @@ test('a 1-plan model draws exactly one Plan button', async ($, on) => {
   }
 })
 
+// A plan in flight that no state file pins (its executor never wrote one): the
+// executing-plan pane would say no plan is executing, so the lone button opens
+// the row's own pane.
+test('a lone plan nothing pins: its button opens that plan\'s own pane', async ($, on) => {
+  const opened = opensPanes(on)
+  const w = world(on, answeringPalette([{ ...WITH_IDS[2]! }]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const buttons = await ui.findAll({ type: 'Button' })
+    expect(buttons.map(b => b.key)).toEqual([`open-plan:${IDS[2]}`])
+    await ui.press({ key: `open-plan:${IDS[2]}` })
+    expect(opened.at(-1)?.id).toBe(`planning-plan-${IDS[2]}`)
+    expect(opened.at(-1)?.title).toBe(WITH_IDS[2]!.name)
+    await ui.unmount()
+  }
+})
+
+test('a lone pinned plan\'s button still opens the executing-plan pane', async ($, on) => {
+  const opened = opensPanes(on)
+  const w = world(on, answeringPalette([{ ...WITH_IDS[1]!, depth: 0 }]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    await ui.press({ key: 'open-plan' })
+    expect(opened.at(-1)?.id).toBe('planning-plan')
+    await ui.unmount()
+  }
+})
+
+test('a master\'s lone button opens the executing-plan pane while its sub-plan is pinned', async ($, on) => {
+  const opened = opensPanes(on)
+  const w = world(on, answeringPalette([{ ...WITH_IDS[0]! }, { ...WITH_IDS[1]!, id: undefined }]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['open-plan'])
+    await ui.press({ key: 'open-plan' })
+    expect(opened.at(-1)?.id).toBe('planning-plan')
+    await ui.unmount()
+  }
+})
+
+test('a lone plan nothing pins, without a valid id, keeps the plain button', async ($, on) => {
+  const w = world(on, answeringPalette([group({ name: 'p', role: 'other', id: undefined })]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['open-plan'])
+    await ui.unmount()
+  }
+})
+
 test('12 plans at maxRows 4 draw 3 buttons and none on the "more" row', async ($, on) => {
   const twelve = Array.from({ length: 12 }, (_, i) =>
     group({ name: `plan-${i}`, role: i === 0 ? 'pinned' : 'other', id: `0000000${i.toString(16)}`.slice(-8) }),

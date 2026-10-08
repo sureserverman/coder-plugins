@@ -1,6 +1,10 @@
 # planning
 
-A fifteen-skill pipeline (v0.57.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fifteen-skill pipeline (v0.57.1) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.57.1
+
+- **A lone plan's button opens that plan.** When the band shows one plan row and nothing is executing (no state file pins it), its Plan button opens that plan's own pane instead of one that says "No plan is executing."
 
 ## What's new in 0.57.0
 
