@@ -121,7 +121,9 @@ const doneOf = (g: PlanGroup): number => Math.min(Math.max(whole(g.done) ?? 0, 0
 // as the status line draws its tree.
 const indentOf = (g: PlanGroup, mid = false): string => ((g.depth ?? 0) > 0 ? (mid ? '├─ ' : '└─ ') : '')
 const countOf = (g: PlanGroup): string => (totalOf(g) > 0 ? `${whole(g.done) ?? 0}/${totalOf(g)}` : '')
-const pctOf = (g: PlanGroup): string => (totalOf(g) > 0 ? `(${Math.floor((doneOf(g) * 100) / totalOf(g))}%)` : '')
+// Unclamped above 100, as the status line prints it: only the bar is held.
+const pctOf = (g: PlanGroup): string =>
+  totalOf(g) > 0 ? `(${Math.floor((Math.max(whole(g.done) ?? 0, 0) * 100) / totalOf(g))}%)` : ''
 
 // The bar's filled cells: round(cells * done / total) with ties to even, as
 // Python's round() in plan-progress.py's bar() — in integers, so a tie is exact.
@@ -278,7 +280,8 @@ export function registerBand(on: On): void {
     const perRow =
       planRows.length >= 2 &&
       planRows.every(g => typeof g.id === 'string' && PLAN_ID.test(g.id)) &&
-      new Set(planRows.map(g => g.id)).size === planRows.length
+      new Set(planRows.map(g => g.id)).size === planRows.length &&
+      planRows.filter(g => g.role === 'pinned').length <= 1
     const hasButton = (i: number): boolean =>
       withButton && typeof rows[i] !== 'number' && (perRow || i === 0)
     const widthOf = (i: number): number => (hasButton(i) ? cols - BUTTON_CELLS : cols)

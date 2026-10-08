@@ -591,6 +591,7 @@ test('the fill rounds half to even, as the status line does: 1/8 and 5/8 at 20 c
     group({ name: 'one-eighth', role: 'pinned', done: 1, total: 8, id: 'aaaa0001' }),
     group({ name: 'five-eighths', role: 'other', done: 5, total: 8, id: 'aaaa0002' }),
     group({ name: 'over', role: 'other', done: 9, total: 8, id: 'aaaa0003' }),
+    group({ name: 'three-eighths', role: 'other', done: 3, total: 8, id: 'aaaa0004' }),
   ]))
   await seed($ as never, w.clock)
   for (const surface of SURFACES) {
@@ -599,8 +600,11 @@ test('the fill rounds half to even, as the status line does: 1/8 and 5/8 at 20 c
     // Python round(): 20*1/8 = 2.5 -> 2, 20*5/8 = 12.5 -> 12
     expect(fills[0]?.[1]?.length).toBe(2)
     expect(fills[1]?.[1]?.length).toBe(12)
-    // done > total: the band never draws past its 20 cells
+    // done > total: the band never draws past its 20 cells, and says 112% as the status line does
     expect((fills[2]?.[1]?.length ?? 0) + (fills[2]?.[2]?.length ?? 0)).toBe(20)
+    expect((await rowsOf(ui))[2]!.text).toContain('9/8 (112%)')
+    // 20*3/8 = 7.5 -> 8: a tie with an odd quotient rounds up
+    expect(fills[3]?.[1]?.length).toBe(8)
     await ui.unmount()
   }
 })
@@ -766,13 +770,27 @@ test('the name column is the status line\'s: 46 cells of tree glyph and name, �
   }
 })
 
-test('non-finite counts or width draw no NaN and throw nothing', async ($, on) => {
-  const w = world(on, answeringPalette([group({ done: null as never, total: 5 }), group({ name: 'y', role: 'other', done: 1, total: 'x' as never })]))
+test('a count that is not a whole number reads as 0, never NaN, null or 1.5', async ($, on) => {
+  const odd = [
+    group({ name: 'a', done: null as never, total: 5, id: 'aaaa0001' }),
+    group({ name: 'b', role: 'other', done: 'a' as never, total: 5, id: 'aaaa0002' }),
+    group({ name: 'c', role: 'other', done: 1.5, total: 5, id: 'aaaa0003' }),
+    group({ name: 'd', role: 'other', done: 1, total: 'x' as never, id: 'aaaa0004' }),
+  ]
+  const w = world(on, answeringPalette(odd))
   await seed($ as never, w.clock)
   for (const surface of SURFACES) {
-    for (const cols of [80, Number.NaN]) {
+    for (const cols of [120, Number.NaN]) {
       const ui = await $.ui.mount({ ...band(cols), surface })
-      for (const t of await ui.findAll({ type: 'Text' })) expect(t.text.includes('NaN')).toBe(false)
+      for (const t of await ui.findAll({ type: 'Text' })) expect(/NaN|null|undefined|1\.5/.test(t.text)).toBe(false)
+      if (cols === 120) {
+        const rows = (await rowsOf(ui)).map(r => r.text)
+        for (const r of rows.slice(0, 3)) {
+          expect(r).toContain('0/5')
+          expect(r).toContain('(0%)')
+        }
+        expect(rows[3]).not.toContain('▐')
+      }
       await ui.unmount()
     }
   }
@@ -797,5 +815,50 @@ test('a stale first row with a long name: its mark is reserved in the shared col
       expect(bars.every(c => c > 0 && c === bars[0])).toBe(true)
       await ui.unmount()
     }
+  }
+})
+
+test('the fill rounds half to even at 10 cells too: 1/4 and 3/4', async ($, on) => {
+  const w = world(on, answeringPalette([
+    group({ name: 'q1', role: 'pinned', done: 1, total: 4, id: 'aaaa0001' }),
+    group({ name: 'q3', role: 'other', done: 3, total: 4, id: 'aaaa0002' }),
+  ]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(80), surface })
+    const fills = (await rowsOf(ui)).map(r => /▐(█*)░*▌/.exec(r.text)?.[1]?.length)
+    expect(fills).toEqual([2, 8])
+    await ui.unmount()
+  }
+})
+
+test('a sub-plan row\'s tree glyph counts inside the 46-cell name column', async ($, on) => {
+  const name = 'n'.repeat(60)
+  const w = world(on, answeringPalette([
+    group({ name: 'm', role: 'master', depth: 0, id: 'aaaa0001' }),
+    group({ name, role: 'pinned', depth: 1, id: 'aaaa0002' }),
+  ]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(200), surface })
+    const row = (await rowsOf(ui))[1]!.text
+    // '└─ ' + '⚙ ' + 43 cells of name: the glyph and name fill 46, ⚙ beside them
+    expect(row.startsWith(`└─ ⚙ ${'n'.repeat(42)}…`)).toBe(true)
+    expect(columnOf(row, /▐/)).toBe(2 + 46 + 1)
+    await ui.unmount()
+  }
+})
+
+test('two rows claiming pinned share no button key', async ($, on) => {
+  const w = world(on, answeringPalette([
+    group({ name: 'p1', role: 'pinned', id: 'aaaa0001' }),
+    group({ name: 'p2', role: 'pinned', id: 'aaaa0002' }),
+  ]))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const keys = (await ui.findAll({ type: 'Button' })).map(b => b.key)
+    expect(new Set(keys).size).toBe(keys.length)
+    await ui.unmount()
   }
 })
