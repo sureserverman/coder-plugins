@@ -92,6 +92,37 @@ Position (DEC-017): once, when the check is built or its trigger changes. The me
 over the vault corpus runs in the building task's test, never in a repo validator
 (DEC-022).
 
+## The plan's goal is a check from the first gate
+
+Every Standard plan, Light plan and master register entry carries at least one gate check
+marked `(goal)`. It is the plan's goal written as a sweep over the **whole** artifact the goal
+is about. The rest of a gate proves what a stage built; the `(goal)` check proves the stage
+has not left the plan's goal short.
+
+- **The goal check sweeps the whole artifact.** It is never a subset by category: a sweep
+  restricted by a filter (`awk '$3 ~ /-new/'`, `git ls-files | grep -v …`) checks the members
+  the filter keeps and none of the rest. Where the subset really is the whole set, say so with
+  `(scoped)` (`set-valued-checks.md` § The sixth error).
+- **It sits in every gate from the first one whose artifact exists.** That is its position
+  under DEC-017, and it makes a gap fail at the stage that made it rather than at close-out.
+- **It must be cheap.** A sweep, not a suite: it runs at every gate of every execution.
+- **`(judgment)` is allowed on it only where no command can decide the goal.** Write
+  `**(goal)** **(judgment)** …` and name what the reader decides.
+- `(goal)` is orthogonal to shape. The check is still classified, so an instance-shaped goal
+  check is still INSTANCE-SHAPED.
+
+`../scripts/validate-gate-checks.py` reports a plan or master entry with no `(goal)` check as
+GOAL-CHECK-MISSING, and a filtered sweep as FILTERED-SUBSET. Both are advisory notes (DEC-032).
+A **new** plan is presented with zero GOAL-CHECK-MISSING, as it is with zero INSTANCE-SHAPED.
+
+**Measured incident (engineering-skills `2026-10-07-upstream-delta-sub-01`, 2026-10-08).** The
+sub-plan's goal was "the three lane sub-plans can execute from the spec alone". Its Stage 2
+gate swept `awk -F'|' '$3 ~ /-new/'`, the `-new` rows only, while six `-fork` rows needed
+rulings too. No check swept the goal over the whole lane table. The Stage 3 gate spent 4
+remediation rounds against a budget of 2, and the close-out evaluator, the first reader given
+the plan goal, found two `-fork` rows with no ruling. Raising the budget buys repair attempts,
+not earlier detection; a `(goal)` check at the Stage 2 gate would have failed there.
+
 ## When a stage gate fails
 
 `executing-plans` owns the operative procedure and is the single source of truth for it:

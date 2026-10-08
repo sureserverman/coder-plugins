@@ -549,7 +549,7 @@ Before showing the plan to the user, verify **every** item in
 section that owns the rule they enforce. **It is a mandatory read on the Standard path.**
 Five command-decided items are restated here:
 
-- [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** — no gate check names one artifact where the goal is a property of many, and none is widened past the set its claim is over, which produces a check that cannot pass at all (`references/set-valued-checks.md`)
+- [ ] `python3 scripts/validate-gate-checks.py <plan>` reports **zero INSTANCE-SHAPED** and **zero GOAL-CHECK-MISSING** — no check names one artifact where the goal spans many items or widens past its set; a `(goal)` check sweeps the goal (`references/set-valued-checks.md`, `gate-authoring.md`)
 - [ ] **Every gate check can pass as authored**: the same validator reports **zero SELECTOR-UNMATCHED** — every `pytest <file> -k <expr>` selector in a gate is one some task's `Test:` builds toward, so no gate names a filter that collects nothing (`executing-plans` re-checks it at Preflight with `--collect-only`)
 - [ ] **No task's own `Test:` runs the whole suite**: on a plan declaring expensive-suite tiering, the same validator reports **zero TASK-TEST-UNSCOPED** — every task `Test:` is path- or suite-scoped, or its task carries an explicit `full-suite: accepted` (`references/test-scope-tiers.md`)
 - [ ] `python3 scripts/validate-dispatch.py <plan>` exits 0 (§ Phase 5 — Dispatch)

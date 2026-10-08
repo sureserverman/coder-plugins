@@ -212,6 +212,29 @@ imports, JavaScript destructuring. If the forbidden thing can be renamed on impo
 (`use .*process_path\b`) as well, or make it structural (a test that the module exposes
 nothing else).
 
+### The sixth error: a sweep that filters the set down to one category
+
+A sweep can read the right table and still check only part of it. engineering-skills'
+2026-10-07 sub-01 gate was:
+
+```
+awk -F'|' '$3 ~ /-new/ {gsub(/[ `]/,"",$2); print $2}' docs/<spec>.md | sort -u | while read p; do …
+```
+
+It proved every `-new` row had a ruling. Six `-fork` rows needed rulings too, and the filter
+kept every one of them out of the sweep. The gate passed, and the gap reached close-out.
+
+The filter is not the defect. The unstated exclusion is: nothing in the check says why the
+rows it drops need no check. So for a sweep restricted by a category — an awk field match
+(`$3 ~ /…/`), or a grep narrowing what `git ls-files`, `find` or `ls` printed — either widen
+the sweep to the whole set, or say why the subset is the whole set. `(scoped)` is the answer
+for the second case: the author asserts it in the check, where a reviewer can disagree.
+
+`../scripts/validate-gate-checks.py` reports this shape as FILTERED-SUBSET, an advisory note
+(DEC-032; measured 2026-10-08 over 800 plans: 13 hits, 1 true positive — most filters are
+right, and most say why in prose). A plan's `(goal)` check is never filtered this way
+(`gate-authoring.md` § The plan's goal is a check from the first gate).
+
 ## Worked example — a sweep is not licence to sweep twice
 
 The rules pull in opposite directions and both are right. This one says *widen the check to

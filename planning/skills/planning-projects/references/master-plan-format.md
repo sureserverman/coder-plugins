@@ -79,6 +79,7 @@ outside a `**Gate:**` block would become a false backlog candidate.]
 - **Parallel:** YES
 
 **Gate:**
+- [ ] **(goal)** [this entry's Goal as one cheap sweep over the WHOLE artifact it is about]
 - [ ] [Integration check runnable once this sub-plan completes]
 - [ ] [Cross-plan class predicate — the sweep proving the property holds across both plans' outputs]
 - [ ] [Cross-plan regression check]
@@ -94,6 +95,7 @@ outside a `**Gate:**` block would become a false backlog candidate.]
 - **Parallel:** NO (blocked by Sub-plan 1)
 
 **Gate:**
+- [ ] **(goal)** [this entry's Goal as one cheap sweep over the WHOLE artifact it is about]
 - [ ] [Integration check across Sub-plans 1+2 — the whole is proven here]
 ```
 
@@ -110,7 +112,7 @@ master close-out line:
 |-------|---------|
 | `Status` | `[ ]` planned → flipped to `[x]` by executing-plans when the sub-plan's own `**Completed:**` close-out line lands. Authoritative done-marker at master level. |
 | `Plan` | Relative link (`./…`) to the sub-plan file in the same directory. Must resolve. |
-| `Goal` | One sentence; the master-level analogue of a stage Goal. |
+| `Goal` | One sentence; the master-level analogue of a stage Goal. Its `**Gate:**` block carries a `(goal)` check sweeping it over the whole artifact, and the sub-plan's own gates carry a `(goal)` check too, from the first gate whose artifact exists (`gate-authoring.md` § The plan's goal is a check from the first gate). |
 | `Depends on` / `Blocks` | Cross-sub-plan dependency graph. Symmetric, exactly like task fields: if Sub-plan 2 depends on Sub-plan 1, Sub-plan 1 lists Sub-plan 2 in Blocks. |
 | `Parallel` | YES when all dependencies are done/none — the sub-plan may execute in a separate session/worktree. **This is a different field from the task-level `Dispatch`** (`../SKILL.md` § Scope/dependency marking), which obligates subagent dispatch; here it is a recommendation to a human about sessions, so "may" is correct and must not be imported onto task lines. File-conflict rule still applies: two sub-plans touching the same files run sequentially regardless. |
 | `**Gate:**` | Bold marker + `- [ ]` checks, **always the last block of the register entry**. Run when the sub-plan completes; proves integration with previously completed sub-plans. |
