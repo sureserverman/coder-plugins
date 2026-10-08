@@ -1,13 +1,13 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import type { PlanDetail, PlanGroup } from '../../types'
 import { NOTE_MAX, noteMessage, stageNote } from './stage-note'
 import { group, ran, seed, world } from './testing'
 
-// The test kit has no stand-in for a plugin's own $.session.append: the call
-// rejects with "no implementation for session.append". The mod logs a refused or
-// failed append as one transcript line, so here each attempt is one such line.
-// The note's text is checked through stageNote, the builder the hook sends.
+// The test kit (2.1.293+) stores a plugin's own $.session.append as a session
+// does, and mock.session reads the rows back. A refused or failed append is one
+// transcript line the mod logs instead, so an attempt is a stored note row or one
+// such line. The note's text is checked through stageNote, the builder the hook sends.
 const FAILED = 'planning: stage note not delivered'
 
 const DETAIL: PlanDetail = {
@@ -20,9 +20,10 @@ const DETAIL: PlanDetail = {
 
 const at = (over: Partial<PlanGroup>) => group({ plan: '/vault/plans/x-plan.md', ...over })
 
-// A world whose script answers with whatever `current` holds, and the notices the
-// mod logs.
-function harness(on: Parameters<typeof world>[0], first: PlanGroup) {
+// A world whose script answers with whatever `current` holds, the notes the
+// session stored and the notices the mod logs. With `refuse`, a hook of the test's
+// refuses every note, so nothing is stored.
+function harness(on: Parameters<typeof world>[0], first: PlanGroup, refuse = false) {
   const box = { current: first, detail: DETAIL as PlanDetail | null }
   const w = world(on, () => ran(JSON.stringify({ groups: [box.current], detail: box.detail })))
   const logs: string[] = []
@@ -30,8 +31,11 @@ function harness(on: Parameters<typeof world>[0], first: PlanGroup) {
     logs.push(String((e as { text?: unknown }).text))
     return { value: undefined } as never
   })
-  const attempts = () => logs.filter(l => l.startsWith(FAILED)).length
-  return { w, box, logs, attempts }
+  const session = refuse ? null : mock.session(on)
+  if (refuse) on('session.append', { door: 'note' }, () => ({ deny: 'refused by the test' }) as never)
+  const stored = () => (session === null ? 0 : session.appended().filter(r => r.door === 'note').length)
+  const attempts = () => stored() + logs.filter(l => l.startsWith(FAILED)).length
+  return { w, box, logs, stored, attempts }
 }
 
 test('a stage 1 -> 2 change appends exactly one note', async ($, on) => {
@@ -117,10 +121,11 @@ test('a 100 KB or non-string plan path is bounded in the stored key', async ($, 
 })
 
 test('a failed append is not retried, and the model is still stored', async ($, on) => {
-  const h = harness(on, at({ stage: 2, phase: 'task' }))
+  const h = harness(on, at({ stage: 2, phase: 'task' }), true)
   await seed($ as never, h.w.clock)
   await seed($ as never, h.w.clock)
   expect(h.attempts()).toBe(1)
+  expect(h.stored()).toBe(0)
   expect(h.w.seen.last?.model?.groups[0]?.stage).toBe(2)
   expect(h.w.seen.last?.stale).toBe(false)
 })
