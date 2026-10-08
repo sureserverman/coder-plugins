@@ -75,3 +75,6 @@ export async function seed($: { tool: { call: (i: never) => Promise<unknown> } }
 export function modelOf(groups: PlanGroup[]): PlanModel {
   return { groups, detail: null }
 }
+
+// The status line's five role colours, as plan-progress.py --json reports them.
+export const PALETTE = { green: '#008c2f', red: '#db3630', yellow: '#947006', cyan: '#168191', purple: '#a23efa' }

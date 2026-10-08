@@ -1,12 +1,14 @@
 // The progress band above the prompt: one row per plan group the model holds,
-// sized to the band's own width. It draws what plan-progress.py --json computed —
-// the counts, and `tail`, the script's own text after its bar — and never derives
-// a phase or a marker itself, so the band and the status line cannot disagree.
+// sized to the band's own width, drawn in the status line's pieces and colours.
+// It draws what plan-progress.py --json computed — the counts, `tail_spans` (the
+// script's own text after its bar, split at its colour codes) and the `palette` —
+// and never derives a phase, a marker or a marker's colour itself, so the band and
+// the status line cannot disagree.
 
 import { atom, read } from 'claude-code'
 import type { On } from 'claude-code'
 
-import type { ContextFigures, PlanGroup, PlanModelState } from '../../types'
+import type { ContextFigures, PlanGroup, PlanModelState, PlanPalette } from '../../types'
 import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
 
 // Declared in each file that reads it: the engine's scan lists a module's state
@@ -14,7 +16,10 @@ import { PLAN_PANE, PLAN_PANE_TITLE } from './pane-id'
 const MODEL = atom({ plugin: 'planning', key: 'model' } as const, null as PlanModelState | null)
 const CONTEXT = atom({ plugin: 'planning', key: 'context' } as const, null as ContextFigures | null)
 
-const BAR_CELLS = 10
+// The status line's 20-cell bar where the band is wide, half of it elsewhere.
+const BAR_CELLS = 20
+const BAR_CELLS_NARROW = 10
+const WIDE_COLUMNS = 100
 // "[ Plan ]", the space before it, and the collapse control the engine draws at
 // the band's right edge: kept off the first row's text budget.
 const BUTTON_CELLS = 12
@@ -28,12 +33,14 @@ const NAME_MIN = 8
 // (Cs) — the classes plan_continue_classify.py's clean() drops.
 const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/gu
 
-const COLOUR: Record<PlanGroup['role'], string | undefined> = {
-  pinned: 'cyan',
-  master: 'magenta',
-  child: undefined,
-  other: undefined,
-}
+// The fill and the pinned name take the script's palette; an older script sends
+// none, and the theme's own keys stand in.
+const FALLBACK = { green: 'success', cyan: 'suggestion' }
+// A span colour is the script's `#rrggbb` or nothing: no other string reaches a Text.
+const HEX = /^#[0-9a-f]{6}$/i
+
+// One piece of a row: its text and how it is drawn.
+export type Span = { text: string; color?: string; dim?: boolean }
 
 // The model is the script's output, and a plan name or a task description in it
 // is text somebody else wrote: no control character reaches a surface.
@@ -41,12 +48,8 @@ function plain(s: unknown): string {
   return typeof s === 'string' ? s.replace(CONTROL, '') : ''
 }
 
-function bar(done: number, total: number): string {
-  const filled = total > 0 ? Math.round((Math.min(done, total) / total) * BAR_CELLS) : 0
-  return `▐${'█'.repeat(filled)}${'░'.repeat(BAR_CELLS - filled)}▌`
-}
-
 const cells = (text: string): number => [...text].length
+const width_ = (spans: Span[]): number => spans.reduce((n, s) => n + cells(s.text), 0)
 
 function clip(text: string, width: number): string {
   const chars = [...text]
@@ -61,25 +64,96 @@ export function contextText(figures: ContextFigures | null): string {
   return typeof percent === 'number' && Number.isSafeInteger(percent) ? ` · context ${percent}%` : ''
 }
 
-// One row, fitted to `width` by priority: the indent, the counts and the stale
-// marker are kept whole; the context figure is shown whole or not at all, and
-// only while the name keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
+// Spans cut to `width` cells, the last kept one ending in … when anything was lost.
+export function clipSpans(spans: Span[], width: number): Span[] {
+  if (width_(spans) <= width) return spans
+  const out: Span[] = []
+  let room = Math.max(0, width)
+  for (const s of spans) {
+    if (room <= 0) break
+    const chars = [...s.text]
+    if (chars.length <= room) {
+      out.push(s)
+      room -= chars.length
+    } else {
+      out.push({ ...s, text: clip(s.text, room) })
+      room = 0
+    }
+  }
+  return out
+}
+
+// The group's tail as spans: the script's own `tail_spans`, each text made plain
+// and each colour a `#rrggbb` or none; the plain `tail` when an older script sent
+// no spans.
+function tailSpans(g: PlanGroup): Span[] {
+  if (!Array.isArray(g.tail_spans)) {
+    const tail = plain(g.tail)
+    return tail === '' ? [] : [{ text: tail }]
+  }
+  const out: Span[] = []
+  for (const s of g.tail_spans) {
+    const text = plain(s?.text)
+    if (text === '') continue
+    const color = typeof s.color === 'string' && HEX.test(s.color) ? s.color : undefined
+    out.push({ text, color, dim: s.dim === true ? true : undefined })
+  }
+  return out
+}
+
+// One row as the status line draws it — `└─ ` for a sub-plan, `⚙ ` and the name
+// (cyan when pinned, dim otherwise), `▐` + the green fill + the `░` track `▌`,
+// `done/total`, a dim `(pct%)`, the tail's spans, the pinned row's context — fitted
+// to `width` by priority: the indent, the counts and the stale marker are kept
+// whole; the context figure is shown whole or not at all, and only while the name
+// keeps NAME_MIN beside it; the name gives way next (down to NAME_MIN); the tail,
 // free text from the script, gives way first. Only a row too narrow for even
 // that is clipped as a whole.
-export function rowText(g: PlanGroup, width: number, stale: boolean, context = ''): string {
-  const indent = (g.depth ?? 0) > 0 ? '└ ' : ''
-  const bare = g.total > 0 ? ` ${bar(g.done, g.total)} ${g.done}/${g.total}` : ''
-  const mark = stale ? ' (stale)' : ''
+export function rowSpans(
+  g: PlanGroup,
+  width: number,
+  stale: boolean,
+  context = '',
+  palette: PlanPalette | undefined = undefined,
+  barCells = BAR_CELLS_NARROW,
+): Span[] {
+  const green = typeof palette?.green === 'string' && HEX.test(palette.green) ? palette.green : FALLBACK.green
+  const cyan = typeof palette?.cyan === 'string' && HEX.test(palette.cyan) ? palette.cyan : FALLBACK.cyan
+  const indent: Span[] = (g.depth ?? 0) > 0 ? [{ text: '└─ ', dim: true }] : []
+  const counts: Span[] = []
+  if (g.total > 0) {
+    const filled = Math.round((Math.min(Math.max(g.done, 0), g.total) / g.total) * barCells)
+    const pct = Math.floor((Math.min(Math.max(g.done, 0), g.total) * 100) / g.total)
+    counts.push(
+      { text: ' ' },
+      { text: '▐', dim: true },
+      { text: '█'.repeat(filled), color: green },
+      { text: `${'░'.repeat(barCells - filled)}▌`, dim: true },
+      { text: ` ${g.done}/${g.total} ` },
+      { text: `(${pct}%)`, dim: true },
+    )
+  }
+  const mark: Span[] = stale ? [{ text: ' (stale)', dim: true }] : []
   const name = plain(g.name)
-  const tail = plain(g.tail)
-  const kept = cells(indent) + cells(bare) + cells(mark) + Math.min(cells(name), NAME_MIN)
-  const counts = kept + cells(context) <= width ? bare + context : bare
-  const fixed = cells(indent) + cells(counts) + cells(mark)
+  const pinned = g.role === 'pinned'
+  const head = '⚙ '
+  const fixed0 = width_(indent) + cells(head) + width_(counts) + width_(mark)
+  const ctx = fixed0 + Math.min(cells(name), NAME_MIN) + cells(context) <= width ? context : ''
+  const fixed = fixed0 + cells(ctx)
   const nameRoom = Math.max(Math.min(cells(name), NAME_MIN), width - fixed)
   const shownName = clip(name, nameRoom)
   const tailRoom = width - fixed - cells(shownName) - 1
-  const shownTail = tail !== '' && tailRoom >= 2 ? ` ${clip(tail, tailRoom)}` : ''
-  return clip(`${indent}${shownName}${counts}${mark}${shownTail}`, width)
+  const tail = tailSpans(g)
+  const shownTail = tail.length > 0 && tailRoom >= 2 ? [{ text: ' ' }, ...clipSpans(tail, tailRoom)] : []
+  const row: Span[] = [
+    ...indent,
+    pinned ? { text: `${head}${shownName}`, color: cyan } : { text: `${head}${shownName}`, dim: true },
+    ...counts,
+    ...mark,
+    ...shownTail,
+    ...(ctx === '' ? [] : [{ text: ctx }]),
+  ]
+  return clipSpans(row, width).filter(s => s.text !== '')
 }
 
 // At most `maxRows` rows, and the executing plan is always one of them: when the
@@ -121,6 +195,8 @@ export function registerBand(on: On): void {
     const { Box, Button, Text } = $.ui.resolve(e)
     const cols = Math.max(1, Math.floor(e.props.bodyColumns))
     const withButton = cols >= BUTTON_MIN_COLUMNS
+    const barCells = cols >= WIDE_COLUMNS ? BAR_CELLS : BAR_CELLS_NARROW
+    const palette = state?.model?.palette
 
     return (
       <Box flexDirection="column">
@@ -132,12 +208,22 @@ export function registerBand(on: On): void {
               </Text>
             )
           }
-          const colour = COLOUR[row.role]
           const width = i === 0 && withButton ? cols - BUTTON_CELLS : cols
-          const text = rowText(row, width, i === 0 && state?.stale === true, row.role === 'pinned' ? context : '')
+          const spans = rowSpans(
+            row,
+            width,
+            i === 0 && state?.stale === true,
+            row.role === 'pinned' ? context : '',
+            palette,
+            barCells,
+          )
           const line = (
-            <Text color={colour} dimColor={colour === undefined} wrap="truncate">
-              {text}
+            <Text wrap="truncate">
+              {spans.map(s => (
+                <Text color={s.color} dimColor={s.dim}>
+                  {s.text}
+                </Text>
+              ))}
             </Text>
           )
           if (i !== 0 || !withButton) return line

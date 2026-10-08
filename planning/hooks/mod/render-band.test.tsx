@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { PlanGroup } from '../../types'
-import { group, ran, seed, world } from './testing'
+import { group, PALETTE, ran, seed, world } from './testing'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
@@ -230,7 +230,7 @@ test('a pinned sub-plan keeps its master above it when rows run out', async ($, 
     const rows = (await rowsOf(ui)).map(r => r.text)
     expect(rows[0]).toContain('the-master')
     expect(rows[1]).toContain('sub-2')
-    expect(rows[1]).toContain('└ ')
+    expect(rows[1]).toContain('└─ ')
     expect(rows[2]).toContain('more')
     await ui.unmount()
   }
@@ -307,7 +307,7 @@ test('the pinned row shows the context in use, and only the pinned row', async (
       const rows = await rowsOf(ui)
       expect(rows[1]!.text).toContain('context 25%')
       expect(rows[1]!.text).toContain('2/5')
-      expect(rows[0]!.text).not.toContain('%')
+      expect(rows[0]!.text).not.toContain('context')
       expect(rows[2]!.text).not.toContain('context')
       for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols)
       await ui.unmount()
@@ -337,8 +337,9 @@ test('the context figure gives way before the counts: done/total survives every 
       const row = (await rowsOf(ui))[0]!.text
       const width = cols >= 24 ? cols - 12 : cols
       expect([...row].length).toBeLessThanOrEqual(width)
-      // NAME_MIN (8) + ' ▐██████████▌ 12/34' (19): the floor below which a row is cut whole.
-      if (width >= 27) expect(row).toContain('12/34')
+      // '⚙ ' (2) + NAME_MIN (8) + ' ▐██████████▌' (13) + ' 12/34 (35%)' (12): the floor
+      // below which a row is cut whole.
+      if (width >= 35) expect(row).toContain('12/34')
       if (row.includes('context')) {
         expect(row).toContain('context 25%')
         expect(row).toContain('12/34')
@@ -347,5 +348,117 @@ test('the context figure gives way before the counts: done/total survives every 
       await ui.unmount()
     }
     expect(shown).toBeGreaterThan(0)
+  }
+})
+
+// A drawn row: the truncating Text, and the nested Texts that carry its pieces.
+// A drawn element's `props` is left out when it has none.
+type Found = { props?: Record<string, unknown>; text: string; children: unknown[] }
+function pieces(row: Found): { text: string; color?: unknown; dim?: unknown }[] {
+  return (row.children as unknown[])
+    .filter((c): c is Found => typeof c === 'object' && c !== null)
+    .map(c => ({
+      text: (c.children as unknown[]).filter(x => typeof x === 'string').join(''),
+      color: c.props?.color,
+      dim: c.props?.dimColor,
+    }))
+}
+
+const COLOURED: PlanGroup[] = [
+  group({ name: 'master-plan', role: 'master', depth: 0, tail: '⊘ GATE BLOCKED',
+          tail_spans: [{ text: '⊘ GATE BLOCKED', color: PALETTE.red, dim: false }] }),
+  group({ name: 'sub-plan-01', role: 'pinned', depth: 1, done: 2, total: 5, tail: '· S1/2 ▶ T1.3',
+          tail_spans: [{ text: '·', color: null, dim: true }, { text: ' S1/2 ', color: null, dim: false },
+                       { text: '▶ T1.3', color: PALETTE.green, dim: false }] }),
+  group({ name: 'another-plan', role: 'other', depth: 0, tail: '', tail_spans: [] }),
+]
+
+function answeringPalette(groups: PlanGroup[]) {
+  return () => ran(JSON.stringify({ groups, detail: null, palette: PALETTE }))
+}
+
+test('the bar fill is drawn in the palette green, the pinned name in cyan, the others dim', async ($, on) => {
+  const w = world(on, answeringPalette(COLOURED))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const rows = await rowsOf(ui)
+    expect(rows.length).toBe(3)
+    for (const [i, row] of rows.entries()) {
+      const p = pieces(row as Found)
+      const fill = p.find(x => x.text.includes('█'))
+      expect(fill?.color).toBe(PALETTE.green)
+      const name = p.find(x => x.text.includes(COLOURED[i]!.name))
+      if (COLOURED[i]!.role === 'pinned') {
+        expect(name?.color).toBe(PALETTE.cyan)
+      } else {
+        expect(name?.color).toBe(undefined)
+        expect(name?.dim).toBe(true)
+      }
+      expect(p.find(x => x.text.includes('⚙'))).toBeDefined()
+    }
+    await ui.unmount()
+  }
+})
+
+test('a tail span keeps its colour, and the row reads (40%) for 2/5', async ($, on) => {
+  const w = world(on, answeringPalette(COLOURED))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const rows = await rowsOf(ui)
+    const blocked = pieces(rows[0] as Found).find(x => x.text.includes('⊘ GATE BLOCKED'))
+    expect(blocked?.color).toBe('#db3630')
+    expect(rows[1]!.text).toContain('2/5')
+    expect(rows[1]!.text).toContain('(40%)')
+    const pct = pieces(rows[1] as Found).find(x => x.text.includes('(40%)'))
+    expect(pct?.dim).toBe(true)
+    expect(rows[1]!.text).toContain('└─ ')
+    await ui.unmount()
+  }
+})
+
+test('the bar has 20 cells at 120 columns and 10 at 80', async ($, on) => {
+  const w = world(on, answeringPalette(COLOURED))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const [cols, cells] of [[120, 20], [80, 10]] as const) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      for (const row of await rowsOf(ui)) {
+        const bar = /▐([█░]*)▌/.exec(row.text)
+        expect(bar?.[1]?.length).toBe(cells)
+      }
+      await ui.unmount()
+    }
+  }
+})
+
+test('coloured rows fit bodyColumns at 40, 80 and 200, and carry no escape', async ($, on) => {
+  const hostile = [...COLOURED, group({ name: 'evil\x1b[31mred', role: 'other', tail: 'x\x1b[2Jy',
+                                         tail_spans: [{ text: 'x\x1b[2Jy', color: PALETTE.red, dim: false }] })]
+  const w = world(on, answeringPalette(hostile))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    for (const cols of [40, 80, 200]) {
+      const ui = await $.ui.mount({ ...band(cols), surface })
+      const rows = await rowsOf(ui)
+      expect(rows.length).toBe(4)
+      for (const row of rows) expect([...row.text].length).toBeLessThanOrEqual(cols)
+      for (const t of await ui.findAll({ type: 'Text' })) expect(/[\x00-\x1f\x7f-\x9f]/.test(t.text)).toBe(false)
+      await ui.unmount()
+    }
+  }
+})
+
+test('an older script (no palette, no tail_spans) still draws every row, colours from the theme', async ($, on) => {
+  const w = world(on, answering(THREE))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(120), surface })
+    const rows = await rowsOf(ui)
+    expect(rows.length).toBe(3)
+    expect(rows[1]!.text).toContain('▶ T1.3')
+    expect(pieces(rows[1] as Found).find(x => x.text.includes('█'))?.color).toBe('success')
+    await ui.unmount()
   }
 })
