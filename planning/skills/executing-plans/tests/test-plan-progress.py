@@ -2809,6 +2809,20 @@ def case_json_spans():
     # A colour value outside 0..255 is no colour, never a malformed hex.
     _, odd = mod.tail_parts("\x1b[38;2;300;0;0mx\x1b[0m")
     check(odd == [{"text": "x", "color": None, "dim": False}], f"spans: 38;2;300;0;0 is no colour ({odd})")
+    try:
+        _, huge = mod.tail_parts("\x1b[38;2;" + "9" * 5000 + ";0;0mx\x1b[0m")
+    except ValueError as e:
+        huge = f"raised {e!s:.40}"
+    check(huge == [{"text": "x", "color": None, "dim": False}],
+          f"spans: a 5000-digit colour parameter is no colour, never a ValueError ({huge!r:.80})")
+    bad = []
+    for code in ("\x1b[38;2;300;0;0m", "\x1b[38;5;1m", "\x1b[2m"):
+        try:
+            mod.sgr_hex(code)
+            bad.append(code)
+        except ValueError:
+            pass
+    check(bad == [], f"spans: sgr_hex refuses a constant that is not a 0..255 triple ({bad!r})")
     shutil.rmtree(tmp, ignore_errors=True)
 
 

@@ -861,8 +861,12 @@ SGR_RE = re.compile(r"\x1b\[([0-9;]*)m")
 
 
 def rgb_hex(values):
-    """`#rrggbb` for three SGR parameters, or None unless each is 0..255 in ASCII digits."""
-    if len(values) != 3 or not all(v.isascii() and v.isdigit() and int(v) <= 255 for v in values):
+    """`#rrggbb` for three SGR parameters, or None unless each is 0..255 in ASCII digits.
+
+    Length is checked before int(): an SGR parameter is unbounded, and int() of a
+    string over 4300 digits raises ValueError (Python 3.11+)."""
+    if len(values) != 3 or not all(v.isascii() and v.isdigit() and len(v) <= 3 and int(v) <= 255
+                                   for v in values):
         return None
     return "#" + "".join(f"{int(v):02x}" for v in values)
 

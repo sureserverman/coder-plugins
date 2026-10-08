@@ -50,7 +50,8 @@ So the executor writes the dispatch description as `Stage N Tier-2 review` or
 `Stage N gate evaluator`. Two claimed passes need two dispatches. A claim whose head names
 `Task N.M` (a Tier-1 line, "review: Tier-1 <type> over the Task 2.1 diff — …") is that
 task's: it takes a dispatch naming exactly that task and the role (`Stage 2 Task 2.1 quick
-review`), N must be this gate's stage, and it never takes a stage pass's dispatch.
+review`), N must be this gate's stage, and it never takes a stage pass's dispatch. Only
+the first task a head names is read: write one Tier-1 line per task.
 
 WHAT THIS DOES NOT DO. It cannot tell whether the agent was briefed on the right diff,
 or whether the verdict quoted is the one it returned — only that a dispatch of the
