@@ -51,7 +51,11 @@ So the executor writes the dispatch description as `Stage N Tier-2 review` or
 `Task N.M` (a Tier-1 line, "review: Tier-1 <type> over the Task 2.1 diff — …") is that
 task's: it takes a dispatch naming exactly that task and the role (`Stage 2 Task 2.1 quick
 review`), N must be this gate's stage, and it never takes a stage pass's dispatch. Only
-the first task a head names is read: write one Tier-1 line per task.
+the first task a head names is read: write one Tier-1 line per task. Measured 2026-10-08
+over the review:/evaluator: lines in `Stage N green` commit bodies of the ~/dev repos (298
+lines): 12 heads name a `Task N.M`; 5 of them name a dispatchable type before `over`, and
+all 5 are true per-task Tier-1 lines (coder-plugins 1, remote-agents 4), so the Tier-1
+reading stays on the blocking path (DEC-032). The other 7 classify as before.
 
 WHAT THIS DOES NOT DO. It cannot tell whether the agent was briefed on the right diff,
 or whether the verdict quoted is the one it returned — only that a dispatch of the
