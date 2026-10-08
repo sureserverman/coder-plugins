@@ -92,7 +92,8 @@ export function planLines(state: PlanModelState | null, id: string, width: numbe
     }
   }
   // A listed sub-plan keeps its own markers (⊘ GATE BLOCKED); only the executing
-  // plan's tail — its phase and task — is left to that plan's own pane.
+  // plan's tail — its phase, task and any ↻N/M round — is left to that plan's own
+  // pane (planning-plan).
   const listed = subs.map(sub => (sub.role === 'pinned' ? { ...sub, tail: '', tail_spans: [] } : sub))
   const header = { ...g, depth: 0 }
   const layout = layoutFor([header, ...listed].map(row => ({ g: row, width, stale: false })), cells)
@@ -105,7 +106,7 @@ export function planLines(state: PlanModelState | null, id: string, width: numbe
     listed.forEach((sub, i) => lines.push(row(sub, i < listed.length - 1)))
   }
   const detail = state?.model?.details?.[id] ?? null
-  if (detail === null && g.role !== 'master' && subs.length === 0) {
+  if (detail === null && subs.length === 0) {
     lines.push({ text: '' })
     lines.push({ text: 'Its stages and tasks could not be read.', dim: true })
   }

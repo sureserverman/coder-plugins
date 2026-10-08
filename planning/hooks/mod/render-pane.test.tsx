@@ -484,3 +484,36 @@ test("a plan whose breakdown could not be read says so, and a malformed breakdow
     await bad.unmount()
   }
 })
+
+test("a sub-plan's own pane lists no siblings, and a master's pane never takes a later plan's sub-plans", async ($, on) => {
+  const LATER_CHILD = group({ name: 'later-child', role: 'child', depth: 1, done: 0, total: 1, id: 'aaaa0006' })
+  const groups = [...MIXED, LATER_CHILD]
+  const w = world(on, () => ran(JSON.stringify({ groups, detail: DETAIL,
+    details: { [MASTER_ID]: MASTER_DETAIL, [PINNED_ID]: DETAIL, aaaa0005: null, [OTHER_ID]: SHARED_DETAIL, aaaa0006: null }, palette: PALETTE })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const sub = await $.ui.mount({ ...paneFor(PINNED_ID), surface })
+    const subText = await shown(sub)
+    expect(subText).not.toContain('Sub-plans in flight')
+    expect(subText).not.toContain('blocked-sub')
+    await sub.unmount()
+    const master = await $.ui.mount({ ...paneFor(MASTER_ID), surface })
+    const masterText = await shown(master)
+    expect(masterText).toContain('blocked-sub')
+    expect(masterText).not.toContain('later-child')
+    await master.unmount()
+  }
+})
+
+test('a master with no sub-plans and no breakdown says both', async ($, on) => {
+  const groups = [group({ name: 'lone-master', role: 'master', depth: 0, id: MASTER_ID }), group({ name: 'x', role: 'pinned', depth: 0, id: PINNED_ID })]
+  const w = world(on, () => ran(JSON.stringify({ groups, detail: DETAIL, details: { [MASTER_ID]: null, [PINNED_ID]: DETAIL }, palette: PALETTE })))
+  await seed($ as never, w.clock)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...paneFor(MASTER_ID), surface })
+    const text = await shown(ui)
+    expect(text).toContain('No sub-plan in flight')
+    expect(text).toContain('Its stages and tasks could not be read.')
+    await ui.unmount()
+  }
+})
