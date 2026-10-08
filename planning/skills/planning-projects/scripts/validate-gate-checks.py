@@ -129,7 +129,10 @@ plan's TASK fields:
                         ADVISORY (DEC-032), because the marker postdates the corpus:
                         goal-check-missing: measured 2026-10-08 over 800 plans: 735 hits (512
                         plans and 223 master register entries; 2 plans already carried the
-                        marker). Every hit predates the rule, so the rate says nothing about
+                        marker). "800 plans" is every .md in the vault plans/ folders, about
+                        190 of them design or architecture files; the `*-plan.md` glob holds
+                        610. The marker is matched anywhere in a check's text, so a prose
+                        mention of `(goal)` also counts as presence. Every hit predates the rule, so the rate says nothing about
                         precision yet. planning-projects' authoring checklist requires zero on
                         a NEW plan, as it does for INSTANCE-SHAPED.
 
@@ -1513,7 +1516,7 @@ def main(argv=None):
     for path, where in goal_notes:
         whose = ("no gate check" if where == "plan"
                  else f"{where}'s **Gate:** block has no check")
-        print(f"\nnote: {path.name}: {whose} is marked (goal) — add one that sweeps the "
+        print(f"\nnote: {path.name}: {whose} marked (goal) — add one that sweeps the "
               f"goal over the whole artifact it is about, in every gate from the first one "
               f"whose artifact exists (gate-authoring.md § The plan's goal is a check from "
               f"the first gate)")

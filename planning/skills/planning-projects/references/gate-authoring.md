@@ -115,8 +115,8 @@ has not left the plan's goal short.
 GOAL-CHECK-MISSING, and a filtered sweep as FILTERED-SUBSET. Both are advisory notes (DEC-032).
 A **new** plan is presented with zero GOAL-CHECK-MISSING, as it is with zero INSTANCE-SHAPED.
 It checks presence, not placement: a plan whose one `(goal)` check sits in its final gate
-reports zero. Placement from the first gate is the author's call, and the Tier-2 reviewer's
-to question.
+reports zero. Placement from the first gate is the author's to check; no reviewer brief
+asks for it.
 
 **Measured incident (engineering-skills `2026-10-07-upstream-delta-sub-01`, 2026-10-08).** The
 sub-plan's register Goal ends "the three lane sub-plans can then execute from the spec

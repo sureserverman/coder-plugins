@@ -845,6 +845,10 @@ check(rc == 0 and "goal-check-missing 1 (advisory" in out,
       "the note is advisory: exit 0, counted on its own summary line")
 rc, out = run(_present)
 check(rc == 0 and "goal-check-missing" not in out, "a plan with a (goal) check prints no note")
+_r = subprocess.run([sys.executable, SCRIPT, str(GOAL / "master-missing-plan.md")],
+                    capture_output=True, text=True)
+check("Sub-plan 2's **Gate:** block has no check marked (goal)" in _r.stdout,
+      "the master-entry note reads as a sentence, naming the entry")
 check(re.search(r"goal-check-missing: measured 2026-10-08 over \d+ plans: \d+ hits",
                 " ".join(vgc.__doc__.split())) is not None,
       "the docstring states the measured trigger rate (DEC-032)")
