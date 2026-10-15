@@ -1,6 +1,14 @@
 # planning
 
-A thirteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A thirteen-skill pipeline (v0.59.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.59.0
+
+**Two skills that worked around older-model weaknesses are retired.**
+
+- **`no-fafo-debugging` is gone.** Its rule stays where it was used: the class rule, the Red-Green diagnose step and the gate-failure step each say "diagnose evidence-first" inline. The contract test still pins that diagnosis comes before the set is named.
+- **`capability-router` is gone.** Plan execution still resolves a disabled plugin's skill or agent from disk, per `stack-routing.md` § *Resolving a capability whose plugin isn't enabled*.
+- **`stack-routing.md` routes only to agents that ship.** The `stingy-agents` and `testing` plugins left the marketplace, so their rows are removed. Test and scaffolding work falls through to `general-purpose`.
 
 ## What's new in 0.58.0
 
