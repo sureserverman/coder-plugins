@@ -571,16 +571,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Use at the START of ANY debugging or diagnostic work \u2014 before forming theories or proposing fixes. Fires on \"debug this\", \"why is X broken\", \"fix this bug\", \"tests are failing\", a stack trace, or any unexpected behavior. Drives evidence-first root-cause analysis.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "no-fafo-debugging",
-      "path": "planning/skills/no-fafo-debugging/SKILL.md",
-      "plugin": "planning",
-      "requires_enablement": true
-    },
-    {
       "description": "Use when the user wants a plan for a project of any size \u2014 triages to a format first (Direct/Light/Standard/Master) and may decline to plan a trivial job. Triggers on \"roadmap\", \"break this down\", \"create a plan\", \"plan this\", \"how should I build\".",
       "disable_model_invocation": false,
       "kind": "skill",

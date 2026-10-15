@@ -170,7 +170,7 @@ simply notice while editing a file. It is **not** scoped to gates.
 
 When you find one:
 
-1. **Diagnose evidence-first.** Invoke `no-fafo-debugging` before generalizing. A set derived
+1. **Diagnose evidence-first** before generalizing. A set derived
    from a wrong root cause is a *wrong set*, swept confidently, reporting green.
 2. **Name the set, and enumerate it with a command** — grep the defect's distinguishing
    string, list every sibling of the failing artifact's kind, list every caller of the changed
@@ -429,7 +429,7 @@ write them.** The measured incident behind all three: `references/task-execution
 **Loop rules:**
 
 1. **One fix per cycle.** Don't shotgun. Isolate, fix that one thing, retest.
-2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and invoke `no-fafo-debugging`: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
+2. **Diagnose before fixing, then fix the class.** Read the error, form a hypothesis, confirm it against the code, then write the fix. On the **second** RED cycle for a task, stop improvising and diagnose evidence-first: one failed targeted fix is bad luck, two says the hypothesis is wrong rather than the patch. Once the diagnosis holds, the repair is class-scoped — **A bug found during execution is a class** applies here exactly as it does at a gate, and a RED test is the earliest, cheapest place it fires.
 3. **Respect the cycle budget** (plan-set, default 3). On exhaustion stop and escalate — three failed targeted fixes means the approach is wrong, not the implementation. If the user skips rather than re-plans, `backlog add` the task; don't silently drop it.
 4. **Never skip the test — and never widen it into a regression sweep.** The task's Test field is the gate; "it looks right" is not green. It is also the **whole** of the task's testing: **do not run the plan's `stage-scope:` command inside a task**. The stage gate runs it once, at the gate. Widening within the task's own subject — the whole test file instead of one filter, or the class a fix touched — is task-scope and needs no permission; a genuine class sweep is likewise untouched.
 4a. **Prove it — by the tool, on the host.** With the work staged, before flipping Status,
@@ -606,8 +606,8 @@ news.
 
 1. **Classify every finding** as **Critical**, **Important** or **Suggestion** — the same
    scale the review tiers use, so a gate finding and a review finding are graded once.
-2. **Run the shared rule: diagnose evidence-first, then name the set.** Invoke
-   `no-fafo-debugging` before generalizing; derive the set from the failing task's `Scope:`
+2. **Run the shared rule: diagnose evidence-first, then name the set.** Diagnose
+   evidence-first before generalizing; derive the set from the failing task's `Scope:`
    field where it declares one, enumerate it with a command, and **write the command down**
    in the gate report. A set derived from a wrong root cause is a wrong set, swept
    confidently, reporting green.

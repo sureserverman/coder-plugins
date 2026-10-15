@@ -372,8 +372,8 @@ like fresh news.
 
 1. **Classify every finding** as **Critical**, **Important**, or **Suggestion** — the same
    scale the review tiers use, so a gate finding and a review finding are graded once.
-2. **Run the shared rule: diagnose evidence-first, then name the set.** Invoke
-   `no-fafo-debugging` before generalizing, enumerate the set with a command, and **write
+2. **Run the shared rule: diagnose evidence-first, then name the set.** Diagnose
+   evidence-first before generalizing, enumerate the set with a command, and **write
    that command down in the gate report**. A failed gate under a bounded round budget is the
    most fix-prone moment in the workflow, which is why the rule's evidence-first ordering is
    load-bearing here rather than advisory: a set derived from a wrong root cause is a wrong

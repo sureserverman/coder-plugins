@@ -92,8 +92,7 @@ hidden exclusions. When the branch lands, `release-tag` cuts the tag and drafts 
 the changelog. It fires only when you ask, and gates on an explicit "yes", once before
 tagging and again before pushing.
 
-**Cross-cutting the whole flow:** `honest-gates` defines what a gate may claim, and
-`no-fafo-debugging` takes over the moment something breaks — evidence before theories.
+**Cross-cutting the whole flow:** `honest-gates` defines what a gate may claim.
 
 ---
 

@@ -1,6 +1,6 @@
 # planning
 
-A fourteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A thirteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## What's new in 0.58.0
 
@@ -221,12 +221,6 @@ Routing is table-driven: `references/stack-routing.md` maps each task's stack to
 The integrity contract behind every gate in this plugin — and any acceptance check, test command, or "done" claim elsewhere. A gate is **GREEN** only when its real command ran *here* and passed; otherwise it is **RED** or **BLOCKED**. Never a stubbed task, fabricated evidence, a hidden exclusion, or a self-graded miss. Includes escalation rules for a genuinely blocked gate, so "I couldn't run it" stays distinguishable from "it passed". Applies eagerly — it does not wait to be asked.
 
 **Triggers:** any point where something must pass, build, run, or be measured — before reporting a gate green, registering a build/test task, or recording test/benchmark evidence.
-
-### `no-fafo-debugging`
-
-The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculative patches that make the symptom go away without explaining root cause. Fires at the **start of any debugging or diagnostic work**, not just when a plan task fails red: the moment a symptom, error, failing test, crash, or "it's not working" shows up, before the first hypothesis. Also drives evidence-first **autonomy** — Claude reads logs, runs read-only diagnostics, reproduces failures, and builds interceptors/probes *itself*, escalating to the user only when genuinely blocked (access it lacks, a world-action only the user can take, or a decision only they can make) — and when it must ask, it asks once, batched and specific.
-
-**Triggers:** "debug this", "why is X broken", "fix this bug", "diagnose", "investigate", "it's not working", "tests are failing", a stack trace / error / crash / hang / regression — any diagnostic request where evidence-first root-cause analysis is expected over speculative patches.
 
 ### `backlog` (v0.4.0+; v0.5.0 adds `unify` + `complete`)
 
@@ -490,7 +484,7 @@ Everything this plugin persists is **vault-canonical**, not in your repo. `portf
 
 ## Why a separate plugin
 
-All fourteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All thirteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 

@@ -26,7 +26,7 @@ Stop and escalate (see below). Do not invent a substitute that passes.
 letter ("a task by that name exits 0") while betraying the purpose. The purpose is
 the gate. When you catch yourself optimizing for the green checkmark instead of the
 thing it certifies, stop — that impulse is the failure mode this skill exists to
-name. Diagnose blockers with evidence (`no-fafo-debugging`), never by guessing a
+name. Diagnose blockers with evidence, never by guessing a
 fix that happens to make the check pass.
 
 ## Prohibited (these are gate-faking)
@@ -252,4 +252,3 @@ measurement.
 - `gate-audit` — detects after the fact where these rules were broken.
 - `android-gradle-build` / `android-stage-verify` — supply the *real* build/test/
   device commands so a gate never has to be faked for lack of technique.
-- `no-fafo-debugging` — evidence-first diagnosis instead of guessing a passing fix.
