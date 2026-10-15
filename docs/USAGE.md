@@ -82,7 +82,7 @@ and other hosts; if both are wired the bars show twice, and `/planning:statuslin
 takes the status-line copy out.
 
 ```text
-"review this, then open a PR"
+"review this branch"
 ```
 
 The plan is green; shipping it is `git-github`'s half of the loop. `code-review` audits the
@@ -107,8 +107,9 @@ attaches at the points where the platform actually matters.
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. For a full redesign rather than one screen, `android-ui-design-figma` runs
-the longer app-analysis → spec → apply workflow.
+`android-gradle-build` handles module and dependency wiring. For a full redesign rather
+than one screen, `android-ui-design-figma` runs the longer app-analysis → spec → apply
+workflow.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
 stage gate automatically** — you don't ask for it. It builds the debug APK and, when a
