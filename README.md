@@ -22,7 +22,6 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`planning`](./planning) | Idea → validated design → staged plan → gated execution. Brainstorming, architecture research, Red-Green plan execution with stage gates, parallel task dispatch, portfolio `compass`, design-handoff reproduction, and an architectural-decision register (per project and per architecture domain, cross-linked). |
 | [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up — over one project or a group of repos treated as one business project. |
 | [`git-github`](./git-github) | Everyday git/GitHub ops: commits and PRs in the repo's style, code review, multi-model second opinions, comment/workflow/license/README audits, release tags. |
-| [`testing`](./testing) | `testing-expert` subagent: run and triage tests, author new ones, audit coverage and test smells. Test pyramid, mutation-over-line-coverage opinions. |
 | [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` knowledge-router skill (fires on `*.rs`/`Cargo.toml` edits) + `rust-expert` subagent (author/review/idiomize/audit/migrate modes), over one shared `references/` set. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
 | [`game-dev`](./game-dev) | Source-cited game design/dev: a `game-dev` knowledge-router skill + `game-design-expert` subagent (mechanics, feel/juice, camera, UX/FTUE, accessibility, architecture across Godot/Unity/Unreal) over one shared `references/` set, plus `/game-review`, `/game-mechanic`. |
@@ -30,7 +29,6 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
 | [`infra-build`](./infra-build) | Registers a project with the `~/dev/infra` publishing pipelines: Debian `.deb`, macOS `.pkg`, multi-arch Docker images. |
-| [`stingy-agents`](./stingy-agents) | Three scope-bounded subagents (Haiku scanner, Sonnet rewriter, Sonnet code-generator) so a skill or Opus caller can offload bulk work cheaply. |
 | [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
 
 Each plugin's directory has its own README documenting **every component it ships** — how it
@@ -72,7 +70,7 @@ them:
 ```
 
 **Subagents are delegated.** Claude dispatches them on its own when a task
-matches (e.g. `testing-expert` for a flaky test), or you can ask directly:
+matches (e.g. `rust-expert` for a Rust task), or you can ask directly:
 "have `rust-expert` audit the unsafe blocks in src/ffi.rs".
 
 A typical end-to-end flow with the `planning` plugin:

@@ -1,0 +1,28 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": "\n15 unique references checked \u2014 0 FAIL, 0 WARN"
+ },
+ "break_patch": "diff --git a/planning/skills/dispatching-parallel-agents/references/stack-routing.md b/planning/skills/dispatching-parallel-agents/references/stack-routing.md\nindex 4c34679..00c59cd 100644\n--- a/planning/skills/dispatching-parallel-agents/references/stack-routing.md\n+++ b/planning/skills/dispatching-parallel-agents/references/stack-routing.md\n@@ -57,6 +57,7 @@ way to declare an external dependency rather than a convention to hunt for an ex\n | Research ONE architecture candidate \u2014 evidence, layout, libraries (any stack) | `planning:architecture-researcher` | `architecting-projects` (dispatching context only \u2014 the skill orchestrates, the agent researches) |\n | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | \u2014 |\n | i18n catalog translation | `i18n:translator` | \u2014 |\n+| Bulk read-only scan / enumerate / grep many files | `stingy-agents:readonly-scanner` | \u2014 |\n | Find-and-fix investigation, unknown location | `Explore` then `general-purpose` | \u2014 |\n | Independent review of an integrated diff | `git-github:code-reviewer` | \u2014 |\n | Nothing above fits | `general-purpose` | \u2014 |\n",
+ "build": null,
+ "created": "2026-10-15T22:27:50+00:00",
+ "fingerprint": "910f7c3cf1d5d3b708397bb394229152e12543fb3808ba9a50ca36c1ffc78e9d",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "markdown and JSON only, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-15-retire-old-model-crutches-light-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "  [FAIL] agent stingy-agents:readonly-scanner   namespaced agent 'stingy-agents:readonly-scanner' not shipped by this marketplace\n\n16 unique references checked \u2014 1 FAIL, 0 WARN\n\nFix each FAIL by either shipping the agent/skill in this marketplace,\nor marking it '(if installed)' in the routing table (declared external)."
+ },
+ "schema": 2,
+ "task": "1.1",
+ "test": "python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py && test -z \"$(git grep -lE '\\b(stingy-agents|readonly-scanner|skill-rewriter|code-generator|testing-expert|testing@coder-plugins)\\b' -- '*.md' '*.json' '*.sh' '*.py' | grep -vE 'CHANGELOG\\.md|^(proof|evidence)/|/fixtures/')\"",
+ "text": "`python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py && test -z \"$(git grep -lE '\\b(stingy-agents|readonly-scanner|skill-rewriter|code-generator|testing-expert|testing@coder-plugins)\\b' -- '*.md' '*.json' '*.sh' '*.py' | grep -vE 'CHANGELOG\\.md|^(proof|evidence)/|/fixtures/')\"` exits 0, and `test ! -e stingy-agents -a ! -e testing` exits 0",
+ "touched": [
+  "planning/skills/dispatching-parallel-agents/references/stack-routing.md"
+ ]
+}

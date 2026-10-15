@@ -183,7 +183,6 @@ local code-reviewer agent) for a deeper authoritative review.
 - **For a single authoritative review** — use `code-review` (invokes the
   code-reviewer agent) instead. This skill is for *additional* opinions.
 - **For architecture decisions** — use `brainstorming`.
-- **For test triage** — use the `testing-expert` agent.
 - **When offline or without the external CLIs installed** — `command -v
   codex` / `gemini` / `opencode` first; skip any that are missing and warn
   the user rather than failing the whole batch.

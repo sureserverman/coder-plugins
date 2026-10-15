@@ -130,24 +130,3 @@ After all checks, output a table:
 ```
 
 Then list actionable items sorted by severity (FAIL first, then WARN).
-
-## Delegation (Claude Code only)
-
-> **Skip this section unless you are Claude Code.** The Agent tool with
-> `subagent_type:` parameters is a Claude Code feature. Codex, Cursor, Gemini,
-> OpenCode, and other hosts do not have it — run the full workflow yourself
-> instead.
-
-The manifest read, the permission enumeration, the `web-ext lint` run, and the
-file/structure checks are all read-only bulk I/O. If you are running on Opus and
-the extension is non-trivial, delegate the scan phase to the `readonly-scanner`
-subagent (model: haiku) via the Agent tool with `subagent_type: readonly-scanner`.
-Give it the extension root path and ask it to return:
-
-- `manifest.json` parsed, with all fields relevant to AMO policy.
-- The permission list, any host permissions, and which scripts declare them.
-- `web-ext lint --output=json` raw output if `web-ext` is on PATH.
-- File tree summary (size, count, flagged binary/minified files).
-
-Integrate those findings into the compliance verdict yourself — the verdict
-itself stays with the caller.

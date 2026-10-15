@@ -91,14 +91,11 @@ Fowler smells, OWASP/CWE) where relevant."""
   stage-gate review.
 - **Second opinion**: after this review, optionally run
   `request-external-reviews` on the same scope for cross-model agreement.
-- **Ambiguous or missing tests**: route the "needs more tests" findings to
-  the `testing-expert` agent instead of trying to write them yourself.
 
 ## When NOT to use this skill
 
 - For architecture decisions — use `brainstorming`.
 - For multi-model second opinions — use `request-external-reviews`.
-- For running tests or fixing flakes — use the `testing-expert` agent.
 - For security-only deep audits where the whole goal is threat modeling —
   use the built-in `/security-review` command (it's scoped differently).
 

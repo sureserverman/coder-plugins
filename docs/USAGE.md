@@ -127,9 +127,8 @@ device is attached, installs, smoke-launches, and runs `connectedDebugAndroidTes
 > not claim a pass it didn't earn — which is `honest-gates` applied to hardware. Check
 > `adb devices` before you trust a green Android gate.
 
-Test work hands off twice: `kotlin-compose-testing-patterns` for the patterns (Compose UI
-tests, Espresso, MockWebServer), and the **`testing-expert`** agent when a test is flaky,
-the failure is unexplained, or coverage needs auditing rather than writing.
+Test work hands off to `kotlin-compose-testing-patterns` for the patterns (Compose UI
+tests, Espresso, MockWebServer).
 
 Screenshots for the store listing run the emulator stack — three emulators plus an
 in-container MCP server, brought up and torn down per task:
@@ -215,16 +214,7 @@ rather than defaulting everything to a generalist:
 | Rust | `rust-expert` | `rust-dev` |
 | Reproduce a Claude Design handoff pack | `design-handoff-reproducer` | `planning` |
 | Game mechanics, feel, camera | `game-design-expert` | `game-dev` |
-| Test triage, flakiness, coverage | `testing-expert` | `testing` |
 | Catalog translation batches | `translator` | `i18n` |
-
-The same table routes *downward* too, for cost rather than capability. **`stingy-agents`**
-ships three delegation targets, each pinned to the smallest model that can do its job —
-`readonly-scanner` (Haiku) for bulk grep and enumeration, `code-generator` and
-`skill-rewriter` (Sonnet) for scaffolding from a spec and for mechanical markdown edits.
-`stack-routing.md` carries a dedicated row for each, so an I/O-bound or boilerplate phase is
-dispatched away from a frontier model automatically. Audit and review skills in `git-github`,
-`android-dev` and `infra-build` also name them directly.
 
 Game work has its own front door, since mechanics are a design problem before a coding one:
 

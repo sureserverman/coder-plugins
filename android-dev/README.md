@@ -222,7 +222,6 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 ## Related plugins
 
 - **`planning`** — `executing-plans` invokes `android-stage-verify` automatically at every Android stage gate, scoped by gate tier (touched-module instrumented tests at intermediate gates, the full device suite once at close-out). `dispatching-parallel-agents` routes Android work here via `stack-routing.md`.
-- **`testing`** — `testing-expert` handles Compose/Espresso test authoring and triage, loading `kotlin-compose-testing-patterns` first.
 - **`infra-build`** / **`release-promo`** — packaging registration and release announcements once you're shipping.
 
 ## License

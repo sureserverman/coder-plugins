@@ -127,25 +127,3 @@ After all checks, output:
 ```
 
 Then list **actionable fixes** grouped by severity (ERROR first), and offer to apply all fixes.
-
-## Delegation (Claude Code only)
-
-> **Skip this section unless you are Claude Code.** The Agent tool with
-> `subagent_type:` parameters is a Claude Code feature. Codex, Cursor, Gemini,
-> OpenCode, and other hosts do not have it — run the full workflow yourself
-> instead.
-
-The workflow/action enumeration, YAML parse, action-version redirect-scrapes,
-and `actionlint` pass are read-only bulk work. If you are on Opus, delegate
-them to the `readonly-scanner` subagent (model: haiku) via the Agent tool with
-`subagent_type: readonly-scanner`. Ask it to return:
-
-- Every `.github/workflows/*.yml` parsed, with `on`, `jobs.*.runs-on`,
-  `permissions`, and `timeout-minutes` per job.
-- Every `uses:` reference with its pinned ref and whether it's a SHA, a tag,
-  or a floating branch — plus the latest release for the owner/repo.
-- `actionlint` raw output if the binary is on PATH.
-
-Keep the severity assignment (sections 3 security and 4 correctness), the
-cross-workflow consistency check (section 5), and any fix offering in this
-session.

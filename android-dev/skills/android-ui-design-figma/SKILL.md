@@ -136,23 +136,6 @@ Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons
 > OpenCode, and other hosts do not have it — run the full workflow yourself
 > instead.
 
-Once the design spec has been approved by the user, producing the actual
-Compose code (the "design applied in code" step) is a Sonnet-tier code
-generation job. If you are on Opus, delegate the code-write phase to the
-`code-generator` subagent (model: sonnet) via the Agent tool with
-`subagent_type: code-generator`. Give it:
-
-- the approved design spec (exact values: tokens, spacing, typography,
-  component choices),
-- the target file paths,
-- the Compose/Material 3 version and any project theme/tokens it must honor,
-- 2–3 neighbor files so it matches the project's existing conventions,
-- the instruction to verify with the project's build/check command (e.g.
-  `./gradlew :app:compileDebugKotlin`) before returning.
-
-Keep app analysis, the design spec itself, the user-feedback loop, and any
-Figma work in this session — those are where the design judgment lives.
-
 For the Phase 5 grading step, dispatch a separate subagent (e.g.
 `general-purpose`) briefed ONLY with: the approved design spec, the rubric at
 `references/ui-grading-rubric.md`, and the screenshot paths. Do not pass it

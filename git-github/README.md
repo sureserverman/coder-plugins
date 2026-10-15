@@ -148,8 +148,6 @@ tagging, and confirms **again** before pushing.
   Critical fails it) from tier `standard` up, one whole-plan-diff pass at `light`, and the
   per-task tier (a Critical blocks within the Red-Green budget) only at `high` or on a task
   annotated `Review: required`. `honest-gates` defines what a gate may claim; `gate-audit` checks whether yours do.
-- **`testing`** — `testing-expert` reviews the *tests*; `code-reviewer` reviews the code. Distinct
-  axes, both read-only.
 - **`release-promo`** — takes over after `release-tag`; this plugin deliberately does not draft
   announcements.
 

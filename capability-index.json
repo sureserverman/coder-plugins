@@ -759,46 +759,6 @@
       "path": "rust-dev/skills/rust-coding/SKILL.md",
       "plugin": "rust-dev",
       "requires_enablement": false
-    },
-    {
-      "description": "Generates code, config, or scaffolding from a concrete spec \u2014 Compose screens from a design brief, a mock server from captured traffic, a new subagent/skill file from a name+purpose, or a boilerplate config module. Not a research or architecture tool.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "code-generator",
-      "path": "stingy-agents/agents/code-generator.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Read-only bulk file scanner. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs \u2014 when the work is I/O-bound and the caller wants it off its own context. Never writes, edits, renames, or deletes.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "haiku",
-      "name": "readonly-scanner",
-      "path": "stingy-agents/agents/readonly-scanner.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Rewrites existing skill/agent/README markdown files to match a spec the caller provides \u2014 tightening SKILL.md descriptions, syncing skills to a canonical pattern, applying ISSUE/IMPROVE edits to a README, or leak-proofing frontmatter. Read/Edit only, scoped to caller-named paths.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "skill-rewriter",
-      "path": "stingy-agents/agents/skill-rewriter.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "testing-expert",
-      "path": "testing/agents/testing-expert.md",
-      "plugin": "testing",
-      "requires_enablement": false
     }
   ],
   "schema": 1

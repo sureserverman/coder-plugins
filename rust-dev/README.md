@@ -88,7 +88,6 @@ the former `/rust-review` and `/rust-idiomize` commands were folded in (see the 
 - **`planning`** — `dispatching-parallel-agents` routes Rust tasks here via `stack-routing.md`,
   loading `rust-coding` first; `decisions` is where a Rust-wide constraint gets promoted to the
   `rust` domain register so every Rust project inherits it.
-- **`testing`** — `testing-expert` for test strategy; `rust-expert` for the Rust itself.
 - **`infra-build`** — `build-for-mac` packages Rust source repos into macOS `.pkg`.
 
 ## License

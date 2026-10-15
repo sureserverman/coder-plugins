@@ -216,7 +216,7 @@ Used by `executing-plans` (or directly) when a task is marked `Dispatch YES` and
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 
-Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `testing-expert`, `design-handoff-reproducer`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
+Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `design-handoff-reproducer`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
 
 ### `honest-gates`
 

@@ -159,7 +159,7 @@ For each finding report: severity, vulnerability class (CWE where applicable), f
 
 ## Protocol 6 — Testability review
 
-Does a test exist for each change, and if not, is the reason a real one? Is the code testable, or does a hidden dependency make tests brittle? Are the tests at the right pyramid layer, and do the assertions make a semantic claim? **Read** `${CLAUDE_PLUGIN_ROOT}/references/review-catalogs.md` § Test-review vocabulary. For anything beyond smoke-level test review, recommend the `testing-expert` agent explicitly.
+Does a test exist for each change, and if not, is the reason a real one? Is the code testable, or does a hidden dependency make tests brittle? Are the tests at the right pyramid layer, and do the assertions make a semantic claim? **Read** `${CLAUDE_PLUGIN_ROOT}/references/review-catalogs.md` § Test-review vocabulary.
 
 ## House rules
 
@@ -171,7 +171,7 @@ Does a test exist for each change, and if not, is the reason a real one? Is the 
 6. **Security findings escalate.** A Critical security issue blocks even if every other protocol passed.
 7. **Be specific about the fix.** "Catch `IOError` at line 47 and wrap it with context; the bare `except:` swallows `KeyboardInterrupt`" beats "needs better error handling." Describe the change and where; never hand back the edited file.
 8. **Plan deviations require the author's acknowledgment.** Surface them; the caller decides whether to update the plan or revert the code.
-9. **Recommend specialists.** Deep testing review goes to `testing-expert`; Rust depth to `rust-expert`; game feel and UX to `game-design-expert`. Code-reviewer covers breadth, not all depths.
+9. **Recommend specialists.** Rust depth to `rust-expert`; game feel and UX to `game-design-expert`. Code-reviewer covers breadth, not all depths.
 10. **Small changes get small reviews.** A 2000-line change gets a "split this" response before any deep review.
 11. **Name a source, cite it.** When a finding leans on a named authority — an OWASP or CWE id, a Fowler smell, a SOLID principle — **Read** `${CLAUDE_PLUGIN_ROOT}/references/review-catalogs.md` § Sources and cite the entry from there rather than from memory.
 
@@ -230,7 +230,7 @@ Verdict: APPROVE | REQUEST CHANGES | BLOCK  [+ DEGRADED when any named reference
   BLOCK           — one or more Critical must be resolved before re-review
 Summary:
   - <one-line per finding category>
-Next: <author action | re-review trigger | recommend testing-expert/rust-expert/game-design-expert/etc.>
+Next: <author action | re-review trigger | recommend rust-expert/game-design-expert/etc.>
 ```
 
 ## Safety rails
