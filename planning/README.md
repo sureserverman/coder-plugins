@@ -6,9 +6,9 @@ A thirteen-skill pipeline (v0.59.0) that turns a vague idea into executed work �
 
 **Two skills that worked around older-model weaknesses are retired, and the routing table drops two retired plugins.**
 
-- **`no-fafo-debugging` is gone.** Its rule stays where it was used: the class rule, the Red-Green diagnose step and the gate-failure step each say "diagnose evidence-first" inline. The contract test still pins that diagnosis comes before the set is named.
-- **`capability-router` is gone.** Plan execution still resolves a disabled plugin's skill or agent from disk, per `stack-routing.md` § *Resolving a capability whose plugin isn't enabled*.
-- **`stack-routing.md` routes only to agents that ship.** The `stingy-agents` and `testing` plugins left the marketplace, so their rows are removed. Test and scaffolding work falls through to `general-purpose`.
+- **The evidence-first debugging skill is gone.** Its rule stays where it was used: the class rule, the Red-Green diagnose step and the gate-failure step each say "diagnose evidence-first" inline. The contract test still pins that diagnosis comes before the set is named.
+- **The ad-hoc capability router skill is gone.** Plan execution still resolves a disabled plugin's skill or agent from disk, per `stack-routing.md` § *Resolving a capability whose plugin isn't enabled*.
+- **`stack-routing.md` routes only to agents that ship.** The cheap-delegation and testing-persona plugins left the marketplace, so their rows are removed. Test and scaffolding work falls through to `general-purpose`.
 
 ## What's new in 0.58.0
 

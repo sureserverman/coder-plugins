@@ -509,7 +509,7 @@ planning/skills/backlog/SKILL.md 17333
 #   prompt template's ## Return block says an agent returns only after its own background work
 #   finished or was stopped, and says which. It has to be in the template: a dispatched agent
 #   reads only its prompt, and its background commands outlive it otherwise.
-# Lowered 17725 -> 17383 (-342 B) 2026-10-15, crutch-retirement Tasks 1.1-1.2: the routing summary loses the retired agents and the capability-router pointer.
+# Lowered 17725 -> 17383 (-342 B) 2026-10-15, crutch-retirement Tasks 1.1-1.2: the routing summary loses the retired agents and its pointer to the retired router skill.
 planning/skills/dispatching-parallel-agents/SKILL.md 17383
 # Raised 16191 -> 16200 (+9) by the Task 3.3 deixis burn-down:
 #   the DesignSync caveat now names Phase 1, and the ui-grading-rubric
@@ -518,7 +518,7 @@ planning/skills/dispatching-parallel-agents/SKILL.md 17383
 #   fix had satisfied the guard by DELETING the ui-grading-rubric citation rather
 #   than repointing it — the one place in the 48 where information was lost to make
 #   a check green. Restored as a resolvable relative path into android-dev.
-# Lowered 16252 -> 16222 (-30 B) 2026-10-15, crutch-retirement Task 1.2: android-ui-layout-patterns is retired.
+# Lowered 16252 -> 16222 (-30 B) 2026-10-15, crutch-retirement Task 1.2: the Compose layout-rules skill is retired.
 planning/skills/applying-design-handoff/SKILL.md 16222
 # Raised 14834 -> 14843 (+9) by the Task 3.3 deixis burn-down:
 #   the AI-tool waiver names the step-2 rule it excepts, and the packaging
@@ -533,9 +533,9 @@ planning/skills/project-maturity/SKILL.md 14884
 # Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
 # lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
 # with the reason on the line above it.
-# Lowered 13534 -> 12659 (-875 B) 2026-10-15, crutch-retirement Task 1.1: the code-generator delegation paragraphs are gone.
+# Lowered 13534 -> 12659 (-875 B) 2026-10-15, crutch-retirement Task 1.1: the cheap code-generation delegation paragraphs are gone.
 android-dev/skills/android-ui-design-figma/SKILL.md 12659
-# Lowered 13335 -> 12196 (-1139 B) 2026-10-15, crutch-retirement Task 1.1: the readonly-scanner delegation section is gone.
+# Lowered 13335 -> 12196 (-1139 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
 git-github/skills/license-audit/SKILL.md 12196
 # Raised 13122 -> 13124 (+2) by the Task 3.3 deixis burn-down:
 #   the question heuristics are cited by phase instead of by direction
@@ -546,7 +546,7 @@ git-github/skills/license-audit/SKILL.md 12196
 #   be "teach three skills the five conditions": that is a second definition of reachable,
 #   which is DEC-011. So the conditions stay in one place and the skills now call
 #   `resolve-plan-home.py` and obey its exit codes. Here it is a pointer at that contract, not a copy of it.
-# Lowered 13182 -> 13148 (-34 B) 2026-10-15, crutch-retirement Task 1.1: the testing-expert pointer is gone.
+# Lowered 13182 -> 13148 (-34 B) 2026-10-15, crutch-retirement Task 1.1: the pointer to the retired testing agent is gone.
 planning/skills/brainstorming/SKILL.md 13148
 # Raised 13026 -> 13053 (+27) by the Task 3.3 deixis burn-down:
 #   the Output location citation now carries the path it refers to
@@ -600,7 +600,7 @@ business/skills/business-plan/SKILL.md 11538
 #   statement and the table/sweep/quadrant steps landed. The method itself lives in
 #   references/competitive-analysis-method.md, loaded on demand, not here.
 business/skills/market-research/SKILL.md 11935
-# Lowered 10838 -> 9700 (-1138 B) 2026-10-15, crutch-retirement Task 1.1: the readonly-scanner delegation section is gone.
+# Lowered 10838 -> 9700 (-1138 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
 git-github/skills/code-comment-audit/SKILL.md 9700
 business/skills/track/SKILL.md 10750
 planning/skills/workflow-spec/SKILL.md 10580
