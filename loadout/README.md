@@ -141,6 +141,3 @@ it and nothing happened".
 ## Related plugins
 
 - Every other plugin in this marketplace is a candidate for a profile.
-- **`planning`** — `capability-router` solves the adjacent problem from the other direction: it
-  reaches one skill or agent from disk **without** enabling its plugin, via `capability-index.json`.
-  Use `loadout` for a durable per-project set; use `capability-router` for a one-off need.

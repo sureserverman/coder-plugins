@@ -1,0 +1,28 @@
+{
+ "baseline": {
+  "elapsed_s": 0.1,
+  "exit": 0,
+  "tail": "OK \u2014 11 plugin descriptions agree with their skills[] and mirrors\n\n13 unique references checked \u2014 0 FAIL, 0 WARN"
+ },
+ "break_patch": "diff --git a/planning/skills/dispatching-parallel-agents/SKILL.md b/planning/skills/dispatching-parallel-agents/SKILL.md\nindex 42d513e..a6d1625 100644\n--- a/planning/skills/dispatching-parallel-agents/SKILL.md\n+++ b/planning/skills/dispatching-parallel-agents/SKILL.md\n@@ -182,7 +182,8 @@ whose plugin isn't enabled*: dispatch `general-purpose` with\n the agent's `.md` body (from its `path` in `capability-index.json`) injected as its\n instructions and its frontmatter `model` passed as the subagent model. A component\n flagged `requires_enablement` can't be lazy-loaded \u2014 surface it to the caller to enable\n-that plugin instead of dispatching.\n+that plugin instead of dispatching. (For ad-hoc, non-plan needs, the `capability-router`\n+skill wraps this same lookup-and-resolve flow.)\n \n ## Phase 5 \u2014 Collect\n \n",
+ "build": null,
+ "created": "2026-10-15T22:29:36+00:00",
+ "fingerprint": "b3940d5711d7102da8dd38e78172e26fe4dbbb9be58ada91eb87250426065cc4",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "markdown and JSON only, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-15-retire-old-model-crutches-light-plan.md",
+ "red": {
+  "elapsed_s": 0.1,
+  "exit": 1,
+  "tail": "OK \u2014 11 plugin descriptions agree with their skills[] and mirrors\n\n13 unique references checked \u2014 0 FAIL, 0 WARN"
+ },
+ "schema": 2,
+ "task": "1.2",
+ "test": "python3 scripts/check-plugin-description-sync.py && python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py && test -z \"$(git grep -lE '\\b(create-commit|create-pr|capability-router|android-ui-layout-patterns|kotlin-compose-testing-patterns)\\b' -- '*.md' '*.json' | grep -vE 'CHANGELOG\\.md|^proof/|/fixtures/')\"",
+ "text": "`python3 scripts/check-plugin-description-sync.py && python3 planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py && test -z \"$(git grep -lE '\\b(create-commit|create-pr|capability-router|android-ui-layout-patterns|kotlin-compose-testing-patterns)\\b' -- '*.md' '*.json' | grep -vE 'CHANGELOG\\.md|^proof/|/fixtures/')\"` exits 0",
+ "touched": [
+  "planning/skills/dispatching-parallel-agents/SKILL.md"
+ ]
+}

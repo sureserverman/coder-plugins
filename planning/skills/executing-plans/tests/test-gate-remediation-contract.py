@@ -225,9 +225,9 @@ def affirms_predicate(hay, anchor_pat, target_pat, window=200):
 def affirmed_index(hay, pattern):
     """Index of the first match of `pattern` that is NOT negated, else -1.
 
-    Only the preceding clause is scanned, never the match itself: the token this is
-    used for — `no-fafo-debugging` — literally begins with "no", so including the
-    match would make NEGATION_RE reject every genuine reference.
+    Only the preceding clause is scanned, never the match itself: a token that
+    literally begins with "no" would otherwise be rejected by NEGATION_RE at every
+    genuine reference.
     """
     for m in re.finditer(pattern, hay, re.I | re.S):
         pre = hay[max(0, m.start() - NEGATION_LOOKBEHIND):m.start()]
@@ -633,13 +633,15 @@ def main():
           affirms(gate_fail, r"every member[^.]{0,80}this round|fix every member"),
           "repair may still proceed one instance per round, which is oscillation")
 
-    # 6b — no-fafo-debugging is routed AT the diagnosis step, not merely mentioned (P4).
-    # A bare reference anywhere in the file would satisfy a naive grep and change
-    # nothing, so position is the assertion: it must sit inside the gate-failure
-    # block, and before the set is named.
-    check("no-fafo-debugging is referenced in the gate-failure procedure",
-          affirmed_index(gate_fail, r"no-fafo") != -1,
-          "the gate-failure procedure never routes to no-fafo-debugging "
+    # 6b — evidence-first diagnosis is instructed AT the diagnosis step, not merely
+    # mentioned (P4). A bare reference anywhere in the file would satisfy a naive grep
+    # and change nothing, so position is the assertion: it must sit inside the
+    # gate-failure block, and before the set is named. Anchored on the step BODY
+    # ("evidence-first before generalizing"): step 2's heading already says
+    # "diagnose evidence-first", so a bare anchor would pass on the heading alone.
+    check("evidence-first diagnosis is instructed in the gate-failure procedure",
+          affirmed_index(gate_fail, r"evidence-first\W*before generalizing") != -1,
+          "the gate-failure procedure never instructs evidence-first diagnosis "
           "(or names it only to opt out)")
     # Anchor on the DERIVATION instruction, not on step 2's heading: the heading
     # ("Diagnose evidence-first, then name the set…") already contains "name the set"
@@ -650,10 +652,10 @@ def main():
     check("step 2's heading orders diagnosis before naming",
           affirms(gate_fail, r"diagnose evidence-first, then name the set"),
           "step 2 does not state diagnosis-before-generalization in its own heading")
-    fafo_at = affirmed_index(class_rule, r"no-fafo")
+    diag_at = affirmed_index(class_rule, r"evidence-first\W*before generalizing")
     derive_at = class_rule.lower().find("name the set")
-    check("no-fafo is routed BEFORE the set is derived",
-          fafo_at != -1 and derive_at != -1 and fafo_at < derive_at,
+    check("evidence-first diagnosis is ordered BEFORE the set is derived",
+          diag_at != -1 and derive_at != -1 and diag_at < derive_at,
           "diagnosis is not ordered before generalization, so a wrong root cause "
           "yields a confidently-swept wrong set")
     check("the ordering rationale is stated, not just the order",
@@ -664,9 +666,9 @@ def main():
     # 6c — BL-027's SECOND site. An independent evaluator deleted the Red-Green
     # diagnose-rule reference and this suite stayed green, so the site was unpinned.
     rg = section(text, r"\*\*Diagnose before fixing", r"\*\*Respect the cycle budget")
-    check("no-fafo is routed at the Red-Green diagnose step too",
-          affirmed_index(rg, r"no-fafo") != -1,
-          "the Red-Green loop's diagnose rule does not route to no-fafo-debugging")
+    check("evidence-first diagnosis is instructed at the Red-Green diagnose step too",
+          affirmed_index(rg, r"evidence-first") != -1,
+          "the Red-Green loop's diagnose rule does not instruct evidence-first diagnosis")
 
     # 7 — sweep: no instance-shaped framing survives anywhere under planning/skills/
     offenders = []

@@ -51,16 +51,11 @@ way to declare an external dependency rather than a convention to hunt for an ex
 |---|---|---|
 | Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring; the agent's own review/idiomize/project-audit modes handle the rest) |
 | Android build / Kotlin / Gradle | `general-purpose` | `android-gradle-build` |
-| Android UI — Compose / Material 3 screens | `general-purpose` | `android-ui-layout-patterns`, `android-ui-design-figma` |
-| Android tests — Compose/Espresso/MockWebServer | `testing:testing-expert` | `kotlin-compose-testing-patterns` |
+| Android UI — Compose / Material 3 screens | `general-purpose` | `android-ui-design-figma` |
 | Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
 | Research ONE architecture candidate — evidence, layout, libraries (any stack) | `planning:architecture-researcher` | `architecting-projects` (dispatching context only — the skill orchestrates, the agent researches) |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
 | i18n catalog translation | `i18n:translator` | — |
-| Test authoring / triage / coverage (any stack) | `testing:testing-expert` | — |
-| Scaffolding / boilerplate from a concrete spec | `stingy-agents:code-generator` | — |
-| Rewrite existing skill / agent / README markdown to a spec | `stingy-agents:skill-rewriter` | — |
-| Bulk read-only scan / enumerate / grep many files | `stingy-agents:readonly-scanner` | — |
 | Find-and-fix investigation, unknown location | `Explore` then `general-purpose` | — |
 | Independent review of an integrated diff | `git-github:code-reviewer` | — |
 | Nothing above fits | `general-purpose` | — |
@@ -70,7 +65,7 @@ When the table names a stack skill, put it in the dispatched agent's prompt
 conventions instead of generic defaults.
 
 **A row earns its place by adding something the fallback doesn't.** Android UI keeps a row
-because it names stack skills; the other UI surfaces lost theirs when their agents were
+because it names a stack skill; the other UI surfaces lost theirs when their agents were
 retired, because a row reading `general-purpose` / `—` says exactly what the final
 *Nothing above fits* row already says. Don't re-add informational rows that carry no
 routing signal.
@@ -94,26 +89,22 @@ treat a handoff pack there as loose visual inspiration, not a fidelity target.
 ## Not every routed agent can commit — the orchestrator finishes the task
 
 `executing-plans` Step 3.3 requires every dispatched task to run its `Test:`, flip its
-`Status:` to `[x]`, and land a commit ending in an executor trailer. **Four of the agents
+`Status:` to `[x]`, and land a commit ending in an executor trailer. **Three of the agents
 this table routes to cannot do that**, because their `tools:` grant withholds what it takes.
 Swept 2026-08-28 (re-verified at the session-mined-flaws close-out; two agent grants changed that day — `code-reviewer` and `market-researcher` — and neither has a row here) against every agent frontmatter in the marketplace
 (grep -m1 '^tools:' over every `*/agents/*.md`):
 
 | Routed agent | Can run a test? | Can commit? |
 |---|---|---|
-| `testing:testing-expert` | yes | **yes** — unrestricted shell |
-| `stingy-agents:code-generator` | yes | **yes** — unrestricted shell |
 | `planning:design-handoff-reproducer` | yes | **yes** — unrestricted shell |
 | `rust-dev:rust-expert` | yes (cargo) | **no** — its git grant is read-only (status, diff, log, show, blame) |
 | `game-dev:game-design-expert` | no | **no** — same read-only git grant |
 | `i18n:translator` | partly (python3) | **no** — status and diff only |
-| `stingy-agents:skill-rewriter` | **no** — no shell at all | **no** |
-| `stingy-agents:readonly-scanner` | n/a | n/a — read-only by design; never route a *task* here |
 
-Rows this table routes for *research or review* rather than for a task — `planning:architecture-researcher`, `git-github:code-reviewer`, `stingy-agents:readonly-scanner` — are deliberately out of scope for this table: they never carry a `Status:` or a commit obligation, so commit capability is not a property they need. Their absence is a scoping decision, not a gap in the sweep.
+Rows this table routes for *research or review* rather than for a task — `planning:architecture-researcher`, `git-github:code-reviewer` — are deliberately out of scope for this table: they never carry a `Status:` or a commit obligation, so commit capability is not a property they need. Their absence is a scoping decision, not a gap in the sweep.
 
-This is a capability boundary, not a bug in those agents: a markdown rewriter with no shell
-is a deliberately cheap, deliberately safe tool. What was missing is the handoff.
+This is a capability boundary, not a bug in those agents: a domain expert with a read-only
+git grant is a deliberately safe tool. What was missing is the handoff.
 
 **So when the routed agent cannot commit, the task is still dispatched** — the delegation
 directive is unchanged, and inlining it instead would be the exact substitution
@@ -126,7 +117,7 @@ directive is unchanged, and inlining it instead would be the exact substitution
    same trust-but-verify re-run Phase 6 already requires for a GREEN return, so it costs
    nothing new — it just becomes the only run rather than the second one.
 3. **The orchestrator writes the commit**, and **the trailer still names the agent**:
-   `Executor: dispatched — stingy-agents:skill-rewriter`. The trailer records **who did the
+   `Executor: dispatched — rust-dev:rust-expert`. The trailer records **who did the
    work**, not who typed `git commit` — that is what makes it answer "5 marked YES, 0
    dispatched". Say in the commit body that the agent lacked commit capability and the
    orchestrator completed it, so the split is on the record.
@@ -179,10 +170,6 @@ above, not a replacement for it: the plan's `Dispatch:` field already decided
 disabled, resolve it from the index. When the plugin **is** enabled, use the normal
 registered `subagent_type` / skill invocation; the index path is only for the
 disabled case.
-
-For ad-hoc (non-plan) work where you just need a domain capability that isn't
-loaded, the `planning:capability-router` skill wraps this same lookup-and-resolve
-flow.
 
 ---
 

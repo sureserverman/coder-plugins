@@ -1,13 +1,11 @@
 # git-github
 
-Everyday git/GitHub operations for Claude Code: draft commits and PRs that match the repo's style, run a single-tool authoritative code review, dispatch the same diff to sibling CLIs for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows, review READMEs, audit licenses, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.
+Everyday git/GitHub operations for Claude Code: run a single-tool authoritative code review, dispatch the same diff to sibling CLIs for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows, review READMEs, audit licenses, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.
 
 ## What it covers
 
 | Skill | When it fires | What it does |
 |---|---|---|
-| `create-commit` | "commit this", "create a commit" | Dispatches a Haiku subagent to draft a message in the repo's style and run `git commit`. Never amends, never `git add -A`. |
-| `create-pr` | "open a PR", "draft a pull request" | Detects the base branch, scopes the diff, drafts title + body matching recent merged PRs, then runs `gh pr create` (defaults to draft) after you confirm. |
 | `github-workflow-audit` | "audit my workflows", "check github actions" | Runs the bundled `audit-workflows.py` over `.github/workflows/*` for YAML errors, expression injection, outdated action versions, missing `permissions:`, and more. |
 | `license-audit` | "what license should this project use", "audit my licenses", "are my deps GPL-compatible" | Walks every dependency source (Dockerfile, manifests, vendored code), resolves SPDX licenses, applies copyleft-propagation rules per usage type, proposes compatible LICENSE options, and generates `LICENSE` after you pick one. |
 | `review-readme` | "my readme is a mess", "clean up the README" | Audits the README against a 30-second-rule checklist and applies user-approved edits. README only shrinks. |
@@ -22,12 +20,10 @@ All skills auto-trigger on the phrases above, and each is also invocable explici
 
 ### Which skills will never act on their own
 
-Four skills touch shared state, and **none of them ever fires autonomously** — they trigger only on an explicit request from you, and then confirm before acting. Knowing which is which matters more than any other detail on this page:
+Two skills touch shared state, and **none of them ever fires autonomously** — they trigger only on an explicit request from you, and then confirm before acting. Knowing which is which matters more than any other detail on this page:
 
 | Skill | Never does | Confirms before |
 |---|---|---|
-| `create-commit` | amend, `git add -A`, push | creating the commit |
-| `create-pr` | push a branch you didn't ask to push | `gh pr create` (defaults to **draft**) |
 | `release-tag` | force-push, delete or move an existing tag | tagging — **and again** before pushing |
 | `repo-health` | write anything you didn't pick | filing each finding into a project backlog |
 
@@ -57,7 +53,7 @@ Most skills write nothing — findings come back in the conversation. The except
 | `license-audit` | `LICENSE` (only after you pick from the proposed options) |
 | `review-readme` | edits `README.md` in place — and **only ever shrinks it** |
 | `code-comment-audit` | edits comments in the files you scoped |
-| `create-commit` / `create-pr` / `release-tag` | git objects: a commit, a PR, an annotated tag |
+| `release-tag` | an annotated tag |
 | `repo-health` | backlog entries in **other projects'** registers via `planning:backlog`, for findings you pick — URL-keyed dedup, zombie detection on re-sweeps |
 
 **Review reports are never committed.** `code-review`, `gate-audit`, and `request-external-reviews` return findings in-conversation; any report file you save locally stays local, per the portfolio-wide rule that security and review report `.md` files are gitignored and never reach a remote.
@@ -89,7 +85,7 @@ out of the always-loaded body is what lets the agent stay a router rather than a
 /plugin install git-github@coder-plugins
 ```
 
-`gh` (GitHub CLI) is required for `create-pr`, `repo-health`, and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
+`gh` (GitHub CLI) is required for `repo-health` and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
 
 ## Determinism boundary
 
@@ -126,18 +122,9 @@ The complementary question: not "is this code good" but "did the verification ac
 Checks for stubbed gates, tests that never ran, and undisclosed exclusions.
 
 ```text
-"commit this"
-```
-
-`create-commit` drafts a message in the repo's existing style via a Haiku subagent and shows it
-before committing. It will not amend and will not `git add -A`.
-
-```text
-"open a PR"
 /git-github:release-tag v1.4.0
 ```
 
-`create-pr` reads recent merged PRs for tone, defaults to **draft**, and confirms first.
 `release-tag` drafts an annotated-tag message from the top CHANGELOG entry, confirms before
 tagging, and confirms **again** before pushing.
 
@@ -148,8 +135,6 @@ tagging, and confirms **again** before pushing.
   Critical fails it) from tier `standard` up, one whole-plan-diff pass at `light`, and the
   per-task tier (a Critical blocks within the Red-Green budget) only at `high` or on a task
   annotated `Review: required`. `honest-gates` defines what a gate may claim; `gate-audit` checks whether yours do.
-- **`testing`** — `testing-expert` reviews the *tests*; `code-reviewer` reviews the code. Distinct
-  axes, both read-only.
 - **`release-promo`** — takes over after `release-tag`; this plugin deliberately does not draft
   announcements.
 
@@ -157,7 +142,6 @@ tagging, and confirms **again** before pushing.
 
 - **Never autonomous on shared state.** Every commit, push, PR open, tag, and release waits for an explicit "yes". The skills surface what they're about to do; you approve.
 - **Never `--force`, never `--amend` on shared history, never `git add -A`.** Matches the global rules in `~/.claude/CLAUDE.md` and the Bash tool's git protocol.
-- **Haiku where it pays.** The mechanical drafting (commit messages, PR bodies) runs on Haiku via the host-provided `general-purpose` subagent — bounded work, ~10× cheaper, keeps raw diffs out of Opus context.
 - **Hands off promotion.** After cutting a release, this plugin points you at `release-promo` (`/promote-release`) — it does not draft announcement posts itself.
 
 ## License

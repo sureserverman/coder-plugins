@@ -57,7 +57,6 @@ DEFAULTS=$(cat <<'JSON'
     "android-dev@coder-plugins": true,
     "git-github@coder-plugins": true,
     "release-promo@coder-plugins": true,
-    "stingy-agents@coder-plugins": true,
     "browser-extensions@coder-plugins": true,
     "infra-build@coder-plugins": true,
     "planning@coder-plugins": true,
@@ -86,8 +85,8 @@ info "merged recommended defaults into $SETTINGS"
 info ""
 info "Defaults applied for keys you did not already have:"
 info "  - 4 marketplaces registered (coder-plugins, agent-tooling, obsidian-wiki, sec-audit-marketplace)"
-info "  - 9 coder-plugins enabled (rust-dev, android-dev, git-github,"
-info "    release-promo, stingy-agents, browser-extensions, infra-build, planning, loadout)"
+info "  - 8 coder-plugins enabled (rust-dev, android-dev, git-github,"
+info "    release-promo, browser-extensions, infra-build, planning, loadout)"
 info "  - agent-tooling (plugin-dev + platform siblings), obsidian-wiki, and"
 info "    sec-audit-marketplace are registered but their plugins are not enabled —"
 info "    flip them on per-machine with /plugin or per-project with /loadout once installed."

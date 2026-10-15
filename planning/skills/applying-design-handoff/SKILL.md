@@ -141,8 +141,8 @@ Apply the design in code, standard-components-first within each platform.
    [../dispatching-parallel-agents/references/stack-routing.md](../dispatching-parallel-agents/references/stack-routing.md).
    **This lookup is skill-only** — the subagent this skill dispatches is always
    `planning:design-handoff-reproducer` (the table's own *Reproduce a Claude Design handoff
-   pack* row), whatever the lookup returns. Only Android names stack skills:
-   `android-ui-design-figma` + `android-ui-layout-patterns`. Web, GNOME, macOS and Windows
+   pack* row), whatever the lookup returns. Only Android names a stack skill:
+   `android-ui-design-figma`. Web, GNOME, macOS and Windows
    have no row, so the lookup ends at *Nothing above fits* and the reproducer works
    from its own standard-components-first judgment; the brief should say so, not name
    a skill that does not exist.

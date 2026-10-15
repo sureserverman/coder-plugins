@@ -119,24 +119,3 @@ After all checks, output:
 ```
 
 Then list **actionable fixes** grouped by severity (ERROR first), and offer to apply all fixes.
-
-## Delegation (Claude Code only)
-
-> **Skip this section unless you are Claude Code.** The Agent tool with
-> `subagent_type:` parameters is a Claude Code feature. Codex, Cursor, Gemini,
-> OpenCode, and other hosts do not have it — run the full workflow yourself
-> instead.
-
-The `shellcheck` pass, URL liveness probes, version-pin lookups, and `.onion`
-resolution are read-only scan work and dominate runtime when auditing more than
-a handful of scripts. If you are on Opus, delegate them to the `readonly-scanner`
-subagent (model: haiku) via the Agent tool with `subagent_type: readonly-scanner`.
-Hand it:
-
-- The list of script paths.
-- The severity table so it can label findings.
-- A short timeout budget per URL (5–10s) and a cap on total URLs probed.
-
-Ask it to return a per-finding table (`severity`, `file:line`, `issue`, `evidence`).
-Keep the fix offering and any actual edits in this session — the scanner cannot
-write.

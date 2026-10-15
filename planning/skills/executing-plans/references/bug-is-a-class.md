@@ -13,11 +13,11 @@ not its home.
 
 ## Diagnose before generalizing
 
-Invoke `no-fafo-debugging` before naming the set. The order is not decorative: a set derived
+Diagnose evidence-first before naming the set. The order is not decorative: a set derived
 from a wrong root cause is a *wrong set*, so the sweep would then run confidently over the
 wrong population and report green. **The step begins where the failure becomes *unexpected***
 — the first RED of a Red-Green cycle is the test doing its job and has nothing to diagnose,
-which is why the loop's second-cycle threshold for invoking `no-fafo-debugging` stands rather
+which is why the loop's second-cycle threshold for evidence-first diagnosis stands rather
 than being overridden here.
 
 ## Two shapes, and only one of them can be enumerated

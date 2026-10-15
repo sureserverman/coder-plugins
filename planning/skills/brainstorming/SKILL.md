@@ -123,7 +123,7 @@ Walk the user through these sections. Scale each to the project's complexity —
 3. **Components** — each named component, its responsibility, its inputs/outputs
 4. **Data flow** — how information moves through the system (sequence of calls for the main use case)
 5. **Error handling** — what failures look like, how they propagate, what the user sees
-6. **Testing** — which behaviors are tested at which pyramid layer (defer depth to `testing-expert`)
+6. **Testing** — which behaviors are tested at which pyramid layer
 7. **Rollout** — feature flag? staged deploy? migration script? how to roll back?
 
 Do not present sections 2-7 until section 1 is approved. Do not skip sections because "they don't apply" — if they don't apply, say so explicitly ("no rollout concerns: this is a pure dev-tool change"). Explicit-negative is better than silent-missing because it shows the reader you considered it.

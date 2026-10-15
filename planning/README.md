@@ -1,6 +1,14 @@
 # planning
 
-A fifteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A thirteen-skill pipeline (v0.59.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+
+## What's new in 0.59.0
+
+**Two skills that worked around older-model weaknesses are retired, and the routing table drops two retired plugins.**
+
+- **The evidence-first debugging skill is gone.** Its rule stays where it was used: the class rule, the Red-Green diagnose step and the gate-failure step each say "diagnose evidence-first" inline. The contract test still pins that diagnosis comes before the set is named.
+- **The ad-hoc capability router skill is gone.** Plan execution still resolves a disabled plugin's skill or agent from disk, per `stack-routing.md` § *Resolving a capability whose plugin isn't enabled*.
+- **`stack-routing.md` routes only to agents that ship.** The cheap-delegation and testing-persona plugins left the marketplace, so their rows are removed. Test and scaffolding work falls through to `general-purpose`.
 
 ## What's new in 0.58.0
 
@@ -122,8 +130,6 @@ dispatching-parallel-agents  ── one agent per task marked Dispatch YES whose
 
   ┌─ cross-cutting, no fixed position in the flow ────────────────────────┐
   │ honest-gates       ── the integrity contract every gate above obeys.  │
-  │ capability-router  ── reach a marketplace skill/agent whose plugin    │
-  │                       isn't enabled this session.                     │
   └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -216,25 +222,13 @@ Used by `executing-plans` (or directly) when a task is marked `Dispatch YES` and
 
 **Triggers:** "dispatch these tasks in parallel", "run these in parallel", "fan out the parallel-marked tasks".
 
-Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `testing-expert`, `design-handoff-reproducer`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
+Routing is table-driven: `references/stack-routing.md` maps each task's stack to a matched subagent (`rust-expert`, `design-handoff-reproducer`, …). `executing-plans` consults the same table to hand independent, output-heavy *sequential* tasks to a subagent for context hygiene. A CI-enforced `validate-stack-routing.py` check fails the build when the table names an agent or skill the marketplace no longer ships.
 
 ### `honest-gates`
 
 The integrity contract behind every gate in this plugin — and any acceptance check, test command, or "done" claim elsewhere. A gate is **GREEN** only when its real command ran *here* and passed; otherwise it is **RED** or **BLOCKED**. Never a stubbed task, fabricated evidence, a hidden exclusion, or a self-graded miss. Includes escalation rules for a genuinely blocked gate, so "I couldn't run it" stays distinguishable from "it passed". Applies eagerly — it does not wait to be asked.
 
 **Triggers:** any point where something must pass, build, run, or be measured — before reporting a gate green, registering a build/test task, or recording test/benchmark evidence.
-
-### `capability-router`
-
-Reaches a marketplace capability — a skill or a subagent — **even when its plugin isn't enabled in this session**. Enablement only controls what Claude Code injects at session start; every component's files are on disk regardless. Looks the capability up in `capability-index.json` and loads it from disk (reading a SKILL.md, or injecting an agent body with its `model` pin). This is the ad-hoc entry point to the same disk-resolution flow `executing-plans` and `dispatching-parallel-agents` use mid-plan. Components that need runtime registration (hooks, MCP) can't be lazy-loaded — those stop and ask you to enable the plugin.
-
-**Triggers:** "load the Rust expert", "which plugin covers X", "write idiomatic Rust", "review my game design".
-
-### `no-fafo-debugging`
-
-The diagnostic counterpart to the pipeline. Blocks "Fix And Forget" — speculative patches that make the symptom go away without explaining root cause. Fires at the **start of any debugging or diagnostic work**, not just when a plan task fails red: the moment a symptom, error, failing test, crash, or "it's not working" shows up, before the first hypothesis. Also drives evidence-first **autonomy** — Claude reads logs, runs read-only diagnostics, reproduces failures, and builds interceptors/probes *itself*, escalating to the user only when genuinely blocked (access it lacks, a world-action only the user can take, or a decision only they can make) — and when it must ask, it asks once, batched and specific.
-
-**Triggers:** "debug this", "why is X broken", "fix this bug", "diagnose", "investigate", "it's not working", "tests are failing", a stack trace / error / crash / hang / regression — any diagnostic request where evidence-first root-cause analysis is expected over speculative patches.
 
 ### `backlog` (v0.4.0+; v0.5.0 adds `unify` + `complete`)
 
@@ -498,7 +492,7 @@ Everything this plugin persists is **vault-canonical**, not in your repo. `portf
 
 ## Why a separate plugin
 
-All fifteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; executing-plans/dispatching-parallel-agents → capability-router's disk-resolution flow; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All thirteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 

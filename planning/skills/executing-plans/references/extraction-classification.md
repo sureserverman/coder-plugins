@@ -40,7 +40,7 @@ Measured trunk after the cut: **43217 B**, a **53.5% reduction** from 92987 B.
 
 **Corrected at Task 2.2: the trunk is 44536 B, −52.1%.** The contract suite found that the
 cut had dropped nine obligation-bearing phrases while keeping each rule's gist — the
-gate-failure branch's routing to the class rule and its `no-fafo-debugging` call, the `Scope:`
+gate-failure branch's routing to the class rule and its diagnosis-skill call, the `Scope:`
 derivation source, "write the command down", the sweep's outer bound, Tier-2's binding of an
 Important to the exit criterion, the evaluator's tier reference, and the handoff's "carried
 here". All nine were restored to the trunk, +1319 B. **The compression, not the

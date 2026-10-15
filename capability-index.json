@@ -81,26 +81,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Jetpack Compose layout patterns and Material 3 styling rules. Use when building or fixing Android UI layouts with Compose, spacing, cards, grids, or alignment.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "android-ui-layout-patterns",
-      "path": "android-dev/skills/android-ui-layout-patterns/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
-      "description": "Testing patterns for Kotlin Android apps with Compose, Espresso, and MockWebServer. Use when writing Android tests, UI tests, instrumented tests, or setting up test infrastructure.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "kotlin-compose-testing-patterns",
-      "path": "android-dev/skills/kotlin-compose-testing-patterns/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Use when the user asks for a mock server, fake API, or stub backend based on an app's sources. Trigger on \"make a mock server for this app\", \"I need a fake API for testing\", \"this app needs a backend for UI tests\", or when an app requires login/REST/GraphQL and no mock exists yet.",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -277,26 +257,6 @@
       "model": null,
       "name": "code-review",
       "path": "git-github/skills/code-review/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "create-commit",
-      "path": "git-github/skills/create-commit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Does NOT trigger on its own \u2014 only on an explicit user request.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "create-pr",
-      "path": "git-github/skills/create-pr/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -561,16 +521,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "capability-router",
-      "path": "planning/skills/capability-router/SKILL.md",
-      "plugin": "planning",
-      "requires_enablement": true
-    },
-    {
       "description": "Use to decide and organize work across every project in the portfolio \u2014 what's in flight, what to work on next, and a periodic review sweep. Triggers on \"what should I work on next\", \"what's in flight\", \"portfolio review\", \"what's going stale\". Report-only \u2014 recommends, never launches work.",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -617,16 +567,6 @@
       "model": null,
       "name": "honest-gates",
       "path": "planning/skills/honest-gates/SKILL.md",
-      "plugin": "planning",
-      "requires_enablement": true
-    },
-    {
-      "description": "Use at the START of ANY debugging or diagnostic work \u2014 before forming theories or proposing fixes. Fires on \"debug this\", \"why is X broken\", \"fix this bug\", \"tests are failing\", a stack trace, or any unexpected behavior. Drives evidence-first root-cause analysis.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "no-fafo-debugging",
-      "path": "planning/skills/no-fafo-debugging/SKILL.md",
       "plugin": "planning",
       "requires_enablement": true
     },
@@ -758,46 +698,6 @@
       "name": "rust-coding",
       "path": "rust-dev/skills/rust-coding/SKILL.md",
       "plugin": "rust-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Generates code, config, or scaffolding from a concrete spec \u2014 Compose screens from a design brief, a mock server from captured traffic, a new subagent/skill file from a name+purpose, or a boilerplate config module. Not a research or architecture tool.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "code-generator",
-      "path": "stingy-agents/agents/code-generator.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Read-only bulk file scanner. Use for enumerating files, grepping patterns across many files, extracting manifest/frontmatter fields, and probing download URLs \u2014 when the work is I/O-bound and the caller wants it off its own context. Never writes, edits, renames, or deletes.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "haiku",
-      "name": "readonly-scanner",
-      "path": "stingy-agents/agents/readonly-scanner.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Rewrites existing skill/agent/README markdown files to match a spec the caller provides \u2014 tightening SKILL.md descriptions, syncing skills to a canonical pattern, applying ISSUE/IMPROVE edits to a README, or leak-proofing frontmatter. Read/Edit only, scoped to caller-named paths.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "skill-rewriter",
-      "path": "stingy-agents/agents/skill-rewriter.md",
-      "plugin": "stingy-agents",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to run, debug, and triage tests; to write new tests; to audit coverage; or to review tests for smells. Trigger phrases include \"run tests\", \"test failures\", \"flaky test\", \"coverage gap\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "testing-expert",
-      "path": "testing/agents/testing-expert.md",
-      "plugin": "testing",
       "requires_enablement": false
     }
   ],

@@ -155,7 +155,8 @@ def cases():
 def real_tree():
     check(vm.main([]) == 0, "every shipped mirror agrees")
     _p, n, counts = vm.check(vm.REPO_ROOT)
-    check(n >= 13, f"the sweep sees the marketplace's plugins (saw {n})")
+    # Floor = the marketplace's plugin count: 13 until the 2026-10-15 retirement removed 2.
+    check(n >= 11, f"the sweep sees the marketplace's plugins (saw {n})")
     # The population line must not overstate: these are the sites actually reconciled.
     check(counts["readme"] >= 1 and counts["changelog"] >= 1,
           f"README and changelog mirrors are actually reconciled, not merely counted "

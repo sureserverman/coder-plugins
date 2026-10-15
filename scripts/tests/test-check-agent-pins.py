@@ -104,10 +104,11 @@ def cases():
 def real_tree():
     check(pins.main([]) == 0, "every shipped agent is pinned within policy")
     files = pins.agent_files(pins.REPO_ROOT)
-    # >= not ==: a correctly pinned thirteenth agent must not redden the suite.
+    # >= not ==: a correctly pinned ninth agent must not redden the suite. The
+    # floor is the shipped count: 12 until the 2026-10-15 retirement removed 4.
     # check-agent-pins.py carries the policy; this only guards against the sweep
     # silently finding nothing, which would let main() report a pass over zero.
-    check(len(files) >= 12,
+    check(len(files) >= 8,
           f"the sweep sees the shipped agents and is not empty (saw {len(files)})")
 
 

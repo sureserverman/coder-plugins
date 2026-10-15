@@ -17,7 +17,7 @@ news. Triage before repairing, and bound the loop.
    Suggestion** taxonomy the review tiers already use (Step 3.3 rule 6), so a gate
    finding and a review finding are graded on one scale rather than two.
 2. **Run the class rule: diagnose evidence-first, then name the set it belongs to.**
-   Invoke `no-fafo-debugging` here — this is the most fix-prone moment in the whole
+   Diagnose evidence-first here — this is the most fix-prone moment in the whole
    workflow (a failed gate, under a bounded round budget), which is exactly where
    "Fix And Forget" produces a plausible-looking repair for a misdiagnosed cause.
    The order matters and is not decorative: a set derived from a wrong root cause is
