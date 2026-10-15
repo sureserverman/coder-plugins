@@ -54,7 +54,7 @@ The `rust-project` skill and the `/rust-review` and `/rust-idiomize` commands we
 `rust-expert`** as its `project-audit`, `review`, and `idiomize` modes — one agent, invoked
 directly, instead of separate entry points. The 5-pass audit runner moved to `scripts/analyze.sh`.
 When `rust-dev` isn't enabled in a session, `rust-expert` is still reachable from disk via
-`capability-index.json` (see the marketplace's capability-router) — its `.md` body is injected
+`capability-index.json` — its `.md` body is injected
 into a generic subagent with its `model` pin, so the expertise doesn't require enabling the plugin.
 
 ## Artifacts

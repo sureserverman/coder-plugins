@@ -46,7 +46,7 @@ shared `references/` + the `game-design-expert` agent**: each skill's body moved
 `game-dev/references/<slug>.md` (one source of truth for the router and the agent), the `game-dev`
 router skill carries their passive triggers, and accessibility became the agent's Protocol 6
 (accessibility-audit) mode. When `game-dev` isn't enabled, the agent is still reachable from disk
-via `capability-index.json` (the marketplace's capability-router) — its `.md` body is injected
+via `capability-index.json` — its `.md` body is injected
 into a generic subagent with its `model` pin.
 
 ## Opinionated defaults

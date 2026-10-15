@@ -1,6 +1,6 @@
 # planning
 
-A fifteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
+A fourteen-skill pipeline (v0.58.0) that turns a vague idea into executed work — including redesigning an app to a Claude Design handoff — keeps each project's contracts honest, and gives a cross-project portfolio view across `~/dev/`. Each skill hands off to the next; they were designed as a unit.
 
 ## What's new in 0.58.0
 
@@ -122,8 +122,6 @@ dispatching-parallel-agents  ── one agent per task marked Dispatch YES whose
 
   ┌─ cross-cutting, no fixed position in the flow ────────────────────────┐
   │ honest-gates       ── the integrity contract every gate above obeys.  │
-  │ capability-router  ── reach a marketplace skill/agent whose plugin    │
-  │                       isn't enabled this session.                     │
   └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -223,12 +221,6 @@ Routing is table-driven: `references/stack-routing.md` maps each task's stack to
 The integrity contract behind every gate in this plugin — and any acceptance check, test command, or "done" claim elsewhere. A gate is **GREEN** only when its real command ran *here* and passed; otherwise it is **RED** or **BLOCKED**. Never a stubbed task, fabricated evidence, a hidden exclusion, or a self-graded miss. Includes escalation rules for a genuinely blocked gate, so "I couldn't run it" stays distinguishable from "it passed". Applies eagerly — it does not wait to be asked.
 
 **Triggers:** any point where something must pass, build, run, or be measured — before reporting a gate green, registering a build/test task, or recording test/benchmark evidence.
-
-### `capability-router`
-
-Reaches a marketplace capability — a skill or a subagent — **even when its plugin isn't enabled in this session**. Enablement only controls what Claude Code injects at session start; every component's files are on disk regardless. Looks the capability up in `capability-index.json` and loads it from disk (reading a SKILL.md, or injecting an agent body with its `model` pin). This is the ad-hoc entry point to the same disk-resolution flow `executing-plans` and `dispatching-parallel-agents` use mid-plan. Components that need runtime registration (hooks, MCP) can't be lazy-loaded — those stop and ask you to enable the plugin.
-
-**Triggers:** "load the Rust expert", "which plugin covers X", "write idiomatic Rust", "review my game design".
 
 ### `no-fafo-debugging`
 
@@ -498,7 +490,7 @@ Everything this plugin persists is **vault-canonical**, not in your repo. `portf
 
 ## Why a separate plugin
 
-All fifteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; executing-plans/dispatching-parallel-agents → capability-router's disk-resolution flow; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
+All fourteen skills reference each other by name (handoffs from brainstorming → architecting-projects → planning-projects → executing-plans → dispatching-parallel-agents; executing-plans → applying-design-handoff for redesign tasks; planning-projects/executing-plans ↔ backlog and workflow-spec; compass → the plans, backlogs and maturity files portfolio maintains; portfolio → backlog + project-maturity + dispatching-parallel-agents; and honest-gates binding every gate the pipeline reports). Splitting them across plugins would break the handoffs. They have no transitive runtime dependencies and can be installed alongside any other plugin without conflict.
 
 ## License
 

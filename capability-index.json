@@ -81,26 +81,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Jetpack Compose layout patterns and Material 3 styling rules. Use when building or fixing Android UI layouts with Compose, spacing, cards, grids, or alignment.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "android-ui-layout-patterns",
-      "path": "android-dev/skills/android-ui-layout-patterns/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
-      "description": "Testing patterns for Kotlin Android apps with Compose, Espresso, and MockWebServer. Use when writing Android tests, UI tests, instrumented tests, or setting up test infrastructure.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "kotlin-compose-testing-patterns",
-      "path": "android-dev/skills/kotlin-compose-testing-patterns/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Use when the user asks for a mock server, fake API, or stub backend based on an app's sources. Trigger on \"make a mock server for this app\", \"I need a fake API for testing\", \"this app needs a backend for UI tests\", or when an app requires login/REST/GraphQL and no mock exists yet.",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -277,26 +257,6 @@
       "model": null,
       "name": "code-review",
       "path": "git-github/skills/code-review/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user explicitly asks to create a git commit \u2014 \"commit this\", \"commit these changes\", \"make a commit\", \"stage and commit\". Does NOT push, amend, or skip hooks. Does NOT trigger on its own \u2014 only on an explicit user request.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "create-commit",
-      "path": "git-github/skills/create-commit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user explicitly asks to open a GitHub pull request \u2014 \"open a PR\", \"create a pull request\", \"draft a PR for this branch\", \"gh pr create\". Does NOT trigger on its own \u2014 only on an explicit user request.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "create-pr",
-      "path": "git-github/skills/create-pr/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -557,16 +517,6 @@
       "model": null,
       "name": "brainstorming",
       "path": "planning/skills/brainstorming/SKILL.md",
-      "plugin": "planning",
-      "requires_enablement": true
-    },
-    {
-      "description": "Use when a task needs domain expertise whose plugin may not be enabled (Rust, Android, game design, i18n, testing, packaging). Triggers on \"load the Rust expert\", \"which plugin covers X\", \"write idiomatic Rust\", \"review my game design\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "capability-router",
-      "path": "planning/skills/capability-router/SKILL.md",
       "plugin": "planning",
       "requires_enablement": true
     },

@@ -51,8 +51,7 @@ way to declare an external dependency rather than a convention to hunt for an ex
 |---|---|---|
 | Rust — `*.rs`, `Cargo.toml`, clippy/audit/idiom work | `rust-dev:rust-expert` | `rust-coding` (authoring; the agent's own review/idiomize/project-audit modes handle the rest) |
 | Android build / Kotlin / Gradle | `general-purpose` | `android-gradle-build` |
-| Android UI — Compose / Material 3 screens | `general-purpose` | `android-ui-layout-patterns`, `android-ui-design-figma` |
-| Android tests — Compose/Espresso/MockWebServer | `general-purpose` | `kotlin-compose-testing-patterns` |
+| Android UI — Compose / Material 3 screens | `general-purpose` | `android-ui-design-figma` |
 | Reproduce a Claude Design handoff pack (redesign to spec, any stack) | `planning:design-handoff-reproducer` | `applying-design-handoff` |
 | Research ONE architecture candidate — evidence, layout, libraries (any stack) | `planning:architecture-researcher` | `architecting-projects` (dispatching context only — the skill orchestrates, the agent researches) |
 | Game mechanics / feel / camera / FTUE design | `game-dev:game-design-expert` | — |
@@ -66,7 +65,7 @@ When the table names a stack skill, put it in the dispatched agent's prompt
 conventions instead of generic defaults.
 
 **A row earns its place by adding something the fallback doesn't.** Android UI keeps a row
-because it names stack skills; the other UI surfaces lost theirs when their agents were
+because it names a stack skill; the other UI surfaces lost theirs when their agents were
 retired, because a row reading `general-purpose` / `—` says exactly what the final
 *Nothing above fits* row already says. Don't re-add informational rows that carry no
 routing signal.
@@ -171,10 +170,6 @@ above, not a replacement for it: the plan's `Dispatch:` field already decided
 disabled, resolve it from the index. When the plugin **is** enabled, use the normal
 registered `subagent_type` / skill invocation; the index path is only for the
 disabled case.
-
-For ad-hoc (non-plan) work where you just need a domain capability that isn't
-loaded, the `planning:capability-router` skill wraps this same lookup-and-resolve
-flow.
 
 ---
 

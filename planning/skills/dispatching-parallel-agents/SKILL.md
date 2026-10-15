@@ -182,8 +182,7 @@ whose plugin isn't enabled*: dispatch `general-purpose` with
 the agent's `.md` body (from its `path` in `capability-index.json`) injected as its
 instructions and its frontmatter `model` passed as the subagent model. A component
 flagged `requires_enablement` can't be lazy-loaded — surface it to the caller to enable
-that plugin instead of dispatching. (For ad-hoc, non-plan needs, the `capability-router`
-skill wraps this same lookup-and-resolve flow.)
+that plugin instead of dispatching.
 
 ## Phase 5 — Collect
 

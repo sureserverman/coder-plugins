@@ -88,11 +88,9 @@ takes the status-line copy out.
 The plan is green; shipping it is `git-github`'s half of the loop. `code-review` audits the
 branch diff as one piece — the per-task reviews only ever saw a task at a time — and
 `gate-audit` sweeps it for faked verification: stubbed gates, tests that never ran,
-hidden exclusions. `create-commit` and `create-pr`
-each dispatch a Haiku subagent to draft and create the thing; both require that you asked
-for it explicitly, and neither ever fires on its own. When the branch lands, `release-tag`
-cuts the tag and drafts notes from the changelog — it is the one of the three that gates on
-an explicit "yes", once before tagging and again before pushing.
+hidden exclusions. When the branch lands, `release-tag` cuts the tag and drafts notes from
+the changelog. It fires only when you ask, and gates on an explicit "yes", once before
+tagging and again before pushing.
 
 **Cross-cutting the whole flow:** `honest-gates` defines what a gate may claim, and
 `no-fafo-debugging` takes over the moment something breaks — evidence before theories.
@@ -110,9 +108,7 @@ Flow 1 with a platform under it. The `planning` loop stays in charge; `android-d
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. The screen itself is authored
-against `android-ui-layout-patterns`, which supplies the Compose spacing and Material 3
-decision rules. For a full redesign rather than one screen, `android-ui-design-figma` runs
+`android-gradle-build` handles module and dependency wiring. For a full redesign rather than one screen, `android-ui-design-figma` runs
 the longer app-analysis → spec → apply workflow.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
@@ -126,9 +122,6 @@ device is attached, installs, smoke-launches, and runs `connectedDebugAndroidTes
 > **With no device attached it degrades to a build-only gate and reports the skip.** It does
 > not claim a pass it didn't earn — which is `honest-gates` applied to hardware. Check
 > `adb devices` before you trust a green Android gate.
-
-Test work hands off to `kotlin-compose-testing-patterns` for the patterns (Compose UI
-tests, Espresso, MockWebServer).
 
 Screenshots for the store listing run the emulator stack — three emulators plus an
 in-container MCP server, brought up and torn down per task:
@@ -307,8 +300,6 @@ stage gate that **fails** on an uncited contradiction.
 ```text
 /git-github:code-review          # authoritative local review of your diff
 /git-github:gate-audit           # did those gates actually run, or just claim to?
-/git-github:create-commit        # drafts in your repo's style; never amends, never add -A
-/git-github:create-pr            # drafts from recent merged PRs; defaults to draft
 /git-github:release-tag v1.4.0   # confirms before tagging, and again before pushing
 ```
 
@@ -367,19 +358,11 @@ nothing else enables a plugin, and warns. `/loadout unpin` removes pins left
 by older loadout versions.
 
 **`capability-index.json`** — lets one skill or agent be resolved **from disk without
-enabling its plugin**. `planning:capability-router` wraps this for ad-hoc use, and plan
-execution uses the same lookup on its dispatch path, so a Rust task gets `rust-expert` even
-when `rust-dev` isn't enabled:
-
-```text
-"load the Rust expert"
-```
+enabling its plugin**. Plan execution uses it on its dispatch path, so a Rust task gets
+`rust-expert` even when `rust-dev` isn't enabled.
 
 Components needing hooks or MCP are flagged `requires_enablement` and stop for explicit
 enablement rather than degrading silently.
-
-Rule of thumb: **`loadout`** for a durable per-project set, **`capability-router`** for a
-one-off need.
 
 ---
 
