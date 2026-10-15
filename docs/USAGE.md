@@ -98,8 +98,8 @@ tagging and again before pushing.
 
 ## 2. Build an Android feature
 
-Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev` and
-`testing` attach at the points where the platform actually matters.
+Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev`
+attaches at the points where the platform actually matters.
 
 ```text
 /loadout set android

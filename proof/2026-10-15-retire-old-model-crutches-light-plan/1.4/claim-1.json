@@ -1,0 +1,28 @@
+{
+ "baseline": {
+  "elapsed_s": 0.7,
+  "exit": 0,
+  "tail": "OK \u2014 81 token(s) checked in docs/USAGE.md, all resolve (71 distinct)\nOK \u2014 10 flow(s) match the purpose statement (2 admitted single-plugin: 6, 7)\nOK \u2014 11 plugin(s): every shipped component is named in its README\nAll descriptions within 300 chars.\nScanned 160 file(s); 0 finding(s), 27 allowlisted."
+ },
+ "break_patch": "diff --git a/docs/USAGE.md b/docs/USAGE.md\nindex a3c8b3b..72c76c1 100644\n--- a/docs/USAGE.md\n+++ b/docs/USAGE.md\n@@ -98,8 +98,8 @@ tagging and again before pushing.\n \n ## 2. Build an Android feature\n \n-Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev`\n-attaches at the points where the platform actually matters.\n+Flow 1 with a platform under it. The `planning` loop stays in charge; `android-dev` and\n+`testing` attach at the points where the platform actually matters.\n \n ```text\n /loadout set android\n",
+ "build": null,
+ "created": "2026-10-15T22:33:24+00:00",
+ "fingerprint": "3283140fb33293ba59ebb91c8aa7d237940c22a61e90cfe9edba7aa8aeebab18",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "markdown and generated JSON, no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-10-15-retire-old-model-crutches-light-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "FAIL: 1 of 82 token(s) do not resolve:\n  `testing` \u2014 not a plugin, and no plugin ships a component by that name"
+ },
+ "schema": 2,
+ "task": "1.4",
+ "test": "python3 scripts/check-usage-tokens.py && python3 scripts/check-doc-coverage.py && python3 scripts/check-frontmatter-budget.py --max 300 && python3 scripts/check-extraction-integrity.py --min-files 150 && ! grep -qE '\"(stingy-agents|testing)\"|no-fafo|capability-router|create-commit|create-pr|android-ui-layout-patterns|kotlin-compose-testing-patterns|testing-expert|readonly-scanner|skill-rewriter|code-generator' capability-index.json",
+ "text": "`python3 scripts/check-usage-tokens.py && python3 scripts/check-doc-coverage.py && python3 scripts/check-frontmatter-budget.py --max 300 && python3 scripts/check-extraction-integrity.py --min-files 150 && ! grep -qE '\"(stingy-agents|testing)\"|no-fafo|capability-router|create-commit|create-pr|android-ui-layout-patterns|kotlin-compose-testing-patterns|testing-expert|readonly-scanner|skill-rewriter|code-generator' capability-index.json` exits 0",
+ "touched": [
+  "docs/USAGE.md"
+ ]
+}
