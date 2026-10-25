@@ -40,6 +40,7 @@ USER_OFF = "android-dev@coder-plugins"  # in the loadout, off in user settings
 NO_USER_INSTALL = "lsp@official"  # in the loadout, on in user settings, installed only locally
 USER_ON = "rust-dev@coder-plugins"  # in the loadout, on in user settings
 NOT_IN_LOADOUT = "other@market"  # installed, outside the loadout
+ALWAYS_ON = BUNDLED_ALWAYS_ON[-1]  # in the bundled always-on profile, on in user settings
 
 
 def fixture(root):
@@ -63,7 +64,7 @@ def fixture(root):
           {"plugins": [USER_OFF, USER_ON, NO_USER_INSTALL]})
     # A map an older loadout wrote: explicit `true` for user-enabled plugins.
     write(project / ".claude" / "settings.local.json",
-          {"enabledPlugins": {"planning@coder-plugins": True, USER_ON: True},
+          {"enabledPlugins": {ALWAYS_ON: True, USER_ON: True},
            "keep": 1})
     return home, project
 
@@ -105,7 +106,7 @@ def test_writes_false_only():
               in r.stderr, "the pin warning says there is no user-scope install")
         check(local.get("keep") == 1, "other settings.local.json keys survive")
         # show still lists the whole loadout as enabled.
-        check(f"+ {USER_ON}" in r.stdout and "+ planning@coder-plugins" in r.stdout,
+        check(f"+ {USER_ON}" in r.stdout and f"+ {ALWAYS_ON}" in r.stdout,
               "show lists omitted loadout plugins as enabled")
         check(f"- {NOT_IN_LOADOUT}" in r.stdout, "show lists the false plugin as disabled")
 
@@ -120,7 +121,7 @@ def unpin_fixture(root, fail_key=None):
     home, project = fixture(root)
     plugins_file = home / ".claude" / "plugins" / "installed_plugins.json"
     data = json.loads(plugins_file.read_text())
-    for key in ("planning@coder-plugins", USER_ON):
+    for key in (ALWAYS_ON, USER_ON):
         data["plugins"][key].append(
             {"scope": "local", "projectPath": str(project), "version": "0.1.0"})
     data["plugins"][LOCAL_ONLY] = [
@@ -155,7 +156,7 @@ def test_unpin():
         check(r.returncode == 0, f"unpin exits 0 (got {r.returncode}: {r.stderr.strip()})")
         got = sorted(calls(log))
         want = sorted(f"{project} plugin uninstall {k} --scope local"
-                      for k in ("planning@coder-plugins", USER_ON))
+                      for k in (ALWAYS_ON, USER_ON))
         check(got == want, f"uninstall called for exactly the redundant keys, from the project (got {got})")
         check(LOCAL_ONLY in r.stdout and "kept" in r.stdout,
               "a local-only record is kept and listed")
@@ -173,7 +174,7 @@ def test_unpin_dry_run():
         r = run(home, project, "unpin", "--dry-run", path=path)
         check(r.returncode == 0, f"dry run exits 0 (got {r.returncode})")
         check(calls(log) == [], f"dry run calls nothing (got {calls(log)})")
-        check(USER_ON in r.stdout and "planning@coder-plugins" in r.stdout,
+        check(USER_ON in r.stdout and ALWAYS_ON in r.stdout,
               "dry run lists the redundant keys")
         check((project / ".claude" / "settings.local.json").read_text() == before,
               "dry run leaves settings.local.json alone")
@@ -219,7 +220,7 @@ def test_unpin_without_state():
         check(r.returncode == 0, f"exits 0 (got {r.returncode}: {r.stderr.strip()})")
         local = json.loads((project / ".claude" / "settings.local.json").read_text())
         ep = local.get("enabledPlugins", {})
-        check(ep.get("planning@coder-plugins") is None and ep.get(USER_ON) is None,
+        check(ep.get(ALWAYS_ON) is None and ep.get(USER_ON) is None,
               f"no true left for the unpinned keys (got {ep})")
         check(not (project / ".claude" / "loadout.json").exists(),
               "no loadout.json is created")
@@ -243,7 +244,7 @@ def test_unpin_missing_claude():
         home, project, log, path = unpin_fixture(root)
         r = run(home, project, "unpin", path=str(root / "empty-bin"))
         check(r.returncode == 1, f"exit 1 (got {r.returncode})")
-        check("Traceback" not in r.stderr and "planning@coder-plugins" in r.stderr,
+        check("Traceback" not in r.stderr and ALWAYS_ON in r.stderr,
               "the failing keys are named, with no traceback")
 
 

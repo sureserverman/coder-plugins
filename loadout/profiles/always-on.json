@@ -1,7 +1,8 @@
 {
-  "description": "Plugins enabled in every project, regardless of tech or task. Keep this list short — anything here adds a description line to every session.",
+  "description": "Plugins enabled in every project, regardless of tech or task. Keep this list short \u2014 anything here adds a description line to every session.",
   "plugins": [
     "git-github@coder-plugins",
-    "planning@coder-plugins"
+    "planning@staged-planning",
+    "vault-portfolio@obsidian-wiki"
   ]
 }
