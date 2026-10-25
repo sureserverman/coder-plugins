@@ -50,6 +50,9 @@ DEFAULTS=$(cat <<'JSON'
     },
     "sec-audit-marketplace": {
       "source": { "source": "github", "repo": "sureserverman/sec-audit" }
+    },
+    "staged-planning": {
+      "source": { "source": "github", "repo": "sureserverman/staged-planning" }
     }
   },
   "enabledPlugins": {
@@ -59,7 +62,8 @@ DEFAULTS=$(cat <<'JSON'
     "release-promo@coder-plugins": true,
     "browser-extensions@coder-plugins": true,
     "infra-build@coder-plugins": true,
-    "planning@coder-plugins": true,
+    "planning@staged-planning": true,
+    "vault-portfolio@obsidian-wiki": true,
     "loadout@coder-plugins": true
   }
 }
