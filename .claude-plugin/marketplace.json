@@ -13,7 +13,7 @@
       "name": "rust-dev",
       "source": "./rust-dev",
       "description": "Idiomatic Rust authoring: a rust-coding progressive-disclosure knowledge-router skill and a rust-expert authoring subagent, sharing one plugin-level references/ set. rust-expert covers author/review/idiomize/audit/migrate via protocols plus review, idiomize, and project-audit modes.",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "category": "languages",
       "tags": [
         "rust",
@@ -266,7 +266,7 @@
       "name": "game-dev",
       "source": "./game-dev",
       "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "category": "development",
       "tags": [
         "game-dev",
