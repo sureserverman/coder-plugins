@@ -4,13 +4,15 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.2] - 2026-10-25
 
 ### Changed
 - `business-scan.py` reads its gtm-progress checkbox regexes from staged-planning's
   `lib/plan_parser.py`, because planning left this marketplace (2026-10-25, DEC-038).
   It takes the newest installed Claude Code copy under
-  `~/.claude/plugins/cache/staged-planning/planning/`, then
+  `~/.claude/plugins/cache/staged-planning/planning/` or, for a user who installed
+  `planning@coder-plugins` and got it through this marketplace's redirect,
+  `~/.claude/plugins/cache/coder-plugins/planning/`, then
   `$STAGED_PLANNING_ROOT/lib/plan_parser.py`. With neither, it degrades per project as
   before: the sweep still runs and only gtm progress becomes an error.
 - The portfolio and compass skills that consume the scan's JSON are vault-portfolio's now.

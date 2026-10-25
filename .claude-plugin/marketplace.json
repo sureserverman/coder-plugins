@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (git-github, release-promo, infra-build, loadout; planning redirects to staged-planning), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.33.0"
+    "version": "0.34.0"
   },
   "plugins": [
     {
@@ -105,7 +105,7 @@
       "name": "git-github",
       "source": "./git-github",
       "description": "Everyday git/GitHub operations for Claude Code: run a single-tool authoritative code review via the bundled read-only code-reviewer agent (also consumed by planning's executing-plans for per-task and per-stage review), audit a repo or diff for faked verification — stubbed gate tasks, tests that never ran, fabricated evidence, hidden exclusions — via gate-audit (the after-the-fact enforcement of planning's honest-gates rules), dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, sweep every portfolio project's GitHub repo for red default-branch workflows, unaddressed issues, stale PRs, and open Dependabot alerts via a deterministic gh-CLI scanner and triage picked findings into per-project backlogs (repo-health), review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. The GitHub Actions workflow lane also emits findings on plugin-dev's shared deterministic contract via scripts/validate.sh. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
-      "version": "0.9.0",
+      "version": "0.9.1",
       "category": "development",
       "tags": [
         "git",
@@ -163,7 +163,7 @@
       "name": "business",
       "source": "./business",
       "description": "Per-project business-planning pipeline for the ~/dev portfolio: turn a shippable project into a commercial decision and keep it tracked. assess runs a viability triage (repo + vault + MATURITY.md context, a questions-first interview that confirms inferred audience/substitutes/willingness-to-pay rather than assuming them, opt-in --research that reuses any fresh market-research.md or dispatches the cited market-researcher subagent at triage depth) and writes a schema-versioned business/BUSINESS.md with a verdict (monetize | free-for-reputation | internal-only | park), target audience, and evidence tag; revenue-model turns an assess-passed verdict into a monetization decision (model, pricing hypothesis, channels, numeric dated targets) one choice at a time; market-research runs a standalone cited competitive analysis at an operator-selected depth tier (brief | standard | deep) following a working method — a competitor is anyone who solves the same problem, listed in three passes (category, customer-job, alternatives) with a rate-based coverage threshold, priced, channelled, and at standard/deep built into a competitor table (business/competitor-table.yaml, four characteristic categories, every cell a quantity) that the deterministic competitor-table.py normalizes to a −5…+5 scale, sweeps for the axis pair where the project differs from everyone, and renders as quadrant and trajectory SVGs, plus six-block competitor profiles, a per-competitor marketing teardown, a durability-of-advantage test, a five-component positioning, partner candidates, battlecards, monitoring indicators, and customer personas — persisted to a schema-3 business/market-research.md (with competitors row count and coverage exhausted|open) for assess and business-plan to reuse; business-plan composes the verdict, monetization, market research, gtm, and metrics plus a questions-first gap interview into a tiered twelve-section schema-2 business/plan.md (executive summary, problem & solution, customer personas, market analysis, competitive landscape, SWOT & positioning, product & roadmap, marketing & sales, operations, financial scenarios, risks, milestones), reusing research only at effective depth standard+ and offering missing prerequisites instead of fabricating them; launch produces a go-to-market plan at business/gtm-plan.md in the house checklist format (portfolio-unify-parseable so its progress rolls up like any plan), guarded by the project's MATURITY.md state so it warns before planning a launch for something far from ship-ready; track records actuals into an append-only business/metrics.md (free GitHub metrics auto-collected via collect-github.py, revenue/installs and an optional marketing funnel entered manually), diffs them against targets, and bumps the Last reviewed stamp; biz-portfolio sweeps every registry project via the deterministic business-scan.py evidence lane (the SOLE parser of the business artifacts — BUSINESS.md, market-research.md, plan.md, gtm-plan.md, metrics.md, with per-artifact schema ceilings and depth/coverage validation — one JSON contract, reusing staged-planning's lib/plan_parser.py regexes for gtm progress) and rebuilds the global-business.md roll-up, flagging research/plans older than 90 days as STALE. A determinism boundary keeps all parsing in business-scan.py so vault-portfolio's portfolio and compass skills consume its JSON additively (including research/plan staleness) and degrade loudly when the business plugin is absent.",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "category": "development",
       "tags": [
         "business-plan",
@@ -207,7 +207,7 @@
       "name": "loadout",
       "source": "./loadout",
       "description": "Per-project plus per-task plugin loadouts. Layers a sticky tech baseline (android/rust/web-ext/...) with on-demand task overlays (security-audit/release/wiki/...) and writes the resulting `enabledPlugins` map to .claude/settings.local.json so only the plugins relevant to the current work load at session start. Detects the tech baseline automatically from Cargo.toml / build.gradle / manifest.json on first entry; task overlays toggle via /loadout +name and /loadout -name.",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "category": "development",
       "tags": [
         "loadout",
