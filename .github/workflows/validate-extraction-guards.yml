@@ -44,8 +44,9 @@ jobs:
       # --min-files guards the guard: a scan that discovers nothing exits 2
       # rather than reporting a clean pass (BL-067). The floor is set to the
       # live population so a discovery regression that halves the sweep is a
-      # failure too, not a quieter pass.
+      # failure too, not a quieter pass. 90 since 2026-10-25: planning left this
+      # repo (DEC-038) and the live population fell from 160 to 94 (was 150).
       - name: No dead pointers or dangling deixis
-        run: python3 scripts/check-extraction-integrity.py --min-files 150
+        run: python3 scripts/check-extraction-integrity.py --min-files 90
       - name: No trunk over its ceiling, and no ceiling left stale
         run: python3 scripts/check-trunk-budget.py
