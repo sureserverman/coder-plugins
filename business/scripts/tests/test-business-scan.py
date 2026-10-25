@@ -424,6 +424,15 @@ def test_plan_parser_resolution(tmp):
     want = cache / "1.0.10" / "lib" / "plan_parser.py"
     check(resolved(STAGED_PLANNING) == str(want),
           "plan_parser: the newest installed version (numeric, 1.0.10 over 1.0.9) beats the root")
+    # A user who installed planning@coder-plugins gets staged-planning's plugin through the
+    # marketplace redirect, cached under the coder-plugins name; an old coder-plugins planning
+    # version there carries no lib/plan_parser.py and is skipped.
+    redirect = tmp / "home" / ".claude" / "plugins" / "cache" / "coder-plugins" / "planning"
+    (redirect / "0.59.0" / "skills").mkdir(parents=True)
+    (redirect / "1.0.11" / "lib").mkdir(parents=True)
+    shutil.copy(STAGED_PLANNING / "lib" / "plan_parser.py", redirect / "1.0.11" / "lib")
+    check(resolved() == str(redirect / "1.0.11" / "lib" / "plan_parser.py"),
+          "plan_parser: a redirected install (cached under coder-plugins) is found, newest first")
 
 
 def test_groups(tmp):

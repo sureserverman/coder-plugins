@@ -29,18 +29,23 @@ import yaml
 
 # Reuse the authoritative checkbox regexes from staged-planning's lib/plan_parser.py
 # (planning moved there from this marketplace on 2026-10-25). Resolved in order: the
-# newest installed Claude Code copy under the plugin cache, then
-# $STAGED_PLANNING_ROOT/lib/plan_parser.py (a checkout or the test fixture). If
+# newest installed Claude Code copy under the plugin cache, whether installed as
+# planning@staged-planning or through this marketplace's planning redirect (cached under
+# coder-plugins), then $STAGED_PLANNING_ROOT/lib/plan_parser.py (a checkout or the test
+# fixture). If
 # neither exists (business is a separately-versioned plugin), degrade to pu=None: the
 # sweep still runs and emits JSON for every project — only gtm-plan progress becomes a
 # per-project error, honoring "never fatal to the sweep".
 def _plan_parser_file():
     rel = Path("lib", "plan_parser.py")
-    cache = Path.home() / ".claude" / "plugins" / "cache" / "staged-planning" / "planning"
-    try:
-        vers = [d for d in cache.iterdir() if d.is_dir() and (d / rel).is_file()]
-    except OSError:
-        vers = []
+    cache = Path.home() / ".claude" / "plugins" / "cache"
+    vers = []
+    for marketplace in ("staged-planning", "coder-plugins"):
+        try:
+            vers += [d for d in (cache / marketplace / "planning").iterdir()
+                     if d.is_dir() and (d / rel).is_file()]
+        except OSError:
+            pass
     if vers:
         return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
     root = os.environ.get("STAGED_PLANNING_ROOT")
