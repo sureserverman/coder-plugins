@@ -140,9 +140,10 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/sureserverman/staged-planning.git",
-        "path": "plugins/claude/planning"
+        "path": "plugins/claude/planning",
+        "ref": "v1.0.4"
       },
-      "description": "Redirect: planning now lives in sureserverman/staged-planning, and this entry installs it from there (plugins/claude/planning). Staged, gate-checked plans: brainstorm a design, write a plan whose stages end in runnable checks, execute it Red-Green with honest gates and code review, keep a backlog and decisions. The portfolio and compass skills moved to vault-portfolio@obsidian-wiki.",
+      "description": "Redirect: planning now lives in sureserverman/staged-planning, and this entry installs it from there (plugins/claude/planning). Staged, gate-checked plans: brainstorm a design, write a plan whose stages end in runnable checks, execute it Red-Green with honest gates and code review, keep a backlog and decisions. The portfolio and compass skills moved to vault-portfolio@obsidian-wiki. Install this entry or planning@staged-planning, not both: with both enabled, every planning hook runs twice.",
       "category": "development",
       "tags": [
         "planning",
