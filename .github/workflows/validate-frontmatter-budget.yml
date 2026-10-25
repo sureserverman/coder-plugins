@@ -22,7 +22,7 @@ name: validate-frontmatter-budget
 #     */infrastructure/mcp-server/                           NOT filtered
 #
 # The last three decide `requires_enablement`. When 27551b9 added
-# planning/hooks/hooks.json on 2026-08-30, it invalidated the committed index
+# the planning plugin's hooks/hooks.json on 2026-08-30, it invalidated the committed index
 # and did not touch a single filtered path, so this job never ran on the one
 # commit that broke it and stayed green on everything after. 18 components
 # advertised `requires_enablement: false` for two days, telling the router it

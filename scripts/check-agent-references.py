@@ -129,7 +129,7 @@ EXPECTED_AGENTS = (
     "game-dev/agents/game-design-expert.md",
     "git-github/agents/code-reviewer.md",
     "i18n/agents/translator.md",
-    "planning/agents/design-handoff-reproducer.md",
+    # design-handoff-reproducer left with the planning plugin, 2026-10-25.
     "release-promo/agents/post-drafter.md",
     "rust-dev/agents/rust-expert.md",
 )

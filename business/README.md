@@ -82,8 +82,8 @@ Full rules: `references/group-format.md`.
 
 `scripts/business-scan.py` is the **only** parser of the business artifacts. It
 emits one JSON document; every skill and every planning-plugin integration
-consumes that JSON, never the markdown. The scanner reuses `portfolio-unify`'s
-plan-parser regexes for `gtm-plan.md` progress — one contract, one implementation.
+consumes that JSON, never the markdown. The scanner reuses staged-planning's
+`lib/plan_parser.py` regexes for `gtm-plan.md` progress — one contract, one implementation.
 
 ## Design & plan
 

@@ -144,8 +144,8 @@ def enablement_cases():
         write(os.path.join(root, "rust-dev/skills/rust-coding/SKILL.md"),
               skill("rust-coding", "rust"))
         # plugin whose ONLY .mcp.json is test-fixture data — must NOT count
-        write(os.path.join(root, "planning/skills/pm/SKILL.md"), skill("pm", "maturity"))
-        write(os.path.join(root, "planning/skills/pm/tests/fixtures/x/.mcp.json"), "{}\n")
+        write(os.path.join(root, "pm-plug/skills/pm/SKILL.md"), skill("pm", "maturity"))
+        write(os.path.join(root, "pm-plug/skills/pm/tests/fixtures/x/.mcp.json"), "{}\n")
 
         comps = capindex.build(root)["components"]
         check(by_name(comps, "loadout")["requires_enablement"] is True,

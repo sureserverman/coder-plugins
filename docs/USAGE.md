@@ -5,11 +5,13 @@ Each plugin's own README documents its components (per
 single README can: how the pieces **compose** into an end-to-end flow.
 
 Most flows here cross plugin boundaries — that is the interesting case, and the one a
-README structurally cannot describe. Two do not, and deliberately: **flow 6** (knowing what
-to work on) and **flow 7** (the decisions register) are *layers* rather than pipelines, and
-both live entirely in `planning`. They are here because they are cross-cutting in scope —
-they operate over every project in the portfolio — not because they are cross-plugin. A
-flow being single-plugin is not a gap to be padded out with components it does not use.
+README structurally cannot describe. One does not, and deliberately: **flow 7** (the
+decisions register) is a *layer* rather than a pipeline, and lives entirely in `planning`. It
+is here because it is cross-cutting in scope — it operates over every project in the
+portfolio — not because it is cross-plugin. (Flow 6, knowing what to work on, was the other
+until portfolio and compass moved to `vault-portfolio` on 2026-10-25; it now crosses that
+boundary.) A flow being single-plugin is not a gap to be padded out with components it does
+not use.
 
 Nothing here is required reading to use one plugin. It matters when you want the
 plugins to compose — which is what they were built for.
@@ -22,7 +24,8 @@ The core loop. Five skills in the `planning` plugin carry an idea to a green bra
 `git-github` takes it the rest of the way — review, commit, PR.
 
 ```text
-/plugin install planning@coder-plugins
+/plugin marketplace add sureserverman/staged-planning
+/plugin install planning@staged-planning
 
 "I want to add offline sync"
 ```
@@ -199,7 +202,8 @@ check. Extension locales feed flow 3's AMO preflight the same way.
 
 This is the mechanism the other flows lean on. When `executing-plans` reaches independent
 tasks, `dispatching-parallel-agents` runs one agent per task — and picks each agent from
-[`stack-routing.md`](../planning/skills/dispatching-parallel-agents/references/stack-routing.md)
+`stack-routing.md` (in [staged-planning](https://github.com/sureserverman/staged-planning)'s
+`dispatching-parallel-agents` skill)
 rather than defaulting everything to a generalist:
 
 | Task looks like | Routes to | Shipped by |
@@ -225,26 +229,27 @@ Game work has its own front door, since mechanics are a design problem before a 
 
 ## 6. Knowing what to work on
 
-`planning` also runs the layer above individual projects, across everything in
-`~/.claude/projects-registry.yaml`.
+`vault-portfolio` (from the obsidian-wiki marketplace) runs the layer above individual
+projects, across everything in `~/.claude/projects-registry.yaml`. It moved out of `planning`
+on 2026-10-25.
 
 ```text
-/planning:compass now       # what's in flight — plan stages, current task
-/planning:compass next      # what to pick up, ranked, with cited evidence
-/planning:compass review    # what's going stale, what's parked, where the gaps are
+/vault-portfolio:compass now       # what's in flight — plan stages, current task
+/vault-portfolio:compass next      # what to pick up, ranked, with cited evidence
+/vault-portfolio:compass review    # what's going stale, what's parked, where the gaps are
 ```
 
 `compass` is **report-only** — it recommends and never launches work or writes artifacts.
 `portfolio` is what maintains the artifacts it reads:
 
 ```text
-/planning:portfolio scan       # registry vs reality, surface drift
-/planning:portfolio unify      # mine plans for backlog candidates, per project
-/planning:portfolio maturity   # ship-readiness audit, per project
-/planning:portfolio migrate    # move docs/ artifacts into the vault
-/planning:portfolio integrate  # merge per-project integration edges into the graph
-/planning:portfolio rebuild    # regenerate every global-*.md roll-up
-/planning:portfolio plan-status # find plans whose recorded status is wrong
+/vault-portfolio:portfolio scan       # registry vs reality, surface drift
+/vault-portfolio:portfolio unify      # mine plans for backlog candidates, per project
+/vault-portfolio:portfolio maturity   # ship-readiness audit, per project
+/vault-portfolio:portfolio migrate    # move docs/ artifacts into the vault
+/vault-portfolio:portfolio integrate  # merge per-project integration edges into the graph
+/vault-portfolio:portfolio rebuild    # regenerate every global-*.md roll-up
+/vault-portfolio:portfolio plan-status # find plans whose recorded status is wrong
 ```
 
 The last one is the odd one out: **report-first and on no execution path.** It classifies

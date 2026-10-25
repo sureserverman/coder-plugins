@@ -185,12 +185,26 @@ with tempfile.TemporaryDirectory() as td:
     chk(res_list.returncode != 0, "--list refuses too rather than reporting a clean set")
 
 print("group 5 — the check does not fire on non-suite paths named test-*")
-for benign in ["planning/skills/planning-projects/references/test-scope-tiers.md",
-               "planning/skills/applying-design-handoff/scripts/test-fixtures"]:
-    chk((ROOT / benign).exists(), f"benign path still present and not swept: {benign}")
-chk(subprocess.run(["bash", str(RUNNER), "--list"], capture_output=True,
-                   cwd=ROOT).returncode == 0,
-    "with only benign test-* paths present, --list succeeds")
+# Planted: the real tree's two benign paths left with the planning plugin (2026-10-25).
+# A test-* markdown file and a test-* DIRECTORY holding a non-suite file, the two shapes
+# they had.
+with tempfile.TemporaryDirectory() as td:
+    tmp, tmp_runner = throwaway_repo(td)
+    benign_file = tmp / "plug" / "skills" / "s" / "references" / "test-scope-tiers.md"
+    benign_dir = tmp / "plug" / "skills" / "s" / "scripts" / "test-fixtures"
+    benign_file.parent.mkdir(parents=True)
+    benign_file.write_text("# not a suite\n")
+    benign_dir.mkdir(parents=True)
+    (benign_dir / "case.json").write_text("{}\n")
+    # One real suite, because the runner refuses an empty sweep by design.
+    real = tmp / "plug" / "skills" / "s" / "tests" / "test-real.py"
+    real.parent.mkdir(parents=True)
+    real.write_text("print('ok')\n")
+    res5 = subprocess.run(["bash", str(tmp_runner), "--list"], capture_output=True,
+                          text=True, cwd=tmp)
+    chk(res5.returncode == 0, "with only benign test-* paths beside a real suite, --list succeeds")
+    chk(res5.stdout.split() == ["plug/skills/s/tests/test-real.py"],
+        f"only the real suite is listed, neither benign path (got {res5.stdout.split()})")
 
 print("group 6 — --list is side-effect free and arguments are validated")
 # The previous form checked for a sentinel nothing ever wrote, so it passed even if

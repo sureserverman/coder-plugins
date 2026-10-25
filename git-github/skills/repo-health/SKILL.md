@@ -117,10 +117,10 @@ at `github-workflow-audit` (same plugin) for the fix and skip filing.
 
 - **planning:backlog** — owns the file format, ID rules, and the vault
   resolver; every write routes there. Absent → report-only mode.
-- **planning:portfolio** — maintains the registry the scanner walks;
+- **vault-portfolio:portfolio** — maintains the registry the scanner walks;
   registry problems ("portfolio not configured") route to its first-run
   setup, verbatim, never half-answered.
-- **planning:compass** — the periodic what-to-work-on sweep; repo-health is
+- **vault-portfolio:compass** — the periodic what-to-work-on sweep; repo-health is
   the upstream-facing complement. A `compass review` that surfaces stale
   projects pairs well with a repo-health sweep of the same names.
 - **github-workflow-audit** — the fix lane for a red workflow surfaced

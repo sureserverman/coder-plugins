@@ -64,7 +64,7 @@ def load_env():
 
     The deliberate divergence from every other portfolio consumer, which refuses
     outright on a `vault_dir` that is set but names a missing directory
-    (planning/skills/portfolio/SKILL.md § Resolver). This tool's corpus is
+    (the portfolio skill's § Resolver, now in vault-portfolio). This tool's corpus is
     GitHub, not the vault — the vault is a secondary cross-check, and an
     unmounted one is no reason to abandon a CI-health sweep. But it may not be
     swallowed either, because "no vault configured" and "the configured vault is
@@ -102,13 +102,14 @@ def _vault_problem(value, source):
     """(Path|None, reason|None) — is `value` a reachable vault?
 
     A hand-kept copy of portfolio-rebuild.py's `vault_problem()`. `git-github`
-    ships as a separately versioned plugin: from a cache install it and `planning`
-    live in sibling version trees, so it cannot import the canonical one.
+    ships as a separately versioned plugin, and the canonical one now lives in
+    another repo (vault-portfolio, since 2026-10-25), so it cannot import it.
 
-    Pinned by `branch_parity_case()` in
-    planning/skills/portfolio/tests/test-vault-unreachable.py, which drives every
-    vault shape through every copy and asserts identical classification. NOT pinned
-    by that file's `CANON` wording sweep: this file is classified `structured`
+    It WAS pinned by `branch_parity_case()` in the portfolio skill's
+    tests/test-vault-unreachable.py, which drove every vault shape through every copy
+    and asserted identical classification. Since the portfolio skill moved to
+    vault-portfolio that test no longer drives this copy. Nor was it ever pinned
+    by that file's `CANON` wording sweep: this file was classified `structured`
     there, which exempts it — and even for a `literal` copy the sweep matches one
     sentence, so a copy missing an entire BRANCH passes it. Both gaps were measured
     rather than assumed: deleting this function's `isinstance` and `is_absolute`

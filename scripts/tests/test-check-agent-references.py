@@ -225,9 +225,9 @@ def main():
               "re-run cycle is how a real sweep becomes three")
 
     print("check-agent-references — the pinned set is itself guarded:")
-    check(len(car.EXPECTED_AGENTS) >= 7 and all(
+    check(len(car.EXPECTED_AGENTS) >= 6 and all(
               (car.ROOT / rel).is_file() for rel in car.EXPECTED_AGENTS),
-          "EXPECTED_AGENTS names at least the seven shipped agents and every one exists")
+          "EXPECTED_AGENTS names at least the six shipped agents and every one exists")
     check(len(set(car.EXPECTED_AGENTS)) == len(car.EXPECTED_AGENTS),
           "EXPECTED_AGENTS has no DUPLICATE member — a length check alone is a floor, and "
           "a duplicated entry keeps the length whole while a real agent leaves the "
@@ -373,7 +373,7 @@ def main():
     check(len(live) >= len(car.EXPECTED_AGENTS),
           f"the live population is enumerated from disk ({len(live)} agents)")
     plugins = sorted({p.relative_to(car.ROOT).parts[0] for p in live})
-    check(len(plugins) == 7,
+    check(len(plugins) == 6,  # seven until planning's agent left with it, 2026-10-25
           f"the population spans {len(plugins)} plugins: {', '.join(plugins)}")
     bad = {p.relative_to(car.ROOT).as_posix(): codes(p) for p in live if codes(p)}
     check(bad == {}, f"every shipped in-scope agent carries its canonical block ({bad})")

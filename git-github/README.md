@@ -85,7 +85,7 @@ out of the always-loaded body is what lets the agent stay a router rather than a
 /plugin install git-github@coder-plugins
 ```
 
-`gh` (GitHub CLI) is required for `repo-health` and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the planning plugin's `~/.claude/projects-registry.yaml` and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
+`gh` (GitHub CLI) is required for `repo-health` and the GitHub-release step of `release-tag`. The other skills work with plain `git`. `repo-health` additionally reads the projects registry `~/.claude/projects-registry.yaml` (maintained by vault-portfolio's `portfolio` skill) and files triaged findings through `planning:backlog` (report-only when the planning plugin is absent).
 
 ## Determinism boundary
 

@@ -59,6 +59,8 @@ def main() -> int:
     for entry in sorted(entries.values(), key=lambda p: p["name"]):
         name = entry["name"]
         source = entry.get("source", "")
+        if not isinstance(source, str):
+            continue  # a remote source (a redirect) has no manifest in this repo
         manifest = ROOT / str(source).lstrip("./") / ".claude-plugin" / "plugin.json"
         if not manifest.exists():
             continue

@@ -21,6 +21,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE.parent / "business-scan.py"
 FIXTURES = HERE / "fixtures"
+# The gtm cases parse checkboxes with staged-planning's lib/plan_parser.py. This stand-in
+# is found through STAGED_PLANNING_ROOT, since the throwaway HOME has no installed plugin.
+STAGED_PLANNING = FIXTURES / "staged-planning"
 
 FAILURES = []
 
@@ -73,7 +76,7 @@ def run_scanner(tmp):
     (home / ".claude" / "projects-registry.yaml").write_text(reg)
 
     before = tree_hash(vault)
-    env = dict(os.environ, HOME=str(home))
+    env = dict(os.environ, HOME=str(home), STAGED_PLANNING_ROOT=str(STAGED_PLANNING))
     r = subprocess.run([sys.executable, str(SCRIPT)],
                        capture_output=True, text=True, env=env)
     after = tree_hash(vault)
@@ -380,7 +383,7 @@ def test_contract(tmp):
 
 
 def test_gtm_degrades_without_portfolio_unify():
-    """Important #1: if portfolio-unify isn't importable (business is a
+    """Important #1: if staged-planning's plan_parser isn't importable (business is a
     separately-versioned plugin), the scanner must degrade per-project — gtm
     progress becomes an error — never crash the whole sweep."""
     import importlib.util
@@ -390,9 +393,37 @@ def test_gtm_degrades_without_portfolio_unify():
     bs.pu = None
     try:
         bs.parse_gtm("- [x] done\n- [ ] open\n")
-        check(False, "parse_gtm raises when portfolio-unify missing")
+        check(False, "parse_gtm raises when plan_parser is missing")
     except RuntimeError:
-        check(True, "parse_gtm degrades (raises, caught per-project) when portfolio-unify missing")
+        check(True, "parse_gtm degrades (raises, caught per-project) when plan_parser is missing")
+
+
+def test_plan_parser_resolution(tmp):
+    """The newest installed staged-planning copy wins, then $STAGED_PLANNING_ROOT, else none."""
+    import importlib.util
+    cache = tmp / "home" / ".claude" / "plugins" / "cache" / "staged-planning" / "planning"
+    probe = ("import importlib.util,sys; s=importlib.util.spec_from_file_location('bs', sys.argv[1]);"
+             " m=importlib.util.module_from_spec(s); s.loader.exec_module(m);"
+             " print(m._PLAN_PARSER or '-')")
+
+    def resolved(root=None):
+        env = dict(os.environ, HOME=str(tmp / "home"))
+        env.pop("STAGED_PLANNING_ROOT", None)
+        if root:
+            env["STAGED_PLANNING_ROOT"] = str(root)
+        r = subprocess.run([sys.executable, "-c", probe, str(SCRIPT)],
+                           capture_output=True, text=True, env=env)
+        return r.stdout.strip()
+
+    check(resolved() == "-", "plan_parser: nothing installed and no root -> none")
+    check(resolved(STAGED_PLANNING) == str(STAGED_PLANNING / "lib" / "plan_parser.py"),
+          "plan_parser: $STAGED_PLANNING_ROOT/lib/plan_parser.py when nothing is installed")
+    for version in ("1.0.9", "1.0.10"):
+        (cache / version / "lib").mkdir(parents=True)
+        shutil.copy(STAGED_PLANNING / "lib" / "plan_parser.py", cache / version / "lib")
+    want = cache / "1.0.10" / "lib" / "plan_parser.py"
+    check(resolved(STAGED_PLANNING) == str(want),
+          "plan_parser: the newest installed version (numeric, 1.0.10 over 1.0.9) beats the root")
 
 
 def test_groups(tmp):
@@ -475,6 +506,8 @@ def main():
     with tempfile.TemporaryDirectory() as td:
         test_groups(Path(td))
     test_gtm_degrades_without_portfolio_unify()
+    with tempfile.TemporaryDirectory() as td:
+        test_plan_parser_resolution(Path(td))
     if FAILURES:
         print(f"\nFAILED — {len(FAILURES)} check(s):")
         for f in FAILURES:

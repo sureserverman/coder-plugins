@@ -1,1 +1,0 @@
-# ai-tool-plugin fixture

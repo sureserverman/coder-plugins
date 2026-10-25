@@ -121,11 +121,18 @@ def cases():
         check(run(root) == [], "an `## [Unreleased]` section is skipped, not treated as the top")
 
     # MIRROR-MISSING: a KNOWN mirror that has been deleted.
-    with tempfile.TemporaryDirectory() as root:
-        build(root, {"planning": {"version": "1.2.3", "readme": "No marker here."}})
-        p = run(root)
-        check(any("MIRROR-MISSING" in x for x in p),
-              "deleting a KNOWN README marker is caught, not silently uncovered")
+    # The known set is planted for the case: the real tree has no README marker left since
+    # planning moved out (2026-10-25), so its own set is empty.
+    saved = vm.KNOWN_MIRRORS["readme_lead"]
+    vm.KNOWN_MIRRORS["readme_lead"] = {"alpha"}
+    try:
+        with tempfile.TemporaryDirectory() as root:
+            build(root, {"alpha": {"version": "1.2.3", "readme": "No marker here."}})
+            p = run(root)
+            check(any("MIRROR-MISSING" in x for x in p),
+                  "deleting a KNOWN README marker is caught, not silently uncovered")
+    finally:
+        vm.KNOWN_MIRRORS["readme_lead"] = saved
 
     with tempfile.TemporaryDirectory() as root:
         build(root, {"business": {"version": "1.2.3"}})
@@ -158,9 +165,12 @@ def real_tree():
     # Floor = the marketplace's plugin count: 13 until the 2026-10-15 retirement removed 2.
     check(n >= 11, f"the sweep sees the marketplace's plugins (saw {n})")
     # The population line must not overstate: these are the sites actually reconciled.
-    check(counts["readme"] >= 1 and counts["changelog"] >= 1,
+    # README: exactly the known carriers (none since planning's README left, 2026-10-25), so
+    # a marker gained or lost shows up here rather than as a silent change of population.
+    check(counts["readme"] == len(vm.KNOWN_MIRRORS["readme_lead"]) and counts["changelog"] >= 1,
           f"README and changelog mirrors are actually reconciled, not merely counted "
-          f"(readme={counts['readme']}, changelog={counts['changelog']})")
+          f"(readme={counts['readme']} of {len(vm.KNOWN_MIRRORS['readme_lead'])} known, "
+          f"changelog={counts['changelog']})")
 
 
 if __name__ == "__main__":

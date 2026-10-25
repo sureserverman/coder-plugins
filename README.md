@@ -6,7 +6,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 
 ```text
 /plugin marketplace add sureserverman/coder-plugins
-/plugin install <plugin>@coder-plugins        # e.g. planning@coder-plugins
+/plugin install <plugin>@coder-plugins        # e.g. git-github@coder-plugins
 ```
 
 > **Authoring plugins for AI coding agents** (Claude Code, Cursor, Codex,
@@ -19,7 +19,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 
 | Plugin | What you get |
 |--------|--------------|
-| [`planning`](./planning) | Idea → validated design → staged plan → gated execution. Brainstorming, architecture research, Red-Green plan execution with stage gates, parallel task dispatch, portfolio `compass`, design-handoff reproduction, and an architectural-decision register (per project and per architecture domain, cross-linked). |
+| [`planning`](https://github.com/sureserverman/staged-planning) | Moved to [staged-planning](https://github.com/sureserverman/staged-planning); this marketplace's `planning` entry is a redirect that installs it from there. Idea → validated design → staged plan → gated execution. Portfolio and compass moved to `vault-portfolio@obsidian-wiki`. |
 | [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up — over one project or a group of repos treated as one business project. |
 | [`git-github`](./git-github) | Everyday git/GitHub ops: code review, multi-model second opinions, comment/workflow/license/README audits, release tags. |
 | [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` knowledge-router skill (fires on `*.rs`/`Cargo.toml` edits) + `rust-expert` subagent (author/review/idiomize/audit/migrate modes), over one shared `references/` set. |
@@ -56,7 +56,7 @@ its namespaced name:
 ```text
 /planning:brainstorming
 /i18n:i18n-audit
-/planning:compass next
+/vault-portfolio:compass next
 ```
 
 **Commands are explicit.** Slash commands run a defined workflow when you type
@@ -76,7 +76,8 @@ matches (e.g. `rust-expert` for a Rust task), or you can ask directly:
 A typical end-to-end flow with the `planning` plugin:
 
 ```text
-/plugin install planning@coder-plugins
+/plugin marketplace add sureserverman/staged-planning
+/plugin install planning@staged-planning
 "I want to add offline sync"    # brainstorming fires, validates a design
 "plan it"                       # planning-projects writes a staged plan with gates
 "execute the plan"              # executing-plans drives it to completion

@@ -171,7 +171,7 @@ def is_link_target(tok):
     Two screens still apply, and both are load-bearing. Measured on this tree:
     56 link targets pass is_pathish, 12 of them do not resolve.
       - 11 are `<placeholder>` templates (`<vault>/Portfolio/global-maturity.md`).
-      - 1 is `planning/skills/workflow-spec/SKILL.md:26`, which reads
+      - 1 is the planning plugin's `skills/workflow-spec/SKILL.md:26`, which reads
         ``- [auth](auth.md) — login, signup, ...`` INSIDE a backtick span: it
         illustrates a line in the *user's* docs/workflows/README.md. A link
         displayed as literal code is quoted material, not a reference this repo

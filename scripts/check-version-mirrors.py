@@ -77,7 +77,7 @@ CHANGELOG_ENTRY_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.M)
 
 # Plugins known to carry each optional mirror. Pinned so that DELETING a mirror is a
 # finding rather than a silent loss of coverage. Add a plugin here when it gains one.
-KNOWN_MIRRORS = {"readme_lead": {"planning"}, "changelog": {"business"}}
+KNOWN_MIRRORS = {"readme_lead": set(), "changelog": {"business"}}  # planning's left with it, 2026-10-25
 
 
 def manifest_version(root, plugin_dir):
@@ -129,6 +129,10 @@ def check(root):
     counts = {"readme": 0, "changelog": 0}
     for entry in mp.get("plugins", []):
         name = entry.get("name", "?")
+        # A remote source (`planning` is a git-subdir redirect to staged-planning since
+        # 2026-10-25) has no tree here, so no manifest here to mirror.
+        if not isinstance(entry.get("source", ""), str):
+            continue
         plugin_dir = entry.get("source", "").removeprefix("./")
         listed.add(plugin_dir)
         mv = manifest_version(root, plugin_dir)

@@ -4,7 +4,7 @@
 A skill's *body* is loaded per invocation, not per session, so every byte in a
 trunk is paid every time the skill fires, in every project with the plugin
 enabled. Trunks therefore grow the way costs grow when nobody is measuring:
-`planning/skills/executing-plans/SKILL.md` gained 34% — 69,527 -> 92,987 B — in
+the planning plugin's `executing-plans/SKILL.md` gained 34% — 69,527 -> 92,987 B — in
 the six days between the token-efficiency plan being authored and executed, one
 reasonable section at a time.
 

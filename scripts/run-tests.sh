@@ -2,8 +2,8 @@
 # Canonical test runner for this repo — every suite, regardless of language.
 #
 # Why this exists: the repo's suites live in five homes and two languages, and the
-# invocation that plans used to carry in their Preflight block globbed only
-# `planning/skills/*/tests/test-*.py scripts/tests/test-*.py`. That glob cannot see a
+# invocation that plans used to carry in their Preflight block globbed only the planning
+# plugin's `skills/*/tests/test-*.py` plus `scripts/tests/test-*.py`. That glob cannot see a
 # bash suite, so `android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh`
 # was silently skipped by anyone running "the suite" locally. Discovery here is by
 # filename over the whole tree rather than by an enumerated list of directories, so a
@@ -38,14 +38,13 @@ cd "$REPO" || exit 1
 # generalized. `scripts/check-*.py` is the repo's naming convention for a bare-runnable
 # tree check; build-capability-index.py is deliberately excluded because it GENERATES
 # rather than checks. Out-of-tree validators that do not follow the convention are
-# listed explicitly below.
-EXTRA_VALIDATORS=(
-  "planning/skills/dispatching-parallel-agents/scripts/validate-stack-routing.py"
-)
+# listed explicitly below. Empty since planning left this repo (2026-10-25), with it
+# validate-stack-routing.py, the one entry.
+EXTRA_VALIDATORS=()
 
 discover_validators() {
   { find ./scripts -maxdepth 1 -name 'check-*.py' -print | sed 's|^\./||'
-    printf '%s\n' "${EXTRA_VALIDATORS[@]}"
+    if (( ${#EXTRA_VALIDATORS[@]} )); then printf '%s\n' "${EXTRA_VALIDATORS[@]}"; fi
   } | sort
 }
 

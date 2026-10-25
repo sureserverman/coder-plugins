@@ -6,8 +6,8 @@ actions. It lives at `<vault_dir>/Portfolio/<area>/<project>/business/gtm-plan.m
 
 ## Parseability — the shared checkbox contract
 
-Progress rolls up through `business-scan.py`, which **imports** portfolio-unify's
-`CHECKED` / `UNCHECKED` regexes (one contract, one implementation) and counts checkbox
+Progress rolls up through `business-scan.py`, which **imports** staged-planning's
+`lib/plan_parser.py` `CHECKED` / `UNCHECKED` regexes (one contract, one implementation) and counts checkbox
 bullets:
 
 - `CHECKED  = ^\s*-\s*\[x\]\s+`  (done; case-insensitive — `- [X]` also counts)

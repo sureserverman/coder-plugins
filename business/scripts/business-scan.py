@@ -10,8 +10,8 @@ ONE JSON document on stdout describing each project's business state:
 
 This is the SOLE parser of the business artifacts — every skill and every
 planning-plugin integration consumes this JSON, never the markdown. gtm-plan
-progress reuses portfolio-unify's CHECKED/UNCHECKED regexes (one contract, one
-implementation). Read-only by construction: never writes under the vault or any
+progress reuses staged-planning's lib/plan_parser.py CHECKED/UNCHECKED regexes (one
+contract, one implementation). Read-only by construction: never writes under the vault or any
 repo. Projects that raise land in `couldnt_assess` with a reason; per-project
 parse problems land in that project's `errors` — never silently dropped, never
 fatal to the sweep. No LLM in this lane; judgment lives in the skills.
@@ -20,57 +20,43 @@ import datetime
 import importlib.util
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
 
 import yaml
 
-# Reuse the authoritative checkbox regexes from the portfolio skill (stable
-# sibling layout: business/ and planning/ are siblings under the marketplace
-# root). Hyphenated filename → importlib. If the planning plugin isn't installed
-# alongside (business is a separately-versioned plugin), degrade to pu=None: the
-# sweep still runs and emits JSON for every project — only gtm-plan progress
-# becomes a per-project error, honoring "never fatal to the sweep".
-def _sibling_plugin_file(plugin, *relparts):
-    """`<marketplace root>/<plugin>/<relparts>`, across BOTH install layouts.
-
-    The marketplace checkout is unversioned (`<root>/business/scripts/x.py`);
-    the plugin cache inserts a per-plugin version directory
-    (`<root>/business/0.8.0/scripts/x.py`). No fixed `parents[N]` reaches a
-    sibling plugin in both -- the old `parents[4]`/`parents[2]` probes silently
-    resolved to nothing under the cache, so the layer they gate never ran. Walk
-    up instead, probe both shapes, and prefer the highest version. The
-    `.claude-plugin/plugin.json` check keeps an unrelated same-named directory
-    from matching. Returns None when the sibling plugin is not installed.
-    """
-    rel = Path(*relparts)
-    for root in Path(__file__).resolve().parents:
-        base = root / plugin
-        if not base.is_dir():
-            continue
-        if (base / rel).exists() and (base / ".claude-plugin" / "plugin.json").exists():
-            return base / rel
-        try:
-            vers = [d for d in base.iterdir()
-                    if d.is_dir() and (d / rel).exists()
-                    and (d / ".claude-plugin" / "plugin.json").exists()]
-        except OSError:
-            continue
-        if vers:
-            return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
+# Reuse the authoritative checkbox regexes from staged-planning's lib/plan_parser.py
+# (planning moved there from this marketplace on 2026-10-25). Resolved in order: the
+# newest installed Claude Code copy under the plugin cache, then
+# $STAGED_PLANNING_ROOT/lib/plan_parser.py (a checkout or the test fixture). If
+# neither exists (business is a separately-versioned plugin), degrade to pu=None: the
+# sweep still runs and emits JSON for every project — only gtm-plan progress becomes a
+# per-project error, honoring "never fatal to the sweep".
+def _plan_parser_file():
+    rel = Path("lib", "plan_parser.py")
+    cache = Path.home() / ".claude" / "plugins" / "cache" / "staged-planning" / "planning"
+    try:
+        vers = [d for d in cache.iterdir() if d.is_dir() and (d / rel).is_file()]
+    except OSError:
+        vers = []
+    if vers:
+        return max(vers, key=lambda d: [int(n) for n in re.findall(r"\d+", d.name)] or [0]) / rel
+    root = os.environ.get("STAGED_PLANNING_ROOT")
+    if root and (Path(root) / rel).is_file():
+        return Path(root) / rel
     return None
 
 
-_UNIFY = _sibling_plugin_file("planning", "skills", "portfolio", "scripts",
-                              "portfolio-unify.py")
+_PLAN_PARSER = _plan_parser_file()
 try:
-    if _UNIFY is None:
-        raise FileNotFoundError("planning plugin not installed alongside")
-    _spec = importlib.util.spec_from_file_location("portfolio_unify", _UNIFY)
+    if _PLAN_PARSER is None:
+        raise FileNotFoundError("staged-planning's plan_parser.py not found")
+    _spec = importlib.util.spec_from_file_location("plan_parser", _PLAN_PARSER)
     pu = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(pu)
-except Exception:      # missing sibling, import-time error → degrade, don't crash
+except Exception:      # missing lib, import-time error → degrade, don't crash
     pu = None
 
 SUPPORTED_SCHEMA = 1                 # baseline: BUSINESS.md, metrics.md, gtm-plan.md
@@ -125,13 +111,14 @@ def load_env():
     # then writes. Unchecked, that pipeline would print a path under a vault that
     # is not mounted and write the roll-up into a directory it had to create.
     # One of TWO hand-kept copies of this guard (the other is repo-health-scan's
-    # `_vault_problem`). `business` is a separately versioned plugin: from a cache
-    # install it and `planning` live in sibling version trees, so it cannot import
-    # portfolio-rebuild's canonical one.
+    # `_vault_problem`). `business` is a separately versioned plugin, and the
+    # canonical one (portfolio-rebuild) now lives in another repo, vault-portfolio, so
+    # it cannot import it.
     #
-    # What actually pins it is `branch_parity_case()` in
-    # planning/skills/portfolio/tests/test-vault-unreachable.py, which drives every
-    # vault shape through every copy and asserts they agree. The `CANON` wording
+    # What pinned it was `branch_parity_case()` in the portfolio skill's
+    # test-vault-unreachable.py, which drove every vault shape through every copy and
+    # asserted they agree. Since the portfolio skill moved to vault-portfolio
+    # (2026-10-25) that test no longer drives this copy. The `CANON` wording
     # sweep in that file does NOT pin this — it matches one sentence, so a copy
     # missing a whole BRANCH still passes it. That is not hypothetical: this copy
     # was left behind when the OSError branch was added, and emitted a traceback
@@ -514,8 +501,8 @@ def parse_metrics(text):
 
 def parse_gtm(text):
     """gtm-plan.md checkbox progress via the shared CHECKED/UNCHECKED regexes."""
-    if pu is None:      # portfolio-unify not importable → degrade per-project
-        raise RuntimeError("portfolio-unify.py not found — cannot compute gtm progress")
+    if pu is None:      # plan_parser not importable → degrade per-project
+        raise RuntimeError("staged-planning's plan_parser.py not found — cannot compute gtm progress")
     done = total = 0
     for line in text.splitlines():
         if pu.CHECKED.match(line):

@@ -113,6 +113,3 @@ sec-review-findings-*.jsonl
 .claude/plan-progress-cache.json
 # The planning mod's live-window sidecar (planning 0.53.0), same rule.
 .claude/plan-context.json
-
-# Written by `claude --plugin-dir planning` for editors (an engine artifact).
-planning/tsconfig.json

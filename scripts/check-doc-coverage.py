@@ -53,6 +53,8 @@ def plugins():
     out = []
     for entry in data.get("plugins", []):
         src = entry.get("source", "./" + entry["name"])
+        if not isinstance(src, str):
+            continue  # a remote source (a redirect) ships no tree from this repo
         out.append((entry["name"], ROOT / src.removeprefix("./")))
     return sorted(out)
 

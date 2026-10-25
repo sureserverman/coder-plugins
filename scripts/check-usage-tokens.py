@@ -86,7 +86,7 @@ NON_COMPONENTS = {
 # how the first cut of this dropped 31 of 89 tokens: it enumerated space and tab but
 # not newline, silently un-checking every token that begins a line.
 # The dashes are here for the same reason newline was: an em-dash is ordinary
-# sentence punctuation in this repo's prose, so `... the router — /planning:compass
+# sentence punctuation in this repo's prose, so `... the router — /i18n:i18n-audit
 # picks it up` put a token directly after one and it was never extracted (BL-033).
 # An en-dash is the identical shape and is included rather than left as the next
 # instance of this bug. A plain hyphen is NOT: it is part of component names
@@ -107,13 +107,35 @@ def token_starts(text, body):
     Splitting the boundary decision out of the token-body regex is the point. The
     previous form folded both into one lookbehind that recognised only line-start,
     whitespace and backtick, so a token written directly after other punctuation —
-    `(/planning:compass)`, `[/loadout set rust]` — was never extracted at all and a
+    `(/i18n:i18n-audit)`, `[/loadout set rust]` — was never extracted at all and a
     fabrication in that position passed silently.
     """
     for m in re.finditer(body, text, re.MULTILINE):
         i = m.start()
         if i == 0 or text[i - 1].isspace() or text[i - 1] in TOKEN_START_PUNCT:
             yield m.groups()
+
+
+# Plugins USAGE.md documents that this repo does not build. The marketplace's `planning`
+# entry is a redirect to staged-planning (2026-10-25), and portfolio and compass ship in
+# vault-portfolio@obsidian-wiki. Their components are PINNED from the released trees, so a
+# misspelled or invented one still fails: staged-planning v1.0.1 plugins/claude/planning and
+# obsidian-wiki-plugin vault-portfolio-v0.1.2 plugins/vault-portfolio. Re-pin when either
+# release changes what it ships.
+EXTERNAL = {
+    "planning": {
+        "skill": ("applying-design-handoff", "architecting-projects", "backlog", "brainstorming",
+                  "decisions", "dispatching-parallel-agents", "executing-plans", "honest-gates",
+                  "planning-projects", "project-maturity", "workflow-spec"),
+        "agent": ("architecture-researcher", "claim-verifier", "code-reviewer",
+                  "design-handoff-reproducer"),
+        "command": ("statusline",),
+    },
+    "vault-portfolio": {
+        "skill": ("compass", "portfolio"),
+        "command": ("compass", "portfolio"),
+    },
+}
 
 
 def load_index():
@@ -149,6 +171,11 @@ def load_index():
             sys.exit(f"FAIL: malformed entry in {INDEX}: {c!r}")
         owners.setdefault(name, set()).add((plugin, kind))
         plugins.add(plugin)
+    for plugin, kinds in EXTERNAL.items():
+        plugins.add(plugin)
+        for kind, names in kinds.items():
+            for name in names:
+                owners.setdefault(name, set()).add((plugin, kind))
 
     # A plugin directory absent from the index means the index is stale, and every
     # component it ships would silently fail to resolve. That is a guard failure,

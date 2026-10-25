@@ -64,9 +64,10 @@ injection/authz/crypto/deserialization floor with its OWASP and CWE ids (Protoco
 <!-- read-only-contract -->
 ## Read-only means no writes in the target tree
 
-Six dispatch sites in `executing-plans` call this agent "(read-only)". Until now that
-word was a convention with no definition anywhere, so it meant whatever each reader
-assumed. It means this, and the boundary is the **tree under review**, not the kind of
+Plans and skills dispatch this agent "(read-only)". The dispatch sites that gave the word its
+definition live in staged-planning's `executing-plans` now, which ships its own copy of this
+agent; this one is an independent copy. Before the word was defined it was a convention, so
+it meant whatever each reader assumed. It means this, and the boundary is the **tree under review**, not the kind of
 file:
 
 - **Create nothing** in the target tree — not a report, not a scratch file, not a fixture,
