@@ -15,7 +15,7 @@ plugin's `portfolio` and `compass` skills can read business state.
 artifact is vault-canonical, and the scripts fail loudly rather than writing into your repo. The
 research-backed skills additionally need **WebSearch**; without it they write nothing rather than
 emit an uncited guess. `assess` expects the project to exist in `~/.claude/projects-registry.yaml`
-(the `planning` plugin's `portfolio scan` seeds it).
+(vault-portfolio's `portfolio scan` seeds it).
 
 ## Skills
 
