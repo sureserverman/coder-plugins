@@ -146,5 +146,5 @@ numbers accountable rather than aspirational.
   ship-readiness verdict gates `launch`; `compass` and `portfolio` read the business state these
   skills write; `decisions` is where a commercial constraint that binds the architecture belongs.
 - **`release-promo`** — drafts the launch announcements the `gtm-plan.md` checklist calls for.
-- **`git-github`** — `repo-health` and `license-audit` surface the compliance and maintenance
-  facts an honest assessment depends on.
+- **`git-github`** — `repo-health` surfaces the maintenance facts (failed workflows, open
+  issues, security alerts) an honest assessment depends on.

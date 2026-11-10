@@ -181,72 +181,12 @@
       "requires_enablement": false
     },
     {
-      "description": "Use to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding, or accessibility across Godot 4, Unity 6, or Unreal 5. Triggers: \"design a core loop\", \"review my game design\", \"tune game feel\", \"accessibility audit for my game\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "inherit",
-      "name": "game-design-expert",
-      "path": "game-dev/agents/game-design-expert.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Run a guided design session for a new game mechanic. Walks through verb, core loop, depth, feel target, FTUE plan, accessibility, and engineering scope, producing an implementable brief.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "game-mechanic",
-      "path": "game-dev/commands/game-mechanic.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Dispatch the game-design-expert subagent to review a scoped game-project diff for mechanics, game feel, camera/navigation, UX, accessibility, and architecture findings.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "game-review",
-      "path": "game-dev/commands/game-review.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring or reviewing game code or design \u2014 Godot/Unity/Unreal, game feel, mechanics, camera, UX, architecture, accessibility. Triggers: \"*.gd\"/\"*.tscn\"/\"*.uproject\" edits, \"the jump feels off\", \"camera fights me\", \"review my game design\", \"is my game accessible\", engine best-practices.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-dev",
-      "path": "game-dev/skills/game-dev/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings; its read-only-contract block defines the boundary.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "inherit",
-      "name": "code-reviewer",
-      "path": "git-github/agents/code-reviewer.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
       "description": "Use when the user asks to add, review, or audit code comments that explain project workflow or non-obvious choices across a codebase \u2014 magic numbers, ordering constraints, workarounds, or un-introduced entry points",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
       "name": "code-comment-audit",
       "path": "git-github/skills/code-comment-audit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user asks to review code, audit a diff, check a commit, or review a PR/branch before merge. Triggers: \"review this\", \"code review please\", \"review my implementation\", \"security review\". For multi-model second opinions, use request-external-reviews.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "code-review",
-      "path": "git-github/skills/code-review/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -267,16 +207,6 @@
       "model": null,
       "name": "github-workflow-audit",
       "path": "git-github/skills/github-workflow-audit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user asks to audit licenses, check license compliance, find license conflicts, pick a project license, or generate a LICENSE/LICENSE.md file. Trigger on \"audit licenses\", \"what license should this project use\", \"are my dependencies GPL-compatible\", or \"generate a LICENSE file\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "license-audit",
-      "path": "git-github/skills/license-audit/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -488,16 +418,6 @@
       "name": "twim-submission",
       "path": "release-promo/skills/twim-submission/SKILL.md",
       "plugin": "release-promo",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use to author, review, refactor, or audit Rust \u2014 idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: \"write idiomatic Rust\", \"audit this unsafe block\", \"fix my tokio deadlock\", \"audit my Rust project\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "inherit",
-      "name": "rust-expert",
-      "path": "rust-dev/agents/rust-expert.md",
-      "plugin": "rust-dev",
       "requires_enablement": false
     },
     {

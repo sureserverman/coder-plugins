@@ -1,0 +1,46 @@
+{
+ "baseline": {
+  "elapsed_s": 0.5,
+  "exit": 0,
+  "tail": "  ok: a block below an H3 output schema is rejected \u2014 the rule is 'nothing else is read first', not 'no H2 precedes it'\n  ok: a block buried under 60 lines of unheaded prose is rejected \u2014 FIRST_SCREEN_LINES (40) is the bound, and a heading check alone cannot see prose\ncheck-agent-references \u2014 the noun slot, the design's only free field:\n  ok: text smuggled into the banner's noun slot is rejected \u2014 the slot is one all-caps word, not a free field\ncheck-agent-references \u2014 a delegating sentence cannot launder an inversion:\n  ok: naming the contract does NOT exempt a sentence that also restates the fallback arms \u2014 an unconditional escape token is a suppression mechanism (['RESTATED-CONTRACT', 'RESTATED-CONTRACT', 'RESTATED-CONTRACT'])\ncheck-agent-references \u2014 the population is a pinned set, not a count:\n  ok: every pinned agent is present in the live population\ncheck-agent-references \u2014 the depth note is computed, not written:\n  ok: a plugin with references only under skills/ gets the SKILLS_ONLY note\n  ok: adding a root references/ dir moves the same plugin to BOTH\n  ok: the BOTH depth note on a SKILLS_ONLY plugin is rejected \u2014 the note cannot disagree with the tree, because the tree is where it comes from\ncheck-agent-references \u2014 the population:\n  ok: an agent naming no ${CLAUDE_PLUGIN_ROOT} reference is not in the population\n  ok: the live population is enumerated from disk (2 agents)\n  ok: the population spans 2 plugins: business, i18n\n  ok: every shipped in-scope agent carries its canonical block ({})\n\nOK\ncheck-version-mirrors fixtures:\n  ok: manifest and marketplace agreeing passes\n  ok: marketplace drift is caught\n  ok: an agreeing README lead marker passes\n  ok: a stale README lead marker is caught\n  ok: an unparenthesised version in prose is a usage sample, not a mirror\n  ok: a (vX.Y.Z) below the lead paragraph is not checked\n  ok: an agreeing changelog top entry passes\n  ok: a stale changelog top entry is caught \u2014 the class the first cut missed\n  ok: an `## [Unreleased]` section is skipped, not treated as the top\n  ok: deleting a KNOWN README marker is caught, not silently uncovered\n  ok: deleting a KNOWN changelog is caught too\n  ok: a manifest with no marketplace entry is caught\n  ok: a marketplace entry with no manifest is caught\nreal tree:\n10 manifest/marketplace pair(s), 0 README lead(s) and 1 changelog(s) reconciled; 0 problem(s).\n  ok: every shipped mirror agrees\n  ok: the sweep sees exactly the marketplace's plugins (saw 10: ['android-dev', 'browser-extensions', 'business', 'git-github', 'i18n', 'infra-build', 'loadout', 'planning', 'release-promo', 'rust-dev'])\n  ok: README and changelog mirrors are actually reconciled, not merely counted (readme=0 of 0 known, changelog=1)\n\nOK"
+ },
+ "break_patch": "diff --git a/scripts/trunk-budget.txt b/scripts/trunk-budget.txt\n--- a/scripts/trunk-budget.txt\n+++ b/scripts/trunk-budget.txt\n@@ -29,6 +29,7 @@ android-dev/skills/android-play-publish/SKILL.md 5499\n # Lowered 12659 -> 3014 (-9645 B) 2026-11-10, value-audit Stage 2: reduced to what a current model cannot supply.\n android-dev/skills/android-ui-design-figma/SKILL.md 3014\n # Removed 2026-11-10, value-audit Task 3.4: git-github's license skill retired (ceiling was 12196).\n+git-github/skills/gone/SKILL.md 12196\n # Lowered 12879 -> 12865 (-14 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.\n # Lowered 12865 -> 12851 (-14 B) 2026-11-10, value-audit Stage 1 gate round 1: review fixes, wording trimmed beside them.\n android-dev/skills/android-fdroid-publish/SKILL.md 12851\n",
+ "build": null,
+ "created": "2026-11-10T22:46:37+00:00",
+ "fingerprint": "50c9212d117e389c85375bcb8f6ad30bb5f8addf9471a97564eec56107fe9406",
+ "index": 4,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "validators; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.1,
+  "exit": 1,
+  "tail": "2 agent(s) name a plugin-rooted reference; 0 problem(s).\n  (decides the block IS the canonical contract text, and that no sentence outside it carries the contract's vocabulary without naming it)\n2 agent(s) swept; 0 problem(s).\n11 budgeted trunk(s); 1 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.\n  unmeasured headroom: 162723 B (0 B stale ceilings + 162723 B under the 10000 B floor).\n  ok         12851 /   12851 B  (+0)  android-dev/skills/android-fdroid-publish/SKILL.md\n  ok         11836 /   11836 B  (+0)  business/skills/market-research/SKILL.md\n  ok         11453 /   11453 B  (+0)  business/skills/business-plan/SKILL.md\n  ok         10662 /   10662 B  (+0)  business/skills/track/SKILL.md\n  ok         10186 /   10186 B  (+0)  business/skills/assess/SKILL.md\n  ok          5499 /    5499 B  (+0)  android-dev/skills/android-play-publish/SKILL.md\n  ok          4164 /    4164 B  (+0)  git-github/skills/code-comment-audit/SKILL.md\n  ok          3191 /    3191 B  (+0)  browser-extensions/skills/browser-extensions/SKILL.md\n  ok          3127 /    3127 B  (+0)  android-dev/skills/android-release-signing/SKILL.md\n  ok          3014 /    3014 B  (+0)  android-dev/skills/android-ui-design-figma/SKILL.md\n  MISSING  git-github/skills/gone/SKILL.md  (budgeted 12196 B)"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "3.4",
+ "test": "test ! -e game-dev && python3 scripts/check-agent-references.py && python3 scripts/check-agent-pins.py && python3 scripts/check-trunk-budget.py && python3 scripts/check-extraction-integrity.py && python3 scripts/check-usage-tokens.py && python3 scripts/check-doc-coverage.py && python3 scripts/check-plugin-description-sync.py && python3 scripts/tests/test-check-agent-pins.py && python3 scripts/tests/test-check-agent-references.py && python3 scripts/tests/test-check-version-mirrors.py && [ \"$(python3 scripts/check-extraction-integrity.py --list-allowlisted | wc -l)\" -eq \"$(grep -Evc '^(#|$)' scripts/extraction-integrity-allow.txt)\" ] && test -z \"$(grep -Ev '^(#|$)' scripts/trunk-budget.txt | while read f n; do [ -e \"$f\" ] && [ \"$n\" -eq \"$(wc -c < \"$f\")\" ] || echo \"$f\"; done)\"",
+ "text": "the allowlist has no stale line and every ceiling equals a live file's size (red on a loose or dead ceiling)",
+ "touched": [
+  "scripts/trunk-budget.txt"
+ ],
+ "touched_blobs": {
+  "scripts/trunk-budget.txt": "b4664c8599a177997909252d6489fbf16dc83568"
+ },
+ "witness_blobs": {
+  "scripts/check-agent-pins.py": "1d0994a4c260d65cb0e6fad4a6c1b12a012eaf0b",
+  "scripts/check-agent-references.py": "eb72c8fca75072289be9eca7d60a1a7a4a03003f",
+  "scripts/check-doc-coverage.py": "a2cd87a75bdb562dc91aa45c18d9c6c49b0d7cc1",
+  "scripts/check-extraction-integrity.py": "d7d838519c6a539be3e8477d5479492813adbc8d",
+  "scripts/check-plugin-description-sync.py": "794187dbb65b0b360e25d96b534c237082171140",
+  "scripts/check-trunk-budget.py": "71045284ea06398a0bbe96accb16b336facf5342",
+  "scripts/check-usage-tokens.py": "ab50327179657061b2165d299bf827c00bb8c96f",
+  "scripts/extraction-integrity-allow.txt": "39309432132392df90358096a5d4e92a1681da6c",
+  "scripts/tests/test-check-agent-pins.py": "6a373f9ffd192e4d134a3bbfed508d58b904ed40",
+  "scripts/tests/test-check-agent-references.py": "aca1ab38857c4c14acc0b3b8298e00073a7368bb",
+  "scripts/tests/test-check-version-mirrors.py": "e8aac1e4816a3487febc5598b9c6a1955b5a38f7",
+  "scripts/trunk-budget.txt": "b4664c8599a177997909252d6489fbf16dc83568"
+ }
+}

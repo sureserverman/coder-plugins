@@ -126,17 +126,15 @@ CLOSE = "<!-- /reference-resolution-contract -->"
 # whole while a real agent drops out, which is the floor failure one level in.
 EXPECTED_AGENTS = (
     "business/agents/market-researcher.md",
-    "game-dev/agents/game-design-expert.md",
-    "git-github/agents/code-reviewer.md",
     "i18n/agents/translator.md",
-    # design-handoff-reproducer left with the planning plugin, 2026-10-25; release-promo's
-    # drafting agent was retired 2026-11-10 (value-audit reduction).
-    "rust-dev/agents/rust-expert.md",
+    # design-handoff-reproducer left with the planning plugin, 2026-10-25; the
+    # value-audit reduction (2026-11-10) retired the drafting, Rust, game-design and
+    # git-github reviewer agents.
 )
 
 # --- the out-of-block lane -------------------------------------------------------------
 # What a second resolution site actually does wrong is RESTATE the contract instead of
-# pointing at it — that is how `rust-expert` ended up carrying its own copy of the fallback
+# pointing at it — that is how a since-retired Rust agent ended up carrying its own copy of the fallback
 # rules, free to drift from the block three screens above. Restatement is decidable as a
 # substring test, so that is what this lane tests.
 #

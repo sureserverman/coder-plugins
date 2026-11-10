@@ -33,7 +33,7 @@ findings allowlisted wholesale and then guards nothing:
 
 Scans every `*/skills/*/SKILL.md` and every `*/references/*.md` in the tree —
 the latter repo-wide, not only under `skills/`, because plugin-root reference
-dirs (`business/references/`, `game-dev/references/`) hold the files the
+dirs (`business/references/`) hold the files the
 DEC-009 plugin-rooted citations point at. Paths under `tests/`, `fixtures/` or
 `test-fixtures/` are excluded (test data, not shipped prose).
 A finding is suppressed only by an exact `path:CODE:token` entry in

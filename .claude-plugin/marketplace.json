@@ -5,14 +5,14 @@
     "email": "holyfiremin@gmail.com"
   },
   "metadata": {
-    "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, game-dev, i18n), cross-cutting dev workflow (git-github, release-promo, infra-build, loadout; planning redirects to staged-planning), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
+    "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, i18n), cross-cutting dev workflow (git-github, release-promo, infra-build, loadout; planning redirects to staged-planning), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
     "version": "0.34.0"
   },
   "plugins": [
     {
       "name": "rust-dev",
       "source": "./rust-dev",
-      "description": "Idiomatic Rust authoring: a rust-coding progressive-disclosure knowledge-router skill and a rust-expert authoring subagent, sharing one plugin-level references/ set. rust-expert covers author/review/idiomize/audit/migrate via protocols plus review, idiomize, and project-audit modes.",
+      "description": "Rust authoring: a rust-coding skill with the owner's house rules and incident gotchas, plus a deterministic bash lane (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner).",
       "version": "0.5.2",
       "category": "languages",
       "tags": [
@@ -103,7 +103,7 @@
     {
       "name": "git-github",
       "source": "./git-github",
-      "description": "Everyday git/GitHub operations for Claude Code: run a single-tool authoritative code review via the bundled read-only code-reviewer agent (also consumed by planning's executing-plans for per-task and per-stage review), audit a repo or diff for faked verification — stubbed gate tasks, tests that never ran, fabricated evidence, hidden exclusions — via gate-audit (the after-the-fact enforcement of planning's honest-gates rules), dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, sweep every portfolio project's GitHub repo for red default-branch workflows, unaddressed issues, stale PRs, and open Dependabot alerts via a deterministic gh-CLI scanner and triage picked findings into per-project backlogs (repo-health), review and tighten READMEs, audit dependency licenses and pick a project LICENSE, and cut release tags. The GitHub Actions workflow lane also emits findings on plugin-dev's shared deterministic contract via scripts/validate.sh. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
+      "description": "Everyday git/GitHub operations for Claude Code: audit a repo or diff for faked verification — stubbed gate tasks, tests that never ran, fabricated evidence, hidden exclusions — via gate-audit (the after-the-fact enforcement of planning's honest-gates rules), dispatch the same diff to sibling CLIs (codex/gemini/opencode) for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows for errors and outdated actions, sweep every portfolio project's GitHub repo for red default-branch workflows, unaddressed issues, stale PRs, and open Dependabot alerts via a deterministic gh-CLI scanner and triage picked findings into per-project backlogs (repo-health), review and tighten READMEs, and cut release tags. The GitHub Actions workflow lane also emits findings on plugin-dev's shared deterministic contract via scripts/validate.sh. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.",
       "version": "0.9.1",
       "category": "development",
       "tags": [
@@ -258,40 +258,6 @@
         "plurals",
         "placeholders",
         "rtl"
-      ],
-      "strict": false
-    },
-    {
-      "name": "game-dev",
-      "source": "./game-dev",
-      "description": "Designs and reviews game mechanics, game feel, camera/navigation, UX/FTUE, accessibility, and code architecture for Godot 4, Unity 6, and Unreal 5. Every rule cites the source it came from — Schell, Sylvester, Swink, Nystrom, Hodent, Nesky's 50 Camera Mistakes, and the Game Accessibility Guidelines. Use /game-review for a scoped diff review (mechanics + feel + camera + UX + a11y + architecture) that plays a runnable build before grading feel/UX and labels findings reviewed-live vs static-only, and /game-mechanic for a guided mechanic-design session that outputs an implementable brief. Sonnet-pinned game-design-expert subagent handles all dispatches; nothing is auto-applied.",
-      "version": "0.3.1",
-      "category": "development",
-      "tags": [
-        "game-dev",
-        "game-design",
-        "mechanics",
-        "game-feel",
-        "juice",
-        "camera",
-        "navigation",
-        "ux",
-        "onboarding",
-        "ftue",
-        "accessibility",
-        "gag",
-        "godot",
-        "unity",
-        "unreal",
-        "ecs",
-        "state-machine",
-        "object-pool",
-        "schell",
-        "sylvester",
-        "swink",
-        "nystrom",
-        "hodent",
-        "nesky"
       ],
       "strict": false
     }

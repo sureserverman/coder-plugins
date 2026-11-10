@@ -19,7 +19,7 @@
 # started, absorbed silently by Task 3.1's rewrites: the exact orphan hazard the
 # paragraph above describes, and the reason this file is regenerated, not edited.
 #
-# 20 entries (2026-11-10: 7 orphaned by the value-audit cuts removed). Every remaining one is BL-039 debt in a plugin the token-efficiency
+# 9 entries (2026-11-10: 18 orphaned by the value-audit cuts removed). Every remaining one is BL-039 debt in a plugin the token-efficiency
 # plan did not touch — a pointer or a position word that resolved in a monolith
 # and resolves nowhere now. A burn-down list, not a permanent exemption.
 #
@@ -32,21 +32,10 @@
 # would fail the check that proves it is.
 business/skills/assess/SKILL.md:DEIXIS-POSITIONAL:per above
 business/skills/business-plan/SKILL.md:DEIXIS-POSITIONAL:research below
-git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:comment below
 git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:docblock above
-git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:docblock above
-git-github/skills/code-comment-audit/SKILL.md:DEIXIS-POSITIONAL:line above
 git-github/skills/gate-audit/SKILL.md:DEIXIS-POSITIONAL:checks above
 git-github/skills/gate-audit/SKILL.md:DEIXIS-POSITIONAL:jank above
-git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:lane below
-git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:section below
-git-github/skills/github-workflow-audit/SKILL.md:DEIXIS-POSITIONAL:sections below
-git-github/skills/license-audit/SKILL.md:DEIXIS-POSITIONAL:phase below
 git-github/skills/request-external-reviews/SKILL.md:DEIXIS-POSITIONAL:matrix below
-git-github/skills/review-readme/SKILL.md:DEIXIS-POSITIONAL:checks below
 i18n/skills/i18n-audit/SKILL.md:DEIXIS-POSITIONAL:phases above
-infra-build/skills/bash-script-audit/SKILL.md:DEIXIS-POSITIONAL:section below
-infra-build/skills/bash-script-audit/SKILL.md:DEIXIS-POSITIONAL:sections below
 infra-build/skills/build-readiness-check/SKILL.md:DEIXIS-POSITIONAL:checks below
 infra-build/skills/publish-images-register/SKILL.md:DEIXIS-POSITIONAL:forms below
-rust-dev/skills/rust-coding/SKILL.md:DEIXIS-POSITIONAL:mapped above

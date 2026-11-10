@@ -28,8 +28,7 @@ android-dev/skills/android-play-publish/SKILL.md 5499
 # Lowered 13534 -> 12659 (-875 B) 2026-10-15, crutch-retirement Task 1.1: the cheap code-generation delegation paragraphs are gone.
 # Lowered 12659 -> 3014 (-9645 B) 2026-11-10, value-audit Stage 2: reduced to what a current model cannot supply.
 android-dev/skills/android-ui-design-figma/SKILL.md 3014
-# Lowered 13335 -> 12196 (-1139 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
-git-github/skills/license-audit/SKILL.md 12196
+# Removed 2026-11-10, value-audit Task 3.4: git-github's license skill retired (ceiling was 12196).
 # Lowered 12879 -> 12865 (-14 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
 # Lowered 12865 -> 12851 (-14 B) 2026-11-10, value-audit Stage 1 gate round 1: review fixes, wording trimmed beside them.
 android-dev/skills/android-fdroid-publish/SKILL.md 12851
@@ -42,7 +41,8 @@ business/skills/business-plan/SKILL.md 11453
 # Lowered 11935 -> 11836 (-99 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
 business/skills/market-research/SKILL.md 11836
 # Lowered 10838 -> 9700 (-1138 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
-git-github/skills/code-comment-audit/SKILL.md 9700
+# Lowered 9700 -> 4164 (-5536 B) 2026-11-10, value-audit Stage 3: reduced to what a current model cannot supply.
+git-github/skills/code-comment-audit/SKILL.md 4164
 # Lowered 10750 -> 10662 (-88 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
 business/skills/track/SKILL.md 10662
 # Lowered 10371 -> 3127 (-7244 B) 2026-11-10, value-audit Stage 2: reduced to what a current model cannot supply.

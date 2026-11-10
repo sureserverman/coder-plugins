@@ -27,13 +27,10 @@ spec.loader.exec_module(pins)
 
 FAILURES = []
 
-# Every agent the marketplace ships, as of 2026-11-10 (value-audit Stage 2).
+# Every agent the marketplace ships, as of 2026-11-10 (value-audit Stage 3).
 SHIPPED_AGENTS = [
     "business/agents/market-researcher.md",
-    "game-dev/agents/game-design-expert.md",
-    "git-github/agents/code-reviewer.md",
     "i18n/agents/translator.md",
-    "rust-dev/agents/rust-expert.md",
 ]
 
 

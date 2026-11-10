@@ -21,10 +21,9 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 |--------|--------------|
 | [`planning`](https://github.com/sureserverman/staged-planning) | Moved to [staged-planning](https://github.com/sureserverman/staged-planning); this marketplace's `planning` entry is a redirect that installs it from there. Idea → validated design → staged plan → gated execution. Portfolio and compass moved to `vault-portfolio@obsidian-wiki`. |
 | [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up — over one project or a group of repos treated as one business project. |
-| [`git-github`](./git-github) | Everyday git/GitHub ops: code review, multi-model second opinions, comment/workflow/license/README audits, release tags. |
-| [`rust-dev`](./rust-dev) | Idiomatic Rust: `rust-coding` knowledge-router skill (fires on `*.rs`/`Cargo.toml` edits) + `rust-expert` subagent (author/review/idiomize/audit/migrate modes), over one shared `references/` set. |
+| [`git-github`](./git-github) | Everyday git/GitHub ops: multi-model second opinions, gate audits, comment/workflow/README audits, repo-health sweeps, release tags. |
+| [`rust-dev`](./rust-dev) | Rust house rules and incident gotchas in a `rust-coding` skill (fires on `*.rs`/`Cargo.toml` edits), plus a deterministic lane: Cargo manifest checks, house-rule candidate scan, stack report. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
-| [`game-dev`](./game-dev) | Source-cited game design/dev: a `game-dev` knowledge-router skill + `game-design-expert` subagent (mechanics, feel/juice, camera, UX/FTUE, accessibility, architecture across Godot/Unity/Unreal) over one shared `references/` set, plus `/game-review`, `/game-mechanic`. |
 | [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
@@ -63,15 +62,13 @@ its namespaced name:
 them:
 
 ```text
-"have rust-expert review HEAD~1"   # review/idiomize/project-audit are agent modes
-/game-mechanic grapple     # guided design session for a new mechanic
 /promote-release           # survey the repo, draft posts per channel
 /android-screenshots       # Play Store captures across emulator form factors
 ```
 
 **Subagents are delegated.** Claude dispatches them on its own when a task
-matches (e.g. `rust-expert` for a Rust task), or you can ask directly:
-"have `rust-expert` audit the unsafe blocks in src/ffi.rs".
+matches (e.g. `translator` for a catalog batch), or you can ask directly:
+"have the `translator` agent fill the missing German strings".
 
 A typical end-to-end flow with the `planning` plugin:
 
