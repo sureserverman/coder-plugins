@@ -88,6 +88,6 @@ contract, whether a lock is actually held across an await, what the error enum
 should look like — that is judgment and lives with the model working under `rust-coding`,
 which runs this lane and consumes its JSON instead of re-deriving the rules.
 
-Keep rule ids stable and kebab-case; the agents key off them. Refresh
+Keep rule ids stable and kebab-case; the skill keys off them. Refresh
 `lib/findings.sh` / `validate.sh` with plugin-dev's `install-kit.sh --force`,
 never by hand-editing.

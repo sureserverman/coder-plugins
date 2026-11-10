@@ -7,7 +7,7 @@
 # lane's call (the model). Hence every source-pattern rule here is warn/info,
 # never error.
 #
-# Rule ids (stable, kebab-case — rust-dev's agents key off these):
+# Rule ids (stable, kebab-case — rust-dev's skill keys off these):
 #   rust-no-sources                     info  no .rs files under root
 #   rust-unsafe-missing-safety-comment  warn  unsafe block/impl with no // SAFETY: nearby
 #   rust-unwrap-outside-tests           warn  .unwrap()/.expect( outside main.rs/tests/benches/examples/build.rs or #[cfg(test)]

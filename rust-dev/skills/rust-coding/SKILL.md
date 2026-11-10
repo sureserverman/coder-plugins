@@ -9,12 +9,12 @@ description: Use when authoring, scaffolding, refactoring, or reviewing Rust cod
 
 `validate-safety.sh` flags candidates for these by stable rule id. Confirming each candidate and writing the fix is your call.
 
-- `unsafe` carries a `// SAFETY:` comment (`rust-unsafe-missing-safety-comment`).
+- Every `unsafe` block has a `// SAFETY:` comment naming the invariants and where they're established (`rust-unsafe-missing-safety-comment`).
 - No `std::sync` lock held across `.await` (`rust-sync-lock-in-async-candidate`).
-- Channels are bounded (`rust-unbounded-channel`).
-- No `Box<dyn Error>` in a pub API (`rust-box-dyn-error-in-pub-api`).
-- No `.unwrap()` outside tests (`rust-unwrap-outside-tests`).
-- `Deserialize` types use `deny_unknown_fields` (`rust-serde-missing-deny-unknown`).
+- Bound every channel; `unbounded_channel` only when capacity is a compile-time small constant (`rust-unbounded-channel`).
+- `thiserror` in libraries, `anyhow` in binaries; no `Box<dyn Error>` in public APIs (`rust-box-dyn-error-in-pub-api`).
+- No `.unwrap()` / `.expect()` outside `main`, tests, or documented-panic contracts; every `.expect()` has a message explaining the invariant (`rust-unwrap-outside-tests`).
+- `#[serde(deny_unknown_fields)]` on every type deserialized from external input (`rust-serde-missing-deny-unknown`).
 
 `validate-cargo.sh` decides manifest invariants: edition enum, edition↔MSRV consistency, wildcard deps, workspace members, lockfile, toolchain channel. `stack-report.sh` produces the project Stack Report.
 

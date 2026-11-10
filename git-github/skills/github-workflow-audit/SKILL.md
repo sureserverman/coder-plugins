@@ -30,7 +30,7 @@ not re-check these by hand.
 
 Read the workflow files and check:
 
-- **Reusable-workflow parity.** Callers pass every `required: true`
+- **Reusable-workflow parity.** Each local `uses: ./.github/workflows/x.yml` exists; callers pass every `required: true`
   `workflow_call` input; `with:` keys match declared inputs; `secrets:` names
   match the callee's declarations.
 - **Input types.** `with:` values match the declared type (string / boolean /

@@ -6,13 +6,13 @@ Idiomatic Rust authoring for Claude Code. Part of the [`coder-plugins`](..) mark
 
 One **skill** (`rust-coding`) that fires on any Rust work. It carries the owner's house rules and gotchas from past incidents, and points at the deterministic lane below.
 
-Opinionated defaults: no locks across `.await`, `// SAFETY:` on every `unsafe`, `thiserror` in libraries / `anyhow` in applications, iterators over index loops, `&str`/`&[T]` at API boundaries, `cargo clippy -- -D warnings` in CI.
+House rules: `// SAFETY:` on every `unsafe`, no locks across `.await`, bounded channels, `thiserror` in libraries / `anyhow` in binaries, no `.unwrap()` outside `main` and tests, `deny_unknown_fields` on types deserialized from external input.
 
 ## Determinism boundary
 
 Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from
 the plugin-dev determinism kit); judgment stays with the skill, which
-runs the scripts and consume their JSON instead of re-deriving rules in prose.
+runs the scripts and consumes their JSON instead of re-deriving rules in prose.
 
 - `scripts/validate-cargo.sh` — manifest invariants: TOML parse, edition enum, edition↔MSRV consistency, wildcard deps, workspace members on disk, lockfile, toolchain channel.
 - `scripts/validate-safety.sh` — regex *candidates* for the house rules over `.rs` sources (unsafe without `// SAFETY:`, `.unwrap()` outside tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub APIs, `Deserialize` without `deny_unknown_fields`). Candidates are `warn`; the model confirms or dismisses each.

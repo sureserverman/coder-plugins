@@ -5,7 +5,7 @@
 # Cargo.lock invariants of the *target Rust project* (not this plugin's own
 # structure — that is plugin-dev's job). Emits the shared JSON contract.
 #
-# Rule ids (stable, kebab-case — rust-dev's agents key off these):
+# Rule ids (stable, kebab-case — rust-dev's skill keys off these):
 #   cargo-no-manifest             info   no Cargo.toml under root; nothing to validate
 #   cargo-manifest-parse-error    error  Cargo.toml fails TOML parse
 #   cargo-missing-edition         warn   [package] has no edition (silently defaults to 2015)
