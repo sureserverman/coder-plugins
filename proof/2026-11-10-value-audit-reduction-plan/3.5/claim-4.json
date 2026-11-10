@@ -1,0 +1,37 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": "10 manifest/marketplace pair(s), 0 README lead(s) and 1 changelog(s) reconciled; 0 problem(s)."
+ },
+ "break_patch": "diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json\n--- a/.claude-plugin/marketplace.json\n+++ b/.claude-plugin/marketplace.json\n@@ -13,7 +13,7 @@\n       \"name\": \"rust-dev\",\n       \"source\": \"./rust-dev\",\n       \"description\": \"Rust authoring: a rust-coding skill with the owner's house rules and incident gotchas, plus a deterministic bash lane (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"languages\",\n       \"tags\": [\n         \"rust\",\n@@ -228,7 +228,7 @@\n       \"name\": \"i18n\",\n       \"source\": \"./i18n\",\n       \"description\": \"Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. A translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. Both skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"development\",\n       \"tags\": [\n         \"i18n\",\n",
+ "build": null,
+ "created": "2026-11-10T22:50:25+00:00",
+ "fingerprint": "0266c47a1650613b2533d133b2a6d7c580fd28f82254d3aaf07255384ae4c135",
+ "index": 4,
+ "kind": "claim",
+ "named_break": "a manifest and its mirror disagree",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "10 manifest/marketplace pair(s), 0 README lead(s) and 1 changelog(s) reconciled; 2 problem(s).\n  rust-dev: MARKETPLACE-DRIFT \u2014 marketplace says '0.5.2', manifest says '0.6.0'\n  i18n: MARKETPLACE-DRIFT \u2014 marketplace says '0.5.2', manifest says '0.6.0'"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "3.5",
+ "test": "python3 scripts/check-version-mirrors.py && for p in \"rust-dev 0.6.0\" \"android-dev 3.2.0\" \"release-promo 0.4.0\" \"git-github 0.10.0\" \"i18n 0.6.0\" \"infra-build 0.2.3\" \"business 0.8.3\" \"browser-extensions 0.2.4\" \"loadout 0.2.3\"; do set -- $p; grep -q \"\\\"version\\\": \\\"$2\\\"\" \"$1/.claude-plugin/plugin.json\" || exit 1; done && sed -n 9p .claude-plugin/marketplace.json | grep -q '0.35.0' && git grep -q '0.8.3' -- business/CHANGELOG.md",
+ "text": "the one changelog has its entry (red if a manifest and its mirror disagree)",
+ "touched": [
+  ".claude-plugin/marketplace.json"
+ ],
+ "touched_blobs": {
+  ".claude-plugin/marketplace.json": "87f7eda4ef5bc7c187c39a893175b695b4a13421"
+ },
+ "witness_blobs": {
+  ".claude-plugin/marketplace.json": "87f7eda4ef5bc7c187c39a893175b695b4a13421",
+  "business/CHANGELOG.md": "509dd076dcea51b6ddeaabf6245e4a9a3a80c1aa",
+  "scripts/check-version-mirrors.py": "b25ee6605442c3105b79725d4464929c7fed6974"
+ }
+}

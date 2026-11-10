@@ -1,0 +1,51 @@
+{
+ "baseline": {
+  "elapsed_s": 1.0,
+  "exit": 0,
+  "tail": "unconfigured:\n  ok    missing registry exits with 'portfolio not configured'\nfull sweep:\n  ok    scanner exits 0 (stderr: )\n  ok    envelope keys present\n  ok    vault configured -> cross-check on\n  ok    alpha assessed\n  ok    beta -> no_remote\n  ok    no_remote cites the URL\n  ok    gamma -> couldnt_assess\n  ok    disabled project skipped\n  ok    ssh remote parsed to owner/repo\n  ok    default branch resolved\n  ok    latest run per workflow, default branch only\n  ok    one red workflow (latest ci run = failure)\n  ok    red CI workflow deduped repo-level against a gh-ci backlog entry\n  ok    two open issues\n  ok    issues sorted oldest-first\n  ok    backlogged issue carries triaged_as\n  ok    untriaged issue unmarked\n  ok    only the idle PR is stale\n  ok    dependabot 403 degrades to lane error\n  ok    closed-upstream BL entry flagged as zombie\n  ok    read-only: no file under HOME/vault/repos changed\n--project filter:\n  ok    --project scopes the sweep\n  ok    unknown --project fails loudly\n  ok    fixture still holds with the clock at 2027-11-10T22:50:22Z (re-ran self; exit 0)\n\nall checks passed"
+ },
+ "break_patch": "diff --git a/git-github/skills/review-readme/SKILL.md b/git-github/skills/review-readme/SKILL.md\n--- a/git-github/skills/review-readme/SKILL.md\n+++ b/git-github/skills/review-readme/SKILL.md\n@@ -35,5 +35,5 @@ Present findings as **ISSUE** / **IMPROVE** / **STYLE**:\n Ask with AskUserQuestion: \"All\", \"ISSUE + IMPROVE only\", \"Let me pick\". After\n applying, show a before/after summary.\n \n-**Never grow the README to fix it.** If adding content, cut or collapse\n+**Avoid growing it to fix it.** If adding content, cut or collapse\n something first. The goal is *shorter and better*.\n",
+ "build": null,
+ "created": "2026-11-10T22:50:23+00:00",
+ "fingerprint": "0266c47a1650613b2533d133b2a6d7c580fd28f82254d3aaf07255384ae4c135",
+ "index": 3,
+ "kind": "claim",
+ "named_break": "one is cut",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": ""
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "3.2",
+ "test": "test ! -e git-github/skills/code-review && test ! -e git-github/skills/license-audit && test ! -e git-github/agents && test ! -e git-github/references && test ! -e git-github/tests/fixtures/critical-finding && ! git grep -nE 'license-audit|review-catalogs|git-github:code-review|skills/code-review/|bundled read-only|game-design-expert|rust-expert' -- git-github && grep -q 'planning:code-reviewer' git-github/skills/gate-audit/SKILL.md && for p in \"skills/github-workflow-audit/SKILL.md 4342\" \"skills/release-tag/SKILL.md 3577\" \"skills/code-comment-audit/SKILL.md 4850\" \"skills/review-readme/SKILL.md 2079\"; do set -- $p; [ \"$(wc -c < \"git-github/$1\")\" -le \"$2\" ] || exit 1; done && grep -q 'validate-workflows.sh' git-github/skills/github-workflow-audit/SKILL.md && grep -qF 'git push origin <tag>' git-github/skills/release-tag/SKILL.md && grep -q 'Flagged for human' git-github/skills/code-comment-audit/SKILL.md && grep -q 'Never grow the README' git-github/skills/review-readme/SKILL.md && python3 git-github/skills/repo-health/tests/test-repo-health-scan.py",
+ "text": "the four shrunk skills are within their bounds and each keeps its core marker (red if one is cut)",
+ "touched": [
+  "git-github/skills/review-readme/SKILL.md"
+ ],
+ "touched_blobs": {
+  "git-github/skills/review-readme/SKILL.md": "550086be230bf3bf97d0b66005923e09512eab13"
+ },
+ "witness_blobs": {
+  "git-github/.claude-plugin/plugin.json": "5384bde343c60e9c69d6472736fa2bb086d9fbd2",
+  "git-github/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
+  "git-github/README.md": "d227a63310723ed0efe30ddbcd67e319914789ca",
+  "git-github/scripts/README.md": "cbf0ea5983cbbb99ff86670ab65e43f7561c2f3a",
+  "git-github/scripts/lib/findings.sh": "76505c770375bef10ba935028b8fd2c5ebc06cad",
+  "git-github/scripts/validate-workflows.sh": "ccdee82067efbb3eb9228595cca241502b5f88a2",
+  "git-github/scripts/validate.sh": "12fbbc3bf7a73a35097c873f4fd53c9755cba5a2",
+  "git-github/skills/code-comment-audit/SKILL.md": "cb18cbb042a54fb7816b54856b0f1273f6c37fb0",
+  "git-github/skills/gate-audit/SKILL.md": "754481b4e00d20cf335784cea9795635c07db58c",
+  "git-github/skills/github-workflow-audit/SKILL.md": "c23ea4130201a6a16d2073cc2f8742254bfbd92b",
+  "git-github/skills/github-workflow-audit/scripts/audit-workflows.py": "873c7e1b2597e702b507ee8f440fae8332969580",
+  "git-github/skills/release-tag/SKILL.md": "9636492439f6d172d66b530ce2090b9172c77144",
+  "git-github/skills/repo-health/SKILL.md": "4cebff10939faaf8ae61b0c3734227541af13dcb",
+  "git-github/skills/repo-health/scripts/repo-health-scan.py": "cce1dea63f72842a1a842881bb6ee7b594be4059",
+  "git-github/skills/repo-health/tests/test-repo-health-scan.py": "bf03a390d45e33a1d1b3a066ebd04dac980798ed",
+  "git-github/skills/request-external-reviews/SKILL.md": "5a8a9043993b6723f39163d837981e11476238f9",
+  "git-github/skills/review-readme/SKILL.md": "550086be230bf3bf97d0b66005923e09512eab13"
+ }
+}

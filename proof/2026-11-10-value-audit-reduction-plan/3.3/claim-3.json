@@ -1,0 +1,37 @@
+{
+ "baseline": {
+  "elapsed_s": 0.3,
+  "exit": 0,
+  "tail": "  ok    plan2nodepth: assessed true\n  ok    plan2nodepth: missing depth nulled\n  ok    plan2nodepth: missing-depth error recorded\n[groups]\n  ok    scanner exits 0 (stderr: )\n  ok    read-only: fixture vault unchanged after scan\n  ok    suite-ok: entry marked group\n  ok    suite-ok: members carried through (['ai-tools/grpmember1', 'ai-tools/grpmember2'])\n  ok    suite-ok: assessed\n  ok    suite-ok: verdict read from the group dir\n  ok    suite-ok: project: <group-slug> is accepted, not a mismatch ([])\n  ok    suite-ok: gtm parsed from the group dir ({'done': 1, 'total': 3, 'pct': 33})\n  ok    grpmember1: grouped member emits no standalone row\n  ok    grpmember2: grouped member emits no standalone row\n  ok    envelope lists non-fatal group slugs (['suite-conflict', 'suite-ok'])\n  ok    suite-ok: aggregate key parsed ({'github.stars': 512, 'note': 'npm downloads unavailable \u2014 package is private'})\n  ok    suite-ok: breakdown keys must NOT sit in values \u2014 the suffix-after-last-dot target rule would make every member claim the same target (['github.stars', 'note'])\n  ok    suite-ok: per-member breakdown retained for attribution ({'github.stars@ai-tools/grpmember1': 431, 'github.stars@ai-tools/grpmember2': 81})\n  ok    suite-ok: every note in a block is retained, not just the last (['grpmember2 clones unavailable \u2014 no push access', 'npm downloads unavailable \u2014 package is private'])\n  ok    suite-ok: the FIRST note survives (BL-012) (['grpmember2 clones unavailable \u2014 no push access', 'npm downloads unavailable \u2014 package is private'])\n  ok    suite-ok: values['note'] still carries the last note for old consumers\n  ok    suite-conflict: still assessed as a group\n  ok    suite-conflict: member's own business/ is REPORTED, not silently overridden (['member ai-tools/grpconflict1 has its own business/ directory, which this group supersedes \u2014 migrate it into the group dir or drop the member'])\n  ok    suite-conflict: the conflicting member still emits no second row\n  ok    single-member group rejected ({'name': 'suite-single', 'area': None, 'path': '/tmp/tmpi6iacz_j/vault/Portfolio/business-groups/suite-single', 'group': True, 'reason': 'group.md lists 1 member(s); a business group needs at least 2 (one member is just a project)'})\n  ok    unknown member -> couldnt_assess ({'name': 'suite-unknown', 'area': None, 'path': '/tmp/tmpi6iacz_j/vault/Portfolio/business-groups/suite-unknown', 'group': True, 'reason': 'group.md names member(s) that are not enabled registry projects: ai-tools/does-not-exist'})\n  ok    group.md schema gate applies ({'name': 'suite-newschema', 'area': None, 'path': '/tmp/tmpi6iacz_j/vault/Portfolio/business-groups/suite-newschema', 'group': True, 'reason': 'group.md: schema 9 is newer than supported (1) \u2014 upgrade the business plugin'})\n  ok    group slug must equal its directory ({'name': 'suite-mismatch', 'area': None, 'path': '/tmp/tmpi6iacz_j/vault/Portfolio/business-groups/suite-mismatch', 'group': True, 'reason': \"group.md declares group 'totally-different' but lives in directory 'suite-mismatch'\"})\n  ok    suite-single: a fatal group emits no assessed row\n  ok    suite-unknown: a fatal group emits no assessed row\n  ok    suite-newschema: a fatal group emits no assessed row\n  ok    suite-mismatch: a fatal group emits no assessed row\n  ok    members of suite-ok stay suppressed; fatal groups claim nobody\n  ok    parse_gtm degrades (raises, caught per-project) when plan_parser is missing\n  ok    plan_parser: nothing installed and no root -> none\n  ok    plan_parser: $STAGED_PLANNING_ROOT/lib/plan_parser.py when nothing is installed\n  ok    plan_parser: the newest installed version (numeric, 1.0.10 over 1.0.9) beats the root\n  ok    plan_parser: a redirected install (cached under coder-plugins) is found, newest first\n\nOK \u2014 all business-scan fixture checks passed"
+ },
+ "break_patch": "diff --git a/business/skills/revenue-model/SKILL.md b/business/skills/revenue-model/SKILL.md\n--- a/business/skills/revenue-model/SKILL.md\n+++ b/business/skills/revenue-model/SKILL.md\n@@ -40,7 +40,7 @@ For `free-for-reputation`, pick channels and a reputational target; `pricing` ma\n - `monetization.model`, `monetization.pricing` (a one-line hypothesis, e.g. `\"$3 one-time\"`),\n   `monetization.channels` (a **list**, e.g. `[f-droid, github-releases]`). Honor channel\n   rules found during assess (F-Droid forbids paid apps).\n-- `targets`: at least one numeric, dated target. Each target is `{metric, target, by}` \u2014\n+- `targets`: at least one numeric, dated target. Each target is `{metric, goal, date}` \u2014\n   `metric` a non-empty string, `target` numeric, `by` `YYYY-MM-DD` \u2014 e.g. `stars 500 by\n   2026-12-31`. Prefer metrics `track` can measure (GitHub stars/downloads are\n   auto-collected; revenue/installs are manual).\n",
+ "build": null,
+ "created": "2026-11-10T22:50:24+00:00",
+ "fingerprint": "0266c47a1650613b2533d133b2a6d7c580fd28f82254d3aaf07255384ae4c135",
+ "index": 3,
+ "kind": "claim",
+ "named_break": "it is cut",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": ""
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "3.3",
+ "test": "[ \"$(wc -c < infra-build/skills/bash-script-audit/SKILL.md)\" -le 3157 ] && grep -q 'audit.sh' infra-build/skills/bash-script-audit/SKILL.md && grep -qi 'heredoc' infra-build/skills/bash-script-audit/SKILL.md && [ \"$(wc -c < business/skills/revenue-model/SKILL.md)\" -le 3200 ] && grep -qF '{metric, target, by}' business/skills/revenue-model/SKILL.md && python3 business/scripts/tests/test-business-scan.py",
+ "text": "the revenue skill keeps the target shape the scanner reads (red if it is cut)",
+ "touched": [
+  "business/skills/revenue-model/SKILL.md"
+ ],
+ "touched_blobs": {
+  "business/skills/revenue-model/SKILL.md": "cb31bb6b62cf913ed50d0b0c371c00f77b69ca3f"
+ },
+ "witness_blobs": {
+  "business/scripts/tests/test-business-scan.py": "a00996ded92a061855592ec28397a105c667de85",
+  "business/skills/revenue-model/SKILL.md": "cb31bb6b62cf913ed50d0b0c371c00f77b69ca3f",
+  "infra-build/skills/bash-script-audit/SKILL.md": "d7df780d70da9078b31673f18cec9cc0cb257fba"
+ }
+}
