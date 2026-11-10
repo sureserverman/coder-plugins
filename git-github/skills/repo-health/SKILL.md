@@ -13,8 +13,6 @@ gathered in one deterministic sweep, then *triaged by choice* into the
 per-project backlogs. GitHub stays the source of truth; the backlog only
 ever holds items the user explicitly filed.
 
-**Announce at start:** "Using the repo-health skill for a portfolio GitHub sweep."
-
 ## Determinism boundary
 
 All evidence comes from ONE run of the deterministic scanner:

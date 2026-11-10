@@ -10,8 +10,6 @@ Turn an assessed verdict into a concrete money/reach model: how it earns or gain
 what price, through which channels, against what numeric dated targets. Updates the
 `monetization` and `targets` sections of `business/BUSINESS.md` in place.
 
-**Announce at start:** "Using the business revenue-model skill to set <project>'s monetization model."
-
 ## Determinism boundary
 
 Read business state (verdict, current monetization, targets) via the scanner:

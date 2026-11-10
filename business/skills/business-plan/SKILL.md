@@ -12,8 +12,6 @@ Fold everything the pipeline already knows about a project — the `assess` verd
 plan at `business/plan.md`. This skill **composes**; it does not re-decide the verdict or
 the model. If a prerequisite is missing, it offers to run the skill that owns it.
 
-**Announce at start:** "Using the business-plan skill to compose <project>'s plan."
-
 ## Choose the plan depth tier (ask first)
 
 Before composing, ask the operator **how detailed** the plan should be — the first question,

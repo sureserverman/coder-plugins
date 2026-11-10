@@ -16,9 +16,6 @@ GitHub release. Two confirmation gates: one before `git tag`, one before
 dispatching a subagent — the steps are tightly sequenced and the user
 needs to see and approve each one.
 
-**Announce at start:** "Using the release-tag skill — let me scope the
-release first."
-
 ## When NOT to use this skill
 
 - The user did not explicitly ask to tag or release. This skill never

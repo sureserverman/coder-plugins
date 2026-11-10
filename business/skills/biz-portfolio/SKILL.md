@@ -9,8 +9,6 @@ description: >
 Give a one-command, portfolio-wide picture of commercial coverage and rebuild the
 `global-business.md` roll-up.
 
-**Announce at start:** "Using the business biz-portfolio skill to sweep all projects."
-
 ## Determinism boundary
 
 The whole sweep is two deterministic scripts piped together — the scanner (sole parser)

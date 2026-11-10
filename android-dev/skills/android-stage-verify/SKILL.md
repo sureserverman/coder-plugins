@@ -11,8 +11,6 @@ tests** on whatever device is attached. This is the physical-reality check that
 unit tests alone can't give — a green `testDebugUnitTest` says nothing about
 whether the APK installs or the first Activity crashes on a real Android runtime.
 
-**Announce at start:** "Using the android-stage-verify skill to gate this stage on device."
-
 ## When this runs
 
 - At every **stage gate** during `executing-plans` for an Android project, after

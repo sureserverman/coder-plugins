@@ -29,16 +29,20 @@ android-dev/skills/android-ui-design-figma/SKILL.md 12659
 git-github/skills/license-audit/SKILL.md 12196
 # Lowered 12879 -> 12865 (-14 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
 android-dev/skills/android-fdroid-publish/SKILL.md 12865
-business/skills/business-plan/SKILL.md 11538
+# Lowered 11538 -> 11453 (-85 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
+business/skills/business-plan/SKILL.md 11453
 # Seeded 2026-09-08 at 11935 by the competitive-analysis rework (business 0.8.0): the
 #   trunk crossed the 10000 B floor when the scope interview gained the customer-job
 #   statement and the table/sweep/quadrant steps landed. The method itself lives in
 #   references/competitive-analysis-method.md, loaded on demand, not here.
-business/skills/market-research/SKILL.md 11935
+# Lowered 11935 -> 11836 (-99 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
+business/skills/market-research/SKILL.md 11836
 # Lowered 10838 -> 9700 (-1138 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
 git-github/skills/code-comment-audit/SKILL.md 9700
-business/skills/track/SKILL.md 10750
+# Lowered 10750 -> 10662 (-88 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
+business/skills/track/SKILL.md 10662
 android-dev/skills/android-release-signing/SKILL.md 10371
-business/skills/assess/SKILL.md 10277
+# Lowered 10277 -> 10186 (-91 B) 2026-11-10, value-audit Task 1.5: the announce line is gone.
+business/skills/assess/SKILL.md 10186
 # Lowered 10263 -> 10262 (-1 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
 browser-extensions/skills/browser-extensions/SKILL.md 10262
