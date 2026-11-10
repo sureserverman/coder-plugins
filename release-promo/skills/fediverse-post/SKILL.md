@@ -10,7 +10,7 @@ Drafts one Mastodon-compatible toot.
 
 ## Length and links
 
-Assume a 500-character cap. Every link counts as 23 characters toward the 500-char limit, however long it is (checked 2026-11-10, https://docs.joinmastodon.org/user/posting/). Don't use link shorteners. Put the link above the hashtags.
+Assume a 500-character cap. Every link counts as 23 characters toward the 500-char limit, however long it is (checked 2026-11-10, https://docs.joinmastodon.org/user/posting/). Don't use link shorteners. Put the link before the hashtags.
 
 ## Hashtags
 

@@ -110,9 +110,9 @@ attaches at the points where the platform actually matters.
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. For a full redesign rather
-than one screen, `android-ui-design-figma` runs the longer app-analysis → spec → apply
-workflow.
+`android-gradle-build` handles module and dependency wiring. For a redesign,
+`android-ui-design-figma` runs a screenshot → grade → iterate loop with an independent
+grader, and holds the adaptive-icon spec.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
 stage gate automatically** — you don't ask for it. It builds the debug APK and, when a
@@ -189,8 +189,7 @@ missing or stale keys. It reports; it doesn't rewrite.
 ```
 
 Fills the gaps, dispatching the **`translator`** agent per batch — placeholders, ICU
-MessageFormat, CLDR plurals and HTML tags preserved. `i18n-formats` is the reference for
-whichever catalog format you're in.
+MessageFormat, CLDR plurals and HTML tags preserved.
 
 The seam back to `planning`: `project-maturity` carries an **i18n axis**, so translation
 coverage becomes part of the ship-readiness verdict instead of a thing someone remembers to
@@ -317,8 +316,8 @@ Then registration and announcement:
 ```
 
 `/promote-release` is `release-promo`'s front door: it decides which channels a release is
-even eligible for, then dispatches the `post-drafter` agent per channel against that
-channel's house style — `hackernews-show-hn`, `lobsters-post`, `reddit-promo`,
+even eligible for, then drafts each channel's post in the session from that channel's
+house-style skill — `hackernews-show-hn`, `lobsters-post`, `reddit-promo`,
 `fediverse-post`, `twim-submission`. It **drafts and never posts**, which is the same
 report-only posture `compass` takes toward work.
 

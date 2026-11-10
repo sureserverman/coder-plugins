@@ -5,7 +5,7 @@ description: Use when an Android app needs a release signing setup — a build f
 
 # Android Release Signing
 
-Set up once per app, then hand off to `android-fdroid-publish` or `android-play-publish`. Both publish skills assume the file names and secret names below.
+Set up once per app, then hand off to `android-fdroid-publish` or `android-play-publish`. Both publish skills assume these file names and secret names.
 
 ## File conventions
 

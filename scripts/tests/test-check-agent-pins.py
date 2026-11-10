@@ -27,6 +27,15 @@ spec.loader.exec_module(pins)
 
 FAILURES = []
 
+# Every agent the marketplace ships, as of 2026-11-10 (value-audit Stage 2).
+SHIPPED_AGENTS = [
+    "business/agents/market-researcher.md",
+    "game-dev/agents/game-design-expert.md",
+    "git-github/agents/code-reviewer.md",
+    "i18n/agents/translator.md",
+    "rust-dev/agents/rust-expert.md",
+]
+
 
 def check(ok, msg):
     print(f"  {'ok' if ok else 'FAIL'}: {msg}")
@@ -122,12 +131,11 @@ def cases():
 def real_tree():
     check(pins.main([]) == 0, "every shipped agent inherits the model and pins effort within policy")
     files = pins.agent_files(pins.REPO_ROOT)
-    # >= not ==: a correctly pinned ninth agent must not redden the suite. The
-    # floor is the shipped count: 12 until the 2026-10-15 retirement removed 4, and 8
-    # until planning's two agents left with it on 2026-10-25.
-    # check-agent-pins.py carries the policy; this only guards against the sweep
-    # silently finding nothing, which would let main() report a pass over zero.
-    check(len(files) >= 6,
+    # The live set, not a floor: a floor is satisfied by any N agents, so a retired
+    # agent and a new one kept the count whole and the sweep silent. Adding or
+    # retiring an agent is a deliberate edit here. check-agent-pins.py carries the
+    # policy; this also guards against the sweep silently finding nothing.
+    check(files == SHIPPED_AGENTS,
           f"the sweep sees the shipped agents and is not empty (saw {len(files)})")
 
 

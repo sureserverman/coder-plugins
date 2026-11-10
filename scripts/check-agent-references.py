@@ -129,8 +129,8 @@ EXPECTED_AGENTS = (
     "game-dev/agents/game-design-expert.md",
     "git-github/agents/code-reviewer.md",
     "i18n/agents/translator.md",
-    # design-handoff-reproducer left with the planning plugin, 2026-10-25.
-    "release-promo/agents/post-drafter.md",
+    # design-handoff-reproducer left with the planning plugin, 2026-10-25; release-promo's
+    # drafting agent was retired 2026-11-10 (value-audit reduction).
     "rust-dev/agents/rust-expert.md",
 )
 
@@ -152,7 +152,7 @@ RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cach
                        "DEGRADED")
 # Known and accepted: the escape is evaluated per FRAGMENT, and a punctuation-free run
 # (a bullet list, say) is one fragment — so a delegating bullet launders a DEGRADED
-# restatement three bullets down. Narrowing it would break post-drafter, whose output-shape
+# restatement three bullets down. Narrowing it would break an agent whose output-shape
 # section legitimately needs both in one breath. Recorded rather than left for a reader to
 # discover from the fixture's more confident wording.
 #
@@ -165,7 +165,7 @@ RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cach
 # three inversions and passed. A delegating sentence has no reason to restate the fallback
 # ARMS — that is the part it is delegating — so naming them revokes the exemption. `DEGRADED`
 # is exempt-able because an output-shape section legitimately needs to say where the banner
-# goes (post-drafter does exactly that).
+# goes (a drafting agent's output-shape section does exactly that).
 DELEGATION = "reference-resolution contract"
 UNLAUNDERABLE = ("dev checkout", "versioned plugin cache", "versioned cache")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
