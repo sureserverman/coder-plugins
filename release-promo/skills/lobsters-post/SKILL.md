@@ -29,7 +29,7 @@ For a release announcement, **prefer `show`** if there's something to try. Plain
 
 ## 3. Tag selection
 
-Tags come from a predefined list; lobste.rs/about states no per-story tag cap (checked 2026-11-10, https://lobste.rs/about). Pick the fewest that fit from the **actual current tag list at lobste.rs/tags** (the user should verify). Common relevant tags:
+Tags come from a predefined list; lobste.rs/about names no per-story tag cap (checked 2026-11-10, https://lobste.rs/about). Pick the fewest that fit from the **actual current tag list at lobste.rs/tags** (the user should verify). Common relevant tags:
 
 - Languages: `rust`, `go`, `python`, `c`, `cpp`, `java`, `ruby`, `js`, `dotnet`, `haskell`, `lisp`, `ml`.
 - Topics: `release`, `practices`, `programming`, `compsci`, `formalmethods`, `distributed`, `networking`, `crypto`, `privacy`, `security`, `databases`, `vcs`, `web`, `mobile`, `linux`, `unix`, `bsd`, `osdev`, `hardware`, `audio`, `graphics`, `compilers`, `plt`, `ai`, `ml`.

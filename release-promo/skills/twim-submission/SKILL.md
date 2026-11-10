@@ -10,7 +10,7 @@ Drafts a TWIM entry. TWIM is the weekly Matrix newsletter published every Friday
 
 ## 1. How TWIM submission actually works
 
-- **Submission room:** `#thisweekin:matrix.org` (checked 2026-11-10, https://matrix.org/twim-guide/). matrix.org/twim also invites updates in `#twim:matrix.org`.
+- **Submission room:** `#thisweekin:matrix.org` (checked 2026-11-10, https://matrix.org/twim-guide/). `#twim:matrix.org` is the general TWIM discussion room, not the submission room.
 - **Bot mention:** start the message with a mention of the user "TWIM"; everything after it is the entry. The bot `@this-week-in:matrix.org` confirms receipt (checked 2026-11-10, https://matrix.org/twim-guide/).
 - **Deadline:** entries close around 16:00 Paris time on Friday; later posts go into the next edition (checked 2026-11-10, https://matrix.org/twim-guide/).
 - **Cadence:** one entry per project per release / milestone. Don't submit the same project two weeks in a row unless there's genuinely new news.

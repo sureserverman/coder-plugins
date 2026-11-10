@@ -102,7 +102,7 @@ Hard rules from the F-Droid docs:
 - `title.txt` is **plain text only**, no markdown, no quotes around it.
 - `short_description.txt` must NOT start with the app name and must NOT exceed 80 chars (F-Droid will truncate silently).
 - `full_description.txt` cannot reference Google Play, in-app purchases, or "leave a 5-star review" language (F-Droid policy).
-- One `<versionCode>.txt` per release — F-Droid associates a changelog by `versionCode`, not `versionName`. If you forget the changelog for a version, the app page renders blank for that release.
+- One `<versionCode>.txt` per release — F-Droid associates a changelog by `versionCode`, not `versionName`. A version without a changelog renders blank on the app page.
 - Screenshots: 320–3840 px on each side, aspect ratio between 1:2 and 2:1. PNG or JPEG.
 
 **F-Droid only uses metadata files from the latest release** (checked 2026-11-10, https://f-droid.org/docs/All_About_Descriptions_Graphics_and_Screenshots/). Screenshots added after `v1.0.0` land only once you tag `v1.0.1`.
@@ -194,7 +194,7 @@ With `Binaries:` + `AllowedAPKSigningKeys`, a mismatch means F-Droid skips that 
 | Tagging `1.0.0` (no `v` prefix) and writing `commit: v1.0.0` in YAML | Match the actual tag — either both `1.0.0` or both `v1.0.0` |
 | Forgetting `subdir: app` when the Gradle module isn't at repo root | Build fails with "no build.gradle found" |
 | `Builds:` with `gradle: yes` (string) | Must be a list: `gradle:\n  - yes` |
-| Adding screenshots after the last tag and expecting them to show up | F-Droid only re-reads at the next tag — bump and re-tag |
+| Adding screenshots after the last tag and expecting them to show up | F-Droid uses metadata from the latest release only — bump and re-tag |
 | Including F-Droid build keys' fingerprint in `AllowedAPKSigningKeys` | Use **your** upload cert fingerprint, not theirs |
 
 ## Reference files

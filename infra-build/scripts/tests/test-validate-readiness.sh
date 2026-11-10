@@ -38,7 +38,8 @@ if grep -q 'mac-makefile-target' <<<"$out_pkg"; then
   grep 'mac-makefile-target' <<<"$out_pkg" >&2
 fi
 
-if ! grep 'mac-makefile-target' <<<"$out_package" | grep -q "'pkg:'"; then
+target_lines="$(grep 'mac-makefile-target' <<<"$out_package" || true)"
+if ! grep -q "'pkg:'" <<<"$target_lines"; then
   fail "package:-only fixture did not get a mac-makefile-target warning naming pkg:"
   echo "$out_package" >&2
 fi

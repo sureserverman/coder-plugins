@@ -11,16 +11,14 @@ Get an Android app onto **Google Play**. Play uploads use the **AAB** (Android A
 
 - `android-release-signing` already ran (you have an upload keystore and `:app:bundleRelease` produces `app-release.aab`).
 - Privacy policy is **publicly hosted** at a stable URL (GitHub-rendered markdown, GitHub Pages, or your own site). Required even for apps that don't collect user data.
-- `targetSdkVersion` meets Google's target API floor: API 36 (Android 16) for new apps and updates since 2026-08-31 (checked 2026-11-10, https://support.google.com/googleplay/android-developer/answer/11926878).
+- `targetSdkVersion` meets Google's target API floor: API 36 (Android 16) for new phone and tablet apps and updates since 2026-08-31 (Wear OS and Automotive 35, TV and XR 34) (checked 2026-11-10, https://support.google.com/googleplay/android-developer/answer/11926878).
 - Google account + ability to pay the **one-time $25 USD** developer registration fee.
 
-If `targetSdkVersion` is below the current floor, stop and bump it first — Play rejects the upload otherwise.
+If `targetSdkVersion` is below the floor, bump it first — Play rejects the upload.
 
 ## Quick audit (punchlist)
 
-Before walking the full decision tree, you can audit current state without writing anything.
-
-Detect repo state first:
+Audit current state without writing anything:
 
 ```bash
 test -f app/build.gradle.kts || test -f app/build.gradle
@@ -42,7 +40,7 @@ Then mark each item `[x]` (done), `[ ]` (missing), or `[?]` (needs user input), 
 
 #### Build prerequisites
 - [ ] App module at `app/` with `applicationId` set
-- [ ] `targetSdk ≥ 36` (Play floor since 2026-08-31; checked 2026-11-10, https://support.google.com/googleplay/android-developer/answer/11926878)
+- [ ] `targetSdk ≥ 36` for phone/tablet (Play floor since 2026-08-31; checked 2026-11-10, https://support.google.com/googleplay/android-developer/answer/11926878)
 - [ ] `versionCode` strictly greater than last released (compare with `git tag` or last AAB if accessible)
 - [ ] `keystore.properties` wired and `signingConfigs.release` defined
 - [ ] `./gradlew :app:bundleRelease` succeeds and produces `app/build/outputs/bundle/release/app-release.aab`

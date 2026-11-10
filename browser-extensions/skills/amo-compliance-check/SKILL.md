@@ -23,8 +23,7 @@ It runs sections 1–8 and 10 automatically: manifest parse + required/condition
 > exposed on the plugin-dev shared finding contract via
 > `${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh` (which runs `validate-amo.sh`, a thin
 > wrapper over `amo-check.py`). Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh
-> --json` (or `validate-amo.sh <extension-dir> --json`) when you want structured
-> findings. Obfuscation/minification detection and permission-necessity judgment
+> <extension-dir> --json` when you want structured findings. Obfuscation/minification detection and permission-necessity judgment
 > stay in this LLM lane — the script only flags the decidable parts.
 
 **After the script, still read the sections below** — they are the source of truth for what's checked and cover the pieces that need human judgment: section 5 (is `<all_urls>` actually necessary?), section 7 (obfuscation/minification patterns), section 9 (content-script DOM-injection safety), and MV3 `data_collection_permissions` values. Use the numbered sections as both the script's spec and your manual-pass checklist.
