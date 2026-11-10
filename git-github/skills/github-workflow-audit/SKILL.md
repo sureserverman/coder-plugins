@@ -5,125 +5,62 @@ description: Use when checking GitHub Actions workflows for errors, outdated act
 
 # GitHub Workflow Audit
 
-Systematic review of all GitHub Actions workflow files in a repository for errors, outdated actions, security issues, and improvement opportunities.
+Audit every `.github/workflows/*.yml|*.yaml` file in the repo.
 
-## Instructions
-
-When invoked, audit all workflows in the repository.
-
-**Preferred — run the bundled script first:**
+## 1. Run the script
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/skills/github-workflow-audit/scripts/audit-workflows.py" [repo-root]
+"${CLAUDE_PLUGIN_ROOT}/scripts/validate-workflows.sh" <repo-root> [--json]
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` resolves to the installed `git-github/` plugin
-directory. If `repo-root` is omitted the script audits the current working
-directory.
+`${CLAUDE_PLUGIN_ROOT}` is the installed `git-github/` plugin directory. The
+wrapper runs `${CLAUDE_PLUGIN_ROOT}/skills/github-workflow-audit/scripts/audit-workflows.py`
+and re-emits its rows on the shared finding contract (stable `gha-*` rule ids;
+`--json` for structured, mergeable output). The Python can also be run directly
+for its severity-sorted table; it exits 1 on any ERROR.
 
-It covers: YAML parse via `yaml.safe_load`, required `on:`/`runs-on:`/`uses:` structure, action-version currency via GitHub `releases/latest` redirect-scrape (flags outdated major versions and mutable branch refs like `@main`), expression-injection detection for `github.event.*`/`inputs.*`/`github.head_ref` in `run:` blocks, secret-echo patterns, possible hardcoded credentials, `permissions: write-all` and missing permissions blocks, malformed `if:` comparisons, same-step `GITHUB_ENV` reads, missing `needs:` targets, missing `timeout-minutes`/`concurrency`, and unreferenced reusable workflows. Findings are printed as a severity-sorted table. Exit 1 if any ERROR was found.
+The script decides: YAML parse, `on:`/`runs-on:`/`uses:` structure, outdated
+majors and mutable refs (`@main`), expression injection in `run:`, echoed
+secrets, possible hardcoded credentials, `write-all` or missing `permissions:`,
+malformed `if:`, same-step `GITHUB_ENV` reads, missing `needs:` targets,
+missing `timeout-minutes`/`concurrency`, unreferenced reusable workflows. Do
+not re-check these by hand.
 
-**Determinism boundary.** The mechanical workflow checks are also exposed on
-git-github's shared finding contract via
-`${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <repo-root> --json` (it discovers
-`${CLAUDE_PLUGIN_ROOT}/scripts/validate-workflows.sh`, a thin wrapper over the same
-`audit-workflows.py`). Prefer that when an agent or command needs structured,
-mergeable findings (stable `gha-*` rule-ids). Cross-workflow parity and
-reusable-workflow input/secret judgment stay here in the LLM lane below.
+## 2. Judge what the script cannot
 
-**After the script, still read the sections below** — they remain the source of truth for what's checked and cover the pieces that need human judgment: section 1 (reusable-workflow input/secret parity between callers and callees), section 4 (artifact-name uniqueness across jobs, `continue-on-error` intent, input type correctness), section 5 (cross-workflow consistency beyond what parsing can verify), and section 6 (parallelization opportunities, run-block extraction). Use the numbered sections as both the script's spec and your manual-pass checklist. Offer to fix all issues at the end.
+Read the workflow files and check:
 
-<details>
-<summary>Manual pass (fallback — only if the script isn't available)</summary>
+- **Reusable-workflow parity.** Callers pass every `required: true`
+  `workflow_call` input; `with:` keys match declared inputs; `secrets:` names
+  match the callee's declarations.
+- **Input types.** `with:` values match the declared type (string / boolean /
+  number).
+- **Input access.** `inputs.*` inside `workflow_call`; `inputs.*` vs
+  `github.event.inputs.*` consistent within one file.
+- **Artifact names** unique across jobs using `upload-artifact` /
+  `download-artifact`.
+- **`continue-on-error:`** used on purpose, not masking real failures.
+- **Step ordering.** Steps that need files from earlier steps come after them.
+- **Cross-workflow consistency.** Shared input definitions and secret
+  references agree across callers; mixed runner pins (`ubuntu-latest` vs
+  pinned) are INFO.
+- **Expression-injection context.** User-controlled values in `with:` are WARN
+  (the script covers `run:`). Default IPs in `workflow_dispatch` inputs are
+  INFO, not errors. `StrictHostKeyChecking no` in CI is INFO.
+- **Improvements (INFO).** Repeated step blocks worth a reusable workflow or
+  composite action; jobs serialized by `needs:` that could run in parallel;
+  large `run:` blocks worth moving to a script.
 
-Find all `.github/workflows/*.yml` and `.github/workflows/*.yaml` files in the repository using the Glob tool. Read every workflow file. Then run every check section below in order.
+## 3. Report
 
-For each finding, report severity: **ERROR** (will break the workflow), **WARN** (likely bug, security risk, or outdated), or **INFO** (improvement suggestion). At the end, provide a summary table and offer to fix all issues.
-
-</details>
-
-## 1. YAML Syntax & Structure
-
-Read each workflow file and check:
-
-- [ ] Valid YAML — run `python3 -c "import yaml; yaml.safe_load(open('<file>'))"` or `yq '.' <file>` via Bash tool to verify parse
-- [ ] Every workflow has a `name:` field
-- [ ] Every workflow has an `on:` trigger defined
-- [ ] Every job has a `runs-on:` field (unless it uses `uses:` for reusable workflows)
-- [ ] Step `uses:` values follow the format `owner/repo@ref` or `./.github/workflows/file.yml`
-- [ ] Reusable workflows referenced via `uses: ./.github/workflows/*.yml` actually exist — cross-check against discovered workflow files
-- [ ] `workflow_call` inputs declared in reusable workflows match what callers pass via `with:`
-- [ ] `secrets:` declared in reusable workflows match what callers pass via `secrets:`
-- [ ] No YAML anchors/aliases used incorrectly
-
-## 2. Action Version Check
-
-For every `uses:` reference that pins to a version tag (e.g. `actions/checkout@v4`):
-
-1. Extract the owner, repo, and current ref
-2. For GitHub-hosted actions, fetch the latest release:
-   ```bash
-   curl -sI -o /dev/null -w "%{url_effective}" -L "https://github.com/<owner>/<repo>/releases/latest"
-   ```
-3. Compare the pinned major version against the latest major version
-4. Report **WARN** for outdated major versions (e.g. `@v3` when `@v4` is available)
-5. Report **INFO** for outdated minor/patch versions within the same major (e.g. `@v4.1.0` when `@v4.2.0` exists) — only if pinned to a full semver, not just a major tag
-
-Note: Pinning to a major version tag like `@v4` is standard practice and is considered current as long as the major version is latest.
-
-## 3. Security Review
-
-Check for common security anti-patterns:
-
-- [ ] **Expression injection** — `${{ github.event.inputs.* }}`, `${{ github.event.pull_request.title }}`, or other user-controlled context values used directly in `run:` blocks without quoting. These allow arbitrary command injection. Flag as **ERROR** if the value is interpolated into a shell command. Flag as **WARN** if used in a `with:` parameter (less dangerous but still risky with untrusted PRs)
-- [ ] **Overly broad permissions** — `permissions: write-all` or no permissions block at all (defaults to broad). Suggest least-privilege `permissions:` block
-- [ ] **Secrets in logs** — secrets echoed or used in ways that could leak to logs (e.g. `echo ${{ secrets.KEY }}`)
-- [ ] **Mutable action references** — `uses:` pinned to a branch like `@main` or `@master` instead of a tag or SHA. Report **WARN** — these can change without notice
-- [ ] **StrictHostKeyChecking no** — SSH steps that disable host key verification. Report **INFO** for CI contexts (common but worth noting)
-- [ ] **Hardcoded credentials** — API keys, tokens, passwords, or IP addresses hardcoded in workflow files instead of using secrets. Note: default input values for manual `workflow_dispatch` triggers (like default server IPs) are **INFO** level, not errors
-
-## 4. Logic & Correctness
-
-- [ ] `if:` conditions use correct syntax — e.g. `${{ inputs.foo == 'bar' }}` not `${{ inputs.foo }} == 'bar'`
-- [ ] `env:` variables set via `>> $GITHUB_ENV` use correct syntax and are available in subsequent steps (not same step)
-- [ ] Artifact names are unique across jobs when using `upload-artifact` / `download-artifact`
-- [ ] `needs:` dependencies between jobs form a valid DAG (no cycles, referenced jobs exist)
-- [ ] `continue-on-error:` is used intentionally and not masking real failures
-- [ ] Steps that depend on files from previous steps have proper ordering
-- [ ] Inputs accessed via `${{ inputs.* }}` vs `${{ github.event.inputs.* }}` — within `workflow_call` use `inputs.*`; within `workflow_dispatch` both work but should be consistent within the same file
-- [ ] Reusable workflow `with:` values match expected types (string, boolean, number) — e.g. passing a boolean to a string input or vice versa
-
-## 5. Cross-Workflow Consistency
-
-When multiple workflows exist:
-
-- [ ] Caller workflows pass all `required: true` inputs to reusable workflows
-- [ ] Secret names used in callers match declarations in the reusable workflow
-- [ ] Shared patterns (input definitions, secret references) are consistent across caller workflows
-- [ ] No orphaned workflows — reusable workflows are actually referenced by at least one caller
-- [ ] Runner versions are consistent (`ubuntu-latest` vs pinned versions) — report **INFO** if mixed
-
-## 6. Improvement Suggestions
-
-Look for opportunities to improve workflows:
-
-- [ ] Repeated step blocks across workflows that could be extracted into a reusable workflow or composite action
-- [ ] Missing `timeout-minutes:` on jobs (default is 360 minutes / 6 hours — usually too long)
-- [ ] Missing `concurrency:` group to prevent duplicate runs
-- [ ] Jobs that could run in parallel but are serialized with `needs:`
-- [ ] Large `run:` blocks that could be extracted into scripts for easier testing and maintenance
-
-## Summary Format
-
-After all checks, output:
+Severity: **ERROR** (breaks the workflow), **WARN** (likely bug, security risk,
+outdated), **INFO** (improvement). Merge script and judgment findings into one
+table:
 
 ```
 | #  | Severity | File | Line(s) | Issue |
 |----|----------|------|---------|-------|
 | 1  | ERROR    | reusable-deploy.yml | 68 | Expression injection: unquoted ${{ inputs.keyreplace }} in shell case statement |
-| 2  | WARN     | deploy.yml | 45 | actions/checkout@v3 is outdated (latest: v4) |
-| 3  | INFO     | reusable-deploy.yml | 41 | Missing timeout-minutes on deploy job |
-| ...| ...      | ...  | ...     | ... |
 ```
 
-Then list **actionable fixes** grouped by severity (ERROR first), and offer to apply all fixes.
+Then list the fixes grouped by severity, ERROR first, and offer to apply them.

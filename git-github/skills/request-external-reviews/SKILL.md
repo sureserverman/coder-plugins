@@ -45,7 +45,7 @@ and end up talking to yourself.
 
 ## Scope selection
 
-Same scope options as `code-review`:
+Same scope options as the built-in `/code-review`:
 
 | Scope | Diff command |
 |---|---|
@@ -159,8 +159,8 @@ Tools that timed out: <none | list>
 Tools that errored: <none | tool: first error line>
 ```
 
-Then offer next steps: open a file, apply a fix, or run `code-review` (the
-local code-reviewer agent) for a deeper authoritative review.
+Then offer next steps: open a file, apply a fix, or run the built-in
+`/code-review` for a deeper authoritative review.
 
 ## Guardrails
 
@@ -180,8 +180,8 @@ local code-reviewer agent) for a deeper authoritative review.
 
 ## When NOT to use this skill
 
-- **For a single authoritative review** — use `code-review` (invokes the
-  code-reviewer agent) instead. This skill is for *additional* opinions.
+- **For a single authoritative review** — use the built-in `/code-review`
+  instead. This skill is for *additional* opinions.
 - **For architecture decisions** — use `brainstorming`.
 - **When offline or without the external CLIs installed** — `command -v
   codex` / `gemini` / `opencode` first; skip any that are missing and warn

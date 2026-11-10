@@ -47,8 +47,8 @@ as a table sorted by severity: Severity, Location (`file:line`), Finding.
 The deterministic checks above (grep for stubs, missing output dirs, exclusions)
 run inline. But "is this evidence fabricated?" and "does this proxy actually
 measure the gate?" are judgment calls — and the session that did the work grades
-itself too generously. For those, dispatch the `git-github:code-reviewer` subagent
-(Agent tool, `subagent_type: "git-github:code-reviewer"`) with a
+itself too generously. For those, dispatch the `planning:code-reviewer` subagent
+(Agent tool, `subagent_type: "planning:code-reviewer"`) with a
 **self-contained brief** (it sees none of this conversation): state the
 gate's pass criteria, list the suspect artifacts with `file:line`, and ask it to
 confirm each gate's real status against the criteria — not against the author's
@@ -66,4 +66,4 @@ are RED, which are BLOCKED. Do not fix anything unless asked — report.
 
 - `honest-gates` — the rules this skill audits against.
 - `executing-plans` — calls this at stage boundaries and close-out.
-- `code-reviewer` subagent — the independent evaluator for judgment-based findings.
+- `planning:code-reviewer` subagent — the independent evaluator for judgment-based findings.
