@@ -2,12 +2,12 @@
  "baseline": {
   "elapsed_s": 0.0,
   "exit": 0,
-  "tail": "11 budgeted trunk(s); 0 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.\n  unmeasured headroom: 154123 B (0 B stale ceilings + 154123 B under the 10000 B floor).\n  ok         12851 /   12851 B  (+0)  android-dev/skills/android-fdroid-publish/SKILL.md\n  ok         12196 /   12196 B  (+0)  git-github/skills/license-audit/SKILL.md\n  ok         11836 /   11836 B  (+0)  business/skills/market-research/SKILL.md\n  ok         11453 /   11453 B  (+0)  business/skills/business-plan/SKILL.md\n  ok         10662 /   10662 B  (+0)  business/skills/track/SKILL.md\n  ok         10186 /   10186 B  (+0)  business/skills/assess/SKILL.md\n  ok          9700 /    9700 B  (+0)  git-github/skills/code-comment-audit/SKILL.md\n  ok          5499 /    5499 B  (+0)  android-dev/skills/android-play-publish/SKILL.md\n  ok          3191 /    3191 B  (+0)  browser-extensions/skills/browser-extensions/SKILL.md\n  ok          3127 /    3127 B  (+0)  android-dev/skills/android-release-signing/SKILL.md\n  ok          3014 /    3014 B  (+0)  android-dev/skills/android-ui-design-figma/SKILL.md"
+  "tail": "11 budgeted trunk(s); 0 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.\n  unmeasured headroom: 154044 B (0 B stale ceilings + 154044 B under the 10000 B floor).\n  ok         12851 /   12851 B  (+0)  android-dev/skills/android-fdroid-publish/SKILL.md\n  ok         12196 /   12196 B  (+0)  git-github/skills/license-audit/SKILL.md\n  ok         11836 /   11836 B  (+0)  business/skills/market-research/SKILL.md\n  ok         11453 /   11453 B  (+0)  business/skills/business-plan/SKILL.md\n  ok         10662 /   10662 B  (+0)  business/skills/track/SKILL.md\n  ok         10186 /   10186 B  (+0)  business/skills/assess/SKILL.md\n  ok          9700 /    9700 B  (+0)  git-github/skills/code-comment-audit/SKILL.md\n  ok          5499 /    5499 B  (+0)  android-dev/skills/android-play-publish/SKILL.md\n  ok          3191 /    3191 B  (+0)  browser-extensions/skills/browser-extensions/SKILL.md\n  ok          3127 /    3127 B  (+0)  android-dev/skills/android-release-signing/SKILL.md\n  ok          3014 /    3014 B  (+0)  android-dev/skills/android-ui-design-figma/SKILL.md"
  },
  "break_patch": "diff --git a/browser-extensions/skills/amo-compliance-check/SKILL.md b/browser-extensions/skills/amo-compliance-check/SKILL.md\n--- a/browser-extensions/skills/amo-compliance-check/SKILL.md\n+++ b/browser-extensions/skills/amo-compliance-check/SKILL.md\n@@ -8,7 +8,7 @@ description: Use when checking a Firefox extension for addons.mozilla.org (AMO)\n Find the extension root (the directory holding the Firefox `manifest.json`); ask if unclear. Run the bundled script first:\n \n ```bash\n-${CLAUDE_PLUGIN_ROOT}/skills/amo-compliance-check/scripts/amo-check.py <extension-dir>\n+skills/amo-compliance-check/scripts/amo-check.py <extension-dir>\n ```\n \n It covers the mechanical checks: manifest fields and formats, icons, file structure, referenced files, permission validity, remote code and `eval`-family calls, CSP `unsafe-eval`, miner references, HTTP URLs and the MV3 background and `incognito` rules. It does not check that MV3 `browser_specific_settings.gecko.data_collection_permissions` is present with valid values; check that by hand. Exit 1 means at least one FAIL. For structured findings on the plugin-dev JSON contract, run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <extension-dir> --json`.\n",
  "build": null,
- "created": "2026-11-10T22:12:35+00:00",
- "fingerprint": "b9f65d2c547adf69fb30065df2e635a46b7602ac62a4d53516fba66a2a44f161",
+ "created": "2026-11-10T22:37:48+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
  "index": 1,
  "kind": "claim",
  "named_break": "one bare `scripts/\u2026` or `skills/\u2026` path remains",
@@ -64,7 +64,7 @@
   "git-github/skills/review-readme/SKILL.md": "88a04f03a44387584bb53a26b920b9c47d4a42da",
   "i18n/agents/translator.md": "d6e4f042f5618a70eb05d3a87cdb9744760f2453",
   "i18n/skills/i18n-audit/SKILL.md": "a4f763ca26ae2259f019c276c1bc857275c0fd4b",
-  "i18n/skills/i18n-translate/SKILL.md": "8e7d1ea459050f0473c4d636d547ff357a3ed151",
+  "i18n/skills/i18n-translate/SKILL.md": "41ceda957d7abd909794f5577d3fa97c03850c79",
   "infra-build/skills/bash-script-audit/SKILL.md": "cca6f446b0a16d80c683ae6a56d8b141b19b25c8",
   "infra-build/skills/build-for-mac-register/SKILL.md": "5276f311b3ce51ea67f1e41183ab50d02cc71613",
   "infra-build/skills/build-readiness-check/SKILL.md": "18c7c4cea67346e0f83384e34330ab6b0fbc5fc9",
@@ -73,7 +73,7 @@
   "infra-build/skills/publish-images-register/SKILL.md": "c27e8e6bd0cd004d73b8ca422575948410e02b5a",
   "infra-build/skills/utils-register/SKILL.md": "4d5c9392582989d3d89f12ca67efdfe5eff95be8",
   "loadout/commands/loadout.md": "0c80954205385a4731adf545aa3d3eca717622c9",
-  "release-promo/commands/promote-release.md": "5154ac4a59f143b0e1e4a4372ad9a7b61a957ee4",
+  "release-promo/commands/promote-release.md": "398ea3b329fd099bd26983dd6c7930652475586b",
   "release-promo/skills/fediverse-post/SKILL.md": "5640abf4c9044afec7cf526706ba68d875a906fa",
   "release-promo/skills/hackernews-show-hn/SKILL.md": "1a62da9ebb0ca614cfb3b86f813a5ce076a84d32",
   "release-promo/skills/lobsters-post/SKILL.md": "db8ea8c808380fceadc8988a850064a306617c31",

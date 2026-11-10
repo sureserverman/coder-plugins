@@ -6,8 +6,8 @@
  },
  "break_patch": "diff --git a/release-promo/commands/promote-release.md b/release-promo/commands/promote-release.md\n--- a/release-promo/commands/promote-release.md\n+++ b/release-promo/commands/promote-release.md\n@@ -56,6 +56,8 @@ Apply these rules to build the channel set:\n \n Show the user the chosen channel list as a single bullet block before drafting. Let them remove channels.\n \n+Dispatch post-drafter.\n+\n ## Phase 3 \u2014 Draft one post per channel\n \n Draft inline, in this session. For each chosen channel, Read that channel's SKILL.md, then draft the post in the output block it prescribes:\n",
  "build": null,
- "created": "2026-11-10T22:12:49+00:00",
- "fingerprint": "b9f65d2c547adf69fb30065df2e635a46b7602ac62a4d53516fba66a2a44f161",
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
  "index": 1,
  "kind": "claim",
  "named_break": "either string remains",
@@ -27,13 +27,13 @@
   "release-promo/commands/promote-release.md"
  ],
  "touched_blobs": {
-  "release-promo/commands/promote-release.md": "5154ac4a59f143b0e1e4a4372ad9a7b61a957ee4"
+  "release-promo/commands/promote-release.md": "398ea3b329fd099bd26983dd6c7930652475586b"
  },
  "witness_blobs": {
   "release-promo/.claude-plugin/plugin.json": "9819d327c3c3d0791041e932cc2183460c0dc53c",
   "release-promo/LICENSE": "682617d0ce115d341e44924e70d3375710e9c0f7",
   "release-promo/README.md": "4b58bad1dd5b508739accedbad31489a2a29bcea",
-  "release-promo/commands/promote-release.md": "5154ac4a59f143b0e1e4a4372ad9a7b61a957ee4",
+  "release-promo/commands/promote-release.md": "398ea3b329fd099bd26983dd6c7930652475586b",
   "release-promo/skills/fediverse-post/SKILL.md": "5640abf4c9044afec7cf526706ba68d875a906fa",
   "release-promo/skills/hackernews-show-hn/SKILL.md": "1a62da9ebb0ca614cfb3b86f813a5ce076a84d32",
   "release-promo/skills/lobsters-post/SKILL.md": "db8ea8c808380fceadc8988a850064a306617c31",

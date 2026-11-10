@@ -6,8 +6,8 @@
  },
  "break_patch": "diff --git a/android-dev/skills/android-release-signing/SKILL.md b/android-dev/skills/android-release-signing/SKILL.md\n--- a/android-dev/skills/android-release-signing/SKILL.md\n+++ b/android-dev/skills/android-release-signing/SKILL.md\n@@ -32,7 +32,7 @@ Set up once per app, then hand off to `android-fdroid-publish` or `android-play-\n \n | Secret | Value |\n |---|---|\n-| `KEYSTORE_BASE64` | `base64 -w0 upload.keystore` (delete the `.b64` file after pasting) |\n+| `KEYSTORE_B64` | `base64 -w0 upload.keystore` (delete the `.b64` file after pasting) |\n | `KEYSTORE_PASSWORD` | store password |\n | `KEY_ALIAS` | `upload` |\n | `KEY_PASSWORD` | key password |\n@@ -41,7 +41,7 @@ Workflow steps that consume them:\n \n ```yaml\n       - name: Decode keystore\n-        run: echo \"${{ secrets.KEYSTORE_BASE64 }}\" | base64 -d > upload.keystore\n+        run: echo \"${{ secrets.KEYSTORE_B64 }}\" | base64 -d > upload.keystore\n \n       - name: Create keystore.properties\n         run: |\n",
  "build": null,
- "created": "2026-11-10T22:12:49+00:00",
- "fingerprint": "b9f65d2c547adf69fb30065df2e635a46b7602ac62a4d53516fba66a2a44f161",
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
  "index": 2,
  "kind": "claim",
  "named_break": "a file is over its bound or lost its marker",
@@ -30,7 +30,7 @@
   "android-dev/skills/android-release-signing/SKILL.md": "0724b89f2d690954ff7433b185f50c091b0fc564"
  },
  "witness_blobs": {
-  "android-dev/.claude-plugin/plugin.json": "aef8a0cddd74bf185bd243a35afffec01f6fe541",
+  "android-dev/.claude-plugin/plugin.json": "11afd8404aeb88713bfb1f9e5027a1367864d285",
   "android-dev/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
   "android-dev/README.md": "6502049f73391039f04e2ac4dafdb5ed101de73a",
   "android-dev/commands/android-screenshots.md": "9d5d2e753e8093c0809d075dfed89f88932c8ac4",
