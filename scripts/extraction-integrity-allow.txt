@@ -19,7 +19,7 @@
 # started, absorbed silently by Task 3.1's rewrites: the exact orphan hazard the
 # paragraph above describes, and the reason this file is regenerated, not edited.
 #
-# 27 entries. Every remaining one is BL-039 debt in a plugin the token-efficiency
+# 20 entries (2026-11-10: 7 orphaned by the value-audit cuts removed). Every remaining one is BL-039 debt in a plugin the token-efficiency
 # plan did not touch — a pointer or a position word that resolved in a monolith
 # and resolves nowhere now. A burn-down list, not a permanent exemption.
 #

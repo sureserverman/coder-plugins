@@ -22,7 +22,7 @@ If the project hasn't been audited yet, run the `i18n-audit` skill first.
 ${CLAUDE_PLUGIN_ROOT}/skills/i18n-translate/scripts/extract-missing.py <project-root> --framework <name> --target <locale> [--include-stale]
 ```
 
-It prints a JSON workpacket: `source_locale`, `target_locale`, `framework`, `style_guide`, and `entries[]` (`key`, `source`, `placeholders`, `context`, `plural`). `context` carries ARB `@key` metadata, gettext `msgctxt` and translator comments, and Android `<!-- -->` comments.
+It prints a JSON workpacket: `source_locale`, `target_locale`, `framework`, `style_guide`, and `entries[]` (`key`, `source`, `placeholders`, `context`, `plural`). `context` is null for missing and stale entries: when a short string is ambiguous, read its ARB `@key` metadata, gettext `msgctxt` or preceding Android comment from the source catalog yourself.
 
 ## Step 3 — Dispatch the translator subagent
 

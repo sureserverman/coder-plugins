@@ -68,7 +68,7 @@ Draft inline, in this session. For each chosen channel, Read that channel's SKIL
 | Lobsters | `${CLAUDE_PLUGIN_ROOT}/skills/lobsters-post/SKILL.md` |
 | Fediverse | `${CLAUDE_PLUGIN_ROOT}/skills/fediverse-post/SKILL.md` |
 
-The channel skills are `disable-model-invocation: true`: read them from disk, never invoke them. When a skill's skip rule applies (Show HN for vapor, Lobsters without prior participation, r/Android for a dev-only library), write `SKIP: <reason>` for that channel instead of a draft. Use only surveyed facts; leave `<TODO: …>` where one is missing.
+The channel skills are `disable-model-invocation: true`: read them from disk, never invoke them. When a skill's skip rule applies (Show HN for vapor, Lobsters without prior participation, r/Android for a dev-only library), write `SKIP: <reason>` for that channel instead of a draft. If a channel skill cannot be read, write `SKIP: could not read <file>`; never draft from memory. Use only surveyed facts; leave `<TODO: …>` where one is missing.
 
 ## Phase 4 — Emit a single bundle
 
