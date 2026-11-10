@@ -10,8 +10,6 @@ Turn a decided monetization model into a concrete, dated launch checklist at
 `business/gtm-plan.md`. The operator ticks actions off over subsequent sessions; progress
 rolls up through the scanner like any plan.
 
-**Announce at start:** "Using the business launch skill to plan <project>'s go-to-market."
-
 ## Determinism boundary
 
 Read business state via the scanner:

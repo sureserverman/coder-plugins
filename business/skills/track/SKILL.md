@@ -9,8 +9,6 @@ description: >
 Record what a project is *actually* doing and compare it against the targets `model` set.
 Appends to `business/metrics.md`; never rewrites history.
 
-**Announce at start:** "Using the business track skill to record <project>'s actuals."
-
 ## Determinism boundary
 
 Read targets and current state via the scanner:

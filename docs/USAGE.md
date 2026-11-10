@@ -54,8 +54,8 @@ ceremony. Then it researches, and writes a staged plan where structure-creating 
 
 `executing-plans` drives it: Red-Green loop per task, a commit per green task, tiered test
 gates, and independent tasks fanned out via `dispatching-parallel-agents` to stack-matched
-subagents. Its two review tiers are not its own — both dispatch `code-reviewer` from the
-`git-github` plugin, and how much of either runs comes from the plan's declared
+subagents. Its two review tiers dispatch the `planning:code-reviewer` agent staged-planning
+ships, and how much of either runs comes from the plan's declared
 **review scope**: at the default *standard* tier that is one deep review per stage gate
 and no per-task pass, with per-task review reserved for the *high* tier or a task the plan
 annotated Review: required. A bug found at any point is swept as a defect class and fixed everywhere it lives, rather
@@ -88,7 +88,7 @@ takes the status-line copy out.
 "review this branch"
 ```
 
-The plan is green; shipping it is `git-github`'s half of the loop. `code-review` audits the
+The plan is green; shipping it is `git-github`'s half of the loop. The built-in `/code-review` audits the
 branch diff as one piece — the per-task reviews only ever saw a task at a time — and
 `gate-audit` sweeps it for faked verification: stubbed gates, tests that never ran,
 hidden exclusions. When the branch lands, `release-tag` cuts the tag and drafts notes from
@@ -110,9 +110,9 @@ attaches at the points where the platform actually matters.
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. For a full redesign rather
-than one screen, `android-ui-design-figma` runs the longer app-analysis → spec → apply
-workflow.
+`android-gradle-build` handles module and dependency wiring. For a redesign,
+`android-ui-design-figma` runs a screenshot → grade → iterate loop with an independent
+grader, and holds the adaptive-icon spec.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
 stage gate automatically** — you don't ask for it. It builds the debug APK and, when a
@@ -189,8 +189,7 @@ missing or stale keys. It reports; it doesn't rewrite.
 ```
 
 Fills the gaps, dispatching the **`translator`** agent per batch — placeholders, ICU
-MessageFormat, CLDR plurals and HTML tags preserved. `i18n-formats` is the reference for
-whichever catalog format you're in.
+MessageFormat, CLDR plurals and HTML tags preserved.
 
 The seam back to `planning`: `project-maturity` carries an **i18n axis**, so translation
 coverage becomes part of the ship-readiness verdict instead of a thing someone remembers to
@@ -208,21 +207,12 @@ rather than defaulting everything to a generalist:
 
 | Task looks like | Routes to | Shipped by |
 |---|---|---|
-| Rust | `rust-expert` | `rust-dev` |
 | Reproduce a Claude Design handoff pack | `design-handoff-reproducer` | `planning` |
-| Game mechanics, feel, camera | `game-design-expert` | `game-dev` |
 | Catalog translation batches | `translator` | `i18n` |
 
-Game work has its own front door, since mechanics are a design problem before a coding one:
-
-```text
-/game-dev:game-mechanic     # guided design session → implementable brief
-/game-dev:game-review       # scoped diff review: feel, camera, UX, accessibility
-```
-
 > Routing does **not** require the target plugin to be enabled. Plan execution resolves the
-> component from `capability-index.json` on disk — the same mechanism as flow 10 — so a Rust
-> task gets `rust-expert` even when only `planning` is on. Components needing hooks or
+> component from `capability-index.json` on disk — the same mechanism as flow 10 — so a catalog
+> batch gets `translator` even when only `planning` is on. Components needing hooks or
 > MCP are flagged `requires_enablement` and stop for explicit enablement.
 
 ---
@@ -303,7 +293,7 @@ stage gate that **fails** on an uncited contradiction.
 ## 8. Shipping it
 
 ```text
-/git-github:code-review          # authoritative local review of your diff
+/code-review                     # built-in: authoritative local review of your diff
 /git-github:gate-audit           # did those gates actually run, or just claim to?
 /git-github:release-tag v1.4.0   # confirms before tagging, and again before pushing
 ```
@@ -317,8 +307,8 @@ Then registration and announcement:
 ```
 
 `/promote-release` is `release-promo`'s front door: it decides which channels a release is
-even eligible for, then dispatches the `post-drafter` agent per channel against that
-channel's house style — `hackernews-show-hn`, `lobsters-post`, `reddit-promo`,
+even eligible for, then drafts each channel's post in the session from that channel's
+house-style skill — `hackernews-show-hn`, `lobsters-post`, `reddit-promo`,
 `fediverse-post`, `twim-submission`. It **drafts and never posts**, which is the same
 report-only posture `compass` takes toward work.
 
@@ -363,8 +353,8 @@ nothing else enables a plugin, and warns. `/loadout unpin` removes pins left
 by older loadout versions.
 
 **`capability-index.json`** — lets one skill or agent be resolved **from disk without
-enabling its plugin**. Plan execution uses it on its dispatch path, so a Rust task gets
-`rust-expert` even when `rust-dev` isn't enabled.
+enabling its plugin**. Plan execution uses it on its dispatch path, so a catalog batch gets
+`translator` even when `i18n` isn't enabled.
 
 Components needing hooks or MCP are flagged `requires_enablement` and stop for explicit
 enablement rather than degrading silently.

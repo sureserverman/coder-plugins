@@ -1,0 +1,71 @@
+{
+ "baseline": {
+  "elapsed_s": 0.1,
+  "exit": 0,
+  "tail": "check-agent-pins fixtures:\n  ok: a fully pinned agent passes\n  ok: an unpinned effort is caught\n  ok: an unpinned model is caught\n  ok: a typo'd effort is BAD-VALUE, not silently inherited\n  ok: `xhigh` is a POLICY finding (HIGH-PIN), never a syntax one\n  ok: ...and the message says how to override it deliberately\n  ok: `high` exceeds the policy ceiling too\n  ok: an unlisted tier pin (`sonnet`) is a TIER-PIN policy finding\n  ok: a full model id is a valid value but still an unlisted tier pin\n  ok: a typo'd model is BAD-VALUE\n  ok: a tier pin the allow table lists with a reason passes\n  ok: the shipped allow table starts empty\n  ok: a file with no frontmatter is caught\n  ok: README.md and tests/ fixtures are excluded from the population\nreal tree:\n6 agent(s) swept; 0 problem(s).\n  ok: every shipped agent inherits the model and pins effort within policy\n  ok: the sweep sees the shipped agents and is not empty (saw 6)\n\nOK\n6 agent(s) swept; 0 problem(s)."
+ },
+ "break_patch": "diff --git a/business/agents/market-researcher.md b/business/agents/market-researcher.md\nindex 334b3d33..38e1ff01 100644\n--- a/business/agents/market-researcher.md\n+++ b/business/agents/market-researcher.md\n@@ -2,7 +2,7 @@\n name: market-researcher\n description: Gather cited competitive-analysis evidence for ONE project \u2014 who solves the same problem (three-pass list, coverage rate), pricing, channels, demand, a competitor table. Trigger phrases include \"research the market for this\", \"who are the competitors and what do they charge\".\n tools: Read, Grep, Glob, WebFetch, WebSearch\n-model: inherit\n+model: sonnet\n effort: medium\n ---\n \n",
+ "build": null,
+ "created": "2026-11-10T20:48:27+00:00",
+ "fingerprint": "30ce8cd6318d7901dd0a7165f83bde4858e74765d7f4a1b1f79d68fa809799a4",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "one tier pin remains",
+ "no_build_reason": "frontmatter edit; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "check-agent-pins fixtures:\n  ok: a fully pinned agent passes\n  ok: an unpinned effort is caught\n  ok: an unpinned model is caught\n  ok: a typo'd effort is BAD-VALUE, not silently inherited\n  ok: `xhigh` is a POLICY finding (HIGH-PIN), never a syntax one\n  ok: ...and the message says how to override it deliberately\n  ok: `high` exceeds the policy ceiling too\n  ok: an unlisted tier pin (`sonnet`) is a TIER-PIN policy finding\n  ok: a full model id is a valid value but still an unlisted tier pin\n  ok: a typo'd model is BAD-VALUE\n  ok: a tier pin the allow table lists with a reason passes\n  ok: the shipped allow table starts empty\n  ok: a file with no frontmatter is caught\n  ok: README.md and tests/ fixtures are excluded from the population\nreal tree:\n6 agent(s) swept; 1 problem(s).\n  business/agents/market-researcher.md: TIER-PIN \u2014 model 'sonnet' pins a tier; agents declare `model: inherit` so a dispatch runs on the session's model. If the pin is right, list the agent in TIER_PIN_ALLOW here with the reason.\n  FAIL: every shipped agent inherits the model and pins effort within policy\n  ok: the sweep sees the shipped agents and is not empty (saw 6)\n\nFAIL: 1 check(s) failed"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "1.4",
+ "test": "python3 scripts/tests/test-check-agent-pins.py && python3 scripts/check-agent-pins.py && ! git grep -nE '^model: *(haiku|sonnet|opus|fable|claude-)' -- '*/agents/*.md' && ! git grep -niE 'pinned to sonnet|sonnet-pinned' -- i18n && ! grep -nE '\"model\": \"(haiku|sonnet|opus)\"' capability-index.json",
+ "text": "every agent declares `model: inherit` (red if one tier pin remains)",
+ "touched": [
+  "business/agents/market-researcher.md"
+ ],
+ "touched_blobs": {
+  "business/agents/market-researcher.md": "334b3d339b0010341b1e1b4a87cdddb952326959"
+ },
+ "witness_blobs": {
+  "business/agents/market-researcher.md": "334b3d339b0010341b1e1b4a87cdddb952326959",
+  "capability-index.json": "861df20a079e47dfd53d92d0fad98c061781c1a8",
+  "game-dev/agents/game-design-expert.md": "67c50a3aa555a301e520f297666af236d4e4f644",
+  "git-github/agents/code-reviewer.md": "cfb95176c7d070b809fa2807b698db9f7dfd6602",
+  "i18n/.claude-plugin/plugin.json": "e3c977c4a1b6f199306b9c0064d07b769e0a0cc3",
+  "i18n/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
+  "i18n/README.md": "a3047920055d9374de2f52e89ad1d30c5ce9f077",
+  "i18n/agents/translator.md": "8afc6f497fe7f6b7e701e757aac638e75fa3c612",
+  "i18n/scripts/README.md": "934e07a8fbf4e208c497487fd1c00bbc29bd31c1",
+  "i18n/scripts/lib/findings.sh": "76505c770375bef10ba935028b8fd2c5ebc06cad",
+  "i18n/scripts/validate-catalog-diff.sh": "db2b1ce5f12c28576c48556a6fb4f4732a2cc7a0",
+  "i18n/scripts/validate-placeholders.sh": "e076253de76536a12f557b4100d752b51544cc69",
+  "i18n/scripts/validate.sh": "12fbbc3bf7a73a35097c873f4fd53c9755cba5a2",
+  "i18n/skills/i18n-audit/SKILL.md": "24052b9923af860d9fcc641fc95ce5d5784da3d2",
+  "i18n/skills/i18n-audit/scripts/detect-framework.py": "a6ddb651877dee5fbd62786a3423e0817ca0d582",
+  "i18n/skills/i18n-audit/scripts/diff-catalogs.py": "26f6f06f7964001221eb8ee69d2c8d0a592b3e48",
+  "i18n/skills/i18n-audit/scripts/scan-hardcoded.py": "733fb037e5b81fb1788e83083266b7c90ef896a3",
+  "i18n/skills/i18n-formats/SKILL.md": "c11a89fe3723b080fd45281e122b75dce7f11092",
+  "i18n/skills/i18n-formats/references/android.md": "d419f3476c16c52f8901abfe98407fd694cbe944",
+  "i18n/skills/i18n-formats/references/django.md": "4f49f253836e43af5f28e5948575c4c327f10f63",
+  "i18n/skills/i18n-formats/references/dotnet-resx.md": "993aa6ec26b3f6ea13bc014c9418ea04ff900d1f",
+  "i18n/skills/i18n-formats/references/flutter-arb.md": "16f6b0f3c9d3caf00ea397de5c58248b663acc4a",
+  "i18n/skills/i18n-formats/references/gettext.md": "7d03951915f675a6d6d6f1ab6954b55c691798f0",
+  "i18n/skills/i18n-formats/references/i18next.md": "e646a9eae17e58411e1efabf337147c32b431f38",
+  "i18n/skills/i18n-formats/references/ios.md": "9e86a50896ffb6e73ec705801c284e4ed17a5a62",
+  "i18n/skills/i18n-formats/references/java-properties.md": "7c2df8b3d4161a86d4220c1632492725eeec6529",
+  "i18n/skills/i18n-formats/references/qt.md": "18b933d8d880ffb8ff6c4080bf2dadb7970792ec",
+  "i18n/skills/i18n-formats/references/rails.md": "a6a1c6482c706c57bc1efc4b30f6e99246d1711e",
+  "i18n/skills/i18n-formats/references/react-intl.md": "6ed9ff39cde325f33a41a36d97075ace1cd5b070",
+  "i18n/skills/i18n-formats/references/vue-i18n.md": "9b8220e6d8fc6cfaa7e27d12dfcb43b049c80098",
+  "i18n/skills/i18n-translate/SKILL.md": "eda58f4f609c66058df5d70bce54678acbcdd079",
+  "i18n/skills/i18n-translate/scripts/extract-missing.py": "50b30f4d359231fe284f004339ad8ea6579b8351",
+  "i18n/skills/i18n-translate/scripts/validate-placeholders.py": "9ab0ae737bf1cf707255e78478e9eace7e8e19d3",
+  "release-promo/agents/post-drafter.md": "9418cb05ce5b9ec8215b6ee93b425addec4e6c9d",
+  "rust-dev/agents/rust-expert.md": "40ceed67a18a99d56c4d586a961b233624c2a1cc",
+  "scripts/check-agent-pins.py": "1d0994a4c260d65cb0e6fad4a6c1b12a012eaf0b",
+  "scripts/tests/test-check-agent-pins.py": "16410bbd71d3cc08efe2ecd252010e56a7880eda"
+ }
+}

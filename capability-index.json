@@ -81,16 +81,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when the user asks for a mock server, fake API, or stub backend based on an app's sources. Trigger on \"make a mock server for this app\", \"I need a fake API for testing\", \"this app needs a backend for UI tests\", or when an app requires login/REST/GraphQL and no mock exists yet.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "mock-server-from-app-sources",
-      "path": "android-dev/skills/mock-server-from-app-sources/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Use when checking a Firefox extension for addons.mozilla.org (AMO) submission compliance, before packaging or publishing. Trigger on \"AMO rejected my addon\", \"prep this addon for mozilla\", \"check firefox extension for AMO\", \"is this extension signable\".",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -114,7 +104,7 @@
       "description": "Gather cited competitive-analysis evidence for ONE project \u2014 who solves the same problem (three-pass list, coverage rate), pricing, channels, demand, a competitor table. Trigger phrases include \"research the market for this\", \"who are the competitors and what do they charge\".",
       "disable_model_invocation": false,
       "kind": "agent",
-      "model": "sonnet",
+      "model": "inherit",
       "name": "market-researcher",
       "path": "business/agents/market-researcher.md",
       "plugin": "business",
@@ -191,72 +181,12 @@
       "requires_enablement": false
     },
     {
-      "description": "Use to design, review, or refactor game mechanics, game feel, camera/navigation, UX, onboarding, or accessibility across Godot 4, Unity 6, or Unreal 5. Triggers: \"design a core loop\", \"review my game design\", \"tune game feel\", \"accessibility audit for my game\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "game-design-expert",
-      "path": "game-dev/agents/game-design-expert.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Run a guided design session for a new game mechanic. Walks through verb, core loop, depth, feel target, FTUE plan, accessibility, and engineering scope, producing an implementable brief.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "game-mechanic",
-      "path": "game-dev/commands/game-mechanic.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Dispatch the game-design-expert subagent to review a scoped game-project diff for mechanics, game feel, camera/navigation, UX, accessibility, and architecture findings.",
-      "disable_model_invocation": false,
-      "kind": "command",
-      "model": null,
-      "name": "game-review",
-      "path": "game-dev/commands/game-review.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring or reviewing game code or design \u2014 Godot/Unity/Unreal, game feel, mechanics, camera, UX, architecture, accessibility. Triggers: \"*.gd\"/\"*.tscn\"/\"*.uproject\" edits, \"the jump feels off\", \"camera fights me\", \"review my game design\", \"is my game accessible\", engine best-practices.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "game-dev",
-      "path": "game-dev/skills/game-dev/SKILL.md",
-      "plugin": "game-dev",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: \"review this\", \"code review please\", \"review this PR\", \"security review\". Review-only \u2014 reports findings; its read-only-contract block defines the boundary.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "code-reviewer",
-      "path": "git-github/agents/code-reviewer.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
       "description": "Use when the user asks to add, review, or audit code comments that explain project workflow or non-obvious choices across a codebase \u2014 magic numbers, ordering constraints, workarounds, or un-introduced entry points",
       "disable_model_invocation": false,
       "kind": "skill",
       "model": null,
       "name": "code-comment-audit",
       "path": "git-github/skills/code-comment-audit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user asks to review code, audit a diff, check a commit, or review a PR/branch before merge. Triggers: \"review this\", \"code review please\", \"review my implementation\", \"security review\". For multi-model second opinions, use request-external-reviews.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "code-review",
-      "path": "git-github/skills/code-review/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -277,16 +207,6 @@
       "model": null,
       "name": "github-workflow-audit",
       "path": "git-github/skills/github-workflow-audit/SKILL.md",
-      "plugin": "git-github",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when the user asks to audit licenses, check license compliance, find license conflicts, pick a project license, or generate a LICENSE/LICENSE.md file. Trigger on \"audit licenses\", \"what license should this project use\", \"are my dependencies GPL-compatible\", or \"generate a LICENSE file\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "license-audit",
-      "path": "git-github/skills/license-audit/SKILL.md",
       "plugin": "git-github",
       "requires_enablement": false
     },
@@ -334,7 +254,7 @@
       "description": "Use this agent to translate a batch of i18n catalog entries from a source to a target locale, preserving placeholders, ICU MessageFormat, CLDR plurals, and HTML tags. Trigger phrases include \"translate this catalog\", \"translate these entries to <locale>\", \"fill missing translations for <locale>\".",
       "disable_model_invocation": false,
       "kind": "agent",
-      "model": "sonnet",
+      "model": "inherit",
       "name": "translator",
       "path": "i18n/agents/translator.md",
       "plugin": "i18n",
@@ -347,16 +267,6 @@
       "model": null,
       "name": "i18n-audit",
       "path": "i18n/skills/i18n-audit/SKILL.md",
-      "plugin": "i18n",
-      "requires_enablement": false
-    },
-    {
-      "description": "Reference for i18n catalog format gotchas \u2014 gettext .po, i18next JSON, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB. Use when authoring or modifying translation catalogs, format-specific escaping or quoting matters, or expanding plural forms for a non-English target.",
-      "disable_model_invocation": true,
-      "kind": "skill",
-      "model": null,
-      "name": "i18n-formats",
-      "path": "i18n/skills/i18n-formats/SKILL.md",
       "plugin": "i18n",
       "requires_enablement": false
     },
@@ -451,16 +361,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Drafts one release-announcement post for one named platform channel (subreddit, TWIM, Show HN, Lobsters, or Fediverse) given surveyed project facts. Read-only \u2014 never posts, never edits files. Fires from /promote-release, or on a direct request for one channel's post.",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "haiku",
-      "name": "post-drafter",
-      "path": "release-promo/agents/post-drafter.md",
-      "plugin": "release-promo",
-      "requires_enablement": false
-    },
-    {
       "description": "Survey the current repo, pick eligible promotion channels (Reddit, TWIM, HN Show HN, Lobsters, Fediverse), and draft one post per channel for review. Does not post anywhere.",
       "disable_model_invocation": false,
       "kind": "command",
@@ -518,16 +418,6 @@
       "name": "twim-submission",
       "path": "release-promo/skills/twim-submission/SKILL.md",
       "plugin": "release-promo",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use to author, review, refactor, or audit Rust \u2014 idioms, unsafe soundness, async correctness, FFI safety, edition migration, whole-project health (clippy/deps/coverage). Triggers: \"write idiomatic Rust\", \"audit this unsafe block\", \"fix my tokio deadlock\", \"audit my Rust project\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "sonnet",
-      "name": "rust-expert",
-      "path": "rust-dev/agents/rust-expert.md",
-      "plugin": "rust-dev",
       "requires_enablement": false
     },
     {

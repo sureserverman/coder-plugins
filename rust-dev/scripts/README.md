@@ -27,7 +27,7 @@ Run the whole lane:
 bash scripts/validate.sh <rust-project-root> [--json]
 ```
 
-`--json` emits the contract (consumed by rust-expert and the slash commands);
+`--json` emits the contract (consumed by the `rust-coding` skill);
 without it, a human report. All scripts no-op cleanly (info finding) when the
 root contains no Cargo.toml / `.rs` sources.
 
@@ -51,17 +51,17 @@ root contains no Cargo.toml / `.rs` sources.
 | `cargo-no-manifest` | info | nothing to validate |
 
 `validate-safety.sh` — all source-pattern rules are **candidates** (`warn`,
-never `error`): the regex points, rust-expert confirms and fixes.
+never `error`): the regex points, the model confirms and fixes.
 
-| Rule | House rule | Flags |
-|---|---|---|
-| `rust-unsafe-missing-safety-comment` | 1 | `unsafe {` / `unsafe impl` with no `// SAFETY:` within 3 lines |
-| `rust-sync-lock-in-async-candidate` | 2 | `std::sync::Mutex/RwLock` in a file containing `.await` |
-| `rust-unbounded-channel` | 3 | `unbounded_channel()` / `::unbounded(` |
-| `rust-box-dyn-error-in-pub-api` | 4 | `pub fn` returning `Box<dyn …Error…>` |
-| `rust-unwrap-outside-tests` | 5 | `.unwrap()` / `.expect(` outside main.rs/build.rs/tests/benches/examples/`#[cfg(test)]` |
-| `rust-serde-missing-deny-unknown` | 12 | `derive(Deserialize)` without `deny_unknown_fields` nearby |
-| `rust-no-sources` | — | info: nothing to scan |
+| Rule | Flags |
+|---|---|
+| `rust-unsafe-missing-safety-comment` | `unsafe {` / `unsafe impl` with no `// SAFETY:` within 3 lines |
+| `rust-sync-lock-in-async-candidate` | `std::sync::Mutex/RwLock` in a file containing `.await` |
+| `rust-unbounded-channel` | `unbounded_channel()` / `::unbounded(` |
+| `rust-box-dyn-error-in-pub-api` | `pub fn` returning `Box<dyn …Error…>` |
+| `rust-unwrap-outside-tests` | `.unwrap()` / `.expect(` outside main.rs/build.rs/tests/benches/examples/`#[cfg(test)]` |
+| `rust-serde-missing-deny-unknown` | `derive(Deserialize)` without `deny_unknown_fields` nearby |
+| `rust-no-sources` | info: nothing to scan |
 
 `stack-report.sh` is not a validator: it emits the project's Stack Report
 (edition, MSRV, toolchain, workspace shape, runtimes, frameworks, test layout,
@@ -85,9 +85,9 @@ Exit code: `1` if any error, else `0` (`2` usage, `3` jq/python3 missing).
 Only decidable checks live here — parse, field presence, enum, count, regex,
 cross-file consistency. Whether a flagged `.unwrap()` has a documented-panic
 contract, whether a lock is actually held across an await, what the error enum
-should look like — that is judgment and lives in `rust-coding` / `rust-expert`,
-which run this lane and consume its JSON instead of re-deriving the rules.
+should look like — that is judgment and lives with the model working under `rust-coding`,
+which runs this lane and consumes its JSON instead of re-deriving the rules.
 
-Keep rule ids stable and kebab-case; the agents key off them. Refresh
+Keep rule ids stable and kebab-case; the skill keys off them. Refresh
 `lib/findings.sh` / `validate.sh` with plugin-dev's `install-kit.sh --force`,
 never by hand-editing.

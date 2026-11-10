@@ -4,19 +4,19 @@ Idiomatic Rust authoring for Claude Code. Part of the [`coder-plugins`](..) mark
 
 ## What it does
 
-Pairs a thin progressive-disclosure **skill** (`rust-coding`) that fires on any Rust work and routes to shared `references/`, with a senior-engineer **subagent** (`rust-expert`) that authors, reviews, refactors, audits, and migrates Rust while citing sources by name (Rust API Guidelines, Microsoft Pragmatic Rust, *Effective Rust*, *Programming Rust*, tokio docs, Rust Performance Book, RustSec). Both read the same plugin-level `references/`, so the domain knowledge has one source of truth.
+One **skill** (`rust-coding`) that fires on any Rust work. It carries the owner's house rules and gotchas from past incidents, and points at the deterministic lane below.
 
-Opinionated defaults: no locks across `.await`, `// SAFETY:` on every `unsafe`, `thiserror` in libraries / `anyhow` in applications, iterators over index loops, `&str`/`&[T]` at API boundaries, `cargo clippy -- -D warnings` in CI.
+House rules: `// SAFETY:` on every `unsafe`, no locks across `.await`, bounded channels, `thiserror` in libraries / `anyhow` in binaries, no `.unwrap()` outside `main` and tests, `deny_unknown_fields` on types deserialized from external input.
 
 ## Determinism boundary
 
 Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from
-the plugin-dev determinism kit); judgment stays with the skill and agent, which
-run the scripts and consume their JSON instead of re-deriving rules in prose.
+the plugin-dev determinism kit); judgment stays with the skill, which
+runs the scripts and consumes their JSON instead of re-deriving rules in prose.
 
 - `scripts/validate-cargo.sh` — manifest invariants: TOML parse, edition enum, edition↔MSRV consistency, wildcard deps, workspace members on disk, lockfile, toolchain channel.
-- `scripts/validate-safety.sh` — regex *candidates* for the house rules over `.rs` sources (unsafe without `// SAFETY:`, `.unwrap()` outside tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub APIs, `Deserialize` without `deny_unknown_fields`). Candidates are `warn`; rust-expert confirms or dismisses each.
-- `scripts/stack-report.sh` — deterministic Stack Report (edition, MSRV, runtime, test layout, risk surfaces, CI invocations) consumed by rust-expert's Protocol 1.
+- `scripts/validate-safety.sh` — regex *candidates* for the house rules over `.rs` sources (unsafe without `// SAFETY:`, `.unwrap()` outside tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub APIs, `Deserialize` without `deny_unknown_fields`). Candidates are `warn`; the model confirms or dismisses each.
+- `scripts/stack-report.sh` — deterministic Stack Report (edition, MSRV, runtime, test layout, risk surfaces, CI invocations) for stack detection.
 
 Run the lane: `bash scripts/validate.sh <project-root> [--json]`. Rule ids
 and severities are documented in [`scripts/README.md`](scripts/README.md).
@@ -30,39 +30,22 @@ and severities are documented in [`scripts/README.md`](scripts/README.md).
 
 ## Components
 
-Two components — a thin skill and a full agent — over one shared `references/` set.
-
 ### Skill
 
 | Skill | Triggers when |
 |---|---|
 | `rust-coding` | greenfield Rust requests, `*.rs`/`Cargo.toml` edits, `unsafe`/async/FFI changes, clippy warnings, borrow-checker errors, edition migration, idiom questions |
 
-`rust-coding` is a lean **knowledge router**: it maps the situation to the matching
-`references/` file (API design, error handling, async, unsafe, FFI, performance, edition-2024,
-idioms — one level deep at `references/`) and hands deep or output-heavy work to `rust-expert`.
+`rust-coding` lists the owner's house rules by the rule id the scripts flag them under, plus
+eight gotchas from past incidents. Generic Rust craft is left to the model.
 
-### Agent
-
-| Agent | Model | Tools | Purpose |
-|---|---|---|---|
-| `rust-expert` | sonnet | Read, Grep, Glob, Edit, Write, WebFetch, **scoped** Bash (`cargo`/`rustc`/`rustup`/`rustfmt`/`bash` + read-only `git status`/`diff`/`log`/`show`/`blame` only) | Authors, reviews, refactors, audits, and migrates Rust. Six protocols (Stack Detection → Author / Refactor / Review / Migrate / Audit) plus three direct **modes**: `review`, `idiomize`, `project-audit`. Reads the shared `references/`; cites sources. |
-
-### Migration note
-
-The `rust-project` skill and the `/rust-review` and `/rust-idiomize` commands were **folded into
-`rust-expert`** as its `project-audit`, `review`, and `idiomize` modes — one agent, invoked
-directly, instead of separate entry points. The 5-pass audit runner moved to `scripts/analyze.sh`.
-When `rust-dev` isn't enabled in a session, `rust-expert` is still reachable from disk via
-`capability-index.json` — its `.md` body is injected
-into a generic subagent with its `model` pin, so the expertise doesn't require enabling the plugin.
+The 5-pass audit runner is `scripts/analyze.sh`.
 
 ## Artifacts
 
-Nothing persisted outside your own source tree. `rust-expert` edits Rust files and may run
-`cargo`; the audit runner (`scripts/analyze.sh`, 5 passes) prints its report rather than writing
+Nothing persisted outside your own source tree. The audit runner (`scripts/analyze.sh`, 5 passes) prints its report rather than writing
 one. Prerequisite: a working Rust toolchain — `cargo`, and `clippy` / `cargo-audit` for the
-review and audit modes (their absence is reported, not silently skipped).
+lane and audit runner (their absence is reported, not silently skipped).
 
 ## Worked example
 
@@ -72,16 +55,8 @@ review and audit modes (their absence is reported, not silently skipped).
 "add a retry wrapper around the HTTP client"
 ```
 
-Editing `.rs` fires `rust-coding`, the knowledge router, which loads only the `references/`
-sections that bear on the task. For deeper work you can name the agent and its mode directly:
-
-```text
-"have rust-expert run a project-audit on this crate"
-"have rust-expert idiomize src/parser.rs"
-```
-
-`review`, `idiomize`, and `project-audit` are **modes of the agent**, not separate commands —
-the former `/rust-review` and `/rust-idiomize` commands were folded in (see the migration note).
+Editing `.rs` fires `rust-coding`, which applies the house rules and gotchas. To audit a crate,
+the skill runs the deterministic lane and confirms each candidate it flags.
 
 ## Related plugins
 

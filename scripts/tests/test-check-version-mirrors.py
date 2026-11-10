@@ -159,11 +159,22 @@ def cases():
               "a marketplace entry with no manifest is caught")
 
 
+SHIPPED_PLUGINS = sorted([
+    "android-dev", "browser-extensions", "business", "git-github", "i18n",
+    "infra-build", "loadout", "planning", "release-promo", "rust-dev",
+])
+
+
 def real_tree():
     check(vm.main([]) == 0, "every shipped mirror agrees")
     _p, n, counts = vm.check(vm.REPO_ROOT)
-    # Floor = the marketplace's plugin count: 13 until the 2026-10-15 retirement removed 2.
-    check(n >= 11, f"the sweep sees the marketplace's plugins (saw {n})")
+    # The live set, not a floor: 13 until the 2026-10-15 retirement removed 2, 11 until
+    # the 2026-11-10 value-audit reduction retired game-dev. Adding or retiring a plugin
+    # is a deliberate edit here.
+    with open(os.path.join(vm.REPO_ROOT, ".claude-plugin", "marketplace.json")) as fh:
+        names = sorted(e["name"] for e in json.load(fh)["plugins"])
+    check(names == SHIPPED_PLUGINS and n == len(SHIPPED_PLUGINS),
+          f"the sweep sees exactly the marketplace's plugins (saw {n}: {names})")
     # The population line must not overstate: these are the sites actually reconciled.
     # README: exactly the known carriers (none since planning's README left, 2026-10-25), so
     # a marker gained or lost shows up here rather than as a silent change of population.

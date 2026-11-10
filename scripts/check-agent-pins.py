@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every shipped agent carries a deliberate `model:` and `effort:` pin.
+"""Every shipped agent declares `model: inherit` and a deliberate `effort:` pin.
 
 Stage 4 of the token-efficiency plan pinned all 12 marketplace agents. That
 invariant then existed only as a one-shot gate command in the plan, so it decayed
@@ -12,7 +12,13 @@ What it checks, and why each one:
   MISSING-EFFORT  an agent with no `effort:`. It then inherits the session level,
                   so a dispatch's cost is whatever the operator happened to be
                   running at — the unpredictability the pins removed.
-  MISSING-MODEL   an agent with no `model:`. Same argument, the other knob.
+  MISSING-MODEL   an agent with no `model:`. Omitted, the model falls to
+                  CLAUDE_CODE_SUBAGENT_MODEL when set, so the declaration is kept.
+  TIER-PIN        a `model:` other than `inherit`. A POLICY finding, like HIGH-PIN.
+                  Since 2026-11-10 (DEC-040) an agent runs on the session's model:
+                  a pin to a smaller tier makes the dispatch worse than the session
+                  that sent it. A pin with a real reason goes in TIER_PIN_ALLOW
+                  (path -> reason); the table starts empty.
   BAD-VALUE       a value outside the documented vocabulary. The field takes
                   `low | medium | high | xhigh | max`; a typo silently falls back
                   to inherited rather than erroring, so this cannot be left to the
@@ -42,6 +48,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VALID_EFFORT = ("low", "medium", "high", "xhigh", "max")
 POLICY_MAX = ("low", "medium")
 VALID_MODEL = ("haiku", "sonnet", "opus", "fable", "inherit")
+
+# Agents allowed to pin a model tier, each with the reason. Empty by design.
+TIER_PIN_ALLOW = {}
 
 EFFORT_RE = re.compile(r"^effort:[ \t]*(\S+)[ \t]*$", re.M)
 MODEL_RE = re.compile(r"^model:[ \t]*(\S+)[ \t]*$", re.M)
@@ -88,6 +97,11 @@ def check_file(root, rel):
     elif m.group(1) not in VALID_MODEL and not m.group(1).startswith("claude-"):
         problems.append(f"{rel}: BAD-VALUE — model {m.group(1)!r} is not one of "
                         f"{VALID_MODEL} or a full model id")
+    elif m.group(1) != "inherit" and rel not in TIER_PIN_ALLOW:
+        problems.append(
+            f"{rel}: TIER-PIN — model {m.group(1)!r} pins a tier; agents declare "
+            "`model: inherit` so a dispatch runs on the session's model. If the pin "
+            "is right, list the agent in TIER_PIN_ALLOW here with the reason.")
 
     e = EFFORT_RE.search(fm)
     if not e:

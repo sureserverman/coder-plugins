@@ -22,16 +22,12 @@ ROOT="$(cd "$ROOT" 2>/dev/null && pwd || true)"
 if [ ! -d "$ROOT/mac" ]; then
   add_finding info mac-absent readiness "mac/" 0 "no mac/ tree (fine if not shipping a macOS .pkg)"
 else
-  [ -f "$ROOT/Cargo.toml" ] \
-    || add_finding warn mac-no-cargo readiness "Cargo.toml" 0 "mac/ present but no Cargo.toml at root — the build-for-mac workflow builds with cargo"
   mk="$ROOT/mac/Makefile"
   if [ ! -f "$mk" ]; then
     add_finding error mac-no-makefile readiness "mac/Makefile" 0 "mac/ present but mac/Makefile is missing"
   else
-    for t in build package clean; do
-      grep -Eq "^$t:" "$mk" \
-        || add_finding warn mac-makefile-target readiness "mac/Makefile" 0 "mac/Makefile has no '$t:' target (the workflow runs make $t)"
-    done
+    grep -Eq "^pkg:" "$mk" \
+      || add_finding warn mac-makefile-target readiness "mac/Makefile" 0 "mac/Makefile has no 'pkg:' target (the workflow runs make pkg)"
   fi
   [ -d "$ROOT/mac/payload" ] \
     || add_finding warn mac-no-payload readiness "mac/payload/" 0 "no mac/payload/ — pkgbuild --root has nothing to package"

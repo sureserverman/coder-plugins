@@ -1,0 +1,51 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": ""
+ },
+ "break_patch": "diff --git a/i18n/skills/i18n-translate/SKILL.md b/i18n/skills/i18n-translate/SKILL.md\n--- a/i18n/skills/i18n-translate/SKILL.md\n+++ b/i18n/skills/i18n-translate/SKILL.md\n@@ -43,7 +43,7 @@ It checks placeholder sets, ICU brace balance, required CLDR plural categories,\n \n Watch for these cross-format mistakes in review:\n \n-- **Renaming placeholders during translation.** `{name}` \u2192 `{nombre}` breaks the runtime call site.\n+- **Changing placeholders during translation.** `{name}` \u2192 `{nombre}` breaks the runtime call site.\n - **Dropping `#` inside ICU plural body.** It's the interpolated count, not a literal.\n - **Generating only `one` and `other` for Russian/Arabic/Polish catalogs.** Missing categories fall back to `other`, producing wrong grammar.\n - **HTML tag substitution.** `<b>` \u2192 `<strong>` changes the rendered styling and may break a unit test selector.\n",
+ "build": null,
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
+ "index": 2,
+ "kind": "claim",
+ "named_break": "\"Renaming placeholders\" is absent",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": ""
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "2.3",
+ "test": "test ! -e i18n/skills/i18n-formats && ! git grep -n 'i18n-formats' -- i18n && [ \"$(wc -c < i18n/skills/i18n-translate/SKILL.md)\" -le 4589 ] && grep -q 'knownRegions' i18n/skills/i18n-translate/SKILL.md && grep -q 'Renaming placeholders' i18n/skills/i18n-translate/SKILL.md && [ \"$(wc -c < i18n/agents/translator.md)\" -le 7379 ] && grep -q 'translation memory' i18n/agents/translator.md && grep -q 'validate-placeholders' i18n/agents/translator.md && ! grep -q '_plural' i18n/agents/translator.md && test -z \"$(python3 scripts/check-agent-references.py | grep 'i18n/agents/translator.md')\"",
+ "text": "the six cross-format mistakes moved into `i18n-translate` (red if \"Renaming placeholders\" is absent)",
+ "touched": [
+  "i18n/skills/i18n-translate/SKILL.md"
+ ],
+ "touched_blobs": {
+  "i18n/skills/i18n-translate/SKILL.md": "41ceda957d7abd909794f5577d3fa97c03850c79"
+ },
+ "witness_blobs": {
+  "i18n/.claude-plugin/plugin.json": "6900599ce968fa9c31b6f022db3adbd150ab8b56",
+  "i18n/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
+  "i18n/README.md": "a221902be1775efee4ee53e1e9bf30b0915fcc46",
+  "i18n/agents/translator.md": "d6e4f042f5618a70eb05d3a87cdb9744760f2453",
+  "i18n/scripts/README.md": "934e07a8fbf4e208c497487fd1c00bbc29bd31c1",
+  "i18n/scripts/lib/findings.sh": "76505c770375bef10ba935028b8fd2c5ebc06cad",
+  "i18n/scripts/validate-catalog-diff.sh": "db2b1ce5f12c28576c48556a6fb4f4732a2cc7a0",
+  "i18n/scripts/validate-placeholders.sh": "e076253de76536a12f557b4100d752b51544cc69",
+  "i18n/scripts/validate.sh": "12fbbc3bf7a73a35097c873f4fd53c9755cba5a2",
+  "i18n/skills/i18n-audit/SKILL.md": "a4f763ca26ae2259f019c276c1bc857275c0fd4b",
+  "i18n/skills/i18n-audit/scripts/detect-framework.py": "a6ddb651877dee5fbd62786a3423e0817ca0d582",
+  "i18n/skills/i18n-audit/scripts/diff-catalogs.py": "26f6f06f7964001221eb8ee69d2c8d0a592b3e48",
+  "i18n/skills/i18n-audit/scripts/scan-hardcoded.py": "733fb037e5b81fb1788e83083266b7c90ef896a3",
+  "i18n/skills/i18n-translate/SKILL.md": "41ceda957d7abd909794f5577d3fa97c03850c79",
+  "i18n/skills/i18n-translate/scripts/extract-missing.py": "50b30f4d359231fe284f004339ad8ea6579b8351",
+  "i18n/skills/i18n-translate/scripts/validate-placeholders.py": "9ab0ae737bf1cf707255e78478e9eace7e8e19d3",
+  "scripts/check-agent-references.py": "e45842eb7b599fda4fbedd31502d7693058a7c99"
+ }
+}

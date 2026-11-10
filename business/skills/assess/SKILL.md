@@ -10,8 +10,6 @@ Decide whether ONE project is worth monetizing, for whom, and on what evidence �
 then record it in `business/BUSINESS.md`. The verdict is the gate the rest of the
 pipeline (`model` → `launch` → `track`) depends on.
 
-**Announce at start:** "Using the business assess skill to triage <project>'s viability."
-
 ## Determinism boundary
 
 For **cross-project state and decisions**, run the scanner and consume its JSON — never

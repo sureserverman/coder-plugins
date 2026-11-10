@@ -65,7 +65,9 @@ INDEX = REPO / "capability-index.json"
 
 # Slash tokens Claude Code itself provides, or that name a marketplace action
 # rather than a component in this repo.
-BUILTINS = {"plugin", "clear", "help", "config", "loadout"}
+# `code-review` is Claude Code's built-in review command; git-github stopped shipping its
+# own on 2026-11-10 and the docs point at the built-in.
+BUILTINS = {"plugin", "clear", "help", "config", "loadout", "code-review"}
 
 # Backticked lowercase-kebab words that are legitimately NOT components. Keep this
 # list short and justified: each entry is a hole in the sweep, so prefer rewording
@@ -224,7 +226,7 @@ def attribution_claims(text, plugins):
       * a routing-table row whose LAST cell is a single backticked plugin name —
         every component-shaped backtick token in the row's other cells is claimed to
         be shipped by it;
-      * prose of the form `rust-expert` (a `rust-dev` agent).
+      * prose of the form `translator` (an `i18n` agent).
 
     BOTH rules require the claimed plugin to be a KNOWN plugin before yielding. That
     guard is not optional politeness: without it the prose form captures whatever word

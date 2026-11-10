@@ -4,17 +4,17 @@
 # Deterministic *candidate* scan over the target project's .rs sources for the
 # mechanically detectable slice of rust-dev's house rules. Regexes only flag —
 # whether a candidate is a real violation, and how to fix it, is the judgment
-# lane's call (rust-expert). Hence every source-pattern rule here is warn/info,
+# lane's call (the model). Hence every source-pattern rule here is warn/info,
 # never error.
 #
-# Rule ids (stable, kebab-case — rust-dev's agents key off these):
+# Rule ids (stable, kebab-case — rust-dev's skill keys off these):
 #   rust-no-sources                     info  no .rs files under root
-#   rust-unsafe-missing-safety-comment  warn  unsafe block/impl with no // SAFETY: nearby (house rule 1)
-#   rust-unwrap-outside-tests           warn  .unwrap()/.expect( outside main.rs/tests/benches/examples/build.rs or #[cfg(test)] (house rule 5)
-#   rust-unbounded-channel              warn  unbounded_channel()/::unbounded( usage (house rule 3)
-#   rust-sync-lock-in-async-candidate   warn  std::sync Mutex/RwLock in a file that .awaits (house rule 2 candidate)
-#   rust-box-dyn-error-in-pub-api       warn  pub fn returning Box<dyn ...Error...> (house rule 4)
-#   rust-serde-missing-deny-unknown     warn  derive(Deserialize) without deny_unknown_fields nearby (house rule 12)
+#   rust-unsafe-missing-safety-comment  warn  unsafe block/impl with no // SAFETY: nearby
+#   rust-unwrap-outside-tests           warn  .unwrap()/.expect( outside main.rs/tests/benches/examples/build.rs or #[cfg(test)]
+#   rust-unbounded-channel              warn  unbounded_channel()/::unbounded( usage
+#   rust-sync-lock-in-async-candidate   warn  std::sync Mutex/RwLock in a file that .awaits (candidate)
+#   rust-box-dyn-error-in-pub-api       warn  pub fn returning Box<dyn ...Error...>
+#   rust-serde-missing-deny-unknown     warn  derive(Deserialize) without deny_unknown_fields nearby
 set -eu
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib/findings.sh"
@@ -103,7 +103,7 @@ for f in "${FILES[@]}"; do
     add_finding warn "$rule" rust "$rel" "$line" "$msg"
   done < <(scan_file "$f" "$exempt")
 
-  # House rule 2 candidate: std::sync lock types in a file that awaits.
+  # Candidate: std::sync lock types in a file that awaits.
   if grep -q '\.await' "$f" 2>/dev/null; then
     while IFS=: read -r line _; do
       [ -n "$line" ] || continue

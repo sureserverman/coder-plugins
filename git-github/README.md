@@ -1,19 +1,17 @@
 # git-github
 
-Everyday git/GitHub operations for Claude Code: run a single-tool authoritative code review, dispatch the same diff to sibling CLIs for multi-model second opinions, audit code comments for explanatory value, audit GitHub Actions workflows, review READMEs, audit licenses, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.
+Everyday git/GitHub operations for Claude Code: dispatch a diff to sibling CLIs for multi-model second opinions, audit gates for faked verification, audit code comments for explanatory value, audit GitHub Actions workflows, sweep portfolio repo health, review READMEs, and cut release tags. Skills auto-trigger on natural language; nothing autoposts, force-pushes, or rewrites history.
 
 ## What it covers
 
 | Skill | When it fires | What it does |
 |---|---|---|
-| `github-workflow-audit` | "audit my workflows", "check github actions" | Runs the bundled `audit-workflows.py` over `.github/workflows/*` for YAML errors, expression injection, outdated action versions, missing `permissions:`, and more. |
-| `license-audit` | "what license should this project use", "audit my licenses", "are my deps GPL-compatible" | Walks every dependency source (Dockerfile, manifests, vendored code), resolves SPDX licenses, applies copyleft-propagation rules per usage type, proposes compatible LICENSE options, and generates `LICENSE` after you pick one. |
-| `review-readme` | "my readme is a mess", "clean up the README" | Audits the README against a 30-second-rule checklist and applies user-approved edits. README only shrinks. |
+| `github-workflow-audit` | "audit my workflows", "check github actions" | Runs `scripts/validate-workflows.sh` (a wrapper over `audit-workflows.py`) over `.github/workflows/*` for YAML errors, expression injection, outdated action versions, missing `permissions:`, and more. |
+| `review-readme` | "my readme is a mess", "clean up the README" | Audits the README against the house limits (at most 6 sections, at most 3 quick-start steps) and applies user-approved edits. README only shrinks. |
 | `release-tag` | "tag a release", "cut v1.4.0" | Drafts an annotated-tag message from the top CHANGELOG entry (or commit log), confirms before tagging, confirms again before pushing, and optionally creates a GitHub release. |
-| `code-review` | "review this", "review my implementation", "check this commit against the plan", "security review" | Scopes the diff (uncommitted / staged / commit / PR / plan-stage) and dispatches the `code-reviewer` subagent for a single-tool authoritative review. |
 | `request-external-reviews` | "get reviews from other tools", "second opinion on this diff", "multi-model review" | Dispatches the same diff to sibling CLIs (codex, gemini, opencode — plus claude when the caller is Cursor) in non-interactive read-only mode and aggregates findings with consensus marking. |
 | `code-comment-audit` | "audit my comments", "are my comments useful", "review the comments in this file" | Disciplined comment pass: surfaces magic numbers, ordering constraints, workarounds, and un-introduced entry points where a concrete *why* exists; removes comments that just restate the code. |
-| `gate-audit` | "audit the gates", "did these tests actually run", "this build looks suspiciously green", at a stage boundary, or when reviewing someone else's "all gates green" claim | Audits a repo or diff for **faked verification**: stubbed gates, tests that were never executed, fabricated evidence, and hidden exclusions (quarantined suites, skipped matrices, narrowed scopes that weren't disclosed). Dispatches an independent reviewer for the judgment calls rather than self-grading. The natural counterpart to `planning:honest-gates`, which defines what an honest gate *is* — this checks whether yours are. |
+| `gate-audit` | "audit the gates", "did these tests actually run", "this build looks suspiciously green", at a stage boundary, or when reviewing someone else's "all gates green" claim | Audits a repo or diff for **faked verification**: stubbed gates, tests that were never executed, fabricated evidence, and hidden exclusions (quarantined suites, skipped matrices, narrowed scopes that weren't disclosed). Dispatches `planning:code-reviewer` for the judgment calls rather than self-grading. The natural counterpart to `planning:honest-gates`, which defines what an honest gate *is* — this checks whether yours are. |
 | `repo-health` | "check github health", "any failed workflows across my projects", "repo health sweep" | Runs the bundled `repo-health-scan.py` over every registry project with a GitHub remote: red default-branch workflows, open issues, stale PRs, Dependabot alerts. Report-first; findings the user picks are filed into per-project backlogs via `planning:backlog`, with URL-keyed dedup and zombie-entry detection on re-sweeps. |
 
 All skills auto-trigger on the phrases above, and each is also invocable explicitly as `/git-github:<skill>`. There is no umbrella slash command — each skill stands alone.
@@ -34,15 +32,10 @@ Everything else in the table is read-only or edits only local working files.
 Most skills take a scope argument; when omitted they scope sensibly and say what they chose.
 
 ```text
-/git-github:code-review                 # your working diff (default)
-/git-github:code-review HEAD~3          # a commit range
-/git-github:code-review 412             # a PR number
 /git-github:gate-audit                  # the current branch's gates
 /git-github:repo-health                 # sweep every registry project
 /git-github:release-tag v1.4.0          # a specific version
 ```
-
-`code-review` accepts uncommitted / staged / commit / PR / plan-stage scopes; the plan-stage form is what `planning:executing-plans` uses at its gates.
 
 ### Artifacts
 
@@ -50,33 +43,19 @@ Most skills write nothing — findings come back in the conversation. The except
 
 | Skill | Writes |
 |---|---|
-| `license-audit` | `LICENSE` (only after you pick from the proposed options) |
 | `review-readme` | edits `README.md` in place — and **only ever shrinks it** |
 | `code-comment-audit` | edits comments in the files you scoped |
 | `release-tag` | an annotated tag |
 | `repo-health` | backlog entries in **other projects'** registers via `planning:backlog`, for findings you pick — URL-keyed dedup, zombie detection on re-sweeps |
 
-**Review reports are never committed.** `code-review`, `gate-audit`, and `request-external-reviews` return findings in-conversation; any report file you save locally stays local, per the portfolio-wide rule that security and review report `.md` files are gitignored and never reach a remote.
+**Review reports are never committed.** `gate-audit` and `request-external-reviews` return findings in-conversation; any report file you save locally stays local, per the portfolio-wide rule that security and review report `.md` files are gitignored and never reach a remote.
 
-## Agent
+## Code review
 
-| Agent | Model | Tools | Purpose |
-|---|---|---|---|
-| `code-reviewer` | sonnet | Read, Grep, Glob, Bash(git diff/log/show/blame/status), WebFetch, TaskCreate, TaskUpdate | **Read-only** white-box reviewer — the term is defined once, in the agent's own `read-only-contract` block; this line names the property rather than restating it. Runs six protocols (context detection, plan-alignment, structural, Fowler code-smell, OWASP security, testability) and returns a **Critical / Important / Suggestion** triage with `file:line` citations and a Final Verdict. Reports findings; the caller acts. |
-
-The `code-review` skill dispatches this agent for an authoritative local review, and
-the `planning` plugin's `executing-plans` consumes it for its two-tier review
-(per-task quick review where a **Critical** blocks within the Red-Green budget, and a
-per-stage deep review at the gate). Because it ships here, both consumers resolve it
-as `git-github:code-reviewer` with no "if installed" fallback.
-
-The agent body carries the protocols, the triage thresholds and the output contract;
-the stable catalogs it cites — the SOLID/structural discriminators, the Fowler smell
-vocabulary, the security checklist with its OWASP/CWE ids, the test-smell vocabulary and
-the bibliography — live in
-[`references/review-catalogs.md`](references/review-catalogs.md) and are read only when a
-protocol calls for one. A given review needs at most one or two of them, so keeping them
-out of the always-loaded body is what lets the agent stay a router rather than a rulebook.
+This plugin ships no reviewer of its own. For a single authoritative review, use Claude
+Code's built-in `/code-review`. `gate-audit` and `planning:executing-plans` dispatch
+`planning:code-reviewer` from the planning plugin; without planning installed, no reviewer
+agent is available.
 
 ## Install
 
@@ -106,19 +85,10 @@ documented in [`scripts/README.md`](scripts/README.md).
 ```text
 /plugin install git-github@coder-plugins
 
-/git-github:code-review
-```
-
-Scopes your working diff and dispatches the read-only `code-reviewer` agent, which returns a
-Critical / Important / Suggestion triage with `file:line` citations and a Final Verdict. It reports;
-acting on the findings is yours. What "read-only" obliges is defined once, in the agent's own
-`read-only-contract` block — this line does not restate it.
-
-```text
 /git-github:gate-audit
 ```
 
-The complementary question: not "is this code good" but "did the verification actually happen".
+Not "is this code good" but "did the verification actually happen".
 Checks for stubbed gates, tests that never ran, and undisclosed exclusions.
 
 ```text
@@ -130,7 +100,7 @@ tagging, and confirms **again** before pushing.
 
 ## Related plugins
 
-- **`planning`** — `executing-plans` consumes `code-reviewer` for its two-tier review, with the
+- **`planning`** — ships `planning:code-reviewer`, which `executing-plans` uses for its two-tier review, with the
   plan's declared **review scope** deciding how much of each runs: per-stage at the gate (a
   Critical fails it) from tier `standard` up, one whole-plan-diff pass at `light`, and the
   per-task tier (a Critical blocks within the Red-Green budget) only at `high` or on a task

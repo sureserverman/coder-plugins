@@ -126,17 +126,15 @@ CLOSE = "<!-- /reference-resolution-contract -->"
 # whole while a real agent drops out, which is the floor failure one level in.
 EXPECTED_AGENTS = (
     "business/agents/market-researcher.md",
-    "game-dev/agents/game-design-expert.md",
-    "git-github/agents/code-reviewer.md",
     "i18n/agents/translator.md",
-    # design-handoff-reproducer left with the planning plugin, 2026-10-25.
-    "release-promo/agents/post-drafter.md",
-    "rust-dev/agents/rust-expert.md",
+    # design-handoff-reproducer left with the planning plugin, 2026-10-25; the
+    # value-audit reduction (2026-11-10) retired the drafting, Rust, game-design and
+    # git-github reviewer agents.
 )
 
 # --- the out-of-block lane -------------------------------------------------------------
 # What a second resolution site actually does wrong is RESTATE the contract instead of
-# pointing at it — that is how `rust-expert` ended up carrying its own copy of the fallback
+# pointing at it — that is how a since-retired Rust agent ended up carrying its own copy of the fallback
 # rules, free to drift from the block three screens above. Restatement is decidable as a
 # substring test, so that is what this lane tests.
 #
@@ -152,7 +150,7 @@ RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cach
                        "DEGRADED")
 # Known and accepted: the escape is evaluated per FRAGMENT, and a punctuation-free run
 # (a bullet list, say) is one fragment — so a delegating bullet launders a DEGRADED
-# restatement three bullets down. Narrowing it would break post-drafter, whose output-shape
+# restatement three bullets down. Narrowing it would break an agent whose output-shape
 # section legitimately needs both in one breath. Recorded rather than left for a reader to
 # discover from the fixture's more confident wording.
 #
@@ -165,7 +163,7 @@ RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cach
 # three inversions and passed. A delegating sentence has no reason to restate the fallback
 # ARMS — that is the part it is delegating — so naming them revokes the exemption. `DEGRADED`
 # is exempt-able because an output-shape section legitimately needs to say where the banner
-# goes (post-drafter does exactly that).
+# goes (a drafting agent's output-shape section does exactly that).
 DELEGATION = "reference-resolution contract"
 UNLAUNDERABLE = ("dev checkout", "versioned plugin cache", "versioned cache")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")

@@ -81,7 +81,8 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 CONSOLE_USER=$(stat -f "%Su" /dev/console)
 CONSOLE_UID=$(id -u "$CONSOLE_USER")
 
-PLIST="/Library/LaunchAgents/com.sureserverman.<name>.plist"
+PLIST_LABEL="com.sureserverman.<name>"
+PLIST="/Library/LaunchAgents/$PLIST_LABEL.plist"
 
 # Set correct plist ownership and permissions
 chmod 644 "$PLIST"

@@ -48,15 +48,15 @@ The publishing entrypoint is the GitHub Actions checkbox dispatch in `~/dev/infr
 
 | Check | What it confirms |
 |---|---|
-| Source repo is a Rust project (`Cargo.toml` at root) | the workflow's `cargo build --release --target aarch64-apple-darwin` will work |
-| `~/dev/<project>/mac/Makefile` exists with at minimum `build`, `package`, `clean` targets | the workflow's `make package` step will succeed |
+| `~/dev/<project>/mac/Makefile` exists with a top-level `pkg:` target that builds the binaries itself | the workflow's only build step, `make -C <project>/mac pkg`, will succeed |
 | `~/dev/<project>/mac/payload/` exists | `pkgbuild --root` has something to package |
 | `~/dev/<project>/mac/scripts/` exists if a `postinstall` is referenced from the Makefile | `pkgbuild --scripts` won't fail |
 | Project name appears as a line in `~/dev/infra/build-for-mac/programs.txt` | declarative list |
 | Project name appears as a `boolean` input under `on.workflow_dispatch.inputs.<name>` in `~/dev/infra/build-for-mac/.github/workflows/build_and_package.yml` | checkbox is exposed in the Actions UI |
 | Project name appears in the `strategy.matrix.program` list in the same workflow | the matrix actually iterates over it |
+| Project name is OR-ed into `jobs.aggregate-artifacts.if:` in the same workflow (`github.event.inputs['<name>'] == 'true'`) | the combine-pkg step runs when only this project is selected |
 
-**The two YAML edits and the `programs.txt` line MUST agree.** If `programs.txt` has the project but the workflow doesn't (or vice versa), the project silently disappears from the matrix or never becomes a checkbox. Report mismatch loudly.
+**The four registrations (`programs.txt` + three workflow edits) MUST agree.** If `programs.txt` has the project but the workflow doesn't (or vice versa), the project silently disappears from the matrix or never becomes a checkbox. Report mismatch loudly.
 
 For deeper `mac/` layout questions defer to the `mac-package` skill in this plugin.
 

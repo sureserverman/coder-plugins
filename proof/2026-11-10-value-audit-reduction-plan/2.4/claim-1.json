@@ -1,0 +1,45 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": ""
+ },
+ "break_patch": "diff --git a/release-promo/commands/promote-release.md b/release-promo/commands/promote-release.md\n--- a/release-promo/commands/promote-release.md\n+++ b/release-promo/commands/promote-release.md\n@@ -56,6 +56,8 @@ Apply these rules to build the channel set:\n \n Show the user the chosen channel list as a single bullet block before drafting. Let them remove channels.\n \n+Dispatch post-drafter.\n+\n ## Phase 3 \u2014 Draft one post per channel\n \n Draft inline, in this session. For each chosen channel, Read that channel's SKILL.md, then draft the post in the output block it prescribes:\n",
+ "build": null,
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
+ "index": 1,
+ "kind": "claim",
+ "named_break": "either string remains",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "release-promo/commands/promote-release.md:59:Dispatch post-drafter."
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "2.4",
+ "test": "test ! -e release-promo/agents/post-drafter.md && ! git grep -nE 'post-drafter|fan-out is the design' -- release-promo && [ \"$(wc -c < release-promo/skills/lobsters-post/SKILL.md)\" -le 2571 ] && grep -q 'drive-by' release-promo/skills/lobsters-post/SKILL.md && [ \"$(wc -c < release-promo/skills/hackernews-show-hn/SKILL.md)\" -le 2477 ] && grep -q 'Show HN: ' release-promo/skills/hackernews-show-hn/SKILL.md && [ \"$(wc -c < release-promo/skills/fediverse-post/SKILL.md)\" -le 2343 ] && grep -qF '#SelfHosted' release-promo/skills/fediverse-post/SKILL.md && grep -q 'checked 2026-1' release-promo/skills/twim-submission/SKILL.md",
+ "text": "the drafting agent is gone and the command no longer forbids inline drafting (red if either string remains)",
+ "touched": [
+  "release-promo/commands/promote-release.md"
+ ],
+ "touched_blobs": {
+  "release-promo/commands/promote-release.md": "398ea3b329fd099bd26983dd6c7930652475586b"
+ },
+ "witness_blobs": {
+  "release-promo/.claude-plugin/plugin.json": "9819d327c3c3d0791041e932cc2183460c0dc53c",
+  "release-promo/LICENSE": "682617d0ce115d341e44924e70d3375710e9c0f7",
+  "release-promo/README.md": "4b58bad1dd5b508739accedbad31489a2a29bcea",
+  "release-promo/commands/promote-release.md": "398ea3b329fd099bd26983dd6c7930652475586b",
+  "release-promo/skills/fediverse-post/SKILL.md": "5640abf4c9044afec7cf526706ba68d875a906fa",
+  "release-promo/skills/hackernews-show-hn/SKILL.md": "1a62da9ebb0ca614cfb3b86f813a5ce076a84d32",
+  "release-promo/skills/lobsters-post/SKILL.md": "db8ea8c808380fceadc8988a850064a306617c31",
+  "release-promo/skills/reddit-promo/SKILL.md": "df5f52b56f43aece8ab531cdbdc02d53370ccf0b",
+  "release-promo/skills/reddit-promo/references/general-subs.md": "6f998bdeaee6fc3bb9d1360d04905659b5687b0f",
+  "release-promo/skills/reddit-promo/references/matrix-subs.md": "ce31117efa2628da000688647a227e6a055d3a4c",
+  "release-promo/skills/twim-submission/SKILL.md": "3c67a48212597adeb9fd54013f8b1edc4d3539b9"
+ }
+}

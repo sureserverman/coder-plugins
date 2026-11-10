@@ -16,8 +16,6 @@ reused by `/business:assess --research` (when fresh, ≤ 90 days) and folded int
 monetize / free / park decision stays with `assess` and the operator, and the analysis
 never answers what to build next (competitive-analysis-method.md § 18 — Limits).
 
-**Announce at start:** "Using the business market-research skill to research <project>'s market."
-
 ## Choose the depth tier (ask first, before researching)
 
 Present one multiple-choice question with a one-line cost/benefit each:

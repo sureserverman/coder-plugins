@@ -85,7 +85,7 @@ SCREENSHOT_DIR=~/dev/android/matrix-synapse-manager-android/play-screenshots \
 
 ### `android-gradle-build`
 
-Four-phase build management with decision trees and security hard gates. Covers module wiring, Hilt/Room/Retrofit/Compose setup, test execution, and commit validation.
+House build rules (version catalog, KSP), the security hard gates, and the rule that a `validateDebugScreenshotTest` gate gets the real screenshot harness or is reported blocked, never a stub.
 
 **Triggers:** Add a module, fix build error, set up Hilt/Compose, add a dependency, run tests, edit version catalog, wire Retrofit/Room.
 
@@ -97,9 +97,7 @@ The per-stage on-device gate. Builds the debug APK, checks `adb devices`, and wh
 
 ### `android-ui-design-figma`
 
-End-to-end UI workflow: app analysis, design spec (with optional Figma), feedback loop, then apply to code. Standard-first approach using Material 3 / Compose Material / AndroidX.
-
-Includes reference files for M3 best practices, adaptive layouts, a component lookup table, and the adaptive launcher icon spec (foreground/background/monochrome layers, themed icons, Image Asset Studio scaffold + verification recipe — required for every release).
+UI changes verified by a screenshot-grading loop: emulator captures scored against the approved spec with a weighted rubric by a grader that never sees the implementation transcript. Includes the mandatory adaptive launcher icon spec (foreground/background/monochrome layers, themed icons, Image Asset Studio scaffold + verification recipe — required for every release).
 
 **Triggers:** Redesign a screen, change color scheme, update theme, add bottom nav, implement Figma design, fix spacing, add dark theme, Material 3 components, adaptive launcher icon, themed icon, monochrome layer.
 
@@ -109,15 +107,9 @@ Manages the multi-container emulator stack lifecycle: build, start, run operatio
 
 **Triggers:** Test on emulators, take screenshots, start emulator stack, spin up containers, test on phone and tablet, bring up the MCP.
 
-### `mock-server-from-app-sources`
-
-Analyzes app source code (Retrofit interfaces, DTOs, auth flow) to scaffold a minimal mock server container for testing.
-
-**Triggers:** Fake backend, stub the API, test server, Docker/Podman mock, offline testing, mock the REST API.
-
 ### `android-release-signing`
 
-Shared signing foundation for any distribution channel: upload-keystore creation, `keystore.properties` wiring, `signingConfigs.release` in Gradle, and a `release.yml` GitHub Actions workflow that decodes a base64 keystore from secrets and uploads APK + AAB to GitHub Releases.
+Shared signing conventions for any distribution channel: the `upload.keystore` / `keystore.properties` file layout, the release signing gate, and the CI secret-name contract (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) a `release.yml` workflow uses to build and upload APK + AAB to GitHub Releases.
 
 **Triggers:** Sign my APK, create upload keystore, set up release signing, build a signed AAB, release workflow won't sign, keystore.properties missing, Gradle uses debug key for release.
 
@@ -129,7 +121,7 @@ End-to-end F-Droid submission flow: scaffolding `fastlane/metadata/android/en-US
 
 ### `android-play-publish`
 
-End-to-end Google Play submission flow: AAB build, Play Console setup, store listing copy and assets, App content forms (Privacy policy, Data safety, App access, Content rating), release tracks, the 12-tester / 14-day closed-test rule for new personal accounts, and `fastlane supply` automation. Reference files include a per-release preflight checklist and a Data safety decision table.
+Google Play release punchlist (build prerequisites, store listing, App content forms, release infrastructure), the store listing limits, the target-API floor, and the 12-tester / 14-day closed-test rule for new personal accounts. Reference files include a per-release preflight checklist and a Data safety decision table.
 
 **Triggers:** Publish to Google Play, submit to play store, Play Console setup, build AAB for play, Data safety form, app access demo credentials, Play App Signing, closed test 12 testers, fastlane supply.
 
@@ -183,7 +175,6 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 | Play Store screenshots | `${SCREENSHOT_DIR:-./play-screenshots}` on the host (see [Pointing the stack at your project](#pointing-the-stack-at-your-project)) | `/android-screenshots` |
 | Emulator stack env (random `MCP_AUTH_TOKEN`) | `infrastructure/.env` — generated on first run, **not** committed | `android-mcp-orchestrator` `run.sh` |
 | Signing config | per the `android-release-signing` skill; **keystores and passwords never enter the repo** | you, guided by the skill |
-| Mock server sources | generated into your project per the skill's declared output path | `mock-server-from-app-sources` |
 
 ## Worked example
 
@@ -193,7 +184,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` fires for the module/dependency wiring. For a full redesign rather than one screen, `android-ui-design-figma` runs the longer app-analysis → spec → apply workflow.
+`android-gradle-build` fires for the module/dependency wiring. For a visible UI change, `android-ui-design-figma` captures the changed screens on the emulator stack and has a separate grader score them against the spec.
 
 ```text
 "verify this stage on device"

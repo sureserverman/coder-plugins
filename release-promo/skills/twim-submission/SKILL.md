@@ -6,13 +6,13 @@ disable-model-invocation: true
 
 # twim-submission
 
-Drafts a TWIM entry. TWIM is the weekly Matrix newsletter published every Friday on matrix.org. Entries are submitted by posting in the TWIM submission room and tagging the editor.
+Drafts a TWIM entry. TWIM is the weekly Matrix newsletter published every Friday on matrix.org. Entries are posted in the TWIM room, starting with a mention of the user "TWIM".
 
 ## 1. How TWIM submission actually works
 
-- **Submission room:** `#twim-submissions:matrix.org` (room alias). Join the room, paste the entry as a single message, optionally with images uploaded as attachments.
-- **Editor mention:** the current TWIM editor (rotating; check the room topic) — mention them so they see it. Most weeks the room topic names the editor and the publish day.
-- **Deadline:** Friday morning UTC for that week's edition. Earlier in the week is better.
+- **Submission room:** `#thisweekin:matrix.org` (checked 2026-11-10, https://matrix.org/twim-guide/). `#twim:matrix.org` is the general TWIM discussion room, not the submission room.
+- **Bot mention:** start the message with a mention of the user "TWIM"; everything after it is the entry. The bot `@this-week-in:matrix.org` confirms receipt (checked 2026-11-10, https://matrix.org/twim-guide/).
+- **Deadline:** entries close around 16:00 Paris time on Friday; later posts go into the next edition (checked 2026-11-10, https://matrix.org/twim-guide/).
 - **Cadence:** one entry per project per release / milestone. Don't submit the same project two weeks in a row unless there's genuinely new news.
 - **Editorial discretion:** the editor lightly edits for grammar, length, and consistency. Major rewrites get sent back. Submissions in plain English with concrete details usually go in untouched.
 
@@ -72,7 +72,7 @@ Output a single block:
 
 ## 4. Images
 
-- Upload images **as Matrix attachments to the submission room**, not inline URLs. The editor copies the `mxc://` URI into the post.
+- Upload images **to the room**, then react with ⭕ on the media right after the text entry so it attaches to that entry (checked 2026-11-10, https://matrix.org/twim-guide/).
 - One screenshot is plenty. Two if showing before/after. Three is excessive.
 - Animated GIFs / short MP4s work for demos but keep them under ~5 MB.
 - Always include alt text in the message body when describing the image.
@@ -103,7 +103,7 @@ Mention `@spec-bot` activity (`fcp` flags, `concerns`) where relevant.
 
 ## 7. After submission
 
-The editor will react with 👍 or reply once the entry is queued. If you don't see acknowledgement by Thursday evening UTC, ping the editor in the room.
+The bot `@this-week-in:matrix.org` confirms receipt. If it doesn't, ask the TWIM editors in the room.
 
 After the issue publishes:
 
@@ -117,7 +117,7 @@ Always emit:
 ```
 SUGGESTED CATEGORY: <Servers / Clients / Bridges / Bots / SDKs and Frameworks / Encryption / Services / Spec / other>
 
-ENTRY (paste this into #twim-submissions:matrix.org):
+ENTRY (paste into #thisweekin:matrix.org, after a mention of "TWIM"):
 ---
 ### <project>
 
@@ -130,6 +130,5 @@ IMAGES TO ATTACH:
 - <description of screenshot 1>
 - <description of screenshot 2 (if any)>
 
-EDITOR PING: mention the editor named in the room topic.
-SUBMIT BY: Friday <UTC date>, earlier in the week if possible.
+SUBMIT BY: Friday <date>, ~16:00 Paris time.
 ```

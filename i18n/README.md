@@ -11,12 +11,12 @@ Internationalization plugin for any project that has user-facing strings. Splits
 
 ## What it covers
 
-The audit + translate + formats skills know these catalog formats and their gotchas:
+The audit + translate skills know these catalog formats:
 
 | Ecosystem | Format | Notes |
 |---|---|---|
 | GNU gettext (C/C++/Python/Rust/Go/PHP/...) | `.po` / `.pot` | CLDR plurals via `Plural-Forms` header, `msgctxt` context, `xgettext` extraction |
-| JS/TS (i18next, react-i18next) | nested JSON or flat JSON | ICU MessageFormat (i18next-icu), interpolation `{{name}}`, `_plural` suffix or ICU |
+| JS/TS (i18next, react-i18next) | nested JSON or flat JSON | ICU MessageFormat (i18next-icu), interpolation `{{name}}`, CLDR `_one`/`_other`… suffixes (JSON v4, since v21; checked 2026-11-10, https://github.com/i18next/i18next-gitbook/blob/master/translation-function/plurals.md) or ICU |
 | JS/TS (react-intl / FormatJS) | JSON id→message | ICU MessageFormat is native, `formatjs extract` for extraction |
 | JS/TS (Vue i18n) | JSON or YAML | Linked messages `@:foo`, list/named interpolation |
 | Android | `res/values*/strings.xml` | Quoting rules, `<![CDATA[`, positional `%1$s`, `<plurals>` with CLDR categories |
@@ -32,7 +32,6 @@ The audit + translate + formats skills know these catalog formats and their gotc
 
 - **`i18n-audit`** — detects the framework, finds hardcoded strings still in source, diffs translation catalogs across locales for missing/stale keys. Ships `scripts/detect-framework.py`, `scripts/scan-hardcoded.py`, `scripts/diff-catalogs.py`. Triggers on "audit i18n", "check translation coverage", "find hardcoded strings", "is this app translation-ready".
 - **`i18n-translate`** — drives the LLM translation pass via the `translator` subagent. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on "translate to <locale>", "fill in missing translations", "add Spanish translations".
-- **`i18n-formats`** — per-format gotchas reference. **Dispatch-only** (`disable-model-invocation: true`): its description isn't injected into context; the `i18n-audit`/`i18n-translate` skills and the `translator` agent Read it by path (`${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/SKILL.md` + `references/`). Still user-invocable via `/i18n:i18n-formats`.
 
 ## Invoking the skills
 
@@ -43,7 +42,7 @@ The skills are model-triggered and also invocable directly:
 
 ## Agent
 
-- **`translator`** (sonnet, write-capable) — does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.
+- **`translator`** (write-capable) — does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.
 
 ## How LLM and scripts split the work
 
@@ -55,7 +54,7 @@ The skills are model-triggered and also invocable directly:
 | Decide which hardcoded string is user-facing | LLM | Requires reading surrounding code |
 | Translate text into target locale | LLM (translator subagent) | The only thing only an LLM can do well |
 | Validate placeholder preservation in output | Python script | Regex/structural check, deterministic |
-| Expand plural forms to target CLDR categories | LLM + format reference | Per-locale rule + linguistic judgment |
+| Expand plural forms to target CLDR categories | LLM | Per-locale rule + linguistic judgment |
 | Write back to catalog files | LLM (preserves comments/order) | gettext metadata, ARB `@key` blocks, Android `<!-- -->` comments are easy to clobber with naive serializers |
 
 Nothing autoposts. Nothing rewrites source code without showing the diff first. Translations are written to catalog files, not committed.

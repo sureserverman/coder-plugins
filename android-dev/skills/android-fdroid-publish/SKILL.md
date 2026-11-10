@@ -102,10 +102,10 @@ Hard rules from the F-Droid docs:
 - `title.txt` is **plain text only**, no markdown, no quotes around it.
 - `short_description.txt` must NOT start with the app name and must NOT exceed 80 chars (F-Droid will truncate silently).
 - `full_description.txt` cannot reference Google Play, in-app purchases, or "leave a 5-star review" language (F-Droid policy).
-- One `<versionCode>.txt` per release — F-Droid associates a changelog by `versionCode`, not `versionName`. If you forget the changelog for a version, the app page renders blank for that release.
+- One `<versionCode>.txt` per release — F-Droid associates a changelog by `versionCode`, not `versionName`. A version without a changelog renders blank on the app page.
 - Screenshots: 320–3840 px on each side, aspect ratio between 1:2 and 2:1. PNG or JPEG.
 
-**F-Droid only re-reads metadata at the next tagged release.** If you add screenshots after `v1.0.0` is tagged, you must tag `v1.0.1` (even if the only change is metadata) for the new images to land in the catalog.
+**F-Droid only uses metadata files from the latest release** (checked 2026-11-10, https://f-droid.org/docs/All_About_Descriptions_Graphics_and_Screenshots/). Screenshots added after `v1.0.0` land only once you tag `v1.0.1`.
 
 ## Step 2: `fdroiddata` build recipe
 
@@ -166,13 +166,13 @@ The maintainers reply on the MR with required changes (usually `Categories`, lic
 4. CI builds the signed APK and uploads to the GitHub Release (matches `Binaries:` URL pattern).
 5. F-Droid's bot opens an MR against `fdroiddata` adding the new `Builds:` block. Maintainer merges, build runs, version appears.
 
-If F-Droid's reproducible-build CI fails (artifact bytes don't match yours), the cause is almost always:
+If F-Droid's reproducible build doesn't match your APK, the cause is almost always:
 
 - `keystore.properties` ordering changed.
 - AGP / Gradle / Kotlin version drifted between local and F-Droid's `srvlib`.
 - A non-deterministic build step (timestamps, random IDs in resources).
 
-In that case F-Droid falls back to building+signing with their own key — your users still get the app, but they no longer match the binary on your GitHub release. Look for `Disable: ...` comments on your Builds entry.
+With `Binaries:` + `AllowedAPKSigningKeys`, a mismatch means F-Droid skips that version, never signing it with its own key (checked 2026-11-10, https://f-droid.org/docs/Reproducible_Builds/). Look for `Disable: ...` comments on your Builds entry.
 
 ## Hard gates
 
@@ -180,7 +180,7 @@ In that case F-Droid falls back to building+signing with their own key — your 
 |---|---|
 | `License:` is a valid SPDX identifier | Wrong form silently fails the lint check |
 | `Builds:` `commit:` is a hash or annotated tag, not a branch | F-Droid pins by commit; branches mutate |
-| `AllowedAPKSigningKeys` matches the actual cert | Mismatch → F-Droid rejects your binary and rebuilds with their key |
+| `AllowedAPKSigningKeys` matches the actual cert | Mismatch → F-Droid skips that version |
 | `versionCode` strictly increases per release | F-Droid (and Android itself) reject downgrades |
 | Repo is public and clone works without auth | F-Droid's builders are unauthenticated |
 | No proprietary deps / Google Maps / Firebase / GMS | F-Droid's `AntiFeatures:` flag or rejection |
@@ -194,7 +194,7 @@ In that case F-Droid falls back to building+signing with their own key — your 
 | Tagging `1.0.0` (no `v` prefix) and writing `commit: v1.0.0` in YAML | Match the actual tag — either both `1.0.0` or both `v1.0.0` |
 | Forgetting `subdir: app` when the Gradle module isn't at repo root | Build fails with "no build.gradle found" |
 | `Builds:` with `gradle: yes` (string) | Must be a list: `gradle:\n  - yes` |
-| Adding screenshots after the last tag and expecting them to show up | F-Droid only re-reads at the next tag — bump and re-tag |
+| Adding screenshots after the last tag and expecting them to show up | F-Droid uses metadata from the latest release only — bump and re-tag |
 | Including F-Droid build keys' fingerprint in `AllowedAPKSigningKeys` | Use **your** upload cert fingerprint, not theirs |
 
 ## Reference files

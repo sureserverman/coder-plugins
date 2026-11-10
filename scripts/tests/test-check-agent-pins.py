@@ -27,6 +27,12 @@ spec.loader.exec_module(pins)
 
 FAILURES = []
 
+# Every agent the marketplace ships, as of 2026-11-10 (value-audit Stage 3).
+SHIPPED_AGENTS = [
+    "business/agents/market-researcher.md",
+    "i18n/agents/translator.md",
+]
+
 
 def check(ok, msg):
     print(f"  {'ok' if ok else 'FAIL'}: {msg}")
@@ -34,7 +40,7 @@ def check(ok, msg):
         FAILURES.append(msg)
 
 
-def agent(model="sonnet", effort="medium", fm=True):
+def agent(model="inherit", effort="medium", fm=True):
     body = "\n# Agent\n\nBody text.\n"
     if not fm:
         return body
@@ -85,8 +91,26 @@ def cases():
     p = run({"p/agents/a.md": agent(effort="high")})
     check(any("HIGH-PIN" in x for x in p), "`high` exceeds the policy ceiling too")
 
-    check(run({"p/agents/a.md": agent(model="claude-opus-4-1-20250805")}) == [],
-          "a full model id is accepted, not just the short names")
+    # The model rule: every agent inherits the session model. A tier pin is a
+    # POLICY finding (TIER-PIN), never a syntax one, unless the allow table
+    # records a reason for that agent.
+    p = run({"p/agents/a.md": agent(model="sonnet")})
+    check(any("TIER-PIN" in x for x in p) and not any("BAD-VALUE" in x for x in p),
+          "an unlisted tier pin (`sonnet`) is a TIER-PIN policy finding")
+    p = run({"p/agents/a.md": agent(model="claude-opus-4-1-20250805")})
+    check(any("TIER-PIN" in x for x in p) and not any("BAD-VALUE" in x for x in p),
+          "a full model id is a valid value but still an unlisted tier pin")
+    p = run({"p/agents/a.md": agent(model="sonet")})
+    check(any("BAD-VALUE" in x for x in p), "a typo'd model is BAD-VALUE")
+    saved = dict(pins.TIER_PIN_ALLOW)
+    try:
+        pins.TIER_PIN_ALLOW["p/agents/a.md"] = "fixture reason"
+        check(run({"p/agents/a.md": agent(model="sonnet")}) == [],
+              "a tier pin the allow table lists with a reason passes")
+    finally:
+        pins.TIER_PIN_ALLOW.clear()
+        pins.TIER_PIN_ALLOW.update(saved)
+    check(pins.TIER_PIN_ALLOW == {}, "the shipped allow table starts empty")
 
     p = run({"p/agents/a.md": agent(fm=False)})
     check(any("NO-FRONTMATTER" in x for x in p), "a file with no frontmatter is caught")
@@ -102,14 +126,13 @@ def cases():
 
 
 def real_tree():
-    check(pins.main([]) == 0, "every shipped agent is pinned within policy")
+    check(pins.main([]) == 0, "every shipped agent inherits the model and pins effort within policy")
     files = pins.agent_files(pins.REPO_ROOT)
-    # >= not ==: a correctly pinned ninth agent must not redden the suite. The
-    # floor is the shipped count: 12 until the 2026-10-15 retirement removed 4, and 8
-    # until planning's two agents left with it on 2026-10-25.
-    # check-agent-pins.py carries the policy; this only guards against the sweep
-    # silently finding nothing, which would let main() report a pass over zero.
-    check(len(files) >= 6,
+    # The live set, not a floor: a floor is satisfied by any N agents, so a retired
+    # agent and a new one kept the count whole and the sweep silent. Adding or
+    # retiring an agent is a deliberate edit here. check-agent-pins.py carries the
+    # policy; this also guards against the sweep silently finding nothing.
+    check(files == SHIPPED_AGENTS,
           f"the sweep sees the shipped agents and is not empty (saw {len(files)})")
 
 

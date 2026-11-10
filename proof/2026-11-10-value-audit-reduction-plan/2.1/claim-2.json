@@ -1,0 +1,70 @@
+{
+ "baseline": {
+  "elapsed_s": 0.1,
+  "exit": 0,
+  "tail": "case 1 \u2014 APK_DIR unset, placeholder default absent => loud failure\n  ok: unset APK_DIR errors (exit 4)\n  ok: names the bundled-plugin cause (exit 4)\ncase 1b \u2014 a positional (out-of-tree) compose dir gets the other wording\n  ok: out-of-tree wording (exit 4)\ncase 1c \u2014 exported-empty APK_DIR is diagnosed as empty, not as unset\n  ok: empty-not-unset diagnosis (exit 4)\ncase 2 \u2014 APK_DIR set but nonexistent => loud failure naming the value\n  ok: bad APK_DIR errors (exit 4)\ncase 3 \u2014 APK_DIR exists => passes, and SCREENSHOT_DIR is created\n  ok: valid APK_DIR proceeds (exit 0)\n  ok: screenshot dir created\ncase 4 \u2014 an existing screenshot dir is left alone, no spurious message\n  ok: existing dir untouched, contents preserved\ncase 5 \u2014 APK_DIR set ONLY in .env is honored (compose reads .env; so must we)\n  ok: .env-only APK_DIR accepted\ncase 6 \u2014 quoted .env value is unquoted the way compose unquotes it\n  ok: quoted .env value accepted\ncase 7 \u2014 shell env WINS over .env, matching compose precedence\n  ok: shell value took precedence over .env\ncase 8 \u2014 a COMMENTED .env line is not treated as a value\n  ok: commented .env line ignored (exit 4)\ncase 9 \u2014 unwritable SCREENSHOT_DIR exits 5, distinct from 4\n  ok: output-dir failure is exit 5 (exit 5)\ncase 11 \u2014 APK_DIR exported EMPTY counts as set, so .env is NOT consulted\n  ok: exported-empty APK_DIR ignores .env (exit 4)\ncase 10 \u2014 the defaults mirrored in up.sh match the ones in compose.yaml\n  ok: up.sh defaults mirror compose.yaml\n\nOK \u2014 14 cases: missing APK_DIR fails loudly (exit 4), screenshot dir created (exit 5 on failure),\n     env-then-.env precedence matches compose, defaults stay in sync with compose.yaml"
+ },
+ "break_patch": "diff --git a/android-dev/skills/android-release-signing/SKILL.md b/android-dev/skills/android-release-signing/SKILL.md\n--- a/android-dev/skills/android-release-signing/SKILL.md\n+++ b/android-dev/skills/android-release-signing/SKILL.md\n@@ -32,7 +32,7 @@ Set up once per app, then hand off to `android-fdroid-publish` or `android-play-\n \n | Secret | Value |\n |---|---|\n-| `KEYSTORE_BASE64` | `base64 -w0 upload.keystore` (delete the `.b64` file after pasting) |\n+| `KEYSTORE_B64` | `base64 -w0 upload.keystore` (delete the `.b64` file after pasting) |\n | `KEYSTORE_PASSWORD` | store password |\n | `KEY_ALIAS` | `upload` |\n | `KEY_PASSWORD` | key password |\n@@ -41,7 +41,7 @@ Workflow steps that consume them:\n \n ```yaml\n       - name: Decode keystore\n-        run: echo \"${{ secrets.KEYSTORE_BASE64 }}\" | base64 -d > upload.keystore\n+        run: echo \"${{ secrets.KEYSTORE_B64 }}\" | base64 -d > upload.keystore\n \n       - name: Create keystore.properties\n         run: |\n",
+ "build": null,
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
+ "index": 2,
+ "kind": "claim",
+ "named_break": "a file is over its bound or lost its marker",
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": ""
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "2.1",
+ "test": "test ! -e android-dev/skills/mock-server-from-app-sources && test ! -e android-dev/skills/android-ui-design-figma/references/android-ui-practices.md && test ! -e android-dev/skills/android-ui-design-figma/references/standard-tools-frameworks.md && for p in \"skills/android-play-publish/SKILL.md 9009 data-safety-decision-table.md\" \"skills/android-release-signing/SKILL.md 5185 KEYSTORE_BASE64\" \"skills/android-gradle-build/SKILL.md 4041 validateDebugScreenshotTest\" \"skills/android-stage-verify/SKILL.md 3237 SKIPPED\" \"skills/android-ui-design-figma/SKILL.md 6329 ui-grading-rubric.md\" \"commands/android-screenshots.md 2589 tabLabels\"; do set -- $p; [ \"$(wc -c < \"android-dev/$1\")\" -le \"$2\" ] && grep -q -- \"$3\" \"android-dev/$1\" || exit 1; done && ! git grep -nE 'mock-server-from-app-sources|android-ui-practices|standard-tools-frameworks' -- android-dev && bash android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh",
+ "text": "each of the six shrunk files is within its bound and still holds its core marker (red if a file is over its bound or lost its marker)",
+ "touched": [
+  "android-dev/skills/android-release-signing/SKILL.md"
+ ],
+ "touched_blobs": {
+  "android-dev/skills/android-release-signing/SKILL.md": "0724b89f2d690954ff7433b185f50c091b0fc564"
+ },
+ "witness_blobs": {
+  "android-dev/.claude-plugin/plugin.json": "11afd8404aeb88713bfb1f9e5027a1367864d285",
+  "android-dev/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
+  "android-dev/README.md": "6502049f73391039f04e2ac4dafdb5ed101de73a",
+  "android-dev/commands/android-screenshots.md": "9d5d2e753e8093c0809d075dfed89f88932c8ac4",
+  "android-dev/infrastructure/.gitignore": "c19a277a357690ee72236ad94a7bd09292d4f594",
+  "android-dev/infrastructure/README.md": "fd956a412d7a4b392e7869b140120c701ec43198",
+  "android-dev/infrastructure/compose.yaml": "c6fab1e655b0ee3dfbfae60819fe75bc851c652e",
+  "android-dev/infrastructure/emulator/Containerfile": "4bc2ee8198cfcc5c6bf757da6936114d50ea4642",
+  "android-dev/infrastructure/emulator/entrypoint.sh": "1339ef147704b553bf194824944a0664fc127723",
+  "android-dev/infrastructure/mcp-server/Containerfile": "b75c1a11f8b203e3cf7b8e0edee23930f8a2b3a6",
+  "android-dev/infrastructure/mcp-server/package-lock.json": "a1b5f74f45635b19305833c68a61133bd47919ba",
+  "android-dev/infrastructure/mcp-server/package.json": "7ea9974ea960add6db3187ace8b3c4e3b4d57237",
+  "android-dev/infrastructure/mcp-server/server.mjs": "35f655e499e22af53f932c5efd4828e3a03583ea",
+  "android-dev/infrastructure/mock-synapse/Containerfile": "6df1c05d243f4f8f3696077545b5d4d32a9b6205",
+  "android-dev/infrastructure/mock-synapse/README.md": "a7fca6e9ae2d320ae6fe8d473537a5a93717e8c7",
+  "android-dev/infrastructure/mock-synapse/package-lock.json": "66352f98ddebf2df30796a13e00edbbfcd642802",
+  "android-dev/infrastructure/mock-synapse/package.json": "cb60cb0a47746ed3dd81a8c73e17e8fde4742d67",
+  "android-dev/infrastructure/mock-synapse/server.mjs": "c133e6ace003485aee7a8da8cc9d8508448c78b9",
+  "android-dev/skills/android-fdroid-publish/SKILL.md": "c0d4b1e69719615e4428d71f3ce7cd43fe918bea",
+  "android-dev/skills/android-fdroid-publish/references/fastlane-layout.md": "3469cebe11db511c07c51a854aecf812ea066133",
+  "android-dev/skills/android-fdroid-publish/references/fdroiddata-template.yml": "606b1793ddfde81a85de9f6b9d108d67deb8f920",
+  "android-dev/skills/android-gradle-build/SKILL.md": "ff17f23e9581b8a665975717ce21500732d94d8c",
+  "android-dev/skills/android-mcp-orchestrator/SKILL.md": "d65f9950cccf8e0b1aed4021bae09fb763ed973d",
+  "android-dev/skills/android-mcp-orchestrator/scripts/down.sh": "0da177cb9b4a9e11dcc7ff69eb67eec82d8bf733",
+  "android-dev/skills/android-mcp-orchestrator/scripts/mcp-call.sh": "c6b3d37cef65c3dffef8f0c5541ddc1c023a2525",
+  "android-dev/skills/android-mcp-orchestrator/scripts/run.sh": "e165581dc25066bf3e8ff26696dcd3d6e69a167a",
+  "android-dev/skills/android-mcp-orchestrator/scripts/tests/test-mount-validation.sh": "b0a06b7503f9b3c2e76bec2569b5c99f5a691b5c",
+  "android-dev/skills/android-mcp-orchestrator/scripts/up.sh": "b7537dc1340da3c4c8f833de067edc017c09d578",
+  "android-dev/skills/android-play-publish/SKILL.md": "3f13e1dc751912f04bc70d1cb3ff09dbd840d8c4",
+  "android-dev/skills/android-play-publish/references/data-safety-decision-table.md": "c539aa80f737e40818ea669e16899b6c45d2ee98",
+  "android-dev/skills/android-play-publish/references/store-listing-checklist.md": "33ee6ec1f349e895411e387578b2681719e712ab",
+  "android-dev/skills/android-release-signing/SKILL.md": "0724b89f2d690954ff7433b185f50c091b0fc564",
+  "android-dev/skills/android-stage-verify/SKILL.md": "7a05262653a2bf293d1ebcb4fbf605bf8d570d0f",
+  "android-dev/skills/android-ui-design-figma/SKILL.md": "97acfb069411e06ec24fa952ba8731229360269b",
+  "android-dev/skills/android-ui-design-figma/references/adaptive-icons.md": "ebeda63cc04677ae1dd161a2e3be348aafda39a4",
+  "android-dev/skills/android-ui-design-figma/references/ui-grading-rubric.md": "b2dbda8b401ebc57070da97d4afe1f026d680e5b"
+ }
+}

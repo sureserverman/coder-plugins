@@ -29,7 +29,7 @@ bash scripts/validate.sh <project-root> [--json]
   fields, maintainer-script shebang/exec bits, `systemctl --global` and
   `${SUDO_USER:-$USER}` footguns, `Architecture: all` on a compiled package.
 - `validate-readiness.sh <project-root>` — source-repo signals for the
-  build-for-mac (Cargo.toml, mac/Makefile targets, mac/payload) and publish-images
+  build-for-mac (mac/Makefile `pkg:` target, mac/payload) and publish-images
   (Dockerfile, dispatch wiring) pipelines.
 
 The **cross-repo registration sync** (programs.txt / images.yml / workflow YAML in

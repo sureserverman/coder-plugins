@@ -1,0 +1,51 @@
+{
+ "baseline": {
+  "elapsed_s": 0.0,
+  "exit": 0,
+  "tail": ""
+ },
+ "break_patch": "diff --git a/i18n/README.md b/i18n/README.md\n--- a/i18n/README.md\n+++ b/i18n/README.md\n@@ -1,15 +1,15 @@\n-# i18n\n+# (see i18n-formats) i18n\n \n Internationalization plugin for any project that has user-facing strings. Splits the work between deterministic scripts (framework detection, hardcoded-string scanning, catalog diffing, placeholder validation) and the LLM (translation quality, judgment on what's actually user-facing).\n \n-## Install\n+## (see i18n-formats) Install\n \n ```\n /plugin marketplace add sureserverman/coder-plugins\n /plugin install i18n@coder-plugins\n ```\n \n-## What it covers\n+## (see i18n-formats) What it covers\n \n The audit + translate skills know these catalog formats:\n \n@@ -28,23 +28,23 @@ The audit + translate skills know these catalog formats:\n | .NET | `.resx` | XML resource format, ResourceManager, satellite assemblies |\n | Java | `.properties` (ISO-8859-1 historically, UTF-8 in Java 9+) | `MessageFormat` placeholders `{0}` |\n \n-## Skills\n+## (see i18n-formats) Skills\n \n - **`i18n-audit`** \u2014 detects the framework, finds hardcoded strings still in source, diffs translation catalogs across locales for missing/stale keys. Ships `scripts/detect-framework.py`, `scripts/scan-hardcoded.py`, `scripts/diff-catalogs.py`. Triggers on \"audit i18n\", \"check translation coverage\", \"find hardcoded strings\", \"is this app translation-ready\".\n - **`i18n-translate`** \u2014 drives the LLM translation pass via the `translator` subagent. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on \"translate to <locale>\", \"fill in missing translations\", \"add Spanish translations\".\n \n-## Invoking the skills\n+## (see i18n-formats) Invoking the skills\n \n The skills are model-triggered and also invocable directly:\n \n - `/i18n:i18n-audit` \u2014 run the audit pipeline (framework detection \u2192 hardcoded scan \u2192 catalog gaps).\n - `/i18n:i18n-translate` \u2014 fill missing keys across configured locales, or scaffold a new locale, via the `translator` subagent. (Argument scoping and new-locale scaffolding \u2014 the `--include-stale` and `--copy-only` flows and the per-framework catalog paths \u2014 are documented in the skill.)\n \n-## Agent\n+## (see i18n-formats) Agent\n \n - **`translator`** (write-capable) \u2014 does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.\n \n-## How LLM and scripts split the work\n+## (see i18n-formats) How LLM and scripts split the work\n \n | Step | Who does it | Why |\n |---|---|---|\n@@ -59,7 +59,7 @@ The skills are model-triggered and also invocable directly:\n \n Nothing autoposts. Nothing rewrites source code without showing the diff first. Translations are written to catalog files, not committed.\n \n-## Determinism boundary\n+## (see i18n-formats) Determinism boundary\n \n Mechanical checks live in a deterministic bash lane (`scripts/`, vendored from the\n plugin-dev determinism kit); judgment stays with the skills, which run the lane and consume\n@@ -75,7 +75,7 @@ Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` \u2014 it dis\n `validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are\n documented in [`scripts/README.md`](scripts/README.md).\n \n-## Artifacts\n+## (see i18n-formats) Artifacts\n \n Everything lands in **your project's existing catalog paths** \u2014 this plugin introduces no files of its own and writes nothing to the vault:\n \n@@ -87,11 +87,11 @@ Everything lands in **your project's existing catalog paths** \u2014 this plugin in\n \n Catalog files are written **preserving comments and key order**, because gettext metadata, ARB `@key` blocks, and Android `<!-- -->` comments are all easy to clobber with a naive serializer.\n \n-### Prerequisites\n+### (see i18n-formats) Prerequisites\n \n An existing i18n setup. These skills work *within* your framework's conventions \u2014 `i18n-audit` detects the framework from its signature files, and if a project has no catalogs at all, the audit tells you that rather than inventing a layout.\n \n-## Worked example\n+## (see i18n-formats) Worked example\n \n ```text\n /plugin install i18n@coder-plugins\n@@ -107,7 +107,7 @@ An existing i18n setup. These skills work *within* your framework's conventions\n \n `i18n-translate` extracts the missing keys, dispatches the `translator` agent with the source excerpt and style guide, and validates the result with `validate-placeholders.py` before writing back \u2014 so a translation that dropped a `{count}` placeholder or lost a CLDR plural category fails validation instead of silently shipping.\n \n-## Related plugins\n+## (see i18n-formats) Related plugins\n \n - **`planning`** \u2014 `project-maturity`'s i18n axis records the durable translation-readiness verdict; `dispatching-parallel-agents` routes catalog translation to `i18n:translator`.\n - **`android-dev`** \u2014 string externalization is a UI concern; pair an audit with `android-ui-design-figma` when retrofitting i18n into Android screens.\n",
+ "build": null,
+ "created": "2026-11-10T22:37:49+00:00",
+ "fingerprint": "6afbdcdf45b5d4eeafb68a597dfbba757d8bc19aa0eadb20b07b8915335d5ae1",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "prose edits and deletions; no build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-10-value-audit-reduction-plan.md",
+ "red": {
+  "elapsed_s": 0.0,
+  "exit": 1,
+  "tail": "i18n/README.md:1:# (see i18n-formats) i18n\ni18n/README.md:5:## (see i18n-formats) Install\ni18n/README.md:12:## (see i18n-formats) What it covers\ni18n/README.md:31:## (see i18n-formats) Skills\ni18n/README.md:36:## (see i18n-formats) Invoking the skills\ni18n/README.md:43:## (see i18n-formats) Agent\ni18n/README.md:47:## (see i18n-formats) How LLM and scripts split the work\ni18n/README.md:62:## (see i18n-formats) Determinism boundary\ni18n/README.md:78:## (see i18n-formats) Artifacts\ni18n/README.md:90:### (see i18n-formats) Prerequisites\ni18n/README.md:94:## (see i18n-formats) Worked example\ni18n/README.md:110:## (see i18n-formats) Related plugins"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "2.3",
+ "test": "test ! -e i18n/skills/i18n-formats && ! git grep -n 'i18n-formats' -- i18n && [ \"$(wc -c < i18n/skills/i18n-translate/SKILL.md)\" -le 4589 ] && grep -q 'knownRegions' i18n/skills/i18n-translate/SKILL.md && grep -q 'Renaming placeholders' i18n/skills/i18n-translate/SKILL.md && [ \"$(wc -c < i18n/agents/translator.md)\" -le 7379 ] && grep -q 'translation memory' i18n/agents/translator.md && grep -q 'validate-placeholders' i18n/agents/translator.md && ! grep -q '_plural' i18n/agents/translator.md && test -z \"$(python3 scripts/check-agent-references.py | grep 'i18n/agents/translator.md')\"",
+ "text": "the formats skill and its references are gone and unnamed in the plugin",
+ "touched": [
+  "i18n/README.md"
+ ],
+ "touched_blobs": {
+  "i18n/README.md": "a221902be1775efee4ee53e1e9bf30b0915fcc46"
+ },
+ "witness_blobs": {
+  "i18n/.claude-plugin/plugin.json": "6900599ce968fa9c31b6f022db3adbd150ab8b56",
+  "i18n/LICENSE": "82e5c1d76f92a46edb0b2c4ddf8c36e4a77175a5",
+  "i18n/README.md": "a221902be1775efee4ee53e1e9bf30b0915fcc46",
+  "i18n/agents/translator.md": "d6e4f042f5618a70eb05d3a87cdb9744760f2453",
+  "i18n/scripts/README.md": "934e07a8fbf4e208c497487fd1c00bbc29bd31c1",
+  "i18n/scripts/lib/findings.sh": "76505c770375bef10ba935028b8fd2c5ebc06cad",
+  "i18n/scripts/validate-catalog-diff.sh": "db2b1ce5f12c28576c48556a6fb4f4732a2cc7a0",
+  "i18n/scripts/validate-placeholders.sh": "e076253de76536a12f557b4100d752b51544cc69",
+  "i18n/scripts/validate.sh": "12fbbc3bf7a73a35097c873f4fd53c9755cba5a2",
+  "i18n/skills/i18n-audit/SKILL.md": "a4f763ca26ae2259f019c276c1bc857275c0fd4b",
+  "i18n/skills/i18n-audit/scripts/detect-framework.py": "a6ddb651877dee5fbd62786a3423e0817ca0d582",
+  "i18n/skills/i18n-audit/scripts/diff-catalogs.py": "26f6f06f7964001221eb8ee69d2c8d0a592b3e48",
+  "i18n/skills/i18n-audit/scripts/scan-hardcoded.py": "733fb037e5b81fb1788e83083266b7c90ef896a3",
+  "i18n/skills/i18n-translate/SKILL.md": "41ceda957d7abd909794f5577d3fa97c03850c79",
+  "i18n/skills/i18n-translate/scripts/extract-missing.py": "50b30f4d359231fe284f004339ad8ea6579b8351",
+  "i18n/skills/i18n-translate/scripts/validate-placeholders.py": "9ab0ae737bf1cf707255e78478e9eace7e8e19d3",
+  "scripts/check-agent-references.py": "e45842eb7b599fda4fbedd31502d7693058a7c99"
+ }
+}

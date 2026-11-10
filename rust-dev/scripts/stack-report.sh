@@ -2,7 +2,7 @@
 # stack-report.sh <rust-project-root> [--json]
 #
 # Deterministic Stack Report for a Rust project — the mechanical 90% of
-# rust-expert's Protocol 1 (stack detection). Reads, decides, reports; never
+# stack detection. Reads, decides, reports; never
 # edits. Deliberately NOT named validate-*.sh: it produces facts, not findings,
 # so the validate.sh orchestrator does not include it in verdicts.
 #
