@@ -14,7 +14,7 @@ When invoked, identify the extension root directory (the directory containing `m
 **Preferred — run the bundled script first:**
 
 ```bash
-skills/amo-compliance-check/scripts/amo-check.py <extension-dir>
+${CLAUDE_PLUGIN_ROOT}/skills/amo-compliance-check/scripts/amo-check.py <extension-dir>
 ```
 
 It runs sections 1–8 and 10 automatically: manifest parse + required/conditional field validation (regex for version and gecko.id), icon-file existence + SVG attribute check, hidden/binary/case-duplicate scan, referenced-file existence, permission validation against the AMO-allowed set, remote-script and `eval`/`new Function`/string-timer detection, CSP `unsafe-eval` check, cryptominer references, and HTTP (non-HTTPS) URL scan. Output is per-finding lines plus the summary table. Exit 1 if any FAIL was found.

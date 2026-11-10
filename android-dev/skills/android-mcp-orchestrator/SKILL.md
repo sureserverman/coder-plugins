@@ -9,7 +9,7 @@ Owns the **ephemeral** lifecycle of the Android MCP multi-container stack: the s
 
 ## Lifecycle rule
 
-The Android emulator stack must be **off** between tasks. There is no always-on MCP registration: this skill is the lifecycle owner. Every `up.sh` must be paired with a `down.sh`, and the canonical entrypoint is `scripts/run.sh`, which trap-guarantees teardown.
+The Android emulator stack must be **off** between tasks. There is no always-on MCP registration: this skill is the lifecycle owner. Every `up.sh` must be paired with a `down.sh`, and the canonical entrypoint is `run.sh`, which trap-guarantees teardown.
 
 If you are tempted to call `up.sh` without arranging teardown, use `run.sh` instead.
 
@@ -20,13 +20,13 @@ If you are tempted to call `up.sh` without arranging teardown, use `run.sh` inst
 - **1 optional mock-synapse container** (behind `mock` profile): for testing Matrix Synapse Manager.
 - **Static IPs** on a custom bridge network (10.89.0.0/24).
 
-The "MCP server" is **not** registered with Claude Code as an MCP. It is a private JSON-RPC backend the skill talks to over loopback via `scripts/mcp-call.sh`. There is no `.mcp.json` for this stack.
+The "MCP server" is **not** registered with Claude Code as an MCP. It is a private JSON-RPC backend the skill talks to over loopback via `mcp-call.sh`. There is no `.mcp.json` for this stack.
 
 ## Auth
 
-`scripts/up.sh` generates `infrastructure/.env` with a random `MCP_AUTH_TOKEN` on first run (mode 600, gitignored). `mcp-call.sh` reads it and sends the bearer header. Operators do not need to manage the token by hand.
+`up.sh` generates `infrastructure/.env` with a random `MCP_AUTH_TOKEN` on first run (mode 600, gitignored). `mcp-call.sh` reads it and sends the bearer header. Operators do not need to manage the token by hand.
 
-## Canonical flow — `scripts/run.sh`
+## Canonical flow — `run.sh`
 
 `run.sh` is the one-shot wrapper: brings the stack up, executes a sequence of JSON-RPC calls from stdin, then **always** tears the stack down via an `EXIT` trap.
 
@@ -46,7 +46,7 @@ project.
 # Any Android app (no mock-synapse):
 APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
 SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
-skills/android-mcp-orchestrator/scripts/run.sh <<'EOF'
+${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/run.sh <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
 tools/call launch-app {"packageName":"com.example.app.debug"}
@@ -56,7 +56,7 @@ EOF
 # Matrix Synapse Manager (needs mock-synapse):
 APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
 SCREENSHOT_DIR=/abs/path/to/project/play-screenshots \
-skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
+${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/run.sh --mock <<'EOF'
 tools/call start-android-tablet-emulators {}
 tools/call install-app-on-emulators {"apkPath":"/apks/app-debug.apk"}
 tools/call matrix-synapse-login {}
@@ -64,17 +64,17 @@ tools/call capture-emulator-screenshots {"loginFlow":"matrix-synapse","navItemCo
 EOF
 ```
 
-After `run.sh` exits — for any reason — there must be no `infrastructure_*` containers running. If you spot some, run `scripts/down.sh [--mock]` to clean them up.
+After `run.sh` exits — for any reason — there must be no `infrastructure_*` containers running. If you spot some, run `${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/down.sh [--mock]` to clean them up.
 
 ## When to split `up.sh` + `mcp-call.sh` + `down.sh`
 
 Use the paired form **only** when you need to call the MCP from multiple separate shell invocations (e.g., interactive iteration during development). You are then responsible for the matching `down.sh`. Wrap it in your own trap if at all possible:
 
 ```bash
-trap 'skills/android-mcp-orchestrator/scripts/down.sh --mock' EXIT
+trap '${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/down.sh --mock' EXIT
 APK_DIR=/abs/path/to/project/app/build/outputs/apk/debug \
-  skills/android-mcp-orchestrator/scripts/up.sh --mock
-skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
+  ${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/up.sh --mock
+${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
 # ... more calls ...
 ```
 
@@ -92,7 +92,7 @@ skills/android-mcp-orchestrator/scripts/mcp-call.sh tools/list
 
 ## Path resolution
 
-- `scripts/run.sh` / `up.sh` / `down.sh` / `mcp-call.sh` resolve the bundled `infrastructure/` directory relative to their own location. No manual path math needed.
+- `run.sh` / `up.sh` / `down.sh` / `mcp-call.sh` resolve the bundled `infrastructure/` directory relative to their own location. No manual path math needed.
 - For an out-of-tree compose stack, pass its directory as the trailing positional arg to `up.sh` / `down.sh`.
 
 ## Checklist

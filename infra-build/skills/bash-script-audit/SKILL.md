@@ -14,7 +14,7 @@ When invoked, identify the target script. If the user specifies a file, use it. 
 **Preferred — run the bundled script first:**
 
 ```bash
-skills/bash-script-audit/scripts/audit.sh <script-path>
+${CLAUDE_PLUGIN_ROOT}/skills/bash-script-audit/scripts/audit.sh <script-path>
 ```
 
 It covers: shebang count + validity + malformed-shebang detection, `bash -n` parse check, tilde-in-double-quotes, possible-missing-sudo on `&&` pipelines, `apt install` without `-y`, URL extraction + `curl -sI -L` for clearnet URLs, Tor SOCKS (`socks5h://127.0.0.1:9050`) check for `.onion` URLs with torsocks fallback (skipped with INFO if Tor isn't running), and GitHub `releases/latest` redirect-scrape for version currency. Exit 1 if any ERROR was found.

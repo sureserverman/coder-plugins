@@ -26,7 +26,7 @@ It covers: YAML parse via `yaml.safe_load`, required `on:`/`runs-on:`/`uses:` st
 **Determinism boundary.** The mechanical workflow checks are also exposed on
 git-github's shared finding contract via
 `${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <repo-root> --json` (it discovers
-`scripts/validate-workflows.sh`, a thin wrapper over the same
+`${CLAUDE_PLUGIN_ROOT}/scripts/validate-workflows.sh`, a thin wrapper over the same
 `audit-workflows.py`). Prefer that when an agent or command needs structured,
 mergeable findings (stable `gha-*` rule-ids). Cross-workflow parity and
 reusable-workflow input/secret judgment stay here in the LLM lane below.

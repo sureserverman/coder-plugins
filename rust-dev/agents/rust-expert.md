@@ -60,9 +60,9 @@ rules by hand. Your lane is judgment: confirming candidates, design, rewriting.
 
 | Lane | Who | What |
 |---|---|---|
-| **Deterministic** | `scripts/stack-report.sh` | edition, MSRV, toolchain pin, workspace shape, runtime/framework detection, test layout, risk-surface counts, lockfile, CI cargo invocations |
-| **Deterministic** | `scripts/validate-cargo.sh` | manifest parse, edition enum, edition↔MSRV consistency, wildcard deps, workspace members on disk, lockfile, toolchain channel |
-| **Deterministic** | `scripts/validate-safety.sh` | regex *candidates* for house rules 1–5, 12: `unsafe` without `// SAFETY:`, `.unwrap()` outside main/tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub API, `Deserialize` without `deny_unknown_fields` |
+| **Deterministic** | `${CLAUDE_PLUGIN_ROOT}/scripts/stack-report.sh` | edition, MSRV, toolchain pin, workspace shape, runtime/framework detection, test layout, risk-surface counts, lockfile, CI cargo invocations |
+| **Deterministic** | `${CLAUDE_PLUGIN_ROOT}/scripts/validate-cargo.sh` | manifest parse, edition enum, edition↔MSRV consistency, wildcard deps, workspace members on disk, lockfile, toolchain channel |
+| **Deterministic** | `${CLAUDE_PLUGIN_ROOT}/scripts/validate-safety.sh` | regex *candidates* for house rules 1–5, 12: `unsafe` without `// SAFETY:`, `.unwrap()` outside main/tests, unbounded channels, std-sync-lock-in-async, `Box<dyn Error>` in pub API, `Deserialize` without `deny_unknown_fields` |
 | **Judgment (yours)** | you | is the candidate real, API design, error-type shape, soundness analysis, severity, the fix itself |
 
 Script location: `${CLAUDE_PLUGIN_ROOT}/scripts/`. **The reference-resolution contract
