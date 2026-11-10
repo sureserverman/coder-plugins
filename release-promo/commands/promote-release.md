@@ -1,7 +1,7 @@
 ---
 description: Survey the current repo, pick eligible promotion channels (Reddit, TWIM, HN Show HN, Lobsters, Fediverse), and draft one post per channel for review. Does not post anywhere.
 argument-hint: "[version-or-hint] (optional)"
-allowed-tools: ["Read", "Glob", "Grep", "Agent", "Bash(git:*)", "Bash(ls:*)", "Bash(jq:*)", "Bash(find:*)", "Bash(test:*)"]
+allowed-tools: ["Read", "Glob", "Grep", "Bash(git:*)", "Bash(ls:*)", "Bash(jq:*)", "Bash(find:*)", "Bash(test:*)"]
 model: inherit
 ---
 
@@ -56,35 +56,19 @@ Apply these rules to build the channel set:
 
 Show the user the chosen channel list as a single bullet block before drafting. Let them remove channels.
 
-## Phase 3 — Draft one post per channel (parallel fan-out)
+## Phase 3 — Draft one post per channel
 
-Dispatch the **`post-drafter`** subagent (haiku-pinned, read-only) once per chosen channel. **All dispatches in a single message so they run in parallel** — that's the whole point of the haiku worker.
+Draft inline, in this session. For each chosen channel, Read that channel's SKILL.md, then draft the post in the output block it prescribes:
 
-Pass each invocation:
-
-- `channel` — one of `reddit:<sub>`, `twim`, `showhn`, `lobsters`, `fediverse`.
-- `skill_path` — the explicit channel SKILL.md path, `${CLAUDE_PLUGIN_ROOT}/skills/<skill>/SKILL.md`
-  (`reddit-promo`, `twim-submission`, `hackernews-show-hn`, `lobsters-post`, `fediverse-post`).
-  The channel skills are `disable-model-invocation: true` — they are **read from disk**, never
-  invoked as skills, so the drafter needs the path handed to it.
-- `facts` — the survey output as a structured block: `name`, `version`, `summary`, `whats_new` (bullet list), `license`, `stack`, `links` (repo, demo, docs, release notes), `project_type`, `audience_hint`.
-- `hint` *(optional)* — anything from `$ARGUMENTS` that biases tone or focus.
-
-The subagent Reads the SKILL.md at `skill_path`, applies its emit-block format, and returns one markdown section. It will return `SKIP: <reason>` if the skill's refusal rules apply (e.g. Show HN for vapor, r/Android for a dev-only library).
-
-Channel → invocation mapping:
-
-| Chosen channel | post-drafter input |
+| Channel | Read |
 |---|---|
-| r/matrixprotocol | `channel: reddit:matrixprotocol` |
-| r/matrixdotorg | `channel: reddit:matrixdotorg` |
-| r/selfhosted, r/programming, r/rust, r/AndroidDev, etc. | `channel: reddit:<sub>` |
-| TWIM | `channel: twim` |
-| Show HN | `channel: showhn` |
-| Lobsters | `channel: lobsters` |
-| Fediverse | `channel: fediverse` |
+| r/<sub> | `${CLAUDE_PLUGIN_ROOT}/skills/reddit-promo/SKILL.md`, plus the reference it names for that sub |
+| TWIM | `${CLAUDE_PLUGIN_ROOT}/skills/twim-submission/SKILL.md` |
+| Show HN | `${CLAUDE_PLUGIN_ROOT}/skills/hackernews-show-hn/SKILL.md` |
+| Lobsters | `${CLAUDE_PLUGIN_ROOT}/skills/lobsters-post/SKILL.md` |
+| Fediverse | `${CLAUDE_PLUGIN_ROOT}/skills/fediverse-post/SKILL.md` |
 
-**Do not** invoke the skills directly from the orchestrator and do not draft from the orchestrator's own context. The fan-out is the design.
+The channel skills are `disable-model-invocation: true`: read them from disk, never invoke them. When a skill's skip rule applies (Show HN for vapor, Lobsters without prior participation, r/Android for a dev-only library), write `SKIP: <reason>` for that channel instead of a draft. Use only surveyed facts; leave `<TODO: …>` where one is missing.
 
 ## Phase 4 — Emit a single bundle
 
@@ -94,7 +78,7 @@ Emit a final block:
 
 ```
 DO NOT AUTOPOST.
-Each draft is a starting point — read your sub's rules sidebar / TWIM editor's pinned message before submitting.
+Each draft is a starting point — read your sub's rules sidebar before submitting, and submit TWIM the way the TWIM draft says.
 ```
 
 ## Refusals and edge cases

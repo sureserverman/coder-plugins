@@ -13,9 +13,6 @@
     "./skills/lobsters-post",
     "./skills/fediverse-post"
   ],
-  "agents": [
-    "./agents/post-drafter.md"
-  ],
   "commands": [
     "./commands/promote-release.md"
   ],

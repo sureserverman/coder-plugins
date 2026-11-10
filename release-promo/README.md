@@ -12,18 +12,12 @@ Drafts release-announcement posts for the platforms a project actually belongs o
 | `lobsters-post` | Lobsters | You have an invite and a focused, technically substantive announcement. |
 | `fediverse-post` | Mastodon / Fediverse | You want a 500-char toot with hashtags and CW where appropriate. |
 
-### All five channel skills are dispatch-only
+### All five channel skills are read by the command
 
 Every skill in that table carries `disable-model-invocation: true`. Two consequences:
 
 - **They never fire on their own**, and their descriptions are not injected into session context — they cost nothing when you are not releasing.
-- **They are reached through `/promote-release`**, which dispatches one `post-drafter` invocation per eligible channel. You *can* still invoke one directly as `/release-promo:reddit-promo`, but nothing will route to it automatically, so if you are waiting for a channel skill to trigger from conversation, it will not.
-
-## Agent
-
-### `post-drafter`
-
-Drafts one channel's post from the survey the orchestrator ran. **Pinned to `haiku`** — this is bounded, format-following work over facts already gathered, so it runs ~10× cheaper and keeps repo survey output out of the orchestrator's context. Fanned out one invocation per channel, in parallel.
+- **They are reached through `/promote-release`**, which reads each eligible channel's SKILL.md and drafts its post. You *can* still invoke one directly as `/release-promo:reddit-promo`, but nothing will route to it automatically, so if you are waiting for a channel skill to trigger from conversation, it will not.
 
 ## Artifacts
 
@@ -35,7 +29,7 @@ Drafts one channel's post from the survey the orchestrator ran. **Pinned to `hai
 /promote-release
 ```
 
-Surveys the current repo (README, latest CHANGELOG entry, recent commits, language/framework signals, Matrix detection), picks eligible channels, then **fans out drafting in parallel to the haiku-pinned `post-drafter` subagent — one invocation per channel**. Each draft reads the matching SKILL.md and returns one markdown block. The orchestrator concatenates them into a single bundle for review. Does not post.
+Surveys the current repo (README, latest CHANGELOG entry, recent commits, language/framework signals, Matrix detection), picks eligible channels, then drafts one post per channel in the session, reading the matching SKILL.md for each. The drafts come back as a single bundle for review. Does not post.
 
 You can also pass a hint:
 
