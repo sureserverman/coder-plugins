@@ -4,6 +4,18 @@ All notable changes to the `business` plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-11-10
+
+### Changed
+- Every skill drops its "announce at start" line; the market-researcher agent runs on
+  the session's model (`model: inherit`) instead of a fixed tier.
+- `revenue-model` keeps only what the model cannot supply: the determinism boundary, the
+  assess precondition, the `{metric, target, by}` target shape with the rules the
+  scanner enforces, the write-and-verify contract, business groups and the owner facts
+  (F-Droid forbids paid apps; which metrics `track` collects). The model-type tutorial
+  and generic pricing advice are gone.
+- The README's git-github note points at `repo-health` only.
+
 ## [0.8.2] - 2026-10-25
 
 ### Changed

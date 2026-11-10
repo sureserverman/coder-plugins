@@ -1,6 +1,6 @@
 {
   "name": "rust-dev",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Rust authoring: a rust-coding skill with the owner's house rules and incident gotchas, plus a deterministic bash lane (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner).",
   "author": {
     "name": "agents repo",
