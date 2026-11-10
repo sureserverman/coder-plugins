@@ -5,140 +5,27 @@ description: Use when the user asks to change, design, or restyle Android UI —
 
 # Android UI Design and Figma Workflow
 
-End-to-end workflow: **standard-first implementation → analyze app → design (spec + Figma when needed) → feedback → amend → apply to app → verify visually (screenshot-grade loop).**
+For a larger change, agree a design spec with concrete values (dp, sp, colors) with the user before coding. With a Figma URL, use the Figma MCP (`get_design_context`, `get_screenshot`). Build and test through the android-gradle-build skill.
 
-## Core principle: Standard first, DIY only when necessary
+## Visual verification loop (screenshot → grade → iterate)
 
-Before implementing any design, UI, UX, or layout change:
+A green build is not a verified design. For any visible change, after build and tests pass:
 
-1. **Check for a standard solution**: Prefer official or widely adopted APIs, components, and patterns. See [references/android-ui-practices.md](references/android-ui-practices.md) and [references/standard-tools-frameworks.md](references/standard-tools-frameworks.md).
-2. **Use the standard way**: If a standard component, API, or framework exists and fits the need (Material 3, Compose Material, AndroidX, platform APIs), use it. Do not reimplement what the platform or library already provides.
-3. **DIY only when no standard fits**: Build custom views, composables, or layouts only when there is no suitable standard (or the requirement explicitly demands a one-off design). Document why the custom approach was chosen.
+1. **Capture**: build the debug APK, then capture every changed screen on the emulator stack through the android-mcp-orchestrator skill (`${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/run.sh`; every up is paired with a down). Typical sequence: `start-android-tablet-emulators` → `install-app-on-emulators` → `capture-emulator-screenshots`.
+2. **Grade**: score the captures against the approved spec with [references/ui-grading-rubric.md](references/ui-grading-rubric.md). Its weighted dimensions, pass threshold and fix-list format are defined there.
+3. **Iterate**: below threshold, apply the smallest fix for the lowest-scoring dimension, rebuild, re-capture, re-grade. Max 3 iterations; then present to the user with the scores and the remaining fix list.
+4. **Present**: only a passing (or escalated) result goes to the user, with screenshots and per-dimension scores.
 
-Apply this at every step: theming, components, layout, navigation, motion, accessibility.
+**The grader never sees the implementation transcript.** The session that wrote the code grades its own work too generously. The grader gets only the approved spec, the rubric and the screenshot paths. In Claude Code, dispatch a separate subagent (e.g. `general-purpose`) with just those three, never the diff or this session's transcript; apply its fix list here and re-dispatch to re-grade. Hosts without the Agent tool run the grading themselves from those three inputs only.
 
-## Prerequisites
-
-- Android project in the workspace (Gradle, Compose or Views).
-- For Figma: Figma MCP server connected. User can create frames in Figma from the spec and share a file URL, or use the remote Figma MCP `generate_figma_design` only for web/captured UI (not for Android screens).
-- When applying code: follow the android-gradle-build skill for build and test steps (Gradle, tests, security gates).
-
-## Phase 1: Analyze the App (scale with scope)
-
-- **Small change** (one component, one screen, one layout tweak): Locate the relevant file(s), note current theme and stack (Compose vs Views), and check [references/standard-tools-frameworks.md](references/standard-tools-frameworks.md) for a standard way to implement the change.
-- **Larger change** (multi-screen, theme overhaul, full redesign):
-  1. Locate the Android app (module, `AndroidManifest.xml`, entry points).
-  2. Map screens and navigation (activities, fragments, Compose destinations).
-  3. Inventory UI (screens, dialogs, reusable components).
-  4. Capture current design (theme, colors, typography, `themes.xml` / `Color.kt` / Compose theme).
-  5. Summarize in a short "Current UI summary" so the design phase is grounded in the real app.
-
-## Phase 2: Apply Best Practices and Create Design
-
-- **Small change** (single component, one layout, one style): Use [references/android-ui-practices.md](references/android-ui-practices.md) and [references/standard-tools-frameworks.md](references/standard-tools-frameworks.md) to pick the standard component or API, then implement. Skip full design spec unless the user asks for one or for Figma.
-- **Larger change** (multi-screen, theme, or full redesign):
-1. **Use references**: Read both reference files. Prefer solving the request with standard tools; only specify custom work where necessary.
-2. **Design direction**: Choose a clear direction (e.g. Material 3 expressive, minimal, brand-led) and list concrete changes: color palette, type scale, spacing, component style, motion. Where possible, name the standard component or API (e.g. `TopAppBar`, `NavigationBar`, `ModalBottomSheet`).
-3. **Produce design deliverable**:
-   - **Design spec**: Structured markdown (or doc) with sections per screen or flow: layout, components, colors, typography, spacing, key interactions. Include exact values (dp, sp, hex/code colors) so implementation is unambiguous.
-   - **Optional Figma**: If the user wants Figma:
-     - Provide the spec and, if helpful, reference mockup images (e.g. generated from descriptions) so the user can create or duplicate frames in Figma.
-     - If the user later shares a Figma file URL and node IDs, use Figma MCP `get_design_context` and `get_screenshot` to implement or refine the app (see Phase 4). Request "Android" or "Compose" output if the MCP supports it; otherwise translate the returned design context into Compose/Views.
-   - **Optional reference images**: For key screens, generating reference images from the spec can help the user or designer recreate the UI in Figma.
-4. **Present**: Share the design spec (and any images or Figma instructions) and ask for feedback.
-
-## Phase 3: Feedback and Amendments
-
-1. **Collect feedback**: Ask the user to review the design (in Figma if used, or the spec and images) and list what to change (e.g. "softer colors", "more spacing on the home screen", "different FAB style").
-2. **Amend**:
-   - Update the design spec with the requested changes (concrete values, not vague wording).
-   - If the user edits Figma, they can share updated node IDs or a new URL; then use `get_design_context` / `get_screenshot` again to align the spec or the next implementation step.
-3. **Confirm**: Repeat until the user approves the design (spec and/or Figma).
-
-## Phase 4: Apply Design to the App
-
-1. **Source of truth**: Prefer the approved design spec. If the user provides a Figma URL and node ID, use that as the visual reference and fetch `get_design_context` and `get_screenshot` for the relevant frames.
-2. **Implementation (standard-first)**:
-   - **Before writing custom UI**: For each element (button, card, nav, sheet, theme, etc.), check [references/standard-tools-frameworks.md](references/standard-tools-frameworks.md). Use the standard component or API if it exists and fits; implement custom only when it does not.
-   - **Theming**: Use platform/theme APIs: `themes.xml`, `Theme.kt`, `Color.kt`, `Type.kt`, Compose `MaterialTheme` (colorScheme, typography, shapes). Match the spec with theme tokens, not one-off hardcoded values.
-   - **Screens and components**: Prefer Material 3 / Compose Material / AndroidX components; extend or customize via parameters and theme. Create new composables or views only when no standard fits.
-   - **Consistency**: Apply the same spacing scale, type scale, and color usage across the app using the chosen standard system.
-3. **Figma-to-code (when Figma URL is provided)**: Use the implement-design workflow adapted for Android: call `get_design_context(fileKey, nodeId)` and optionally `get_variable_defs` for tokens. Map Figma elements to standard Android/Compose components where possible; translate only the rest. Use `get_screenshot` to validate visually.
-4. **Verify (build + tests)**: Run `./gradlew :app:compileDebugKotlin` (or equivalent) and fix any build issues. Run relevant UI or instrumented tests. Do not mark the task complete with failing tests.
-5. **Verify (visual, against the spec)**: A compile proves nothing about whether the rendered UI matches the approved spec — stubs and broken layouts build fine. After build and tests pass, run the screenshot-evaluation loop below before presenting the result.
-
-## Phase 5: Visual verification loop (screenshot → grade → iterate)
-
-Generation and evaluation are separated on purpose: the session that wrote the
-code grades its own work too generously. The evaluator sees only the approved
-spec, the rubric, and the captured screenshots — never the implementation
-transcript.
-
-1. **Capture**: Build the debug APK, then bring up the emulator stack and
-   capture screenshots of every changed screen following the
-   orchestrator skill (`${CLAUDE_PLUGIN_ROOT}/skills/android-mcp-orchestrator/scripts/run.sh` is its
-   entrypoint; honor its lifecycle rules — every up is paired with a down).
-   Typical tool sequence: `start-android-tablet-emulators` →
-   `install-app-on-emulators` → `capture-emulator-screenshots`.
-2. **Grade**: Evaluate the captures against the approved design spec using
-   [references/ui-grading-rubric.md](references/ui-grading-rubric.md) — four
-   weighted dimensions, pass threshold, and fix-list format are defined there.
-3. **Iterate**: On a below-threshold verdict, apply the fix list (smallest
-   change that addresses the lowest-scoring dimension), rebuild, re-capture,
-   re-grade. Max 3 iterations; if still below threshold, present to the user
-   with the scores and remaining fix list instead of looping.
-4. **Present**: Only a passing (or escalated) result goes to the user, with
-   the screenshots and per-dimension scores attached.
-
-Skip this phase only when the change cannot be visible in a screenshot (e.g. a
-pure refactor with no rendered difference) or no emulator stack is available —
-say so explicitly rather than silently skipping.
+Skip the loop only when the change cannot show in a screenshot or no emulator stack is available, and say so.
 
 ## Launcher icon (adaptive — mandatory)
 
-Every app shipped from this plugin must have an adaptive launcher icon
-(foreground + background + monochrome layers, `mipmap-anydpi-v26/ic_launcher.xml`,
-legacy PNG fallbacks at all five densities). Themed icons on Android 13+ and
-OEM mask shapes both depend on this structure — a legacy single-PNG icon is
-not acceptable.
+Every app shipped from this plugin must have an adaptive launcher icon:
 
-When the user asks to add/change the app icon, or before publishing (F-Droid,
-Play), follow the spec, scaffold, and verification recipe in
-[references/adaptive-icons.md](references/adaptive-icons.md). Generate via
-Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons
-(Adaptive and Legacy)*) — there is no first-party CLI.
+- foreground + background + monochrome layers;
+- both `ic_launcher.xml` and `ic_launcher_round.xml` in `mipmap-anydpi-v26/`;
+- legacy PNG fallbacks at all five densities.
 
-## Rules
-
-- **Standard first, DIY only when necessary**: For every design/UI/UX/layout change, use a standard tool, component, or framework when one exists; implement custom only when none fits. See references for standard options.
-- **Adaptive launcher icon is mandatory**: Never ship with only a legacy `ic_launcher.png`. See [references/adaptive-icons.md](references/adaptive-icons.md).
-- **Never invent screens or flows**: Design only for screens and flows that exist (or are explicitly requested) in the app.
-- **Spec over vague intent**: Every design change in the spec must be implementable (values, not only descriptions).
-- **One source of truth**: Keep the design spec and any Figma file in sync; when the user amends in Figma, update the spec or re-fetch context before changing code.
-- **Android stack**: Apply changes in the project’s actual stack (Compose, Views, or mixed). Follow the project’s architecture and the android-gradle-build skill for builds, tests, and F-Droid/store publishing (metadata, fastlane, pipeline).
-- **Visual verification before presenting**: A green build is not a verified design. Run the Phase 5 screenshot-evaluation loop (capture → grade against [references/ui-grading-rubric.md](references/ui-grading-rubric.md) → iterate, max 3) for any visible change; the evaluator never sees the implementation, only spec + rubric + screenshots.
-
-## Summary Checklist
-
-- [ ] Standard tools/frameworks checked first; DIY used only where no standard fits.
-- [ ] Adaptive launcher icon present (foreground + background + monochrome layers, both `ic_launcher.xml` + `ic_launcher_round.xml` in `mipmap-anydpi-v26/`, legacy PNGs at all five densities) — verified per [references/adaptive-icons.md](references/adaptive-icons.md).
-- [ ] App analyzed (depth scaled to scope: single component vs full app).
-- [ ] Design spec produced with concrete values and standard component names where applicable; optional reference images or Figma instructions.
-- [ ] User feedback gathered and spec (and Figma, if used) updated until approved.
-- [ ] Design applied in code using standard components/APIs where possible; Figma context used when URL provided.
-- [ ] Build and tests pass before considering the task complete.
-- [ ] Visual verification passed: changed screens captured on the emulator stack and graded ≥ threshold against the rubric (or capture explicitly skipped with the reason stated).
-
-## Delegation (Claude Code only)
-
-> **Skip this section unless you are Claude Code.** The Agent tool with
-> `subagent_type:` parameters is a Claude Code feature. Codex, Cursor, Gemini,
-> OpenCode, and other hosts do not have it — run the full workflow yourself
-> instead.
-
-For the Phase 5 grading step, dispatch a separate subagent (e.g.
-`general-purpose`) briefed ONLY with: the approved design spec, the rubric at
-`references/ui-grading-rubric.md`, and the screenshot paths. Do not pass it
-the implementation diff or this session's transcript — the point of the
-evaluator is judgment uncontaminated by the generator's view of its own work.
-Apply the returned fix list in this session, then re-dispatch for re-grading.
+Themed icons on Android 13+ and OEM mask shapes both depend on this structure; a legacy single-PNG icon is not acceptable. When the user asks to add or change the app icon, or before publishing (F-Droid, Play), follow the spec, scaffold and verification recipe in [references/adaptive-icons.md](references/adaptive-icons.md). Generate via Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons (Adaptive and Legacy)*); there is no first-party CLI.
