@@ -43,7 +43,7 @@ The skills are model-triggered and also invocable directly:
 
 ## Agent
 
-- **`translator`** (sonnet, write-capable) — does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.
+- **`translator`** (write-capable) — does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.
 
 ## How LLM and scripts split the work
 

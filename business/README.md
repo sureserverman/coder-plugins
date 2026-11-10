@@ -37,7 +37,7 @@ All seven are invocable as `/business:<skill>` and also fire on natural language
 
 Gathers **cited** competitive-analysis evidence for one project by the method in `references/competitive-analysis-method.md`: a competitor is anyone who solves the same problem, listed in three passes (category, customer-job, alternatives) and classed direct/indirect, with the discovery rate tracked so "no competitors" reads as a failed search rather than a finding; pricing (unpublished prices traced to where a customer asked in public), channels, demand; at `standard`+ the competitor table as YAML plus six-block profiles (team — public professional history only, strategy, product with *measured* weaknesses, marketing, metrics with their estimation method, investment/organization). Dispatched by `market-research` (and by `assess --research` at `triage`) rather than invoked directly. It never writes files, never renders a verdict, and never makes a product recommendation.
 
-**Model:** `sonnet`. **Tools:** `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`.
+**Model:** `inherit` (the session's model). **Tools:** `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`.
 
 **Prerequisite that actually bites:** it needs **WebSearch**. Without it there is no evidence to gather, and the skills that depend on it **write nothing rather than emitting an uncited guess** — a market-research file that reads like research but was produced from training data is worse than no file, because the next reader trusts it.
 

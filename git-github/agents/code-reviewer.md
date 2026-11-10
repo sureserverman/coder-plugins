@@ -3,7 +3,7 @@ name: code-reviewer
 description: >
   Use this agent to review a completed plan task, a commit, a PR, or a set of changes against a plan and coding standards. Trigger phrases: "review this", "code review please", "review this PR", "security review". Review-only — reports findings; its read-only-contract block defines the boundary.
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git blame:*), Bash(git status:*), WebFetch, TaskCreate, TaskUpdate
-model: sonnet
+model: inherit
 effort: medium
 ---
 

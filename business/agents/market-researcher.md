@@ -2,7 +2,7 @@
 name: market-researcher
 description: Gather cited competitive-analysis evidence for ONE project — who solves the same problem (three-pass list, coverage rate), pricing, channels, demand, a competitor table. Trigger phrases include "research the market for this", "who are the competitors and what do they charge".
 tools: Read, Grep, Glob, WebFetch, WebSearch
-model: sonnet
+model: inherit
 effort: medium
 ---
 

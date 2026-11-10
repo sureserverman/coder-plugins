@@ -139,4 +139,4 @@ Post-scaffold reminders:
 - This skill never commits or pushes. The translator subagent writes to files; the user reviews and commits.
 - For per-format translation gotchas, ALWAYS consult the matching `${CLAUDE_PLUGIN_ROOT}/skills/i18n-formats/references/<format>.md`. Do not invent escape rules.
 - For locales with right-to-left text direction (Arabic, Hebrew, Persian, Urdu), also remind the user to verify their UI's mirroring (CSS `dir="rtl"`, `start`/`end` margins, icon flipping). The catalogs themselves don't carry direction; the framework's runtime does.
-- Translation is a quality-driven LLM task; do not delegate it to a smaller model. The `translator` agent is sonnet-pinned for a reason — haiku produces worse translations, especially for idioms, plurals, and short UI strings where context is sparse.
+- Translation is a quality-driven LLM task; do not delegate it to a smaller model — smaller models translate worse, especially idioms, plurals, and short UI strings where context is sparse.
