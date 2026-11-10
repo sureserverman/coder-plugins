@@ -4,10 +4,10 @@
   "exit": 0,
   "tail": "10 manifest/marketplace pair(s), 0 README lead(s) and 1 changelog(s) reconciled; 0 problem(s)."
  },
- "break_patch": "diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json\n--- a/.claude-plugin/marketplace.json\n+++ b/.claude-plugin/marketplace.json\n@@ -13,7 +13,7 @@\n       \"name\": \"rust-dev\",\n       \"source\": \"./rust-dev\",\n       \"description\": \"Rust authoring: a rust-coding skill with the owner's house rules and incident gotchas, plus a deterministic bash lane (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"languages\",\n       \"tags\": [\n         \"rust\",\n@@ -228,7 +228,7 @@\n       \"name\": \"i18n\",\n       \"source\": \"./i18n\",\n       \"description\": \"Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. A translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. Both skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"development\",\n       \"tags\": [\n         \"i18n\",\n",
+ "break_patch": "diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json\n--- a/.claude-plugin/marketplace.json\n+++ b/.claude-plugin/marketplace.json\n@@ -13,7 +13,7 @@\n       \"name\": \"rust-dev\",\n       \"source\": \"./rust-dev\",\n       \"description\": \"Rust authoring: a rust-coding skill with the owner's house rules and incident gotchas, plus a deterministic bash lane (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"languages\",\n       \"tags\": [\n         \"rust\",\n@@ -226,7 +226,7 @@\n       \"name\": \"i18n\",\n       \"source\": \"./i18n\",\n       \"description\": \"Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. A translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. Both skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`).\",\n-      \"version\": \"0.6.0\",\n+      \"version\": \"0.5.2\",\n       \"category\": \"development\",\n       \"tags\": [\n         \"i18n\",\n",
  "build": null,
- "created": "2026-11-10T22:50:25+00:00",
- "fingerprint": "0266c47a1650613b2533d133b2a6d7c580fd28f82254d3aaf07255384ae4c135",
+ "created": "2026-11-10T23:06:01+00:00",
+ "fingerprint": "54d4cbe6327ce215d3d30d1f7b5d18d5ec53d4d1b805c6ef10cc1e0a9af74126",
  "index": 4,
  "kind": "claim",
  "named_break": "a manifest and its mirror disagree",
@@ -27,10 +27,10 @@
   ".claude-plugin/marketplace.json"
  ],
  "touched_blobs": {
-  ".claude-plugin/marketplace.json": "87f7eda4ef5bc7c187c39a893175b695b4a13421"
+  ".claude-plugin/marketplace.json": "5cf1f0c6a6140d2ec952f428a426aaadda2a6a65"
  },
  "witness_blobs": {
-  ".claude-plugin/marketplace.json": "87f7eda4ef5bc7c187c39a893175b695b4a13421",
+  ".claude-plugin/marketplace.json": "5cf1f0c6a6140d2ec952f428a426aaadda2a6a65",
   "business/CHANGELOG.md": "509dd076dcea51b6ddeaabf6245e4a9a3a80c1aa",
   "scripts/check-version-mirrors.py": "b25ee6605442c3105b79725d4464929c7fed6974"
  }

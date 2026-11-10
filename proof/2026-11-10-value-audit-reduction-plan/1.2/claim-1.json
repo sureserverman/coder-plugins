@@ -2,12 +2,12 @@
  "baseline": {
   "elapsed_s": 0.0,
   "exit": 0,
-  "tail": "10 budgeted trunk(s); 0 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.\n  unmeasured headroom: 162723 B (0 B stale ceilings + 162723 B under the 10000 B floor).\n  ok         12851 /   12851 B  (+0)  android-dev/skills/android-fdroid-publish/SKILL.md\n  ok         11836 /   11836 B  (+0)  business/skills/market-research/SKILL.md\n  ok         11453 /   11453 B  (+0)  business/skills/business-plan/SKILL.md\n  ok         10662 /   10662 B  (+0)  business/skills/track/SKILL.md\n  ok         10186 /   10186 B  (+0)  business/skills/assess/SKILL.md\n  ok          5499 /    5499 B  (+0)  android-dev/skills/android-play-publish/SKILL.md\n  ok          4164 /    4164 B  (+0)  git-github/skills/code-comment-audit/SKILL.md\n  ok          3191 /    3191 B  (+0)  browser-extensions/skills/browser-extensions/SKILL.md\n  ok          3127 /    3127 B  (+0)  android-dev/skills/android-release-signing/SKILL.md\n  ok          3014 /    3014 B  (+0)  android-dev/skills/android-ui-design-figma/SKILL.md"
+  "tail": "10 budgeted trunk(s); 0 over ceiling, 0 stale ceiling(s), 0 unbudgeted over 10000 B.\n  unmeasured headroom: 162170 B (0 B stale ceilings + 162170 B under the 10000 B floor).\n  ok         12851 /   12851 B  (+0)  android-dev/skills/android-fdroid-publish/SKILL.md\n  ok         11836 /   11836 B  (+0)  business/skills/market-research/SKILL.md\n  ok         11453 /   11453 B  (+0)  business/skills/business-plan/SKILL.md\n  ok         10662 /   10662 B  (+0)  business/skills/track/SKILL.md\n  ok         10186 /   10186 B  (+0)  business/skills/assess/SKILL.md\n  ok          5499 /    5499 B  (+0)  android-dev/skills/android-play-publish/SKILL.md\n  ok          4164 /    4164 B  (+0)  git-github/skills/code-comment-audit/SKILL.md\n  ok          3191 /    3191 B  (+0)  browser-extensions/skills/browser-extensions/SKILL.md\n  ok          3127 /    3127 B  (+0)  android-dev/skills/android-release-signing/SKILL.md\n  ok          3014 /    3014 B  (+0)  android-dev/skills/android-ui-design-figma/SKILL.md"
  },
  "break_patch": "diff --git a/browser-extensions/skills/amo-compliance-check/SKILL.md b/browser-extensions/skills/amo-compliance-check/SKILL.md\n--- a/browser-extensions/skills/amo-compliance-check/SKILL.md\n+++ b/browser-extensions/skills/amo-compliance-check/SKILL.md\n@@ -8,7 +8,7 @@ description: Use when checking a Firefox extension for addons.mozilla.org (AMO)\n Find the extension root (the directory holding the Firefox `manifest.json`); ask if unclear. Run the bundled script first:\n \n ```bash\n-${CLAUDE_PLUGIN_ROOT}/skills/amo-compliance-check/scripts/amo-check.py <extension-dir>\n+skills/amo-compliance-check/scripts/amo-check.py <extension-dir>\n ```\n \n It covers the mechanical checks: manifest fields and formats, icons, file structure, referenced files, permission validity, remote code and `eval`-family calls, CSP `unsafe-eval`, miner references, HTTP URLs and the MV3 background and `incognito` rules. It does not check that MV3 `browser_specific_settings.gecko.data_collection_permissions` is present with valid values; check that by hand. Exit 1 means at least one FAIL. For structured findings on the plugin-dev JSON contract, run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh <extension-dir> --json`.\n",
  "build": null,
- "created": "2026-11-10T22:50:20+00:00",
- "fingerprint": "0266c47a1650613b2533d133b2a6d7c580fd28f82254d3aaf07255384ae4c135",
+ "created": "2026-11-10T23:05:57+00:00",
+ "fingerprint": "54d4cbe6327ce215d3d30d1f7b5d18d5ec53d4d1b805c6ef10cc1e0a9af74126",
  "index": 1,
  "kind": "claim",
  "named_break": "one bare `scripts/\u2026` or `skills/\u2026` path remains",
@@ -49,8 +49,8 @@
   "business/skills/revenue-model/SKILL.md": "cb31bb6b62cf913ed50d0b0c371c00f77b69ca3f",
   "business/skills/track/SKILL.md": "7c5b342d777ed256c70cd5fb46e714563c6e7f58",
   "git-github/skills/code-comment-audit/SKILL.md": "cb18cbb042a54fb7816b54856b0f1273f6c37fb0",
-  "git-github/skills/gate-audit/SKILL.md": "754481b4e00d20cf335784cea9795635c07db58c",
-  "git-github/skills/github-workflow-audit/SKILL.md": "c23ea4130201a6a16d2073cc2f8742254bfbd92b",
+  "git-github/skills/gate-audit/SKILL.md": "17e8b237e4e2cfe5a3f115f643f7386213c3eeb4",
+  "git-github/skills/github-workflow-audit/SKILL.md": "f0c0d4388dd405c3e5868cf12bbd801fbc83c7c9",
   "git-github/skills/release-tag/SKILL.md": "9636492439f6d172d66b530ce2090b9172c77144",
   "git-github/skills/repo-health/SKILL.md": "4cebff10939faaf8ae61b0c3734227541af13dcb",
   "git-github/skills/request-external-reviews/SKILL.md": "5a8a9043993b6723f39163d837981e11476238f9",
@@ -72,7 +72,7 @@
   "release-promo/skills/lobsters-post/SKILL.md": "db8ea8c808380fceadc8988a850064a306617c31",
   "release-promo/skills/reddit-promo/SKILL.md": "df5f52b56f43aece8ab531cdbdc02d53370ccf0b",
   "release-promo/skills/twim-submission/SKILL.md": "3c67a48212597adeb9fd54013f8b1edc4d3539b9",
-  "rust-dev/skills/rust-coding/SKILL.md": "9120e397089f94e5ea8a7e1a2dd6b1822437add9",
+  "rust-dev/skills/rust-coding/SKILL.md": "8822bf2bff101f5ef780389cded8eccbe1a787ec",
   "scripts/check-trunk-budget.py": "71045284ea06398a0bbe96accb16b336facf5342"
  }
 }
