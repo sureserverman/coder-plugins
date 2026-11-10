@@ -69,8 +69,8 @@ This keeps advice relevant to the project and avoids unnecessary Chrome/multi-br
 
 ### Privacy and stores
 
-- **Chrome Web Store:** If the extension handles user data (e.g. credentials, tokens, form data), you must provide a **privacy policy** and link it in the Developer Dashboard. The policy must state what is collected, how it is used, and with whom it is shared. Align dashboard “Privacy practices” with the policy and actual behavior.
-- **AMO:** Align with [AMO compliance](https://developer.chrome.com/docs/webstore/program-policies/) and use the AMO compliance skill before packaging if needed.
+- **Chrome Web Store:** If the extension handles user data (e.g. credentials, tokens, form data), you need a **privacy policy** linked in the Developer Dashboard. It must state what is collected, how it is used, and who it is shared with. Align dashboard “Privacy practices” with the policy and actual behavior.
+- **AMO:** Follow Mozilla's add-on policies (checked 2026-11-10, https://extensionworkshop.com/documentation/publish/add-on-policies/); use the AMO compliance skill before packaging.
 
 ---
 

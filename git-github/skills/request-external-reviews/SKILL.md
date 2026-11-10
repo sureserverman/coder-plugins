@@ -198,5 +198,5 @@ local code-reviewer agent) for a deeper authoritative review.
 - **Ensemble / consensus evaluation** — Dietterich, "Ensemble Methods in
   Machine Learning" (2000). Independent models agreeing is a stronger
   signal than any one model alone.
-- **code-review skill** — `~/.claude/skills/code-review/SKILL.md` (the
+- **`/code-review`** — Claude Code's built-in review command (the
   single-tool authoritative counterpart to this skill).

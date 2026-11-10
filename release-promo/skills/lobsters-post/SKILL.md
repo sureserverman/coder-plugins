@@ -29,7 +29,7 @@ For a release announcement, **prefer `show`** if there's something to try. Plain
 
 ## 3. Tag selection
 
-Lobsters tags are limited to two per submission. Pick from the **actual current tag list at lobste.rs/tags** (the user should verify). Common relevant tags:
+Tags come from a predefined list; lobste.rs/about states no per-story tag cap (checked 2026-11-10, https://lobste.rs/about). Pick the fewest that fit from the **actual current tag list at lobste.rs/tags** (the user should verify). Common relevant tags:
 
 - Languages: `rust`, `go`, `python`, `c`, `cpp`, `java`, `ruby`, `js`, `dotnet`, `haskell`, `lisp`, `ml`.
 - Topics: `release`, `practices`, `programming`, `compsci`, `formalmethods`, `distributed`, `networking`, `crypto`, `privacy`, `security`, `databases`, `vcs`, `web`, `mobile`, `linux`, `unix`, `bsd`, `osdev`, `hardware`, `audio`, `graphics`, `compilers`, `plt`, `ai`, `ml`.
@@ -37,7 +37,6 @@ Lobsters tags are limited to two per submission. Pick from the **actual current 
 
 Rules:
 
-- Two tags max. The system rejects three.
 - The `show` / `ask` tag is automatic with the type — do not also pick it manually.
 - Don't combine generic + generic (`programming` + `practices`). Pair specific + topical (`rust` + `release`).
 - Don't use language tags as filler if the language isn't the point.
@@ -89,7 +88,7 @@ URL: <link>
 
 TITLE: <plain descriptive title>
 
-TAGS: <tag1>, <tag2>   # two max; the show/ask tag is automatic
+TAGS: <tag1>, <tag2>   # fewest that fit; the show/ask tag is automatic
 
 STORY TEXT (paste into the story_text field, may be blank):
 ---

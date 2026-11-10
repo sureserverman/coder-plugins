@@ -76,11 +76,12 @@ Tag message shape:
 <grouped or flat bullets>
 
 <empty line>
-Co-authored-by: Claude Haiku 4.5 <noreply@anthropic.com>
+<attribution trailer>
 ```
 
-(Trailer is optional. Match the project's existing tag-message style if
-prior tags have one — `git for-each-ref --format='%(contents)'
+(Trailer is optional; when used, it follows the session's own commit
+attribution, not a fixed model name. Match the project's existing
+tag-message style if prior tags have one — `git for-each-ref --format='%(contents)'
 refs/tags/<last-tag>` shows it.)
 
 ## Procedure

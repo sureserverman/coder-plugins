@@ -46,7 +46,7 @@ Order of preference: live demo → repo → product page.
 
 ## 4. The maintainer's first comment
 
-By convention the maintainer posts the first comment immediately after submission. This is where context lives because Show HN doesn't have a body field for self-posts (Show HN posts are always link-posts).
+By convention the maintainer posts the first comment immediately after submission. This is where context lives: the HN FAQ says to submit the link, then add your words as a regular comment, so they don't sit in a privileged position at the top (checked 2026-11-10, https://news.ycombinator.com/newsfaq.html).
 
 First-comment skeleton:
 
@@ -97,7 +97,7 @@ Show HN: <project> – <one-line>
 URL (paste into "url" field):
 <link>
 
-(HN doesn't take a body for Show HN — leave the text field blank.)
+(Leave the text field blank — per the HN FAQ, context goes in the first comment.)
 
 FIRST COMMENT (post immediately after submission):
 ---

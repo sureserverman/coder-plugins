@@ -18,7 +18,8 @@
 # Every trunk at or above 10000 B must carry an entry; check-trunk-budget.py
 # fails on one that does not, so the ratchet cannot be opted out of by omission.
 
-android-dev/skills/android-play-publish/SKILL.md 18018
+# Lowered 18018 -> 18013 (-5 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
+android-dev/skills/android-play-publish/SKILL.md 18013
 # Raised 32 B by the Stage 1 gate remediation: the DEAD-PATH fix on line 79
 # lengthened `scripts/run.sh` to its resolvable form. A ceiling is raised only
 # with the reason on the line above it.
@@ -26,7 +27,8 @@ android-dev/skills/android-play-publish/SKILL.md 18018
 android-dev/skills/android-ui-design-figma/SKILL.md 12659
 # Lowered 13335 -> 12196 (-1139 B) 2026-10-15, crutch-retirement Task 1.1: the cheap scanner-delegation section is gone.
 git-github/skills/license-audit/SKILL.md 12196
-android-dev/skills/android-fdroid-publish/SKILL.md 12879
+# Lowered 12879 -> 12865 (-14 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
+android-dev/skills/android-fdroid-publish/SKILL.md 12865
 business/skills/business-plan/SKILL.md 11538
 # Seeded 2026-09-08 at 11935 by the competitive-analysis rework (business 0.8.0): the
 #   trunk crossed the 10000 B floor when the scope interview gained the customer-job
@@ -38,4 +40,5 @@ git-github/skills/code-comment-audit/SKILL.md 9700
 business/skills/track/SKILL.md 10750
 android-dev/skills/android-release-signing/SKILL.md 10371
 business/skills/assess/SKILL.md 10277
-browser-extensions/skills/browser-extensions/SKILL.md 10263
+# Lowered 10263 -> 10262 (-1 B) 2026-11-10, value-audit Task 1.1: volatile facts corrected and dated, wording trimmed beside each.
+browser-extensions/skills/browser-extensions/SKILL.md 10262

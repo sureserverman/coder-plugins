@@ -88,7 +88,7 @@ The output must include a separate ALT-TEXT block per image.
 
 ## 7. Link strategy
 
-- Mastodon shortens displayed URL but the full URL counts toward the 500-char limit.
+- Every link counts as 23 characters toward the 500-char limit, however long it is (checked 2026-11-10, https://docs.joinmastodon.org/user/posting/). Don't use link shorteners.
 - Put the link **above** the hashtags so the link card renders properly.
 - One primary link only. Additional links go in a follow-up reply, not the main toot.
 
