@@ -60,7 +60,7 @@ the skill runs the deterministic lane and confirms each candidate it flags.
 
 ## Related plugins
 
-- **`planning`** — `dispatching-parallel-agents` routes Rust tasks here via `stack-routing.md`,
+- **`planning`** — `executing-plans`' dispatch routes Rust tasks here via `stack-routing.md`,
   loading `rust-coding` first; `decisions` is where a Rust-wide constraint gets promoted to the
   `rust` domain register so every Rust project inherits it.
 - **`infra-build`** — `build-for-mac` packages Rust source repos into macOS `.pkg`.

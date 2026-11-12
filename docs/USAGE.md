@@ -53,8 +53,8 @@ ceremony. Then it researches, and writes a staged plan where structure-creating 
 ```
 
 `executing-plans` drives it: Red-Green loop per task, a commit per green task, tiered test
-gates, and independent tasks fanned out via `dispatching-parallel-agents` to stack-matched
-subagents. Its two review tiers dispatch the `planning:code-reviewer` agent staged-planning
+gates, and independent tasks fanned out to stack-matched subagents (its
+`references/dispatch.md`). Its two review tiers dispatch the `planning:code-reviewer` agent staged-planning
 ships, and how much of either runs comes from the plan's declared
 **review scope**: at the default *standard* tier that is one deep review per stage gate
 and no per-task pass, with per-task review reserved for the *high* tier or a task the plan
@@ -200,9 +200,9 @@ check. Extension locales feed flow 3's AMO preflight the same way.
 ## 5. Fanning out to stack-matched experts
 
 This is the mechanism the other flows lean on. When `executing-plans` reaches independent
-tasks, `dispatching-parallel-agents` runs one agent per task — and picks each agent from
+tasks, it runs one agent per task — and picks each agent from
 `stack-routing.md` (in [staged-planning](https://github.com/sureserverman/staged-planning)'s
-`dispatching-parallel-agents` skill)
+`executing-plans` skill)
 rather than defaulting everything to a generalist:
 
 | Task looks like | Routes to | Shipped by |
