@@ -121,8 +121,8 @@ def token_starts(text, body):
 # Plugins USAGE.md documents that this repo does not build. The marketplace's `planning`
 # entry is a redirect to staged-planning (2026-10-25), and portfolio and compass ship in
 # vault-portfolio@obsidian-wiki. Their components are PINNED from the released trees, so a
-# misspelled or invented one still fails: staged-planning v2.0.0 plugins/claude/planning (checked
-# 2026-11-12) and obsidian-wiki-plugin vault-portfolio-v0.1.3 plugins/vault-portfolio (checked
+# misspelled or invented one still fails: staged-planning v2.1.0 plugins/claude/planning (checked
+# 2026-11-13) and obsidian-wiki-plugin vault-portfolio-v0.1.3 plugins/vault-portfolio (checked
 # 2026-10-25). Re-pin when either
 # release changes what it ships.
 EXTERNAL = {
