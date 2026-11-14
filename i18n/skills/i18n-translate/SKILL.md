@@ -26,11 +26,12 @@ It prints a JSON workpacket: `source_locale`, `target_locale`, `framework`, `sty
 
 ## Step 3 — Translate and write back
 
-One locale with about 30 entries or fewer: translate it in this session. More locales or a larger catalog: dispatch one `general-purpose` subagent per locale, in parallel, never one per entry: context within a locale matters. Its brief carries the workpacket from Step 2, the target catalog path, any project style guide (`STYLEGUIDE.md`, `docs/i18n-style.md`, or what the user supplied) and the rules below.
+One locale with about 30 entries or fewer: translate it in this session. More locales or a larger catalog: dispatch one `general-purpose` subagent per locale, in parallel. Never one per entry: context within a locale matters. Its brief carries the workpacket from Step 2, the target catalog path, any project style guide (`STYLEGUIDE.md`, `docs/i18n-style.md`, or what the user supplied) and the rules below.
 
 - The style guide wins over any other source (formality, glossary, do-not-translate list).
 - Keep every placeholder, format specifier and tag with identical syntax.
-- Write to the target catalog directly. Keep its comments, metadata blocks, key order and indentation.
+- Collect the translations as Step 4's input: `{"target_locale": ..., "framework": ..., "entries": [{"key": ..., "source": ..., "translation": ...}]}`. A subagent runs Step 4 on its own locale before it returns.
+- Once Step 4 passes, write to the target catalog directly. Keep its comments, metadata blocks, key order and indentation.
 - Follow the project's existing plural convention, and emit every CLDR plural category the target locale needs.
 - When an entry cannot be translated with confidence (ambiguous source, missing context), leave it unwritten and list it in the report.
 
