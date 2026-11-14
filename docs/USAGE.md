@@ -188,8 +188,9 @@ missing or stale keys. It reports; it doesn't rewrite.
 /i18n:i18n-translate
 ```
 
-Fills the gaps, dispatching the **`translator`** agent per batch — placeholders, ICU
-MessageFormat, CLDR plurals and HTML tags preserved.
+Fills the gaps itself — in the session for one small locale, or through one
+general-purpose subagent per locale for a larger job — with placeholders, ICU
+MessageFormat, CLDR plurals and HTML tags preserved and checked by `validate-placeholders.py`.
 
 The seam back to `planning`: `project-maturity` carries an **i18n axis**, so translation
 coverage becomes part of the ship-readiness verdict instead of a thing someone remembers to
@@ -208,11 +209,11 @@ rather than defaulting everything to a generalist:
 | Task looks like | Routes to | Shipped by |
 |---|---|---|
 | Reproduce a Claude Design handoff pack | `design-handoff-reproducer` | `planning` |
-| Catalog translation batches | `translator` | `i18n` |
 
 > Routing does **not** require the target plugin to be enabled. Plan execution resolves the
-> component from `capability-index.json` on disk — the same mechanism as flow 10 — so a catalog
-> batch gets `translator` even when only `planning` is on. Components needing hooks or
+> component from `capability-index.json` on disk — the same mechanism as flow 10 — so a
+> dispatched catalog-translation task goes to a general-purpose agent that loads
+> `i18n-translate` from disk even when `i18n` isn't enabled. Components needing hooks or
 > MCP are flagged `requires_enablement` and stop for explicit enablement.
 
 ---
@@ -353,8 +354,8 @@ nothing else enables a plugin, and warns. `/loadout unpin` removes pins left
 by older loadout versions.
 
 **`capability-index.json`** — lets one skill or agent be resolved **from disk without
-enabling its plugin**. Plan execution uses it on its dispatch path, so a catalog batch gets
-`translator` even when `i18n` isn't enabled.
+enabling its plugin**. Plan execution uses it on its dispatch path, so a dispatched
+general-purpose agent can load `i18n-translate` even when `i18n` isn't enabled.
 
 Components needing hooks or MCP are flagged `requires_enablement` and stop for explicit
 enablement rather than degrading silently.

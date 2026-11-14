@@ -227,7 +227,7 @@ def attribution_claims(text, plugins):
       * a routing-table row whose LAST cell is a single backticked plugin name —
         every component-shaped backtick token in the row's other cells is claimed to
         be shipped by it;
-      * prose of the form `translator` (an `i18n` agent).
+      * prose of the form `market-researcher` (a `business` agent).
 
     BOTH rules require the claimed plugin to be a KNOWN plugin before yielding. That
     guard is not optional politeness: without it the prose form captures whatever word

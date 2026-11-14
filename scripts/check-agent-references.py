@@ -126,10 +126,9 @@ CLOSE = "<!-- /reference-resolution-contract -->"
 # whole while a real agent drops out, which is the floor failure one level in.
 EXPECTED_AGENTS = (
     "business/agents/market-researcher.md",
-    "i18n/agents/translator.md",
     # design-handoff-reproducer left with the planning plugin, 2026-10-25; the
     # value-audit reduction (2026-11-10) retired the drafting, Rust, game-design and
-    # git-github reviewer agents.
+    # git-github reviewer agents; the i18n translation agent was retired 2026-11-14.
 )
 
 # --- the out-of-block lane -------------------------------------------------------------
@@ -144,8 +143,9 @@ EXPECTED_AGENTS = (
 # whole negation family flagged four unrelated sentences ("if any required field is
 # missing", "installs … if missing") for every real site it found. A check that noisy
 # teaches its readers to skip it, which is worse than the gap it closes. `fall back` is
-# deliberately NOT a marker: `translator.md` falls back to its own translation after a
-# rate-limit, which is nothing to do with reference resolution.
+# deliberately NOT a marker: agent prose uses it for ordinary fallbacks (a retired i18n
+# agent fell back to its own translation after a rate-limit), which is nothing to do with
+# reference resolution.
 RESTATEMENT_MARKERS = ("dev checkout", "versioned plugin cache", "versioned cache",
                        "DEGRADED")
 # Known and accepted: the escape is evaluated per FRAGMENT, and a punctuation-free run

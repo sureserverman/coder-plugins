@@ -27,10 +27,10 @@ spec.loader.exec_module(pins)
 
 FAILURES = []
 
-# Every agent the marketplace ships, as of 2026-11-10 (value-audit Stage 3).
+# Every agent the marketplace ships, as of 2026-11-14 (value-audit Stage 3; the i18n
+# translation agent was retired 2026-11-14).
 SHIPPED_AGENTS = [
     "business/agents/market-researcher.md",
-    "i18n/agents/translator.md",
 ]
 
 

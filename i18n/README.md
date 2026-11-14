@@ -31,18 +31,14 @@ The audit + translate skills know these catalog formats:
 ## Skills
 
 - **`i18n-audit`** — detects the framework, finds hardcoded strings still in source, diffs translation catalogs across locales for missing/stale keys. Ships `scripts/detect-framework.py`, `scripts/scan-hardcoded.py`, `scripts/diff-catalogs.py`. Triggers on "audit i18n", "check translation coverage", "find hardcoded strings", "is this app translation-ready".
-- **`i18n-translate`** — drives the LLM translation pass via the `translator` subagent. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on "translate to <locale>", "fill in missing translations", "add Spanish translations".
+- **`i18n-translate`** — translates the missing entries itself — in the session for a small job, or through one `general-purpose` subagent per locale for a larger one. Preserves placeholders (printf, ICU, Handlebars, positional Android format specifiers) and CLDR plural categories. Ships `scripts/extract-missing.py` and `scripts/validate-placeholders.py`. Triggers on "translate to <locale>", "fill in missing translations", "add Spanish translations".
 
 ## Invoking the skills
 
 The skills are model-triggered and also invocable directly:
 
 - `/i18n:i18n-audit` — run the audit pipeline (framework detection → hardcoded scan → catalog gaps).
-- `/i18n:i18n-translate` — fill missing keys across configured locales, or scaffold a new locale, via the `translator` subagent. (Argument scoping and new-locale scaffolding — the `--include-stale` and `--copy-only` flows and the per-framework catalog paths — are documented in the skill.)
-
-## Agent
-
-- **`translator`** (write-capable) — does the actual translation. Reads source catalog excerpt + target locale + style guide, writes target catalog entries with placeholders preserved and plurals expanded to the target's CLDR categories. Validates with `validate-placeholders.py` before returning.
+- `/i18n:i18n-translate` — fill missing keys across configured locales, or scaffold a new locale; the skill translates in the session or through one `general-purpose` subagent per locale. (Argument scoping and new-locale scaffolding — the `--include-stale` and `--copy-only` flows and the per-framework catalog paths — are documented in the skill.)
 
 ## How LLM and scripts split the work
 
@@ -52,7 +48,7 @@ The skills are model-triggered and also invocable directly:
 | List source/target catalogs | Python script | Filesystem walk + parse |
 | Find missing keys per locale | Python script | Set difference |
 | Decide which hardcoded string is user-facing | LLM | Requires reading surrounding code |
-| Translate text into target locale | LLM (translator subagent) | The only thing only an LLM can do well |
+| Translate text into target locale | LLM (`i18n-translate`: in the session, or one `general-purpose` subagent per locale) | The only thing only an LLM can do well |
 | Validate placeholder preservation in output | Python script | Regex/structural check, deterministic |
 | Expand plural forms to target CLDR categories | LLM | Per-locale rule + linguistic judgment |
 | Write back to catalog files | LLM (preserves comments/order) | gettext metadata, ARB `@key` blocks, Android `<!-- -->` comments are easy to clobber with naive serializers |
@@ -105,9 +101,9 @@ An existing i18n setup. These skills work *within* your framework's conventions 
 "add Spanish translations"
 ```
 
-`i18n-translate` extracts the missing keys, dispatches the `translator` agent with the source excerpt and style guide, and validates the result with `validate-placeholders.py` before writing back — so a translation that dropped a `{count}` placeholder or lost a CLDR plural category fails validation instead of silently shipping.
+`i18n-translate` extracts the missing keys, translates them with the style guide (in the session, or through one `general-purpose` subagent per locale), and validates the result with `validate-placeholders.py` before writing back — so a translation that dropped a `{count}` placeholder or lost a CLDR plural category fails validation instead of silently shipping.
 
 ## Related plugins
 
-- **`planning`** — `project-maturity`'s i18n axis records the durable translation-readiness verdict; `executing-plans`' dispatch routes catalog translation to `i18n:translator`.
+- **`planning`** — `project-maturity`'s i18n axis records the durable translation-readiness verdict; `executing-plans` sends a dispatched catalog-translation task to a `general-purpose` agent that loads `i18n-translate`.
 - **`android-dev`** — string externalization is a UI concern; pair an audit with `android-ui-design-figma` when retrofitting i18n into Android screens.

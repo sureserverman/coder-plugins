@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Opinionated Claude Code plugins for professional coding — language- and platform-specific authoring (rust-dev, android-dev, browser-extensions, i18n), cross-cutting dev workflow (git-github, release-promo, infra-build, loadout; planning redirects to staged-planning), each with a deterministic validation lane where applicable. The AI-tool-authoring family (plugin-dev + six platform siblings) now lives in the sibling agent-tooling marketplace.",
-    "version": "0.35.0"
+    "version": "0.36.0"
   },
   "plugins": [
     {
@@ -225,8 +225,8 @@
     {
       "name": "i18n",
       "source": "./i18n",
-      "description": "Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. A translator subagent does the actual locale fills. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. Both skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`).",
-      "version": "0.6.0",
+      "description": "Internationalization (i18n) for any project that has user-facing strings. Skill `i18n-audit` detects the project's i18n framework (gettext .po, i18next JSON, Vue i18n, react-intl/FormatJS, Android strings.xml, iOS .strings/.stringsdict, Flutter ARB, Rails YAML, Django .po, Qt .ts, .NET .resx, Java .properties) and runs three Python scripts: detect-framework.py, scan-hardcoded.py (heuristic finder for likely user-facing strings still in source), and diff-catalogs.py (missing/stale-key gap analysis across locales). Skill `i18n-translate` drives an LLM translation pass that preserves placeholders (printf, ICU MessageFormat, {{handlebars}}, %1$s positional, Android XML quoting) and CLDR plural categories; ships validate-placeholders.py and extract-missing.py. A shared-contract validation lane (scripts/validate.sh, vendored from the plugin-dev determinism kit) wraps the catalog-diff and placeholder/CLDR-plural Python and emits findings on the common plugin-dev JSON contract. Both skills are invocable directly (`/i18n:i18n-audit`, `/i18n:i18n-translate`).",
+      "version": "0.7.0",
       "category": "development",
       "tags": [
         "i18n",

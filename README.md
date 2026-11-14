@@ -25,7 +25,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`rust-dev`](./rust-dev) | Rust house rules and incident gotchas in a `rust-coding` skill (fires on `*.rs`/`Cargo.toml` edits), plus a deterministic lane: Cargo manifest checks, house-rule candidate scan, stack report. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
 | [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
-| [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation via a translator subagent, new-locale scaffolding. |
+| [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
 | [`infra-build`](./infra-build) | Registers a project with the `~/dev/infra` publishing pipelines: Debian `.deb`, macOS `.pkg`, multi-arch Docker images. |
 | [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
@@ -67,8 +67,8 @@ them:
 ```
 
 **Subagents are delegated.** Claude dispatches them on its own when a task
-matches (e.g. `translator` for a catalog batch), or you can ask directly:
-"have the `translator` agent fill the missing German strings".
+matches (e.g. `market-researcher` for competitor research), or you can ask
+directly: "have the `market-researcher` agent research the market for this".
 
 A typical end-to-end flow with the `planning` plugin:
 
