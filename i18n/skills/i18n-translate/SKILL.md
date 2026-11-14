@@ -26,7 +26,7 @@ It prints a JSON workpacket: `source_locale`, `target_locale`, `framework`, `sty
 
 ## Step 3 — Translate and write back
 
-One locale with about 30 entries or fewer: translate it in this session. More locales or a larger catalog: dispatch one `general-purpose` subagent per locale, in parallel. Never one per entry: context within a locale matters. Its brief carries the workpacket from Step 2, the target catalog path, any project style guide (`STYLEGUIDE.md`, `docs/i18n-style.md`, or what the user supplied) and the rules below.
+One locale with about 30 entries or fewer: translate it in this session. More locales or a larger catalog: dispatch one `general-purpose` subagent per locale, in parallel. Never one per entry: context within a locale matters. Its brief carries the workpacket from Step 2, the target catalog path, any project style guide (`STYLEGUIDE.md`, `docs/i18n-style.md`, or what the user supplied) and these rules:
 
 - The style guide wins over any other source (formality, glossary, do-not-translate list).
 - Keep every placeholder, format specifier and tag with identical syntax.
