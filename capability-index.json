@@ -251,16 +251,6 @@
       "requires_enablement": false
     },
     {
-      "description": "Use this agent to translate a batch of i18n catalog entries from a source to a target locale, preserving placeholders, ICU MessageFormat, CLDR plurals, and HTML tags. Trigger phrases include \"translate this catalog\", \"translate these entries to <locale>\", \"fill missing translations for <locale>\".",
-      "disable_model_invocation": false,
-      "kind": "agent",
-      "model": "inherit",
-      "name": "translator",
-      "path": "i18n/agents/translator.md",
-      "plugin": "i18n",
-      "requires_enablement": false
-    },
-    {
       "description": "Use when auditing a project for i18n readiness. Trigger on \"audit i18n\", \"is this app translation-ready\", \"check translation coverage\", \"find hardcoded strings\".",
       "disable_model_invocation": false,
       "kind": "skill",
