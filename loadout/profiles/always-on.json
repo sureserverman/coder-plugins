@@ -3,6 +3,7 @@
   "plugins": [
     "git-github@coder-plugins",
     "planning@staged-planning",
+    "vault-context@obsidian-wiki",
     "vault-portfolio@obsidian-wiki"
   ]
 }
