@@ -392,10 +392,13 @@ def one_attempt(arm, prompt, n, folder, attempt, inputs_hash, timeout, isolation
         proj = make_project(scratch, os.path.join(HERE, f"fixture-{prompt}"))
         # The hook runs inside the wrapper, where the --out folder is masked: it logs
         # into the scratch folder and the log is copied into the run folder after.
+        # Everything the wrapped claude reads (settings) or writes (the hook log) lives in
+        # scratch for the same reason; both are copied into the run folder.
         log = os.path.join(scratch, "instructions.log")
-        settings_path = os.path.join(folder, "settings.json")
+        settings_path = os.path.join(scratch, "settings.json")
         with open(settings_path, "w") as fh:
             json.dump(settings_for(arm, log), fh, indent=2)
+        shutil.copyfile(settings_path, os.path.join(folder, "settings.json"))
         args = [ "-p", prompt_text, "--output-format", "stream-json", "--verbose",
                 "--permission-mode", "acceptEdits", "--allowedTools", ALLOWED_TOOLS,
                 "--settings", settings_path]

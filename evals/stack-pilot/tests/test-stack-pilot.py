@@ -293,7 +293,15 @@ if os.environ.get("FAKE_BWRAP_FAIL"):
     print("bwrap: No permissions to create new namespace", file=sys.stderr)
     sys.exit(1)
 rest = args[args.index("--") + 1:]
-if "--chdir" in args[:args.index("--")]:
+opts = args[:args.index("--")]
+# Enforce the one part of masking a stand-in can: an inner argument naming a path
+# under a --tmpfs folder would not exist inside the real wrapper.
+masked = [opts[i + 1].rstrip("/") + "/" for i, a in enumerate(opts[:-1]) if a == "--tmpfs"]
+for a in rest[1:]:
+    if os.path.isabs(a) and any((os.path.realpath(a) + "/").startswith(m) for m in masked):
+        print(f"fake bwrap: {a} is under a masked folder, so the wrapped command cannot see it", file=sys.stderr)
+        sys.exit(1)
+if "--chdir" in opts:
     os.chdir(args[args.index("--chdir") + 1])
 os.execvp(rest[0], rest)
 '''
