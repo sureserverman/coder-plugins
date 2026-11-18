@@ -446,6 +446,17 @@ def isolation_cases():
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], real)
         check(rc == 2 and "STACK_PILOT_SCAN_ROOTS" in se,
               f"outside the unit test the scan and mask overrides are refused (rc={rc}) {se}")
+        noisy = os.path.join(tmp, "noisy")
+        for name, err in (("dead", "rg: /tmp/x/.mount_app: Transport endpoint is not connected (os error 107)"),
+                          ("io", "rg: /mnt/disk/f: Input/output error (os error 5)")):
+            write(os.path.join(noisy, name, "rg"), f"#!/bin/sh\necho '{err}' >&2\nexit 2\n")
+            os.chmod(os.path.join(noisy, name, "rg"), 0o755)
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", os.path.join(tmp, "o-dead")],
+                            dict(env, PATH=os.path.join(noisy, "dead") + os.pathsep + env["PATH"]))
+        check(rc == 0, f"a dead FUSE mount the scan cannot read (no process can) does not stop the batch (rc={rc}) {se}")
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", os.path.join(tmp, "o-io")],
+                            dict(env, PATH=os.path.join(noisy, "io") + os.pathsep + env["PATH"]))
+        check(rc == 2 and "Input/output error" in se, f"any other scanner error is refused (rc={rc}) {se}")
         gone = dict(env, STACK_PILOT_SCAN_ROOTS=env["STACK_PILOT_SCAN_ROOTS"] + ":" + os.path.join(tmp, "no-such-root"))
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], gone)
         check(rc == 2 and "no-such-root" in se, f"a scan root that is absent is refused, never skipped (rc={rc}) {se}")

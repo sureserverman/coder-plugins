@@ -83,8 +83,9 @@ MARKERS = ("BufRead::read_line() == 0", "invisible to integration tests", "`coll
 UNIT_TEST = os.environ.get("STACK_PILOT_UNIT_TEST") == "1"
 OVERRIDES = ("STACK_PILOT_SCAN_ROOTS", "STACK_PILOT_DIR_MASKS")
 # Scanner errors that leave nothing readable behind: a folder the user cannot read (the
-# wrapped run cannot either) or a file that vanished mid-scan.
-BENIGN_SCAN_ERROR = re.compile(r"Permission denied|No such file or directory")
+# wrapped run cannot either), a file that vanished mid-scan, or a dead FUSE mount (an
+# AppImage's .mount_* left by a crashed app: no process can read it).
+BENIGN_SCAN_ERROR = re.compile(r"Permission denied|No such file or directory|Transport endpoint is not connected")
 
 _spec = importlib.util.spec_from_file_location("stack_pilot_grade", os.path.join(HERE, "grade.py"))
 grade = importlib.util.module_from_spec(_spec)
