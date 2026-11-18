@@ -46,6 +46,7 @@ copy; the result is merged into DIR/isolation.json.
 import argparse
 import datetime
 import glob
+import hashlib
 import importlib.util
 import json
 import os
@@ -108,6 +109,50 @@ def scratch_base():
     base = os.environ.get("STACK_PILOT_SCRATCH") or "/var/tmp/stack-pilot"
     os.makedirs(base, exist_ok=True)
     return os.path.realpath(base)
+
+
+# A full scan takes ~40 minutes on the network vault. A passed isolation probe saves its scan
+# (paths only) and the arm's listing probe and runs reuse it with --reuse-scan. The stores a
+# live session writes to during a batch are masked by folder (dir_masks), so a copy made after
+# the scan is hidden anyway; the age limit keeps one batch from reusing an earlier batch's scan.
+SCAN_MAX_AGE = 12 * 3600
+
+
+def markers_sha256():
+    return hashlib.sha256("\n".join(MARKERS).encode()).hexdigest()
+
+
+def saved_scan_path(arm):
+    return os.path.join(scratch_base(), f"scan-{arm}.json")
+
+
+def load_saved_scan(arm, roots):
+    path = saved_scan_path(arm)
+    try:
+        saved = json.load(open(path))
+    except (OSError, ValueError):
+        raise Refused(f"--reuse-scan: no saved scan for the {arm} arm at {path}; "
+                      f"run --isolation-probe --arm {arm} first")
+    problems = []
+    if not isinstance(saved, dict) or saved.get("arm") != arm:
+        problems.append("it is for another arm")
+        saved = saved if isinstance(saved, dict) else {}
+    if saved.get("markers_sha256") != markers_sha256():
+        problems.append("it looked for another set of marker phrases")
+    if saved.get("roots") != roots:
+        problems.append(f"it scanned {saved.get('roots')}, not {roots}")
+    try:
+        age = time.time() - datetime.datetime.fromisoformat(saved.get("at")).timestamp()
+    except (TypeError, ValueError):
+        age = None
+    if age is None or not 0 <= age <= SCAN_MAX_AGE:
+        problems.append(f"it ran at {saved.get('at')}, not within the last {SCAN_MAX_AGE // 3600} hours")
+    if not isinstance(saved.get("files"), list) or not isinstance(saved.get("scan_errors"), int):
+        problems.append("it has no file list")
+    if problems:
+        raise Refused(f"--reuse-scan: the saved scan {path} cannot be used: {'; '.join(problems)}. "
+                      f"Run --isolation-probe --arm {arm} again")
+    return saved
 
 
 def installed_path():
@@ -220,8 +265,9 @@ def inside(path, dirs):
     return any(path == d or path.startswith(d.rstrip("/") + "/") for d in dirs)
 
 
-def isolation_plan(arm, out, plugin_copy=None):
-    """What bwrap hides for this arm's batch: {dirs, files, roots, scan_errors}."""
+def isolation_plan(arm, out, plugin_copy=None, reuse=False):
+    """What bwrap hides for this arm's batch: {dirs, files, roots, scan_errors, scan_at,
+    scan_reused}. With reuse, the marker hits come from the arm's saved scan."""
     check_overrides()
     dirs = dir_masks(arm, os.path.realpath(out))
     allowed = allowed_prefixes(arm, plugin_copy)
@@ -230,11 +276,17 @@ def isolation_plan(arm, out, plugin_copy=None):
         if inside(p, dirs):
             raise Refused(f"{p} lies inside a masked folder ({dirs}); the run could not see it")
     roots = scan_roots()
-    hits, errors = run_scan([], roots)
+    if reuse:
+        saved = load_saved_scan(arm, roots)
+        hits, errors, at = saved["files"], saved["scan_errors"], saved["at"]
+    else:
+        hits, errors = run_scan([], roots)
+        at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     # The scratch base is scanned like anywhere else: an old log or a probe's leftovers there
     # are copies too. Only a run's own scratch folder is exempt, and it does not exist yet.
     files = [h for h in hits if not inside(h, allowed) and not inside(h, dirs) and os.path.isfile(h)]
-    return {"dirs": dirs, "files": files, "roots": roots, "scan_errors": errors}
+    return {"dirs": dirs, "files": files, "roots": roots, "scan_errors": errors,
+            "scan_at": at, "scan_reused": reuse}
 
 
 def bwrap_prefix(plan, cwd):
@@ -499,6 +551,7 @@ def one_attempt(arm, prompt, n, folder, attempt, inputs_hash, timeout, isolation
             "rule_file": rule_file(), "started_at": started,
             "isolated": True, "masked_dirs": isolation["dirs"], "masked_files": isolation["files"],
             "scan_roots": isolation["roots"], "scan_errors": isolation["scan_errors"],
+            "scan_at": isolation["scan_at"], "scan_reused": isolation["scan_reused"],
             "lane_commands": s["lane_commands"],
         }
         with open(os.path.join(folder, "meta.json"), "w") as fh:
@@ -517,13 +570,14 @@ def aside(folder, suffix):
     return dst
 
 
-def run_arm(arm, prompt, runs, out, timeout):
+def run_arm(arm, prompt, runs, out, timeout, reuse=False):
     check_rule(arm)
     check_bwrap()
     os.makedirs(out, exist_ok=True)
-    isolation = isolation_plan(arm, out)
+    isolation = isolation_plan(arm, out, reuse=reuse)
     print(f"isolation: {len(isolation['dirs'])} folder(s) and {len(isolation['files'])} file(s) hidden "
-          f"for the {arm} arm ({isolation['scan_errors']} unreadable path(s) skipped by the scan)")
+          f"for the {arm} arm ({isolation['scan_errors']} unreadable path(s) skipped by the scan"
+          f"{', scan of ' + isolation['scan_at'] + ' reused' if reuse else ''})")
     inputs_hash = grade.inputs_sha256()
     failed = []
     for n in range(1, runs + 1):
@@ -584,6 +638,9 @@ def isolation_probe(arm, out):
     check_rule(arm)
     check_bwrap()
     os.makedirs(out, exist_ok=True)
+    # An earlier batch's saved scan never outlives a new probe: on failure nothing is saved.
+    if os.path.exists(saved_scan_path(arm)):
+        os.remove(saved_scan_path(arm))
     scratch = tempfile.mkdtemp(prefix=f"stack-pilot-isolation-{arm}-", dir=scratch_base())
     try:
         plugin_copy = rule_plugin_copy(scratch) if arm == "rule" else None
@@ -615,6 +672,10 @@ def isolation_probe(arm, out):
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     merge_json(os.path.join(out, "isolation.json"), arm, result)
+    if result["pass"]:
+        with open(saved_scan_path(arm), "w") as fh:
+            json.dump({"arm": arm, "at": plan["scan_at"], "roots": plan["roots"], "files": plan["files"],
+                       "scan_errors": plan["scan_errors"], "markers_sha256": markers_sha256()}, fh)
     # Printed without "markers": a log of this line must not become a copy of the skill's text.
     print(json.dumps({k: v for k, v in result.items() if k not in ("markers", "masked_dirs")}))
     return 0 if result["pass"] else 1
@@ -631,11 +692,11 @@ def tool_results(events):
                 yield c if isinstance(c, str) else json.dumps(c)
 
 
-def probe(arm, out, timeout):
+def probe(arm, out, timeout, reuse=False):
     check_rule(arm)
     check_bwrap()
     os.makedirs(out, exist_ok=True)
-    isolation = isolation_plan(arm, out)
+    isolation = isolation_plan(arm, out, reuse=reuse)
     scratch = tempfile.mkdtemp(prefix=f"stack-pilot-probe-{arm}-", dir=scratch_base())
     try:
         proj = make_project(scratch, None)
@@ -692,16 +753,20 @@ def main(argv=None):
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--isolation-probe", action="store_true",
                     help="scan for the skill's text from inside the arm's wrapper; exit 0 only when isolated")
+    ap.add_argument("--reuse-scan", action="store_true",
+                    help="reuse the scan the arm's passed --isolation-probe saved instead of scanning again")
     ap.add_argument("--timeout", type=int, default=1800, help="seconds per claude call (default 1800)")
     a = ap.parse_args(argv)
     try:
         if a.isolation_probe:
+            if a.reuse_scan:
+                ap.error("--isolation-probe always scans; --reuse-scan is for --probe and runs")
             return isolation_probe(a.arm, a.out)
         if a.probe:
-            return probe(a.arm, a.out, min(a.timeout, 300))
+            return probe(a.arm, a.out, min(a.timeout, 300), a.reuse_scan)
         if not a.prompt or not a.runs or a.runs < 1:
             ap.error("--prompt and a --runs of at least 1 are required unless --probe")
-        return run_arm(a.arm, a.prompt, a.runs, a.out, a.timeout)
+        return run_arm(a.arm, a.prompt, a.runs, a.out, a.timeout, a.reuse_scan)
     except Refused as e:
         print(f"run.py: {e}", file=sys.stderr)
         return 2

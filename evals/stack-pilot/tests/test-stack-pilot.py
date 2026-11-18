@@ -645,12 +645,78 @@ def session_store_cases():
                   f"the default masks hide the config store {d}/")
 
 
+def reuse_scan_cases():
+    """--reuse-scan: a passed isolation probe saves its scan (paths only), and the arm's listing
+    probe and runs reuse it instead of scanning again; no saved scan, a failed probe, a scan from
+    another arm or marker set, or an old one is refused, never a silent fresh start."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env, calls = fake_env(tmp, rule_file=False)
+        out = os.path.join(tmp, "out")
+        cfgp = os.path.join(tmp, "cfg", "plugins")
+        for d in (os.path.join(cfgp, "cache", "coder-plugins", "rust-dev", "0.5.2"),
+                  os.path.join(cfgp, "marketplaces", "coder-plugins")):
+            shutil.rmtree(d)
+        counter = os.path.join(tmp, "count")
+        real_rg = shutil.which("rg")
+        os.makedirs(counter)
+        for tool, real in (("rg", real_rg), ("grep", shutil.which("grep"))):
+            if real:
+                write(os.path.join(counter, tool),
+                      f"#!/bin/sh\necho {tool} >> {os.path.join(tmp, 'scans.log')}\nexec {real} \"$@\"\n")
+                os.chmod(os.path.join(counter, tool), 0o755)
+        env["PATH"] = counter + os.pathsep + env["PATH"]
+        scans = lambda: len(open(os.path.join(tmp, "scans.log")).read().split()) \
+            if os.path.exists(os.path.join(tmp, "scans.log")) else 0
+        cache = os.path.join(env["STACK_PILOT_SCRATCH"], "scan-skill.json")
+        leak = os.path.join(tmp, "scan", "notes", "copy.md")
+        write(leak, SKILL_TEXT)
+
+        rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
+        check(rc == 2 and "no saved scan" in se, f"--reuse-scan with no saved scan is refused (rc={rc}) {se}")
+
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        check(rc == 1 and not os.path.exists(cache), f"a failed isolation probe saves no scan (rc={rc})")
+        os.remove(leak)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        check(rc == 0 and os.path.exists(cache), f"a passed isolation probe saves its scan (rc={rc}) {so}{se}")
+        saved = json.load(open(cache)) if os.path.exists(cache) else {}
+        check(not any(m in open(cache).read() for m in MARKERS) if saved else False,
+              "the saved scan holds paths only, no marker phrase")
+
+        write(leak, SKILL_TEXT)
+        before = scans()
+        rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
+        check(rc == 0 and scans() == before, f"a run with --reuse-scan does not scan again (rc={rc}, "
+              f"scans {before}->{scans()}) {se}")
+        mpath = os.path.join(out, "skill-author-1", "meta.json")
+        meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+        check(meta.get("scan_at") == saved.get("at") and meta.get("scan_reused") is True,
+              f"the run's meta.json records the reused scan and when it ran {meta.get('scan_at')}")
+        rc, so, se = run_py(["--probe", "--arm", "skill", "--out", out, "--reuse-scan"], env)
+        check(rc == 0 and scans() == before, f"the listing probe with --reuse-scan does not scan again (rc={rc}) {se}")
+        before = scans()
+        rc, so, se = run_py(["--arm", "skill", "--prompt", "audit", "--runs", "1", "--out", out], env)
+        check(rc == 0 and scans() > before, f"without --reuse-scan a run still scans (rc={rc})")
+        os.remove(leak)
+
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
+        check(rc == 2 and "no saved scan" in se, f"another arm's saved scan is not reused (rc={rc}) {se}")
+        for field, value, why in (("markers_sha256", "0" * 64, "a scan for another marker set"),
+                                  ("at", "2000-01-01T00:00:00+00:00", "a scan older than the limit"),
+                                  ("roots", ["/elsewhere"], "a scan of other roots")):
+            write(cache, json.dumps(dict(saved, **{field: value})))
+            rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "2", "--out", out,
+                                 "--reuse-scan"], env)
+            check(rc == 2 and "saved scan" in se and "usage:" not in se, f"{why} is refused (rc={rc}) {se}")
+
+
 def main():
     for name, fn in [("grader on fixtures", grader_fixture_cases), ("gradeability", gradeability_cases),
                      ("grade.py CLI", grade_cli_cases), ("verdict", verdict_cases),
                      ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
                      ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases),
-                     ("run.py session stores", session_store_cases)]:
+                     ("run.py session stores", session_store_cases),
+                     ("run.py --reuse-scan", reuse_scan_cases)]:
         print(f"== {name}")
         fn()
     if FAILURES:
