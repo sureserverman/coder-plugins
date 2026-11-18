@@ -171,8 +171,10 @@ def isolation_plan(arm, out):
     p = subprocess.run(scan_cmd(scan_roots()), capture_output=True, text=True)
     if p.returncode not in (0, 1) and not p.stdout.strip():
         raise Refused(f"the scan for the skill's text failed (exit {p.returncode}): {p.stderr.strip()[-300:]}")
+    # The scratch base is scanned like anywhere else: an old log or a probe's leftovers there
+    # are copies too. Only a run's own scratch folder is exempt, and it does not exist yet.
     files = [h for h in parse_hits(p.stdout)
-             if h not in allowed and not inside(h, dirs) and not inside(h, [base]) and os.path.isfile(h)]
+             if h not in allowed and not inside(h, dirs) and os.path.isfile(h)]
     return dirs, files
 
 
@@ -522,7 +524,8 @@ def isolation_probe(arm, out):
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     merge_json(os.path.join(out, "isolation.json"), arm, result)
-    print(json.dumps(result))
+    # Printed without "markers": a log of this line must not become a copy of the skill's text.
+    print(json.dumps({k: v for k, v in result.items() if k != "markers"}))
     return 0 if result["pass"] else 1
 
 

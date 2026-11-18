@@ -298,6 +298,8 @@ if "--chdir" in args[:args.index("--")]:
 os.execvp(rest[0], rest)
 '''
 
+MARKERS = load("stack_pilot_run", RUN_PY).MARKERS
+
 SKILL_TEXT = "# rust-coding\n2. **`BufRead::read_line() == 0` means EOF, not \"nothing yet\".**\n"
 
 
@@ -406,7 +408,18 @@ def isolation_cases():
         iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
         check(rc == 1 and iso.get("pass") is False and leak in iso.get("found", []),
               f"the isolation probe fails while a foreign copy is readable, naming it (rc={rc}) {so}{se}")
+        check(not any(m in so + se for m in MARKERS),
+              "the isolation probe prints no marker phrase, so its own output is not a new copy")
         os.remove(leak)
+
+        stale = os.path.join(env["STACK_PILOT_SCRATCH"], "old-batch.log")
+        write(stale, "an old log quoting BufRead::read_line() == 0\n")
+        two_roots = dict(env, STACK_PILOT_SCAN_ROOTS=env["STACK_PILOT_SCAN_ROOTS"] + ":" + env["STACK_PILOT_SCRATCH"])
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "audit", "--runs", "1", "--out", out], two_roots)
+        runs = claude_calls_under_bwrap(env)
+        check(rc == 0 and runs and os.path.realpath(stale) in masked_files(runs[-1]),
+              f"a copy inside the scratch base is hidden too (rc={rc}) {se}")
+        os.remove(stale)
         rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
         iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
         check(rc == 0 and iso.get("pass") is True and installed in iso.get("found", [])
