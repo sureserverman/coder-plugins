@@ -94,7 +94,7 @@ def make_run(results, arm, prompt, n, tree_from=None, extra_rs=None, **meta_over
         "rule_present": arm == "rule", "rule_loaded": arm == "rule",
         "skill_invoked": arm == "skill", "lane_run": prompt == "audit",
         "inputs_sha256": grade.inputs_sha256(), "exit": 0, "seconds": 1.0,
-        "environment": "ok",
+        "environment": "ok", "is_error": False, "result_subtype": "success",
     }
     meta.update(meta_over)
     write(os.path.join(folder, "meta.json"), json.dumps(meta, indent=2))
@@ -162,6 +162,35 @@ def gradeability_cases():
         audit = make_run(res, "skill", "audit", 1, tree_from=FIX_AUDIT)
         g = grade.grade_run(audit)
         check(g["status"] == "gradeable" and g["total"] == 4, f"an unchanged audit tree is gradeable with 4 findings (got {g})")
+
+        no_result = make_run(res, "skill", "audit", 2, tree_from=FIX_AUDIT, is_error=None, result_subtype=None)
+        check(grade.grade_run(no_result)["status"] == "ungradeable",
+              "a run whose transcript holds no result event (is_error null) is ungradeable")
+        not_success = make_run(res, "skill", "audit", 3, tree_from=FIX_AUDIT, result_subtype="error_max_turns")
+        check(grade.grade_run(not_success)["status"] == "ungradeable",
+              "a run whose result is not a success is ungradeable")
+
+        hidden = make_run(res, "bare", "audit", 1)
+        copy_tree(FIX_AUDIT, os.path.join(hidden, "tree", "vendor", "crate"))
+        write(os.path.join(hidden, "tree", "Cargo.toml"), "[package]\nname = \"x\"\n")
+        g = grade.grade_run(hidden)
+        check(g["status"] == "ungradeable",
+              f"a tree whose .rs files the validator skips (under vendor/) is ungradeable, never 0 (got {g})")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        lane = os.path.join(tmp, "validate-safety.sh")
+        write(lane, "echo one\n")
+        saved = grade.LANE_INPUTS
+        try:
+            grade.LANE_INPUTS = (lane,)
+            before = grade.inputs_sha256()
+            write(lane, "echo two\n")
+            check(grade.inputs_sha256() != before, "inputs_sha256 changes when the validator that counts changes")
+        finally:
+            grade.LANE_INPUTS = saved
+        check(any(p.endswith("validate-safety.sh") for p in grade.LANE_INPUTS)
+              and any(p.endswith("findings.sh") for p in grade.LANE_INPUTS),
+              "the hash covers validate-safety.sh and lib/findings.sh")
 
 
 def cli(args, env=None):
@@ -259,6 +288,14 @@ emit({"type": "system", "subtype": "hook_response"})
 emit({"type": "system", "subtype": "init",
       "skills": ["rust-dev:rust-coding"] if enabled else [],
       "plugins": [{"name": "rust-dev"}] if enabled else []})
+if "command -v rust-dev-validate" in args[args.index("-p") + 1]:
+    found = "/x/plugin/rust-dev/bin/rust-dev-validate" if "--plugin-dir" in args else ""
+    emit({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "command -v rust-dev-validate"}}]}})
+    emit({"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": "b1", "content": found}]}})
+    emit({"type": "result", "subtype": "success", "is_error": False, "result": found or "not found"})
+    sys.exit(0)
 if "--max-turns" in args:
     emit({"type": "result", "subtype": "success", "is_error": False, "result": "OK"})
     sys.exit(0)
@@ -319,10 +356,18 @@ def fake_env(tmp, rule_file):
         write(rf, "---\npaths: [\"**/*.rs\"]\n---\nrule: BufRead::read_line() == 0\n")
     elif os.path.exists(rf):
         os.remove(rf)
-    install = os.path.join(tmp, "scan", "plugins", "cache", "rust-dev", "0.6.0")
+    install = os.path.join(cfg, "plugins", "cache", "coder-plugins", "rust-dev", "0.6.0")
     write(os.path.join(install, "skills", "rust-coding", "SKILL.md"), SKILL_TEXT)
+    write(os.path.join(install, "scripts", "validate-safety.sh"), "# capacity is a compile-time small constant\n")
     write(os.path.join(cfg, "plugins", "installed_plugins.json"),
           json.dumps({"plugins": {"rust-dev@coder-plugins": [{"installPath": install}]}}))
+    # An older cached version whose agent restates a house rule in the owner's words but
+    # carries none of the gotcha phrases (the shape of the Stage 1 review's C1), and a
+    # marketplace clone whose history holds the skill.
+    write(os.path.join(cfg, "plugins", "cache", "coder-plugins", "rust-dev", "0.5.2", "agents", "rust-expert.md"),
+          "3. **Bound every channel.** `unbounded_channel` only when capacity is a compile-time small constant.\n")
+    write(os.path.join(cfg, "plugins", "marketplaces", "coder-plugins", "rust-dev", "README.md"), "rust-dev\n")
+    write(os.path.join(cfg, "plugins", "marketplaces", "coder-plugins", ".git", "HEAD"), "ref: refs/heads/main\n")
     bindir = os.path.join(tmp, "bin")
     state = os.path.join(tmp, "state")
     os.makedirs(bindir, exist_ok=True)
@@ -338,8 +383,10 @@ def fake_env(tmp, rule_file):
     env["FAKE_CLAUDE_STATE"] = state
     env["TMPDIR"] = os.path.join(tmp, "scratch")
     env["STACK_PILOT_SCRATCH"] = os.path.join(tmp, "scratch")
-    env["STACK_PILOT_SCAN_ROOTS"] = os.path.join(tmp, "scan")
+    os.makedirs(os.path.join(tmp, "scan"), exist_ok=True)
+    env["STACK_PILOT_SCAN_ROOTS"] = os.path.join(tmp, "scan") + ":" + cfg
     env["STACK_PILOT_DIR_MASKS"] = ""
+    env["STACK_PILOT_UNIT_TEST"] = "1"
     os.makedirs(env["TMPDIR"], exist_ok=True)
     return env, os.path.join(state, "calls.log")
 
@@ -369,8 +416,12 @@ def isolation_cases():
     with tempfile.TemporaryDirectory() as tmp:
         env, calls = fake_env(tmp, rule_file=False)
         out = os.path.join(tmp, "out")
-        installed = os.path.realpath(os.path.join(tmp, "scan", "plugins", "cache", "rust-dev", "0.6.0",
-                                                  "skills", "rust-coding", "SKILL.md"))
+        cfgp = os.path.join(tmp, "cfg", "plugins")
+        install_dir = os.path.realpath(os.path.join(cfgp, "cache", "coder-plugins", "rust-dev", "0.6.0"))
+        installed = os.path.join(install_dir, "skills", "rust-coding", "SKILL.md")
+        old_tree = os.path.realpath(os.path.join(cfgp, "cache", "coder-plugins", "rust-dev", "0.5.2"))
+        market = os.path.realpath(os.path.join(cfgp, "marketplaces", "coder-plugins", "rust-dev"))
+        market_git = os.path.realpath(os.path.join(cfgp, "marketplaces", "coder-plugins", ".git"))
         leak = os.path.join(tmp, "scan", "ports", "rust-coding", "SKILL.md")
         write(leak, SKILL_TEXT)
         leak = os.path.realpath(leak)
@@ -391,24 +442,42 @@ def isolation_cases():
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], no_bwrap)
         check(rc == 2 and "bwrap is not installed" in se, f"run.py refuses when bwrap is missing (rc={rc}) {se}")
 
+        real = {k: v for k, v in env.items() if k != "STACK_PILOT_UNIT_TEST"}
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], real)
+        check(rc == 2 and "STACK_PILOT_SCAN_ROOTS" in se,
+              f"outside the unit test the scan and mask overrides are refused (rc={rc}) {se}")
+        gone = dict(env, STACK_PILOT_SCAN_ROOTS=env["STACK_PILOT_SCAN_ROOTS"] + ":" + os.path.join(tmp, "no-such-root"))
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], gone)
+        check(rc == 2 and "no-such-root" in se, f"a scan root that is absent is refused, never skipped (rc={rc}) {se}")
+
         for arm in ("skill", "bare"):
             rc, so, se = run_py(["--arm", arm, "--prompt", "author", "--runs", "1", "--out", out], env)
             check(rc == 0, f"the {arm} arm runs under the wrapper (rc={rc}) {so}{se}")
             runs = claude_calls_under_bwrap(env)
             check(len(runs) >= 1, f"the {arm} run's claude call went through bwrap")
             argv = runs[-1] if runs else []
+            check("--unshare-pid" in argv and "--proc" in argv,
+                  f"the {arm} arm gets its own PID namespace and /proc, so /proc/<pid>/root shows no unmasked view")
             check(leak in masked_files(argv), f"the {arm} arm hides a foreign copy of the skill's text")
             check(os.path.realpath(out) in masked_dirs(argv), f"the {arm} arm hides the --out folder")
             check(os.path.realpath(os.path.join(tmp, "scan", "generic.md")) not in masked_files(argv),
                   f"the {arm} arm leaves a file without the markers alone")
+            check({old_tree, market, market_git} <= masked_dirs(argv),
+                  f"the {arm} arm hides every other rust-dev tree, the marketplace copy and its .git by path")
             if arm == "skill":
-                check(installed not in masked_files(argv), "the skill arm keeps its own installed SKILL.md")
+                check(install_dir not in masked_dirs(argv) and installed not in masked_files(argv),
+                      "the skill arm keeps its own installed plugin, skill included")
             else:
-                check(installed in masked_files(argv), "the bare arm hides the installed SKILL.md too")
+                check(install_dir in masked_dirs(argv), "the bare arm hides the installed plugin too")
             mpath = os.path.join(out, f"{arm}-author-1", "meta.json")
             meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
-            check(meta.get("isolated") is True and leak in (meta.get("masked_files") or []),
-                  f"the {arm} run's meta.json records isolated true and the hidden files")
+            check(meta.get("isolated") is True and leak in (meta.get("masked_files") or [])
+                  and old_tree in (meta.get("masked_dirs") or []),
+                  f"the {arm} run's meta.json records isolated true and what was hidden")
+            check(meta.get("scan_roots") == env["STACK_PILOT_SCAN_ROOTS"].split(":"),
+                  f"the {arm} run's meta.json records the scan roots")
+            check(meta.get("lane_commands") == ["bash /x/scripts/validate.sh . --json"],
+                  f"the {arm} run's meta.json records the command that counted as the lane")
             check(meta.get("rule_loaded") is True,
                   f"the hook log written inside the wrapper still reaches the {arm} run folder")
 
@@ -419,6 +488,10 @@ def isolation_cases():
         check(not any(m in so + se for m in MARKERS),
               "the isolation probe prints no marker phrase, so its own output is not a new copy")
         os.remove(leak)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 1 and any("0.5.2" in f for f in iso.get("found_paths", [])),
+              f"the probe fails on a readable rust-dev tree by path, whatever its text (rc={rc}) {iso.get('found_paths')}")
 
         stale = os.path.join(env["STACK_PILOT_SCRATCH"], "old-batch.log")
         write(stale, "an old log quoting BufRead::read_line() == 0\n")
@@ -428,13 +501,15 @@ def isolation_cases():
         check(rc == 0 and runs and os.path.realpath(stale) in masked_files(runs[-1]),
               f"a copy inside the scratch base is hidden too (rc={rc}) {se}")
         os.remove(stale)
+        for d in (old_tree, market, market_git):
+            shutil.rmtree(d)
         rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
         iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
         check(rc == 0 and iso.get("pass") is True and installed in iso.get("found", [])
               and any(f.endswith("canary.md") for f in iso.get("found", [])),
-              f"the probe passes when only the canary and the arm's own copy are found (rc={rc}) {so}{se}")
+              f"the probe passes when only the canary and the arm's own plugin are found (rc={rc}) {so}{se}")
         rc, so, se = run_py(["--isolation-probe", "--arm", "bare", "--out", out], env)
-        check(rc == 1, f"the bare probe fails while the installed SKILL.md is readable to it (rc={rc})")
+        check(rc == 1, f"the bare probe fails while the installed plugin is readable to it (rc={rc})")
         blind = dict(env, PATH=os.path.join(tmp, "blind") + os.pathsep + env["PATH"])
         for tool in ("rg", "grep"):
             write(os.path.join(tmp, "blind", tool), "#!/bin/sh\nexit 1\n")
@@ -523,11 +598,22 @@ def fake_run_cases():
         check(g["total"] == 1, f"the fake run's .unwrap() is counted (got {g['total']})")
 
 
+def rule_probe_cases():
+    """--probe --arm rule shows whether the plugin's bin/ commands are on the session's PATH."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env, calls = fake_env(tmp, rule_file=True)
+        out = os.path.join(tmp, "out")
+        rc, so, se = run_py(["--probe", "--arm", "rule", "--out", out], env)
+        probe = json.load(open(os.path.join(out, "probe.json"))).get("rule", {}) if rc == 0 else {}
+        check(rc == 0 and probe.get("bin_on_path") is True and probe.get("skill_listed") is False,
+              f"the rule probe records rust-dev-validate on PATH and no skill (rc={rc}) {so}{se}")
+
+
 def main():
     for name, fn in [("grader on fixtures", grader_fixture_cases), ("gradeability", gradeability_cases),
                      ("grade.py CLI", grade_cli_cases), ("verdict", verdict_cases),
                      ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
-                     ("run.py isolation", isolation_cases)]:
+                     ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases)]:
         print(f"== {name}")
         fn()
     if FAILURES:

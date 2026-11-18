@@ -45,6 +45,9 @@ SKIP_DIRS = {"target", ".git", "__pycache__"}
 
 # The files whose change would invalidate a comparison already under way.
 INPUTS = ("prompts/author.txt", "prompts/audit.txt", "fixture-author", "fixture-audit", "grade.py")
+# The validator that produces the counts is an input too: an edit to it between the
+# baseline and the verdict would change what a finding is.
+LANE_INPUTS = (VALIDATE_SAFETY, os.path.join(os.path.dirname(VALIDATE_SAFETY), "lib", "findings.sh"))
 
 
 def _walk_files(root):
@@ -64,7 +67,7 @@ def _sha256(path):
 
 
 def inputs_sha256(base=HERE):
-    """One hash over the prompts, both fixtures and this grader."""
+    """One hash over the prompts, both fixtures, this grader and the validator it runs."""
     h = hashlib.sha256()
     for item in INPUTS:
         path = os.path.join(base, item)
@@ -74,6 +77,10 @@ def inputs_sha256(base=HERE):
         for f in files:
             rel = os.path.relpath(f, base).replace(os.sep, "/")
             h.update(rel.encode() + b"\0" + _sha256(f).encode() + b"\n")
+    for f in LANE_INPUTS:
+        if not os.path.isfile(f):
+            raise FileNotFoundError(f"stack-pilot input missing: {f}")
+        h.update(b"lane/" + os.path.basename(f).encode() + b"\0" + _sha256(f).encode() + b"\n")
     return h.hexdigest()
 
 
@@ -100,6 +107,11 @@ def scan_tree(tree):
         findings = report["findings"]
     except (ValueError, KeyError, TypeError) as e:
         raise ScanError(f"validate-safety.sh output is not its --json contract: {e}")
+    if any(f.get("rule") == "rust-no-sources" for f in findings) and rust_sources(tree):
+        # The validator skips target/, vendor/ and .git/: .rs files it never read are not
+        # a clean result.
+        raise ScanError("validate-safety.sh found no Rust sources it scans, but the tree holds .rs files "
+                        "(under a path it skips, such as vendor/ or target/)")
     counts = dict.fromkeys(HOUSE_IDS, 0)
     for f in findings:
         if f.get("rule") in counts:
@@ -133,8 +145,9 @@ def grade_run(folder, current_hash=None):
         return _ungradeable(g, "environment failure (rate limit or network)")
     if meta.get("exit") != 0:
         return _ungradeable(g, f"claude exit {meta.get('exit')!r}")
-    if meta.get("is_error") is True:
-        return _ungradeable(g, "claude reported an error result")
+    if meta.get("is_error") is not False or meta.get("result_subtype") != "success":
+        return _ungradeable(g, f"claude did not report a successful result (is_error={meta.get('is_error')!r}, "
+                               f"subtype={meta.get('result_subtype')!r}); a truncated transcript is not a data point")
     want_rule = g["arm"] == "rule"
     if meta.get("rule_present") is not want_rule:
         return _ungradeable(g, f"rule_present is {meta.get('rule_present')!r}; the {g['arm']} arm needs {want_rule}")

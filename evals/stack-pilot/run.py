@@ -45,6 +45,7 @@ copy; the result is merged into DIR/isolation.json.
 """
 import argparse
 import datetime
+import glob
 import importlib.util
 import json
 import os
@@ -72,9 +73,18 @@ ENV_RE = re.compile(
     r"usage limit|temporarily unavailable",
     re.IGNORECASE)
 
-# Phrases only the skill's owner text carries (two gotchas and an example), so a
-# hit is a copy of the skill's facts, not generic Rust documentation.
-MARKERS = ("BufRead::read_line() == 0", "invisible to integration tests", "`collab` → `multi_agent`")
+# Phrases only the owner's Rust text carries: two gotchas and an example, plus three house
+# rules in the owner's wording (the Stage 1 review found the rules restated, without any
+# gotcha, in an older version's agent file). A hit is a copy of the facts, not generic
+# Rust documentation. Plugin trees are also hidden by path, whatever their text.
+MARKERS = ("BufRead::read_line() == 0", "invisible to integration tests", "`collab` → `multi_agent`",
+           "compile-time small constant", "on every type deserialized from external input",
+           "naming the invariants and where they're established")
+UNIT_TEST = os.environ.get("STACK_PILOT_UNIT_TEST") == "1"
+OVERRIDES = ("STACK_PILOT_SCAN_ROOTS", "STACK_PILOT_DIR_MASKS")
+# Scanner errors that leave nothing readable behind: a folder the user cannot read (the
+# wrapped run cannot either) or a file that vanished mid-scan.
+BENIGN_SCAN_ERROR = re.compile(r"Permission denied|No such file or directory")
 
 _spec = importlib.util.spec_from_file_location("stack_pilot_grade", os.path.join(HERE, "grade.py"))
 grade = importlib.util.module_from_spec(_spec)
@@ -99,32 +109,55 @@ def scratch_base():
     return os.path.realpath(base)
 
 
-def installed_skill_file():
-    """The SKILL.md the skill arm loads: rust-dev's installPath in installed_plugins.json."""
+def installed_path():
+    """The plugin tree the skill arm loads: rust-dev's installPath in installed_plugins.json."""
     path = os.path.join(config_dir(), "plugins", "installed_plugins.json")
     try:
         entries = (json.load(open(path)).get("plugins") or {}).get(PLUGIN_ID) or []
     except (OSError, ValueError, AttributeError):
         entries = []
     for e in entries:
-        if isinstance(e, dict) and e.get("installPath"):
-            return os.path.join(e["installPath"], "skills", "rust-coding", "SKILL.md")
+        if isinstance(e, dict) and e.get("installPath") and os.path.isdir(e["installPath"]):
+            return os.path.realpath(e["installPath"])
     raise Refused(f"cannot find {PLUGIN_ID}'s installPath in {path}; the skill arm needs the installed plugin")
 
 
-def allowed_copies(arm):
-    """The copies of the skill's text the arm is given, and may read."""
+def check_overrides():
+    if not UNIT_TEST:
+        found = [k for k in OVERRIDES if k in os.environ]
+        if found:
+            raise Refused(f"{', '.join(found)} is honoured only by the unit test (STACK_PILOT_UNIT_TEST=1); "
+                          f"a real batch scans and masks the defaults")
+
+
+def plugin_trees():
+    """Every rust-dev tree Claude Code keeps: each cached version, each marketplace clone's copy,
+    and that clone's .git (its history holds the skill)."""
+    base = os.path.join(config_dir(), "plugins")
+    trees = [d for d in glob.glob(os.path.join(base, "cache", "*", "rust-dev", "*")) if os.path.isdir(d)]
+    for m in glob.glob(os.path.join(base, "marketplaces", "*", "rust-dev")):
+        trees.append(m)
+        git_dir = os.path.join(os.path.dirname(m), ".git")
+        if os.path.isdir(git_dir):
+            trees.append(git_dir)
+    return sorted({os.path.realpath(d) for d in trees})
+
+
+def allowed_prefixes(arm, plugin_copy=None):
+    """What the arm is given, and may read: the skill arm its installed plugin, the rule arm
+    the rule file and its own plugin copy, the bare arm nothing."""
     if arm == "skill":
-        return [os.path.realpath(installed_skill_file())]
+        return [installed_path()]
     if arm == "rule":
-        return [os.path.realpath(rule_file())]
+        return [os.path.realpath(rule_file())] + ([os.path.realpath(plugin_copy)] if plugin_copy else [])
     return []
 
 
-def dir_masks(out):
-    """Stores hidden under an empty tmpfs: they change during a batch, so a scan at its start
-    cannot list their files. STACK_PILOT_DIR_MASKS (colon-separated) replaces the defaults in
-    the unit test; the masks used are recorded in every meta.json."""
+def dir_masks(arm, out):
+    """Folders hidden under an empty tmpfs: stores that change during a batch (a scan at its
+    start cannot list their files) and every rust-dev tree but the arm's own.
+    STACK_PILOT_DIR_MASKS replaces the stores in the unit test only; the masks used are
+    recorded in every meta.json."""
     home = os.path.expanduser("~")
     if "STACK_PILOT_DIR_MASKS" in os.environ:
         dirs = [d for d in os.environ["STACK_PILOT_DIR_MASKS"].split(":") if d]
@@ -133,14 +166,26 @@ def dir_masks(out):
                 os.path.join(home, ".agents"), os.path.join(home, ".codex"), os.path.join(home, ".cursor"),
                 os.path.join(home, ".config", "opencode"), os.path.join(home, ".config", "superpowers"),
                 os.path.join(home, ".config", "Cursor")]
+    keep = allowed_prefixes(arm)
+    dirs += [t for t in plugin_trees() if t not in keep]
     dirs.append(out)
     return sorted({os.path.realpath(d) for d in dirs if os.path.isdir(d)})
 
 
 def scan_roots():
+    """Where the scan looks. Every root must exist: a vault that is not mounted at batch start
+    would be skipped by the scan and then mounted, unmasked, during the run."""
     env = os.environ.get("STACK_PILOT_SCAN_ROOTS")
-    roots = env.split(":") if env else [os.path.expanduser("~"), "/tmp", "/var/tmp", "/mnt/vault"]
-    return [r for r in roots if r and os.path.isdir(r)]
+    if env:
+        roots = [r for r in env.split(":") if r]
+    else:
+        roots = [os.path.expanduser("~"), "/tmp", "/var/tmp", "/mnt/vault"]
+        roots += [r for r in ("/mnt/vault2",) if os.path.isdir(r)]
+    missing = [r for r in roots if not os.path.isdir(r)]
+    if missing or not roots:
+        raise Refused(f"scan root(s) {missing or '(none)'} do not exist; the scan would skip them and the run "
+                      f"would see them unmasked")
+    return roots
 
 
 def scan_cmd(roots):
@@ -148,8 +193,19 @@ def scan_cmd(roots):
     for m in MARKERS:
         pats += ["-e", m]
     if shutil.which("rg"):
-        return ["rg", "-l", "-uu", "--no-messages", "-F", *pats, "--", *roots]
-    return ["grep", "-rlsF", *pats, "--", *roots]
+        return ["rg", "-l", "-uu", "-F", *pats, "--", *roots]
+    return ["grep", "-rlF", *pats, "--", *roots]
+
+
+def run_scan(prefix, roots):
+    """(hits, tolerated error count). Refuses on any scanner error that could hide a readable file."""
+    p = subprocess.run([*prefix, *scan_cmd(roots)], capture_output=True, text=True)
+    errors = [l for l in p.stderr.splitlines() if l.strip()]
+    bad = [l for l in errors if not BENIGN_SCAN_ERROR.search(l)]
+    if p.returncode not in (0, 1) and (bad or not errors):
+        raise Refused(f"the scan for the skill's text failed (exit {p.returncode}): "
+                      f"{(bad or [p.stderr.strip()])[0][-300:]}")
+    return parse_hits(p.stdout), len(errors)
 
 
 def parse_hits(stdout):
@@ -160,38 +216,40 @@ def inside(path, dirs):
     return any(path == d or path.startswith(d.rstrip("/") + "/") for d in dirs)
 
 
-def isolation_plan(arm, out):
-    """(dir masks, file masks): what bwrap hides for this arm's batch."""
-    dirs = dir_masks(os.path.realpath(out))
-    allowed = allowed_copies(arm)
+def isolation_plan(arm, out, plugin_copy=None):
+    """What bwrap hides for this arm's batch: {dirs, files, roots, scan_errors}."""
+    check_overrides()
+    dirs = dir_masks(arm, os.path.realpath(out))
+    allowed = allowed_prefixes(arm, plugin_copy)
     base = scratch_base()
     for p in [base, *allowed]:
         if inside(p, dirs):
             raise Refused(f"{p} lies inside a masked folder ({dirs}); the run could not see it")
-    p = subprocess.run(scan_cmd(scan_roots()), capture_output=True, text=True)
-    if p.returncode not in (0, 1) and not p.stdout.strip():
-        raise Refused(f"the scan for the skill's text failed (exit {p.returncode}): {p.stderr.strip()[-300:]}")
+    roots = scan_roots()
+    hits, errors = run_scan([], roots)
     # The scratch base is scanned like anywhere else: an old log or a probe's leftovers there
     # are copies too. Only a run's own scratch folder is exempt, and it does not exist yet.
-    files = [h for h in parse_hits(p.stdout)
-             if h not in allowed and not inside(h, dirs) and os.path.isfile(h)]
-    return dirs, files
+    files = [h for h in hits if not inside(h, allowed) and not inside(h, dirs) and os.path.isfile(h)]
+    return {"dirs": dirs, "files": files, "roots": roots, "scan_errors": errors}
 
 
-def bwrap_prefix(dirs, files, cwd):
+def bwrap_prefix(plan, cwd):
     if not shutil.which("bwrap"):
         raise Refused("bwrap is not installed; the runs must not see the skill's text on disk (OD-5)")
-    args = ["bwrap", "--dev-bind", "/", "/", "--die-with-parent"]
-    for d in dirs:
+    # Its own PID namespace and /proc: with the host's, /proc/<pid>/root of the unwrapped
+    # run.py would be an unmasked view of the whole filesystem.
+    args = ["bwrap", "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--die-with-parent"]
+    for d in plan["dirs"]:
         args += ["--tmpfs", d]
-    for f in files:
+    for f in plan["files"]:
         args += ["--ro-bind", "/dev/null", f]
     return args + ["--chdir", cwd, "--"]
 
 
 def check_bwrap():
     try:
-        p = subprocess.run(["bwrap", "--dev-bind", "/", "/", "--", "true"], capture_output=True, text=True)
+        p = subprocess.run(["bwrap", "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--", "true"],
+                           capture_output=True, text=True)
     except FileNotFoundError:
         raise Refused("bwrap is not installed; the runs must not see the skill's text on disk (OD-5)")
     if p.returncode != 0:
@@ -309,17 +367,20 @@ def tool_uses(events):
 
 def summarize(events):
     skill_invoked = lane_run = False
+    lane_commands = []
     for name, inp in tool_uses(events):
         if name == "Skill" and str(inp.get("skill", "")).split(":")[-1] == "rust-coding":
             skill_invoked = True
         if name == "Bash" and LANE_RE.search(str(inp.get("command", ""))):
             lane_run = True
+            lane_commands.append(str(inp.get("command", ""))[:300])
     results = [ev for ev in events if ev.get("type") == "result"]
     result = results[-1] if results else None
     init = init_event(events)
     return {
         "skill_invoked": skill_invoked,
         "lane_run": lane_run,
+        "lane_commands": lane_commands,
         "skill_listed": SKILL_NAME in ((init or {}).get("skills") or []),
         "result": result,
     }
@@ -364,7 +425,7 @@ def environment_failure(exit_code, result, stderr_text):
 def run_claude(cwd, args, transcript, stderr_path, timeout, isolation):
     if not shutil.which("claude"):
         raise Refused("claude is not installed (not on PATH)")
-    prefix = bwrap_prefix(*isolation, cwd)
+    prefix = bwrap_prefix(isolation, cwd)
     start = time.monotonic()
     timed_out = False
     with open(transcript, "w") as out, open(stderr_path, "w") as err:
@@ -432,7 +493,9 @@ def one_attempt(arm, prompt, n, folder, attempt, inputs_hash, timeout, isolation
             "result_subtype": (result or {}).get("subtype"),
             "environment": "failure" if env_reason else "ok", "environment_reason": env_reason,
             "rule_file": rule_file(), "started_at": started,
-            "isolated": True, "masked_dirs": isolation[0], "masked_files": isolation[1],
+            "isolated": True, "masked_dirs": isolation["dirs"], "masked_files": isolation["files"],
+            "scan_roots": isolation["roots"], "scan_errors": isolation["scan_errors"],
+            "lane_commands": s["lane_commands"],
         }
         with open(os.path.join(folder, "meta.json"), "w") as fh:
             json.dump(meta, fh, indent=2)
@@ -455,7 +518,8 @@ def run_arm(arm, prompt, runs, out, timeout):
     check_bwrap()
     os.makedirs(out, exist_ok=True)
     isolation = isolation_plan(arm, out)
-    print(f"isolation: {len(isolation[0])} folder(s) and {len(isolation[1])} file(s) hidden for the {arm} arm")
+    print(f"isolation: {len(isolation['dirs'])} folder(s) and {len(isolation['files'])} file(s) hidden "
+          f"for the {arm} arm ({isolation['scan_errors']} unreadable path(s) skipped by the scan)")
     inputs_hash = grade.inputs_sha256()
     failed = []
     for n in range(1, runs + 1):
@@ -501,35 +565,66 @@ def merge_json(path, key, value):
     os.replace(tmp, path)
 
 
+def path_scan_cmd(roots):
+    """Every file inside a folder named rust-dev or rust-coding: a plugin tree is found by
+    where it is, independently of the markers that built the mask list."""
+    return ["find", *roots, "-type", "f", "(", "-path", "*/rust-dev/*", "-o", "-path", "*/rust-coding/*", ")",
+            "-print"]
+
+
 def isolation_probe(arm, out):
-    """Scan for the skill's text from inside the wrapper the arm's runs use. Pass only when the
-    scan finds exactly a canary written for it plus the arm's own copy: the canary shows the scan
-    reaches unmasked places, and nothing else shows every other copy is hidden."""
+    """Look for the skill's facts from inside the wrapper the arm's runs use, two independent
+    ways: the marker scan, and every file under a rust-dev or rust-coding folder. Pass only when
+    the canary is found (the scan reaches unmasked places), the arm's own copy is found (for skill
+    and rule), and nothing else is."""
     check_rule(arm)
     check_bwrap()
     os.makedirs(out, exist_ok=True)
-    dirs, files = isolation_plan(arm, out)
     scratch = tempfile.mkdtemp(prefix=f"stack-pilot-isolation-{arm}-", dir=scratch_base())
     try:
-        canary = os.path.join(scratch, "canary.md")
+        plugin_copy = rule_plugin_copy(scratch) if arm == "rule" else None
+        plan = isolation_plan(arm, out, plugin_copy)
+        canary = os.path.realpath(os.path.join(scratch, "canary.md"))
         with open(canary, "w") as fh:
             fh.write(f"canary: {MARKERS[0]}\n")
-        roots = sorted(set(scan_roots()) | {scratch})
-        p = subprocess.run([*bwrap_prefix(dirs, files, scratch), *scan_cmd(roots)], capture_output=True, text=True)
-        found = parse_hits(p.stdout)
-        expected = sorted({os.path.realpath(canary), *allowed_copies(arm)})
+        roots = sorted(set(plan["roots"]) | {os.path.realpath(scratch)})
+        prefix = bwrap_prefix(plan, scratch)
+        found, marker_errors = run_scan(prefix, roots)
+        pp = subprocess.run([*prefix, *path_scan_cmd(roots)], capture_output=True, text=True)
+        bad_err = [l for l in pp.stderr.splitlines() if l.strip() and not BENIGN_SCAN_ERROR.search(l)]
+        if bad_err:
+            raise Refused(f"the path scan failed: {bad_err[0][-300:]}")
+        allowed = allowed_prefixes(arm, plugin_copy)
+        foreign_markers = [h for h in found if h != canary and not inside(h, allowed)]
+        foreign_paths = [f for f in parse_hits(pp.stdout) if not inside(f, allowed)]
+        own_found = any(inside(h, allowed) for h in found)
         result = {
-            "arm": arm, "pass": found == expected, "found": found, "expected": expected,
-            "scan_exit": p.returncode, "scan_roots": roots, "markers": list(MARKERS),
-            "masked_dirs": dirs, "masked_files": len(files),
+            "arm": arm,
+            "pass": canary in found and not foreign_markers and not foreign_paths and (arm == "bare" or own_found),
+            "canary_found": canary in found, "own_copy_found": own_found,
+            "found": found, "foreign_markers": foreign_markers,
+            "found_paths": foreign_paths[:100], "foreign_path_count": len(foreign_paths),
+            "allowed": allowed, "scan_roots": roots, "scan_errors": marker_errors, "markers": list(MARKERS),
+            "masked_dirs": plan["dirs"], "masked_files": len(plan["files"]),
             "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         }
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     merge_json(os.path.join(out, "isolation.json"), arm, result)
     # Printed without "markers": a log of this line must not become a copy of the skill's text.
-    print(json.dumps({k: v for k, v in result.items() if k != "markers"}))
+    print(json.dumps({k: v for k, v in result.items() if k not in ("markers", "masked_dirs")}))
     return 0 if result["pass"] else 1
+
+
+def tool_results(events):
+    for ev in events:
+        if ev.get("type") != "user":
+            continue
+        content = (ev.get("message") or {}).get("content")
+        for item in content if isinstance(content, list) else []:
+            if isinstance(item, dict) and item.get("type") == "tool_result":
+                c = item.get("content")
+                yield c if isinstance(c, str) else json.dumps(c)
 
 
 def probe(arm, out, timeout):
@@ -565,6 +660,18 @@ def probe(arm, out, timeout):
             "exit": code, "seconds": seconds, "isolated": True,
             "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         }
+        if arm == "rule":
+            # The rule tells the reader to run rust-dev-validate; the plugin's bin/ must be on the
+            # session's PATH with the plugin loaded by --plugin-dir, or the lane count would fall
+            # for a harness reason.
+            bargs = ["-p", "Run exactly this Bash command and reply with its output only: command -v rust-dev-validate",
+                     "--max-turns", "3", "--output-format", "stream-json", "--verbose", "--allowedTools", "Bash",
+                     "--settings", settings_path] + args[args.index("--plugin-dir"):args.index("--plugin-dir") + 2]
+            btr = os.path.join(scratch, "bin-probe.jsonl")
+            run_claude(proj, bargs, btr, os.path.join(scratch, "bin-stderr.txt"), timeout, isolation)
+            outs = [o.strip() for o in tool_results(read_events(btr))]
+            hit = next((o for o in outs if o.endswith("/bin/rust-dev-validate")), None)
+            result.update(bin_on_path=hit is not None, bin_path=hit)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     merge_json(os.path.join(out, "probe.json"), arm, result)
