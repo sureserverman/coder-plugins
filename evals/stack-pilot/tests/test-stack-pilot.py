@@ -281,28 +281,145 @@ emit({"type": "result", "subtype": "success", "is_error": False, "result": "Adde
 '''
 
 
+# A stand-in for bwrap: it logs its argv and runs the command after `--` in the
+# --chdir folder. It masks nothing, so an isolation probe run through it must FAIL
+# whenever a copy other than the arm's own sits in a scan root.
+FAKE_BWRAP = r'''#!/usr/bin/env python3
+import json, os, sys
+args = sys.argv[1:]
+with open(os.path.join(os.environ["FAKE_CLAUDE_STATE"], "bwrap.log"), "a") as fh:
+    fh.write(json.dumps(args) + "\n")
+if os.environ.get("FAKE_BWRAP_FAIL"):
+    print("bwrap: No permissions to create new namespace", file=sys.stderr)
+    sys.exit(1)
+rest = args[args.index("--") + 1:]
+if "--chdir" in args[:args.index("--")]:
+    os.chdir(args[args.index("--chdir") + 1])
+os.execvp(rest[0], rest)
+'''
+
+SKILL_TEXT = "# rust-coding\n2. **`BufRead::read_line() == 0` means EOF, not \"nothing yet\".**\n"
+
+
 def fake_env(tmp, rule_file):
     cfg = os.path.join(tmp, "cfg")
     os.makedirs(os.path.join(cfg, "rules"), exist_ok=True)
     rf = os.path.join(cfg, "rules", "vault-stack-rust.md")
     if rule_file:
-        write(rf, "---\npaths: [\"**/*.rs\"]\n---\nrule\n")
+        write(rf, "---\npaths: [\"**/*.rs\"]\n---\nrule: BufRead::read_line() == 0\n")
     elif os.path.exists(rf):
         os.remove(rf)
+    install = os.path.join(tmp, "scan", "plugins", "cache", "rust-dev", "0.6.0")
+    write(os.path.join(install, "skills", "rust-coding", "SKILL.md"), SKILL_TEXT)
+    write(os.path.join(cfg, "plugins", "installed_plugins.json"),
+          json.dumps({"plugins": {"rust-dev@coder-plugins": [{"installPath": install}]}}))
     bindir = os.path.join(tmp, "bin")
     state = os.path.join(tmp, "state")
     os.makedirs(bindir, exist_ok=True)
     os.makedirs(state, exist_ok=True)
-    fake = os.path.join(bindir, "claude")
-    write(fake, FAKE_CLAUDE)
-    os.chmod(fake, 0o755)
+    for name, body in (("claude", FAKE_CLAUDE), ("bwrap", FAKE_BWRAP)):
+        fake = os.path.join(bindir, name)
+        write(fake, body)
+        os.chmod(fake, 0o755)
     env = dict(os.environ)
+    env.pop("FAKE_BWRAP_FAIL", None)
     env["CLAUDE_CONFIG_DIR"] = cfg
     env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
     env["FAKE_CLAUDE_STATE"] = state
     env["TMPDIR"] = os.path.join(tmp, "scratch")
+    env["STACK_PILOT_SCRATCH"] = os.path.join(tmp, "scratch")
+    env["STACK_PILOT_SCAN_ROOTS"] = os.path.join(tmp, "scan")
+    env["STACK_PILOT_DIR_MASKS"] = ""
     os.makedirs(env["TMPDIR"], exist_ok=True)
     return env, os.path.join(state, "calls.log")
+
+
+def bwrap_calls(env):
+    path = os.path.join(env["FAKE_CLAUDE_STATE"], "bwrap.log")
+    if not os.path.exists(path):
+        return []
+    return [json.loads(line) for line in open(path) if line.strip()]
+
+
+def masked_files(argv):
+    return {argv[i + 2] for i, a in enumerate(argv[:-2]) if a == "--ro-bind" and argv[i + 1] == "/dev/null"}
+
+
+def masked_dirs(argv):
+    return {argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--tmpfs"}
+
+
+def claude_calls_under_bwrap(env):
+    return [c for c in bwrap_calls(env) if "--" in c and c[c.index("--") + 1:][:1] == ["claude"]]
+
+
+def isolation_cases():
+    """Every claude call runs inside bwrap with every copy but the arm's own hidden;
+    no bwrap means no run; the isolation probe fails while a foreign copy is readable."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env, calls = fake_env(tmp, rule_file=False)
+        out = os.path.join(tmp, "out")
+        installed = os.path.realpath(os.path.join(tmp, "scan", "plugins", "cache", "rust-dev", "0.6.0",
+                                                  "skills", "rust-coding", "SKILL.md"))
+        leak = os.path.join(tmp, "scan", "ports", "rust-coding", "SKILL.md")
+        write(leak, SKILL_TEXT)
+        leak = os.path.realpath(leak)
+        write(os.path.join(tmp, "scan", "generic.md"), "Rust's read_line returns 0 at end of file.\n")
+
+        fail_env = dict(env, FAKE_BWRAP_FAIL="1")
+        for args in (["--arm", "bare", "--prompt", "author", "--runs", "1"], ["--probe", "--arm", "bare"],
+                     ["--isolation-probe", "--arm", "bare"]):
+            rc, so, se = run_py(args + ["--out", out], fail_env)
+            check(rc == 2 and "bwrap cannot start" in se and "OD-6" in se,
+                  f"run.py {args[0]} refuses when bwrap cannot start, never running unisolated (rc={rc}) {se}")
+        check(not os.path.exists(calls), "a refused unisolated run never calls claude")
+        no_bwrap = dict(env, PATH=os.pathsep.join(p for p in env["PATH"].split(os.pathsep)
+                                                  if not os.path.exists(os.path.join(p, "bwrap"))))
+        shutil.copy(os.path.join(tmp, "bin", "claude"), os.path.join(tmp, "claude-only"))
+        no_bwrap["PATH"] = tmp + os.pathsep + no_bwrap["PATH"]
+        os.rename(os.path.join(tmp, "claude-only"), os.path.join(tmp, "claude"))
+        rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out], no_bwrap)
+        check(rc == 2 and "bwrap is not installed" in se, f"run.py refuses when bwrap is missing (rc={rc}) {se}")
+
+        for arm in ("skill", "bare"):
+            rc, so, se = run_py(["--arm", arm, "--prompt", "author", "--runs", "1", "--out", out], env)
+            check(rc == 0, f"the {arm} arm runs under the wrapper (rc={rc}) {so}{se}")
+            runs = claude_calls_under_bwrap(env)
+            check(len(runs) >= 1, f"the {arm} run's claude call went through bwrap")
+            argv = runs[-1] if runs else []
+            check(leak in masked_files(argv), f"the {arm} arm hides a foreign copy of the skill's text")
+            check(os.path.realpath(out) in masked_dirs(argv), f"the {arm} arm hides the --out folder")
+            check(os.path.realpath(os.path.join(tmp, "scan", "generic.md")) not in masked_files(argv),
+                  f"the {arm} arm leaves a file without the markers alone")
+            if arm == "skill":
+                check(installed not in masked_files(argv), "the skill arm keeps its own installed SKILL.md")
+            else:
+                check(installed in masked_files(argv), "the bare arm hides the installed SKILL.md too")
+            mpath = os.path.join(out, f"{arm}-author-1", "meta.json")
+            meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+            check(meta.get("isolated") is True and leak in (meta.get("masked_files") or []),
+                  f"the {arm} run's meta.json records isolated true and the hidden files")
+            check(meta.get("rule_loaded") is True,
+                  f"the hook log written inside the wrapper still reaches the {arm} run folder")
+
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 1 and iso.get("pass") is False and leak in iso.get("found", []),
+              f"the isolation probe fails while a foreign copy is readable, naming it (rc={rc}) {so}{se}")
+        os.remove(leak)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 0 and iso.get("pass") is True and installed in iso.get("found", [])
+              and any(f.endswith("canary.md") for f in iso.get("found", [])),
+              f"the probe passes when only the canary and the arm's own copy are found (rc={rc}) {so}{se}")
+        rc, so, se = run_py(["--isolation-probe", "--arm", "bare", "--out", out], env)
+        check(rc == 1, f"the bare probe fails while the installed SKILL.md is readable to it (rc={rc})")
+        blind = dict(env, PATH=os.path.join(tmp, "blind") + os.pathsep + env["PATH"])
+        for tool in ("rg", "grep"):
+            write(os.path.join(tmp, "blind", tool), "#!/bin/sh\nexit 1\n")
+            os.chmod(os.path.join(tmp, "blind", tool), 0o755)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], blind)
+        check(rc != 0, f"a scan that finds nothing (not even the canary) fails the probe (rc={rc})")
 
 
 def run_py(args, env):
@@ -388,7 +505,8 @@ def fake_run_cases():
 def main():
     for name, fn in [("grader on fixtures", grader_fixture_cases), ("gradeability", gradeability_cases),
                      ("grade.py CLI", grade_cli_cases), ("verdict", verdict_cases),
-                     ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases)]:
+                     ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
+                     ("run.py isolation", isolation_cases)]:
         print(f"== {name}")
         fn()
     if FAILURES:
