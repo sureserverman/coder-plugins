@@ -285,6 +285,13 @@ enabled = settings.get("enabledPlugins", {}).get("rust-dev@coder-plugins", True)
 def emit(o):
     print(json.dumps(o), flush=True)
 emit({"type": "system", "subtype": "hook_response"})
+copy = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR", ""), "vault-stacks", "vault-stack-rust.md")
+mode = os.environ.get("FAKE_CLAUDE_MODE", "")
+if os.path.exists(copy) and mode != "no-hook":
+    out = json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                             "additionalContext": open(copy).read()}})
+    emit({"type": "system", "subtype": "hook_response", "hook_name": "SessionStart:startup",
+          "hook_event": "SessionStart", "stdout": out + "\n", "exit_code": 0, "outcome": "success"})
 emit({"type": "system", "subtype": "init",
       "skills": ["rust-dev:rust-coding"] if enabled else [],
       "plugins": [{"name": "rust-dev"}] if enabled else []})
@@ -307,6 +314,9 @@ for h in settings["hooks"]["InstructionsLoaded"][0]["hooks"]:
     ev = {"file_path": "/cfg/rules/vault-stack-rust.md", "memory_type": "User",
           "load_reason": "path_glob_match", "trigger_file_path": os.path.join(os.getcwd(), "src/lib.rs")}
     subprocess.run(h["command"], shell=True, input=json.dumps(ev), text=True)
+if mode == "no-hook" and os.path.exists(copy):
+    emit({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": "r1", "name": "Read", "input": {"file_path": copy}}]}})
 with open("src/lib.rs", "a") as fh:
     fh.write("\npub fn port(s: &str) -> u16 {\n    s.parse().unwrap()\n}\n")
 if enabled:
@@ -350,10 +360,11 @@ SKILL_TEXT = "# rust-coding\n2. **`BufRead::read_line() == 0` means EOF, not \"n
 
 def fake_env(tmp, rule_file):
     cfg = os.path.join(tmp, "cfg")
-    os.makedirs(os.path.join(cfg, "rules"), exist_ok=True)
-    rf = os.path.join(cfg, "rules", "vault-stack-rust.md")
+    os.makedirs(os.path.join(cfg, "vault-stacks"), exist_ok=True)
+    rf = os.path.join(cfg, "vault-stacks", "vault-stack-rust.md")
     if rule_file:
-        write(rf, "---\npaths: [\"**/*.rs\"]\n---\nrule: BufRead::read_line() == 0\n")
+        write(rf, "---\npaths: [\"**/*.rs\"]\n---\n<!-- vault-context:stack-rule source=rust sha256=0 -->\n"
+                  "rule: BufRead::read_line() == 0\n")
     elif os.path.exists(rf):
         os.remove(rf)
     install = os.path.join(cfg, "plugins", "cache", "coder-plugins", "rust-dev", "0.6.0")
@@ -501,8 +512,9 @@ def isolation_cases():
                   f"the {arm} run's meta.json records the scan roots")
             check(meta.get("lane_commands") == ["bash /x/scripts/validate.sh . --json"],
                   f"the {arm} run's meta.json records the command that counted as the lane")
-            check(meta.get("rule_loaded") is True,
-                  f"the hook log written inside the wrapper still reaches the {arm} run folder")
+            check(meta.get("rule_loaded_by") == "path_glob_match" and meta.get("rule_loaded") is False,
+                  f"the hook log written inside the wrapper still reaches the {arm} run folder, and a glob "
+                  f"load alone is not the hook delivery")
 
         rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
         iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
@@ -612,7 +624,8 @@ def fake_run_cases():
               "meta.json holds the literal \"rule_present\": false")
         check(meta.get("skill_invoked") is True, "a Skill tool_use naming rust-coding sets skill_invoked")
         check(meta.get("lane_run") is True, "a Bash call naming validate.sh sets lane_run")
-        check(meta.get("rule_loaded") is True, "the InstructionsLoaded hook log sets rule_loaded")
+        check(meta.get("rule_loaded") is False and meta.get("rule_loaded_by") == "path_glob_match",
+              "an InstructionsLoaded glob entry is recorded as rule_loaded_by path_glob_match, not as rule_loaded")
         check(meta.get("exit") == 0 and meta.get("environment") == "ok", "the retried run exited 0, environment ok")
         check(meta.get("inputs_sha256") == grade.inputs_sha256(), "inputs_sha256 matches the grader's hash")
         tree = os.path.join(out, "skill-author-1", "tree")
@@ -635,6 +648,33 @@ def fake_run_cases():
         check(rc == 0, f"grade.py grades the fake runs (rc={rc}):\n{gout}")
         g = grade.grade_run(os.path.join(out, "skill-author-1"))
         check(g["total"] == 1, f"the fake run's .unwrap() is counted (got {g['total']})")
+
+
+def rule_delivery_cases():
+    """The rule arm counts the page as loaded only when vault-context's SessionStart hook
+    delivered it; a model Read of the copy is not delivery; an old copy in rules/ refuses."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env, calls = fake_env(tmp, rule_file=True)
+        out = os.path.join(tmp, "out")
+        rc, so, se = run_py(["--arm", "rule", "--prompt", "author", "--runs", "1", "--out", out], env)
+        mpath = os.path.join(out, "rule-author-1", "meta.json")
+        meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+        check(rc == 0 and meta.get("rule_loaded") is True and meta.get("rule_loaded_by") == "session_start_hook",
+              f"a SessionStart hook_response carrying the rust marker sets rule_loaded (rc={rc}) {se}")
+        check(meta.get("rule_file", "").endswith("/vault-stacks/vault-stack-rust.md"),
+              "the rule arm's file is the stacks copy")
+        check("vault_context_version" in meta, "meta.json records the installed vault-context version")
+        rc, so, se = run_py(["--arm", "rule", "--prompt", "audit", "--runs", "1", "--out", out],
+                            dict(env, FAKE_CLAUDE_MODE="no-hook"))
+        mpath = os.path.join(out, "rule-audit-1", "meta.json")
+        meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+        check(rc == 0 and meta.get("rule_loaded") is False and meta.get("rule_loaded_by") != "session_start_hook",
+              f"without the hook output, a model Read of the copy does not set rule_loaded (rc={rc}) {se}")
+        legacy = os.path.join(tmp, "cfg", "rules", "vault-stack-rust.md")
+        write(legacy, "<!-- vault-context:stack-rule source=rust sha256=0 -->\n")
+        rc, so, se = run_py(["--arm", "rule", "--prompt", "author", "--runs", "2", "--out", out], env)
+        check(rc == 2 and "rules/vault-stack-rust.md" in se,
+              f"the rule arm is refused while an old copy in rules/ would deliver the page twice (rc={rc}) {se}")
 
 
 def rule_probe_cases():
@@ -793,6 +833,7 @@ def main():
                      ("grade.py CLI", grade_cli_cases), ("verdict", verdict_cases),
                      ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
                      ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases),
+                     ("run.py rule delivery", rule_delivery_cases),
                      ("run.py session stores", session_store_cases),
                      ("run.py --reuse-scan", reuse_scan_cases)]:
         print(f"== {name}")

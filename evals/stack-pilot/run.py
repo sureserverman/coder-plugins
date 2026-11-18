@@ -10,9 +10,13 @@ Arms:
   rule   rust-dev@coder-plugins disabled, --plugin-dir a temp copy of this
          branch's rust-dev/ without skills/, rule file present
 
-The rule file is ${CLAUDE_CONFIG_DIR:-~/.claude}/rules/vault-stack-rust.md. The
-skill and bare arms are refused while it exists and the rule arm while it does
-not, before claude is ever called.
+The rule file is the generated stack copy
+${CLAUDE_CONFIG_DIR:-~/.claude}/vault-stacks/vault-stack-rust.md, which the installed
+vault-context's SessionStart hook adds to a session in a project holding a Rust file
+(Sub-plan 2 OD-9..OD-11). The skill and bare arms are refused while it exists, and the
+rule arm while it does not or while an old copy in rules/ would load it a second time,
+before claude is ever called. A rule run counts the page as loaded only when its
+transcript holds that hook's SessionStart output carrying the page's marker.
 
 Each run copies the fixture into a scratch git folder, runs `claude -p` there
 with an InstructionsLoaded hook logging into the run folder, and writes
@@ -104,7 +108,16 @@ def config_dir():
 
 
 def rule_file():
+    return os.path.join(config_dir(), "vault-stacks", RULE_NAME)
+
+
+def legacy_rule_file():
+    """Where the path-glob delivery put the rule; Claude Code loads it on its own."""
     return os.path.join(config_dir(), "rules", RULE_NAME)
+
+
+RULE_MARKER = "vault-context:stack-rule source=rust"
+VAULT_CONTEXT_ID = "vault-context@obsidian-wiki"
 
 
 def scratch_base():
@@ -379,6 +392,9 @@ def check_rule(arm):
                       f"before the rule is synced, so no baseline run can see it.")
     if arm == "rule" and not present:
         raise Refused(f"refusing the rule arm: the rule file {path} does not exist. Sync the rule first.")
+    if arm == "rule" and os.path.exists(legacy_rule_file()):
+        raise Refused(f"refusing the rule arm: {legacy_rule_file()} exists, so Claude Code would load the "
+                      f"page a second time by path glob. Re-run the sync, which removes it.")
     if arm == "rule" and not os.path.isfile(os.path.join(PLUGIN_SRC, "bin", "rust-dev-validate")):
         raise Refused(f"refusing the rule arm: {PLUGIN_SRC}/bin/rust-dev-validate is missing; "
                       f"the rule arm needs the plugin's bin/ commands")
@@ -498,7 +514,29 @@ def summarize(events):
     }
 
 
-def rule_loaded(log_path):
+def rule_delivery(events, log_path):
+    """How the page reached the session: "session_start_hook" when a SessionStart
+    hook_response exited 0 with the page's marker in its stdout, else
+    "path_glob_match" when the InstructionsLoaded log shows a glob load, else None.
+    A model reading the copy itself is neither."""
+    for ev in events:
+        if (ev.get("type") == "system" and ev.get("subtype") == "hook_response"
+                and ev.get("hook_event") == "SessionStart" and ev.get("exit_code") == 0
+                and RULE_MARKER in str(ev.get("stdout") or "")):
+            return "session_start_hook"
+    return "path_glob_match" if glob_loaded(log_path) else None
+
+
+def installed_version(plugin_id):
+    try:
+        data = json.load(open(os.path.join(config_dir(), "plugins", "installed_plugins.json")))
+        entries = (data.get("plugins") or {}).get(plugin_id) or []
+        return entries[0].get("version") if entries else None
+    except (OSError, ValueError, AttributeError, IndexError):
+        return None
+
+
+def glob_loaded(log_path):
     """True when the hook log holds an InstructionsLoaded entry for the rule
     file with load_reason path_glob_match."""
     try:
@@ -591,14 +629,17 @@ def one_attempt(arm, prompt, n, folder, attempt, inputs_hash, timeout, isolation
             fh.write(diff)
         copy_result(proj, os.path.join(folder, "tree"))
 
-        s = summarize(read_events(transcript))
+        events = read_events(transcript)
+        s = summarize(events)
+        delivery = rule_delivery(events, log)
         result = s["result"]
         env_reason = environment_failure(code, result, open(stderr_path, errors="replace").read())
         with open(os.path.join(folder, "answer.txt"), "w") as fh:
             fh.write(str((result or {}).get("result", "")))
         meta = {
             "arm": arm, "prompt": prompt, "n": n, "attempt": attempt,
-            "rule_present": rule_present, "rule_loaded": rule_loaded(log),
+            "rule_present": rule_present, "rule_loaded": delivery == "session_start_hook",
+            "rule_loaded_by": delivery, "vault_context_version": installed_version(VAULT_CONTEXT_ID),
             "skill_invoked": s["skill_invoked"], "skill_listed": s["skill_listed"], "lane_run": s["lane_run"],
             "inputs_sha256": inputs_hash, "exit": code, "seconds": seconds, "timed_out": timed_out,
             "is_error": bool((result or {}).get("is_error")) if result else None,
