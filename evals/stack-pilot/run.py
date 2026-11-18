@@ -85,8 +85,10 @@ UNIT_TEST = os.environ.get("STACK_PILOT_UNIT_TEST") == "1"
 OVERRIDES = ("STACK_PILOT_SCAN_ROOTS", "STACK_PILOT_DIR_MASKS")
 # Scanner errors that leave nothing readable behind: a folder the user cannot read (the
 # wrapped run cannot either), a file that vanished mid-scan, or a dead FUSE mount (an
-# AppImage's .mount_* left by a crashed app: no process can read it).
-BENIGN_SCAN_ERROR = re.compile(r"Permission denied|No such file or directory|Transport endpoint is not connected")
+# AppImage's .mount_* left by a crashed app) inside a folder the runs see masked. A root
+# that dies or vanishes, or a dead mount the run would see once it comes back, is not.
+SCAN_ERROR_LINE = re.compile(r"^(?:rg|grep|find): (.*?):? (Permission denied|No such file or directory|"
+                             r"Transport endpoint is not connected)")
 
 _spec = importlib.util.spec_from_file_location("stack_pilot_grade", os.path.join(HERE, "grade.py"))
 grade = importlib.util.module_from_spec(_spec)
@@ -130,7 +132,7 @@ def saved_scan_path(arm):
     return os.path.join(scratch_base(), f"scan-{arm}.json")
 
 
-def load_saved_scan(arm, roots):
+def load_saved_scan(arm, roots, dirs):
     path = saved_scan_path(arm)
     try:
         saved = json.load(open(path))
@@ -153,6 +155,11 @@ def load_saved_scan(arm, roots):
         problems.append(f"it ran at {saved.get('at')}, not within the last {SCAN_MAX_AGE // 3600} hours")
     if not isinstance(saved.get("files"), list) or not isinstance(saved.get("scan_errors"), int):
         problems.append("it has no file list")
+    if not isinstance(saved.get("started"), (int, float)):
+        problems.append("it has no start time")
+    missing = [d for d in saved.get("dirs") or [] if d not in dirs] if isinstance(saved.get("dirs"), list) else None
+    if missing is None or missing:
+        problems.append(f"its hits were filtered against masks the run does not have ({missing or 'none recorded'})")
     if problems:
         raise Refused(f"--reuse-scan: the saved scan {path} cannot be used: {'; '.join(problems)}. "
                       f"Run --isolation-probe --arm {arm} again")
@@ -246,19 +253,54 @@ def scan_cmd(roots):
     for m in MARKERS:
         pats += ["-e", m]
     if shutil.which("rg"):
-        return ["rg", "-l", "-uu", "-F", *pats, "--", *roots]
-    return ["grep", "-rlF", *pats, "--", *roots]
+        return ["rg", "-l", "-uu", "-i", "-F", *pats, "--", *roots]
+    return ["grep", "-rliF", *pats, "--", *roots]
 
 
-def run_scan(prefix, roots):
+def tolerated(line, roots, masked):
+    """Whether a scanner error leaves nothing the run could read unscanned."""
+    m = SCAN_ERROR_LINE.match(line)
+    if not m:
+        return False
+    # GNU find quotes the path as ‘path’; rg and grep do not.
+    path, kind = os.path.realpath(m.group(1).strip("‘’'")), m.group(2)
+    if kind == "Permission denied":
+        return True
+    # A scan root that died or vanished (or a folder holding one) was not scanned at all.
+    if any(r == path or inside(r, [path]) for r in roots):
+        return False
+    if kind == "Transport endpoint is not connected":
+        return inside(path, masked)
+    return True
+
+
+def run_scan(prefix, targets, roots, masked):
     """(hits, tolerated error count). Refuses on any scanner error that could hide a readable file."""
-    p = subprocess.run([*prefix, *scan_cmd(roots)], capture_output=True, text=True)
+    p = subprocess.run([*prefix, *scan_cmd(targets)], capture_output=True, text=True)
     errors = [l for l in p.stderr.splitlines() if l.strip()]
-    bad = [l for l in errors if not BENIGN_SCAN_ERROR.search(l)]
-    if p.returncode not in (0, 1) and (bad or not errors):
+    real_roots = [os.path.realpath(r) for r in roots]
+    bad = [l for l in errors if not tolerated(l, real_roots, masked)]
+    if bad or (p.returncode not in (0, 1) and not errors):
         raise Refused(f"the scan for the skill's text failed (exit {p.returncode}): "
                       f"{(bad or [p.stderr.strip()])[0][-300:]}")
     return parse_hits(p.stdout), len(errors)
+
+
+def changed_since(started, roots, masked):
+    """Files under the roots whose inode changed since the scan started (ctime, so a copy
+    that keeps an old mtime is caught), skipping masked folders."""
+    prune = []
+    for d in masked:
+        prune += (["-o"] if prune else []) + ["-path", d]
+    cmd = ["find", *roots, *(["(", *prune, ")", "-prune", "-o"] if prune else []),
+           "-type", "f", "-newerct", f"@{int(started) - 1}", "-print"]
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    errors = [l for l in p.stderr.splitlines() if l.strip()]
+    real_roots = [os.path.realpath(r) for r in roots]
+    bad = [l for l in errors if not tolerated(l, real_roots, masked)]
+    if bad or (p.returncode != 0 and not errors):
+        raise Refused(f"the check for files changed since the saved scan failed: {(bad or [p.stderr.strip()])[0][-300:]}")
+    return [l for l in p.stdout.splitlines() if l.strip()], len(errors)
 
 
 def parse_hits(stdout):
@@ -280,17 +322,27 @@ def isolation_plan(arm, out, plugin_copy=None, reuse=False):
         if inside(p, dirs):
             raise Refused(f"{p} lies inside a masked folder ({dirs}); the run could not see it")
     roots = scan_roots()
+    changed = None
     if reuse:
-        saved = load_saved_scan(arm, roots)
-        hits, errors, at = saved["files"], saved["scan_errors"], saved["at"]
+        saved = load_saved_scan(arm, roots, dirs)
+        hits, errors, at, started = saved["files"], saved["scan_errors"], saved["at"], saved["started"]
+        # The saved scan cannot see a file written after it started: check those now.
+        new, new_errors = changed_since(started, roots, dirs)
+        changed = len(new)
+        for i in range(0, len(new), 500):
+            more, n = run_scan([], new[i:i + 500], roots, dirs)
+            hits = sorted(set(hits) | set(more))
+            new_errors += n
+        errors += new_errors
     else:
-        hits, errors = run_scan([], roots)
-        at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        started = time.time()
+        at = datetime.datetime.fromtimestamp(started, datetime.timezone.utc).isoformat(timespec="seconds")
+        hits, errors = run_scan([], roots, roots, dirs)
     # The scratch base is scanned like anywhere else: an old log or a probe's leftovers there
     # are copies too. Only a run's own scratch folder is exempt, and it does not exist yet.
     files = [h for h in hits if not inside(h, allowed) and not inside(h, dirs) and os.path.isfile(h)]
     return {"dirs": dirs, "files": files, "roots": roots, "scan_errors": errors,
-            "scan_at": at, "scan_reused": reuse}
+            "scan_at": at, "scan_started": started, "scan_reused": reuse, "changed_since_scan": changed}
 
 
 def bwrap_prefix(plan, cwd):
@@ -556,6 +608,7 @@ def one_attempt(arm, prompt, n, folder, attempt, inputs_hash, timeout, isolation
             "isolated": True, "masked_dirs": isolation["dirs"], "masked_files": isolation["files"],
             "scan_roots": isolation["roots"], "scan_errors": isolation["scan_errors"],
             "scan_at": isolation["scan_at"], "scan_reused": isolation["scan_reused"],
+            "changed_since_scan": isolation["changed_since_scan"],
             "lane_commands": s["lane_commands"],
         }
         with open(os.path.join(folder, "meta.json"), "w") as fh:
@@ -654,19 +707,32 @@ def isolation_probe(arm, out):
             fh.write(f"canary: {MARKERS[0]}\n")
         roots = sorted(set(plan["roots"]) | {os.path.realpath(scratch)})
         prefix = bwrap_prefix(plan, scratch)
-        found, marker_errors = run_scan(prefix, roots)
+        found, marker_errors = run_scan(prefix, roots, roots, plan["dirs"])
         pp = subprocess.run([*prefix, *path_scan_cmd(roots)], capture_output=True, text=True)
-        bad_err = [l for l in pp.stderr.splitlines() if l.strip() and not BENIGN_SCAN_ERROR.search(l)]
+        bad_err = [l for l in pp.stderr.splitlines() if l.strip() and not tolerated(l, roots, plan["dirs"])]
         if bad_err:
             raise Refused(f"the path scan failed: {bad_err[0][-300:]}")
+        # The one canary proves only that its own folder was scanned: every root the run sees
+        # unmasked must also list something from inside the wrapper, or it was scanned empty.
+        empty_roots = []
+        for r in roots:
+            if inside(r, plan["dirs"]):
+                continue
+            ls = subprocess.run([*prefix, "ls", "-A", r], capture_output=True, text=True)
+            if ls.returncode != 0 or not ls.stdout.strip():
+                empty_roots.append(r)
         allowed = allowed_prefixes(arm, plugin_copy)
+        paths = parse_hits(pp.stdout)
         foreign_markers = [h for h in found if h != canary and not inside(h, allowed)]
-        foreign_paths = [f for f in parse_hits(pp.stdout) if not inside(f, allowed)]
+        foreign_paths = [f for f in paths if not inside(f, allowed)]
         own_found = any(inside(h, allowed) for h in found)
+        own_path_found = any(inside(f, allowed) for f in paths)
         result = {
             "arm": arm,
-            "pass": canary in found and not foreign_markers and not foreign_paths and (arm == "bare" or own_found),
-            "canary_found": canary in found, "own_copy_found": own_found,
+            "pass": (canary in found and not foreign_markers and not foreign_paths and not empty_roots
+                     and (arm == "bare" or (own_found and own_path_found))),
+            "canary_found": canary in found, "own_copy_found": own_found, "own_path_found": own_path_found,
+            "empty_roots": empty_roots,
             "found": found, "foreign_markers": foreign_markers,
             "found_paths": foreign_paths[:100], "foreign_path_count": len(foreign_paths),
             "allowed": allowed, "scan_roots": roots, "scan_errors": marker_errors, "markers": list(MARKERS),
@@ -678,7 +744,8 @@ def isolation_probe(arm, out):
     merge_json(os.path.join(out, "isolation.json"), arm, result)
     if result["pass"]:
         with open(saved_scan_path(arm), "w") as fh:
-            json.dump({"arm": arm, "at": plan["scan_at"], "roots": plan["roots"], "files": plan["files"],
+            json.dump({"arm": arm, "at": plan["scan_at"], "started": plan["scan_started"], "dirs": plan["dirs"],
+                       "roots": plan["roots"], "files": plan["files"],
                        "scan_errors": plan["scan_errors"], "markers_sha256": markers_sha256()}, fh)
     # Printed without "markers": a log of this line must not become a copy of the skill's text.
     print(json.dumps({k: v for k, v in result.items() if k not in ("markers", "masked_dirs")}))

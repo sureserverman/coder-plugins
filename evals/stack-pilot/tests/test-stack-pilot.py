@@ -365,7 +365,7 @@ def fake_env(tmp, rule_file):
     # carries none of the gotcha phrases (the shape of the Stage 1 review's C1), and a
     # marketplace clone whose history holds the skill.
     write(os.path.join(cfg, "plugins", "cache", "coder-plugins", "rust-dev", "0.5.2", "agents", "rust-expert.md"),
-          "3. **Bound every channel.** `unbounded_channel` only when capacity is a compile-time small constant.\n")
+          "3. **Bound every channel.** `unbounded_channel` only when the capacity is fixed and tiny.\n")
     write(os.path.join(cfg, "plugins", "marketplaces", "coder-plugins", "rust-dev", "README.md"), "rust-dev\n")
     write(os.path.join(cfg, "plugins", "marketplaces", "coder-plugins", ".git", "HEAD"), "ref: refs/heads/main\n")
     bindir = os.path.join(tmp, "bin")
@@ -447,13 +447,25 @@ def isolation_cases():
         check(rc == 2 and "STACK_PILOT_SCAN_ROOTS" in se,
               f"outside the unit test the scan and mask overrides are refused (rc={rc}) {se}")
         noisy = os.path.join(tmp, "noisy")
-        for name, err in (("dead", "rg: /tmp/x/.mount_app: Transport endpoint is not connected (os error 107)"),
-                          ("io", "rg: /mnt/disk/f: Input/output error (os error 5)")):
+        scan_root = os.path.realpath(os.path.join(tmp, "scan"))
+        o_dead = os.path.realpath(os.path.join(tmp, "o-dead"))
+        for name, err in (("dead", f"rg: {o_dead}/.mount_app: Transport endpoint is not connected (os error 107)"),
+                          ("io", "rg: /mnt/disk/f: Input/output error (os error 5)"),
+                          ("deadroot", f"rg: {scan_root}: Transport endpoint is not connected (os error 107)"),
+                          ("deadunmasked", f"rg: {scan_root}/sub/.mount_x: Transport endpoint is not connected (os error 107)"),
+                          ("goneroot", f"rg: {scan_root}: No such file or directory (os error 2)")):
             write(os.path.join(noisy, name, "rg"), f"#!/bin/sh\necho '{err}' >&2\nexit 2\n")
             os.chmod(os.path.join(noisy, name, "rg"), 0o755)
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", os.path.join(tmp, "o-dead")],
                             dict(env, PATH=os.path.join(noisy, "dead") + os.pathsep + env["PATH"]))
-        check(rc == 0, f"a dead FUSE mount the scan cannot read (no process can) does not stop the batch (rc={rc}) {se}")
+        check(rc == 0, f"a dead FUSE mount inside a masked folder does not stop the batch (rc={rc}) {se}")
+        for name, why in (("deadroot", "a scan root that dies mid-scan"),
+                          ("deadunmasked", "a dead mount the run would see unmasked once it remounts"),
+                          ("goneroot", "a scan root that vanishes mid-scan")):
+            rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1",
+                                 "--out", os.path.join(tmp, f"o-{name}")],
+                                dict(env, PATH=os.path.join(noisy, name) + os.pathsep + env["PATH"]))
+            check(rc == 2 and scan_root in se, f"{why} is refused, never counted as scanned (rc={rc}) {se}")
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", os.path.join(tmp, "o-io")],
                             dict(env, PATH=os.path.join(noisy, "io") + os.pathsep + env["PATH"]))
         check(rc == 2 and "Input/output error" in se, f"any other scanner error is refused (rc={rc}) {se}")
@@ -526,7 +538,23 @@ def isolation_cases():
             write(os.path.join(tmp, "blind", tool), "#!/bin/sh\nexit 1\n")
             os.chmod(os.path.join(tmp, "blind", tool), 0o755)
         rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], blind)
-        check(rc != 0, f"a scan that finds nothing (not even the canary) fails the probe (rc={rc})")
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 1 and iso.get("canary_found") is False,
+              f"a scan that finds nothing (not even the canary) fails the probe (rc={rc}) {iso.get('canary_found')}")
+        nofind = dict(env, PATH=os.path.join(tmp, "nofind") + os.pathsep + env["PATH"])
+        write(os.path.join(tmp, "nofind", "find"), "#!/bin/sh\nexit 0\n")
+        os.chmod(os.path.join(tmp, "nofind", "find"), 0o755)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], nofind)
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 1 and iso.get("own_path_found") is False,
+              f"a path scan that lists nothing, not even the arm's own copy, fails the probe (rc={rc})")
+        empty_root = os.path.join(tmp, "empty-root")
+        os.makedirs(empty_root)
+        with_empty = dict(env, STACK_PILOT_SCAN_ROOTS=env["STACK_PILOT_SCAN_ROOTS"] + ":" + empty_root)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], with_empty)
+        iso = json.load(open(os.path.join(out, "isolation.json"))).get("skill", {}) if rc in (0, 1) else {}
+        check(rc == 1 and os.path.realpath(empty_root) in (iso.get("empty_roots") or []),
+              f"an unmasked scan root that lists nothing inside the wrapper fails the probe (rc={rc})")
 
 
 def run_py(args, env):
@@ -666,6 +694,14 @@ def session_store_cases():
               "an unrelated mount (the second vault) is hidden from the runs whole")
         check(other not in roots and other not in why and "/mnt/vault2" not in roots,
               "the scan never reads the second vault")
+        root = "/srv/notes"
+        for line, want, why in (
+                ("find: ‘/srv/notes’: No such file or directory", False, "find's quoted form of a vanished root"),
+                ("rg: /srv/notes: Transport endpoint is not connected (os error 107)", False, "a dead root"),
+                ("find: ‘/srv/notes/a/b’: Permission denied", True, "a folder no one can read"),
+                ("rg: /srv/notes/gone.md: No such file or directory (os error 2)", True, "a file that vanished"),
+                ("rg: /srv/notes/f: Input/output error (os error 5)", False, "an I/O error")):
+            check(run.tolerated(line, [root], []) is want, f"scan error, {why}: tolerated={want}")
 
 
 def reuse_scan_cases():
@@ -685,10 +721,13 @@ def reuse_scan_cases():
         for tool, real in (("rg", real_rg), ("grep", shutil.which("grep"))):
             if real:
                 write(os.path.join(counter, tool),
-                      f"#!/bin/sh\necho {tool} >> {os.path.join(tmp, 'scans.log')}\nexec {real} \"$@\"\n")
+                      f"#!/bin/sh\necho {tool} \"$@\" >> {os.path.join(tmp, 'scans.log')}\nexec {real} \"$@\"\n")
                 os.chmod(os.path.join(counter, tool), 0o755)
         env["PATH"] = counter + os.pathsep + env["PATH"]
-        scans = lambda: len(open(os.path.join(tmp, "scans.log")).read().split()) \
+        root_dirs = set(env["STACK_PILOT_SCAN_ROOTS"].split(":"))
+        # A full scan names a scan root as an argument; the incremental pass names only files.
+        scans = lambda: sum(1 for line in open(os.path.join(tmp, "scans.log"))
+                            if root_dirs & set(line.split())) \
             if os.path.exists(os.path.join(tmp, "scans.log")) else 0
         cache = os.path.join(env["STACK_PILOT_SCRATCH"], "scan-skill.json")
         leak = os.path.join(tmp, "scan", "notes", "copy.md")
@@ -697,8 +736,6 @@ def reuse_scan_cases():
         rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
         check(rc == 2 and "no saved scan" in se, f"--reuse-scan with no saved scan is refused (rc={rc}) {se}")
 
-        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
-        check(rc == 1 and not os.path.exists(cache), f"a failed isolation probe saves no scan (rc={rc})")
         os.remove(leak)
         rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
         check(rc == 0 and os.path.exists(cache), f"a passed isolation probe saves its scan (rc={rc}) {so}{se}")
@@ -707,12 +744,18 @@ def reuse_scan_cases():
               "the saved scan holds paths only, no marker phrase")
 
         write(leak, SKILL_TEXT)
+        upper = os.path.join(tmp, "scan", "notes", "upper.md")
+        write(upper, MARKERS[3].upper() + "\n")
         before = scans()
         rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
-        check(rc == 0 and scans() == before, f"a run with --reuse-scan does not scan again (rc={rc}, "
+        check(rc == 0 and scans() == before, f"a run with --reuse-scan does not scan the roots again (rc={rc}, "
               f"scans {before}->{scans()}) {se}")
         mpath = os.path.join(out, "skill-author-1", "meta.json")
         meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+        check(os.path.realpath(leak) in (meta.get("masked_files") or []),
+              "a copy written after the saved scan is still found and hidden (the files changed since are checked)")
+        check(os.path.realpath(upper) in (meta.get("masked_files") or []),
+              "a marker phrase in another letter case is found and hidden")
         check(meta.get("scan_at") == saved.get("at") and meta.get("scan_reused") is True,
               f"the run's meta.json records the reused scan and when it ran {meta.get('scan_at')}")
         rc, so, se = run_py(["--probe", "--arm", "skill", "--out", out, "--reuse-scan"], env)
@@ -722,6 +765,11 @@ def reuse_scan_cases():
         check(rc == 0 and scans() > before, f"without --reuse-scan a run still scans (rc={rc})")
         os.remove(leak)
 
+        os.remove(upper)
+        rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "1",
+                             "--out", os.path.join(tmp, "other-out"), "--reuse-scan"], env)
+        check(rc == 2 and "saved scan" in se and "mask" in se,
+              f"a saved scan filtered against other masks (another --out) is refused (rc={rc}) {se}")
         rc, so, se = run_py(["--arm", "bare", "--prompt", "author", "--runs", "1", "--out", out, "--reuse-scan"], env)
         check(rc == 2 and "no saved scan" in se, f"another arm's saved scan is not reused (rc={rc}) {se}")
         for field, value, why in (("markers_sha256", "0" * 64, "a scan for another marker set"),
@@ -731,6 +779,13 @@ def reuse_scan_cases():
             rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "2", "--out", out,
                                  "--reuse-scan"], env)
             check(rc == 2 and "saved scan" in se and "usage:" not in se, f"{why} is refused (rc={rc}) {se}")
+        write(cache, json.dumps(saved))
+        write(leak, SKILL_TEXT)
+        rc, so, se = run_py(["--isolation-probe", "--arm", "skill", "--out", out], env)
+        check(rc == 1 and not os.path.exists(cache),
+              f"a failed probe deletes the scan an earlier probe saved (rc={rc})")
+        rc, so, se = run_py(["--arm", "skill", "--prompt", "author", "--runs", "2", "--out", out, "--reuse-scan"], env)
+        check(rc == 2 and "no saved scan" in se, f"so --reuse-scan after a failed probe is refused (rc={rc}) {se}")
 
 
 def main():
