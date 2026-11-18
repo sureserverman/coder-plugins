@@ -111,6 +111,10 @@ def scratch_base():
     return os.path.realpath(base)
 
 
+# Mounts unrelated to this project (the owner's second vault). Never scanned: each run sees
+# the mount point as an empty folder instead.
+UNRELATED_MOUNTS = ("/mnt/vault2",)
+
 # A full scan takes ~40 minutes on the network vault. A passed isolation probe saves its scan
 # (paths only) and the arm's listing probe and runs reuse it with --reuse-scan. The stores a
 # live session writes to during a batch are masked by folder (dir_masks), so a copy made after
@@ -215,6 +219,7 @@ def dir_masks(arm, out):
         dirs += [os.path.join(home, ".agents"), os.path.join(home, ".codex"), os.path.join(home, ".cursor"),
                  os.path.join(home, ".config", "opencode"), os.path.join(home, ".config", "superpowers"),
                  os.path.join(home, ".config", "Cursor")]
+    dirs += list(UNRELATED_MOUNTS)
     keep = allowed_prefixes(arm)
     dirs += [t for t in plugin_trees() if t not in keep]
     dirs.append(out)
@@ -229,7 +234,6 @@ def scan_roots():
         roots = [r for r in env.split(":") if r]
     else:
         roots = [os.path.expanduser("~"), "/tmp", "/var/tmp", "/mnt/vault"]
-        roots += [r for r in ("/mnt/vault2",) if os.path.isdir(r)]
     missing = [r for r in roots if not os.path.isdir(r)]
     if missing or not roots:
         raise Refused(f"scan root(s) {missing or '(none)'} do not exist; the scan would skip them and the run "

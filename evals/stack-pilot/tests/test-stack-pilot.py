@@ -643,6 +643,29 @@ def session_store_cases():
         for d in stores:
             check(os.path.realpath(os.path.join(cfg, d)) in masks,
                   f"the default masks hide the config store {d}/")
+        other = os.path.join(tmp, "unrelated-vault")
+        os.makedirs(other)
+        saved_mounts = getattr(run, "UNRELATED_MOUNTS", None)
+        run.UNRELATED_MOUNTS = (other,)
+        os.environ.pop("STACK_PILOT_DIR_MASKS", None)
+        os.environ["CLAUDE_CONFIG_DIR"] = cfg
+        try:
+            masks = run.dir_masks("bare", os.path.join(tmp, "out"))
+            try:
+                roots, why = run.scan_roots(), ""
+            except run.Refused as e:
+                roots, why = [], str(e)
+        finally:
+            run.UNRELATED_MOUNTS = saved_mounts
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        check(saved_mounts is not None and os.path.realpath(other) in masks,
+              "an unrelated mount (the second vault) is hidden from the runs whole")
+        check(other not in roots and other not in why and "/mnt/vault2" not in roots,
+              "the scan never reads the second vault")
 
 
 def reuse_scan_cases():
