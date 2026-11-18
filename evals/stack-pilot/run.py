@@ -163,10 +163,13 @@ def dir_masks(arm, out):
     if "STACK_PILOT_DIR_MASKS" in os.environ:
         dirs = [d for d in os.environ["STACK_PILOT_DIR_MASKS"].split(":") if d]
     else:
-        dirs = ["/tmp", os.path.join(config_dir(), "projects"), os.path.join(home, "dev"),
-                os.path.join(home, ".agents"), os.path.join(home, ".codex"), os.path.join(home, ".cursor"),
-                os.path.join(home, ".config", "opencode"), os.path.join(home, ".config", "superpowers"),
-                os.path.join(home, ".config", "Cursor")]
+        # projects/, file-history/, backups/ and paste-cache/ are where a live Claude session
+        # copies transcripts, edited files and config while the batch runs, after the scan.
+        dirs = ["/tmp", os.path.join(home, "dev")]
+        dirs += [os.path.join(config_dir(), d) for d in ("projects", "file-history", "backups", "paste-cache")]
+        dirs += [os.path.join(home, ".agents"), os.path.join(home, ".codex"), os.path.join(home, ".cursor"),
+                 os.path.join(home, ".config", "opencode"), os.path.join(home, ".config", "superpowers"),
+                 os.path.join(home, ".config", "Cursor")]
     keep = allowed_prefixes(arm)
     dirs += [t for t in plugin_trees() if t not in keep]
     dirs.append(out)

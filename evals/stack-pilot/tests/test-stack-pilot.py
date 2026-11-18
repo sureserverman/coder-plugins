@@ -620,11 +620,37 @@ def rule_probe_cases():
               f"the rule probe records rust-dev-validate on PATH and no skill (rc={rc}) {so}{se}")
 
 
+def session_store_cases():
+    """The default masks hide every config store a live Claude session copies file content
+    into during a batch: an edit made while the batch runs lands there after the scan."""
+    run = load("stack_pilot_run", os.path.join(os.path.dirname(GRADE_PY), "run.py"))
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = os.path.join(tmp, "cfg")
+        stores = ("projects", "file-history", "backups", "paste-cache")
+        for d in stores:
+            os.makedirs(os.path.join(cfg, d))
+        saved = {k: os.environ.get(k) for k in ("CLAUDE_CONFIG_DIR", "STACK_PILOT_DIR_MASKS")}
+        os.environ["CLAUDE_CONFIG_DIR"] = cfg
+        os.environ.pop("STACK_PILOT_DIR_MASKS", None)
+        try:
+            masks = run.dir_masks("bare", os.path.join(tmp, "out"))
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        for d in stores:
+            check(os.path.realpath(os.path.join(cfg, d)) in masks,
+                  f"the default masks hide the config store {d}/")
+
+
 def main():
     for name, fn in [("grader on fixtures", grader_fixture_cases), ("gradeability", gradeability_cases),
                      ("grade.py CLI", grade_cli_cases), ("verdict", verdict_cases),
                      ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
-                     ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases)]:
+                     ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases),
+                     ("run.py session stores", session_store_cases)]:
         print(f"== {name}")
         fn()
     if FAILURES:
