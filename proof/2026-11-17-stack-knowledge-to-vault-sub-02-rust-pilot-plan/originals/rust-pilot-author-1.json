@@ -1,0 +1,42 @@
+{
+  "comparison": "tie",
+  "evidence_class": "synthetic",
+  "experiment_id": "rust-pilot-author",
+  "identity": {
+    "baseline": {
+      "id": "skill",
+      "sha256": "bd2acef430157beeb090b7cb6b862d608608e36551b96fd4913c81b9dba2b1bd"
+    },
+    "candidate": {
+      "id": "rule",
+      "sha256": "002b57ea5bb1f6d352f869a32c18ee34b14d145ca3b599925aaadc88bad8ee87"
+    },
+    "dependencies": {
+      "claude_cli": "2e1e2e7d8239711d6fb73c12cbebe4c8f5261e1af6a9bcd6a5550915e77f02e7",
+      "run_py": "cc3d2d21a2b849fe97b6604e14301e1b58f0607972eedf473db97c1bf2c511e4",
+      "stack_context": "84b81122d4df648ea23daff7af98c3d701e987ce350444767ddac10d866986fb"
+    },
+    "evidence_hash": "f40565fe85dafc7bbc65ba8d6c4f7b8989ba781f794611f84a70564f48da969a",
+    "rubric_hash": "4934b8d3ca1a4ffaa29a9027e957b45fdbf7e2a06818b03102d935a395bf59b7",
+    "split_hash": "157e24b94a2eea618778e5716793244bc09e0a91bdfe09ca693fee26034d52ad"
+  },
+  "original_receipt_id": "rust-pilot-author-1",
+  "outcomes": {
+    "baseline": {
+      "availability": "available",
+      "environment": "normal",
+      "schema": "pass",
+      "support": "unknown",
+      "useful": "unknown"
+    },
+    "candidate": {
+      "availability": "available",
+      "environment": "normal",
+      "schema": "pass",
+      "support": "unknown",
+      "useful": "unknown"
+    }
+  },
+  "owner_preference": "unknown",
+  "schema_version": 1
+}
