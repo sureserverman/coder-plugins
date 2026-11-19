@@ -5,7 +5,7 @@ description: Use when the user asks to change, design, or restyle Android UI —
 
 # Android UI Design and Figma Workflow
 
-For a larger change, agree a design spec with concrete values (dp, sp, colors) with the user before coding. With a Figma URL, use the Figma MCP (`get_design_context`, `get_screenshot`). Build and test through the android-gradle-build skill.
+For a larger change, agree a design spec with concrete values (dp, sp, colors) with the user before coding. With a Figma URL, use the Figma MCP (`get_design_context`, `get_screenshot`). Build and test per the `android-build` stack page (`~/.claude/vault-stacks/vault-stack-android-build.md`).
 
 ## Visual verification loop (screenshot → grade → iterate)
 
@@ -22,10 +22,4 @@ Skip the loop only when the change cannot show in a screenshot or no emulator st
 
 ## Launcher icon (adaptive — mandatory)
 
-Every app shipped from this plugin must have an adaptive launcher icon:
-
-- foreground + background + monochrome layers;
-- both `ic_launcher.xml` and `ic_launcher_round.xml` in `mipmap-anydpi-v26/`;
-- legacy PNG fallbacks at all five densities.
-
-Themed icons on Android 13+ and OEM mask shapes both depend on this structure; a legacy single-PNG icon is not acceptable. When the user asks to add or change the app icon, or before publishing (F-Droid, Play), follow the spec, scaffold and verification recipe in [references/adaptive-icons.md](references/adaptive-icons.md). Generate via Android Studio's Image Asset Studio (*New → Image Asset → Launcher Icons (Adaptive and Legacy)*); there is no first-party CLI.
+When the user asks to add or change the app icon, or before publishing (F-Droid, Play), follow the spec, scaffold and verification recipe in the `android-icons` stack page (`~/.claude/vault-stacks/vault-stack-android-icons.md`).

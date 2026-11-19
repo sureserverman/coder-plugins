@@ -12,7 +12,7 @@ Run through this before every release. Failing any item delays the rollout — P
 - [ ] No `usesCleartextTraffic="true"` in the manifest (or scoped to debug builds only).
 - [ ] No `android:debuggable="true"` in release manifest.
 - [ ] R8/ProGuard kept rules cover Retrofit, Room entities, kotlinx-serialization, Hilt — verify by smoke-testing the release variant on a device.
-- [ ] **Adaptive launcher icon** in the APK/AAB: `mipmap-anydpi-v26/ic_launcher.xml` (and `ic_launcher_round.xml`) declare `<background>`, `<foreground>`, and `<monochrome>` layers; legacy PNGs exist for mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi. Without this, themed icons fail on Android 13+. See `android-ui-design-figma → references/adaptive-icons.md`.
+- [ ] **Adaptive launcher icon** in the APK/AAB: `mipmap-anydpi-v26/ic_launcher.xml` (and `ic_launcher_round.xml`) declare `<background>`, `<foreground>`, and `<monochrome>` layers; legacy PNGs exist for mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi. Without this, themed icons fail on Android 13+. See the `android-icons` stack page (`~/.claude/vault-stacks/vault-stack-android-icons.md`).
 
 ## Signing
 
@@ -27,8 +27,8 @@ Run through this before every release. Failing any item delays the rollout — P
 - [ ] Full description ≤ 4000 chars; no Play Store links, no "5-star review" CTAs, no IAP solicitations.
 - [ ] Icon 512×512 PNG, no transparency, no rounded corners (Play masks).
 - [ ] Feature graphic 1024×500 PNG/JPEG.
-- [ ] Phone screenshots: ≥ 2, ≤ 8, 16:9 or 9:16, 320–3840 px each side.
-- [ ] Tablet screenshots if app supports tablets (otherwise users see "may not work on tablets" warning).
+- [ ] Phone screenshots: ≥ 2, ≤ 8, 320–3840 px each side, long side at most 2.3× the short side (checked 2026-11-19, https://support.google.com/googleplay/android-developer/answer/9866151).
+- [ ] Tablet screenshots if app supports tablets (otherwise users see "may not work on tablets" warning): ≥ 4, sides 1,080–7,680 px, 16:9 or 9:16 (checked 2026-11-19, https://support.google.com/googleplay/android-developer/answer/9866151).
 - [ ] Primary category and tags chosen.
 - [ ] Contact email is a real address (forwarder is fine).
 

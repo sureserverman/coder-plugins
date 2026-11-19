@@ -83,11 +83,7 @@ SCREENSHOT_DIR=~/dev/android/matrix-synapse-manager-android/play-screenshots \
 
 ## Skills
 
-### `android-gradle-build`
-
-House build rules (version catalog, KSP), the security hard gates, and the rule that a `validateDebugScreenshotTest` gate gets the real screenshot harness or is reported blocked, never a stub.
-
-**Triggers:** Add a module, fix build error, set up Hilt/Compose, add a dependency, run tests, edit version catalog, wire Retrofit/Room.
+Owner rules for this stack live in a vault page and reach a session through vault-context's session-start hook: `android-build` (build rules, security hard gates, release signing and the CI secret names), `android-icons` (the adaptive launcher icon spec) and `android-store-metadata` (the fastlane tree, per-file store limits and the fdroiddata recipe fields). The former Gradle-build and release-signing skills were retired; their facts now live in the `android-build` page.
 
 ### `android-stage-verify`
 
@@ -97,7 +93,7 @@ The per-stage on-device gate. Builds the debug APK, checks `adb devices`, and wh
 
 ### `android-ui-design-figma`
 
-UI changes verified by a screenshot-grading loop: emulator captures scored against the approved spec with a weighted rubric by a grader that never sees the implementation transcript. Includes the mandatory adaptive launcher icon spec (foreground/background/monochrome layers, themed icons, Image Asset Studio scaffold + verification recipe — required for every release).
+UI changes verified by a screenshot-grading loop: emulator captures scored against the approved spec with a weighted rubric by a grader that never sees the implementation transcript. For the app icon it points at the `android-icons` stack page (`~/.claude/vault-stacks/vault-stack-android-icons.md`).
 
 **Triggers:** Redesign a screen, change color scheme, update theme, add bottom nav, implement Figma design, fix spacing, add dark theme, Material 3 components, adaptive launcher icon, themed icon, monochrome layer.
 
@@ -107,15 +103,9 @@ Manages the multi-container emulator stack lifecycle: build, start, run operatio
 
 **Triggers:** Test on emulators, take screenshots, start emulator stack, spin up containers, test on phone and tablet, bring up the MCP.
 
-### `android-release-signing`
-
-Shared signing conventions for any distribution channel: the `upload.keystore` / `keystore.properties` file layout, the release signing gate, and the CI secret-name contract (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) a `release.yml` workflow uses to build and upload APK + AAB to GitHub Releases.
-
-**Triggers:** Sign my APK, create upload keystore, set up release signing, build a signed AAB, release workflow won't sign, keystore.properties missing, Gradle uses debug key for release.
-
 ### `android-fdroid-publish`
 
-End-to-end F-Droid submission flow: scaffolding `fastlane/metadata/android/en-US/`, drafting the `fdroiddata` build recipe YAML, computing `AllowedAPKSigningKeys`, and choosing between RFP issue vs direct merge request. Reference files include a drop-in YAML template and the full fastlane directory layout with per-file constraints.
+End-to-end F-Droid submission flow: scaffolding `fastlane/metadata/android/en-US/`, drafting the `fdroiddata` build recipe YAML, computing `AllowedAPKSigningKeys`, and choosing between RFP issue vs direct merge request. Reference files include a drop-in YAML template; the fastlane layout and per-file limits are in the `android-store-metadata` stack page.
 
 **Triggers:** Publish to F-Droid, submit to fdroid, create fdroid metadata, fastlane folder, RFP issue, fdroiddata YAML, AllowedAPKSigningKeys, F-Droid build recipe.
 
@@ -171,10 +161,10 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 
 | Artifact | Path | Written by |
 |---|---|---|
-| Debug/release APKs | your project's `app/build/outputs/apk/…` | `android-gradle-build`, `android-stage-verify` |
+| Debug/release APKs | your project's `app/build/outputs/apk/…` | `android-stage-verify` |
 | Play Store screenshots | `${SCREENSHOT_DIR:-./play-screenshots}` on the host (see [Pointing the stack at your project](#pointing-the-stack-at-your-project)) | `/android-screenshots` |
 | Emulator stack env (random `MCP_AUTH_TOKEN`) | `infrastructure/.env` — generated on first run, **not** committed | `android-mcp-orchestrator` `run.sh` |
-| Signing config | per the `android-release-signing` skill; **keystores and passwords never enter the repo** | you, guided by the skill |
+| Signing config | per the `android-build` stack page; **keystores and passwords never enter the repo** | you, guided by the page |
 
 ## Worked example
 
@@ -184,7 +174,7 @@ For interactive iteration use the paired form (`up.sh` / `mcp-call.sh` / `down.s
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` fires for the module/dependency wiring. For a visible UI change, `android-ui-design-figma` captures the changed screens on the emulator stack and has a separate grader score them against the spec.
+The `android-build` stack page covers the module/dependency wiring. For a visible UI change, `android-ui-design-figma` captures the changed screens on the emulator stack and has a separate grader score them against the spec.
 
 ```text
 "verify this stage on device"
