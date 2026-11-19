@@ -1,16 +1,16 @@
-# Task 1.7 — test record (the task's work lives in the vault, outside this repo)
-# run at 2026-11-19T07:54:50Z, HEAD e1ddab8
+# Task 1.7 — test record (the task's work lives in the vault, outside this repo, or spans it)
+# run at 2026-11-19T08:00:59Z, HEAD a94dbd2, bash -o pipefail; the command is the plan's Test: verbatim
 ## command
-python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --check --vault /mnt/vault && test "$(ls ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/vault-stacks/vault-stack-*.md | wc -l)" = 8 && test -z "$(ls ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/rules/vault-stack-*.md 2>/dev/null)" && test "$(grep -c 'LOADED session_start_hook' /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/delivery/claude.log)" = 8 && test "$(awk '$2=="LOADED" && $3=="session_start_hook" {print $1}' /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/delivery/claude.log | sort -u | wc -l)" = 8 && python3 evals/stack-budget/measure.py --registry /home/user/.claude/projects-registry.yaml --hook /home/user/.claude/plugins/cache/obsidian-wiki/vault-context/0.7.1/scripts/stack-context.py --out "$(mktemp -d)/budget.tsv" | tail -1
-## output
+python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --check --vault /mnt/vault && test "$(ls ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/vault-stacks/vault-stack-*.md | wc -l)" = 8 && test -z "$(ls ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/rules/vault-stack-*.md 2>/dev/null)" && test "$(grep -c 'LOADED session_start_hook' /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/delivery/claude.log)" = 8 && test "$(awk '$2=="LOADED" && $3=="session_start_hook" {print $1}' /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/delivery/claude.log | sort -u | wc -l)" = 8 && python3 evals/stack-budget/measure.py --registry /home/user/.claude/projects-registry.yaml --hook /home/user/.claude/plugins/cache/obsidian-wiki/vault-context/0.7.1/scripts/stack-context.py --out /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/budget.tsv
+## output (stdout and stderr, whole)
 stack copies in sync: 8 page(s)
 budget: 105 projects, 37 with a page named, not inlined, 6 skipped
 exit=0
 ## files covered (sha256)
 c5d0ff1f4f25e4e82d4622c3a52ffd9d4129bfe7d3cc250e6b1a7454ac83fe7d  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/delivery/claude.log
-c4fab32fc5439a24c370f8e8238a2bd6e1b6f2993db5bf2ad4e1abf505ea38cf  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/budget.tsv
+2c3367bd6a10a05d80b8a4e3c089c05671d90d4b1d40d9390a7ae93731ccd5e9  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/budget.tsv
 2448e420ddd05f7815cc36141352cf01c8a82010004a3605606dd6f765ddf18c  /home/user/.claude/vault-stacks/vault-stack-android-build.md
-f63a4f416945110f6aca90889b227d51e96cd34dc728fb1704e9cb54c63a8691  /home/user/.claude/vault-stacks/vault-stack-android-icons.md
+dedfbd4c0c9ad8cdf42784d9ed414c71c20ca9033dcc44d5eec9d2c072156341  /home/user/.claude/vault-stacks/vault-stack-android-icons.md
 c89e06be63d4656712cb7cb08f453e5079f3452184a676f36746ed54f0c7a66d  /home/user/.claude/vault-stacks/vault-stack-android-store-metadata.md
 a73828d13cc028047024e122e695771d0aea3839cf81da53d19bdd013a013826  /home/user/.claude/vault-stacks/vault-stack-browser-extension.md
 91a16120d6ebf26dc07604a9304cae606f9a74274b07578e921ead7902a38b38  /home/user/.claude/vault-stacks/vault-stack-deb-packaging.md

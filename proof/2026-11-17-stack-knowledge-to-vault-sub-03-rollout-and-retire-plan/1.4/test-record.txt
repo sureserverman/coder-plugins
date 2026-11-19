@@ -1,0 +1,16 @@
+# Task 1.4 — test record (the task's work lives in the vault, outside this repo, or spans it)
+# run at 2026-11-19T08:00:58Z, HEAD a94dbd2, bash -o pipefail; the command is the plan's Test: verbatim
+## command
+for S in deb-packaging mac-packaging; do P=/mnt/vault/Portfolio/stacks/$S.md; L=/mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/$S.tsv; python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --lint --only $S --vault /mnt/vault && test "$(awk -F'\t' 'NR>1' $L | wc -l)" -ge 5 && ! awk -F'\t' 'NR>1 && $4 !~ /^(carried|corrected|dropped-generic|dropped-duplicate|stays-in-skill)$/' $L | grep . && awk -F'\t' 'NR>1 && ($4=="carried"||$4=="corrected"){print $5}' $L | while IFS= read -r t; do grep -qF -- "$t" $P || exit 1; done && ! grep -q 'CLAUDE_PLUGIN_ROOT' $P || exit 1; done && D=/mnt/vault/Portfolio/stacks/deb-packaging.md && grep -q 'infra-build-validate-deb' $D && ! grep -q 'ssh-menu-deb' $D && grep -q 'aarch64-apple-darwin' /mnt/vault/Portfolio/stacks/mac-packaging.md && d=$(mktemp -d) && { infra-build/bin/infra-build-validate-deb "$d" --json > "$d/a.json"; bash infra-build/scripts/validate-deb.sh "$d" --json > "$d/b.json"; cmp "$d/a.json" "$d/b.json"; }
+## output (stdout and stderr, whole)
+stack pages lint clean: 1 page(s)
+stack pages lint clean: 1 page(s)
+exit=0
+## files covered (sha256)
+4d10bdc10b826c74344c65ec92ce9419d4ca3af8f27c60eca6b36cb84fceb5ae  /mnt/vault/Portfolio/stacks/deb-packaging.md
+3b9067fb55506009bdda1424dac3622be611c04f27b18cfac46664bf9a3ce0b7  /mnt/vault/Portfolio/stacks/mac-packaging.md
+9351f873c2cac1e5ddce44feac967ea05f565f11f8c7b22c31b823835616bae6  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/deb-packaging.tsv
+a8f35e5da4009024173c22fb1b665acb7e54e3dde5df452ea2695cdc243d6f5b  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/mac-packaging.tsv
+4310a1cc8dac6403b2bba2b7fedf8c81998d1817ccf6f66b87f9c72432658a8d  infra-build/bin/infra-build-validate-deb
+## extra (Tier-2 review, round 1): the wrapper through a symlink in a path with spaces
+chained symlink exit=0, script exit=0, cmp: same
