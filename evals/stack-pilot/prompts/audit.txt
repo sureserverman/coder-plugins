@@ -1,0 +1,3 @@
+Audit this Rust crate against the house rules for Rust. Read every source file.
+
+Report each violation you find on its own line as `path:line — rule — fix`, then a one-line total. Do not change any file.

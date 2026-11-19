@@ -1,0 +1,7 @@
+Add three things to this Rust crate. Put the new code in the library (under src/, not in src/main.rs) and call it from src/main.rs.
+
+1. A settings loader: a new `Settings` struct with the fields `name: String`, `port: u16` and `verbose: bool`, and a function that loads it from a JSON file at a given path.
+2. A function that reads standard input to its end and sends each line over a channel to a tokio task. The task counts the lines it receives in state it shares with the caller, and the function returns the final count.
+3. A public function `parse_port(text: &str)` that parses a TCP port and returns an error when the text is not a valid port.
+
+Make the changes directly in the files; do not ask questions. Keep the code small.

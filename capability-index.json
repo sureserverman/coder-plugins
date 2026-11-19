@@ -21,16 +21,6 @@
       "requires_enablement": true
     },
     {
-      "description": "Use when creating or modifying Android build scripts, wiring Gradle modules, or running Android unit/instrumented tests \u2014 before writing any build config or test command. Trigger on \"gradle build failing\", \"add a module\", \"wire up instrumented tests\", \"update my AGP version\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "android-gradle-build",
-      "path": "android-dev/skills/android-gradle-build/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
       "description": "Use when the user asks to run the Android MCP, test an app on emulators, capture Play-style screenshots, or run any emulator/screenshot flow for an Android app. Also trigger on \"android-mcp\", \"phone6in/tablet7in/tablet10in\", or mentions of the multi-emulator stack.",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -47,16 +37,6 @@
       "model": null,
       "name": "android-play-publish",
       "path": "android-dev/skills/android-play-publish/SKILL.md",
-      "plugin": "android-dev",
-      "requires_enablement": true
-    },
-    {
-      "description": "Use when an Android app needs a release signing setup \u2014 a build falling back to the debug key, a release CI workflow failing because keystore secrets aren't wired, or prep before publishing. Trigger on \"sign my APK\", \"create upload keystore\", \"set up release signing\", \"build a signed AAB\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "android-release-signing",
-      "path": "android-dev/skills/android-release-signing/SKILL.md",
       "plugin": "android-dev",
       "requires_enablement": true
     },
@@ -87,16 +67,6 @@
       "model": null,
       "name": "amo-compliance-check",
       "path": "browser-extensions/skills/amo-compliance-check/SKILL.md",
-      "plugin": "browser-extensions",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when creating, improving, or packaging browser extensions (WebExtensions) for Chrome, Firefox, or Firefox for Android. Trigger on \"my extension won't load\", \"manifest v3 migration\", \"chrome store rejected me\", \"AMO submission\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "browser-extensions",
-      "path": "browser-extensions/skills/browser-extensions/SKILL.md",
       "plugin": "browser-extensions",
       "requires_enablement": false
     },
@@ -301,26 +271,6 @@
       "requires_enablement": false
     },
     {
-      "description": "Use when creating, updating, or validating the Debian `.deb` layout that the `infra/utils/pkgskel` + `publish` pipeline expects: scaffolding `deb/package/DEBIAN/control`, fixing broken control fields, writing `postinst`/`prerm` scripts, or diagnosing `dpkg-deb` build errors.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "deb-package",
-      "path": "infra-build/skills/deb-package/SKILL.md",
-      "plugin": "infra-build",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when creating, updating, or validating the `mac/` layout that the `infra/build-for-mac` GitHub Actions pipeline expects: scaffolding `mac/Makefile`, `mac/payload/`, `mac/scripts/`, fixing Makefile targets, writing postinstall scripts, or diagnosing `pkgbuild` failures.",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "mac-package",
-      "path": "infra-build/skills/mac-package/SKILL.md",
-      "plugin": "infra-build",
-      "requires_enablement": false
-    },
-    {
       "description": "Use to register a Docker image with the `~/dev/infra/publish-images/` multi-arch, multi-registry pipeline. Trigger on \"register this image for publish-images\", \"add to images.yml\", \"publish this image to all registries\", \"wire up multi-arch docker publishing\".",
       "disable_model_invocation": false,
       "kind": "skill",
@@ -408,16 +358,6 @@
       "name": "twim-submission",
       "path": "release-promo/skills/twim-submission/SKILL.md",
       "plugin": "release-promo",
-      "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like \"create a Rust app\" or \"cargo new\", *.rs edits, unsafe blocks, async/tokio code, and questions like \"is this idiomatic Rust\" or \"thiserror or anyhow\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "rust-coding",
-      "path": "rust-dev/skills/rust-coding/SKILL.md",
-      "plugin": "rust-dev",
       "requires_enablement": false
     }
   ],

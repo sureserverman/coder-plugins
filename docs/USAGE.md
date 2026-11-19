@@ -110,9 +110,11 @@ attaches at the points where the platform actually matters.
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. For a redesign,
+The Gradle, signing and adaptive-icon rules are not a skill: owner rules for this stack
+live in a vault page and reach a session through vault-context's session-start hook (the
+android-build, android-icons and android-store-metadata stack pages). For a redesign,
 `android-ui-design-figma` runs a screenshot → grade → iterate loop with an independent
-grader, and holds the adaptive-icon spec.
+grader.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
 stage gate automatically** — you don't ask for it. It builds the debug APK and, when a
@@ -151,10 +153,11 @@ Two plugins and a register, because an extension is judged by a reviewer who is 
 "build a Firefox extension that rewrites tracking URLs"
 ```
 
-The `browser-extensions` skill covers manifest v3, the Firefox/Chrome split, and
-`browser_specific_settings`. Popup and options pages are ordinary web UI: there is no
-dedicated agent for them, so hold the accessibility baseline yourself — keyboard
-reachability and contrast are what AMO reviewers actually cite.
+The manifest v3, Firefox/Chrome split and `browser_specific_settings` rules are not a
+skill: owner rules for this stack live in a vault page and reach a session through
+vault-context's session-start hook (the browser-extension stack page). Popup and options
+pages are ordinary web UI: there is no dedicated agent for them, so hold the accessibility
+baseline yourself — keyboard reachability and contrast are what AMO reviewers actually cite.
 
 Then the preflight, before you upload rather than after rejection:
 

@@ -59,6 +59,9 @@ import pathlib
 import re
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _frontmatter_common import PATTERNS, is_excluded  # noqa: E402  the index builder's own rule
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
 USAGE = REPO / "docs" / "USAGE.md"
 INDEX = REPO / "capability-index.json"
@@ -183,8 +186,16 @@ def load_index():
     # A plugin directory absent from the index means the index is stale, and every
     # component it ships would silently fail to resolve. That is a guard failure,
     # not a doc failure — say so rather than blaming USAGE.md.
+    # Only a plugin that ships a component can be stale: one with nothing but scripts
+    # and bin/ commands (rust-dev once its skill moved to the vault, CP DEC-043) has
+    # nothing to resolve. "Ships a component" is the index builder's own rule
+    # (_frontmatter_common.PATTERNS), so the two cannot drift (DEC-007).
+    shipping = {pathlib.PurePosixPath(rel).parts[0]
+                for _, pattern in PATTERNS
+                for rel in (str(f.relative_to(REPO)) for f in REPO.glob(pattern))
+                if not is_excluded(rel)}
     on_disk = {p.name for p in REPO.iterdir()
-               if p.is_dir() and (p / ".claude-plugin" / "plugin.json").exists()}
+               if p.is_dir() and (p / ".claude-plugin" / "plugin.json").exists() and p.name in shipping}
     missing = sorted(on_disk - plugins)
     if missing:
         sys.exit(f"FAIL: {INDEX} is stale — plugin(s) on disk but absent from it: "

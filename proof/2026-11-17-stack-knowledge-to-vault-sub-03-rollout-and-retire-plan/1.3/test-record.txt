@@ -1,0 +1,10 @@
+# Task 1.3 — test record (the task's work lives in the vault, outside this repo)
+# run at 2026-11-19T07:54:50Z, HEAD e1ddab8
+## command
+S=browser-extension; P=/mnt/vault/Portfolio/stacks/$S.md; L=/mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/$S.tsv; python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --lint --only $S --vault /mnt/vault && test "$(awk -F'\t' 'NR>1' $L | wc -l)" -ge 5 && ! awk -F'\t' 'NR>1 && $4 !~ /^(carried|corrected|dropped-generic|dropped-duplicate|stays-in-skill)$/' $L | grep . && awk -F'\t' 'NR>1 && ($4=="carried"||$4=="corrected"){print $5}' $L | while IFS= read -r t; do grep -qF -- "$t" $P || exit 1; done && grep -q 'dropped-generic' $L && grep -q 'amo-compliance-check' $P
+## output
+stack pages lint clean: 1 page(s)
+exit=0
+## files covered (sha256)
+dccff99311ee951b5c580bf048302b4c5a3008827b9eb6aebc04c9561c5f258a  /mnt/vault/Portfolio/stacks/browser-extension.md
+21c7118af0c046325f45c4347a064edc0ac4613d9e0969604af28fe2b457bbfb  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/browser-extension.tsv

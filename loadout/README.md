@@ -12,7 +12,7 @@ Claude Code reads `enabledPlugins` once at session start. The global map enables
 
 Three layers, unioned:
 
-1. **always-on** — plugins enabled in every project (`git-github`, `planning`, ...).
+1. **always-on** — plugins enabled in every project: `git-github`, `planning`, `vault-context`, `vault-portfolio`.
 2. **tech** — one sticky baseline per project (`android`, `rust`, `web-ext`, ...). Stored in `.claude/loadout.json` (commit-safe — it's a project fact).
 3. **task** — overlays you toggle on demand (`security-audit`, `release`, `wiki`, `refactor`, ...). Stored in `.claude/settings.local.json` (per-machine, gitignored).
 

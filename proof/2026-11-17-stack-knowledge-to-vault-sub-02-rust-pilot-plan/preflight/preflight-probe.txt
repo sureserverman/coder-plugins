@@ -1,0 +1,32 @@
+# Preflight probe log — Sub-plan 2 (Rust pilot)
+# Part A: outputs recorded when Preflight ran, 2026-11-17 ~20:30 UTC, at e239162 (copied
+#         verbatim from that session's command results; committed afterwards because the
+#         Stage 1 record audit asked for a probe artefact).
+# Part B: the checks that can still run, re-run now (state-dependent ones marked).
+
+## Part A — at Preflight
+[1] Sub-plan 1 green + vault-context 0.6.0 + stack_rule_loads.sh executable: PASS
+[2] 2.1.326 (Claude Code) | Python 3.12.3 | jq-1.7 | git version 2.43.0
+[3] clean; branch=stack-knowledge-to-vault; base=e239162914e23a37d04e1779eba3dedfbb9b75bf main=e239162914e23a37d04e1779eba3dedfbb9b75bf
+    (the branch was created from clean main by `git switch -c stack-knowledge-to-vault main` at handoff adoption, OD-1)
+[4] bash scripts/run-tests.sh -> "OK — 23 suite(s) and 9 validator(s) passed." secs=12
+[5] test -f ~/.claude/plugins/cache/coder-plugins/rust-dev/0.6.0/skills/rust-coding/SKILL.md: PASS
+[6] test ! -e ~/.claude/rules/vault-stack-rust.md: PASS
+[7] mkdir -p PEV: PASS
+[8] claude -p "Reply with the single word READY." --max-turns 1 | grep -q READY: HEADLESS-PASS
+[9] decisions registers: CP 42 entries (mtime 2026-11-14 23:34:19), W 5 (2026-10-25), security 1 (2026-09-05) — unchanged from the plan's snapshot (42, 5, 1)
+[10] gate selectors: no pytest selectors (validate-gate-checks.py: 10 checks — executable 9, judgment 1)
+[11] review-scope: standard — no task touches a risk-listed path
+[12] dispatch probe (general-purpose) -> "DISPATCH-OK"
+[13] roster: Task 1.1 -> general-purpose, Task 1.3 -> general-purpose (2 of 6); validate-dispatch.py exit 0
+
+## Part B — re-run now
+at 2026-11-18T07:06:25Z, HEAD 4e2c192, branch stack-knowledge-to-vault
+[1] PASS
+[2] 2.1.327 (Claude Code) | Python 3.12.3 | jq-1.7 | git version 2.43.0
+[3] state-dependent (branch must be main before the switch): not re-runnable; merge-base with main = e239162
+[5] PASS
+[6] PASS
+[7] PASS
+[8] HEADLESS-PASS
+[9] CP 42, W 5, security 1

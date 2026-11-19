@@ -1,0 +1,35 @@
+{
+ "baseline": {
+  "elapsed_s": 1.3,
+  "exit": 0,
+  "tail": "  ok: exit 1 (got 1)\n  ok: FAIL line names the project and the missing field (got 'FAIL: /tmp/tmpcxjlnucu/projects/shape: hook JSON has no hookSpecificOutput.additionalContext for SessionStart\\nFAIL: /tmp/tmpcxjlnucu/projects/shape: applies but neither inlined nor named: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: wrong-shape JSON: no traceback\na page inlined that the sidecar does not list -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpqppg9qio/projects/extra: emitted but not listed in the sidecar: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\noutput over 9,500 chars -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpdlbvtqrl/projects/big: output is 9501 characters, over 9500\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: chars 9501 recorded (got {'project': '/tmp/tmpdlbvtqrl/projects/big', 'applies': 'readme', 'inlined': 'readme', 'named': '', 'chars': '9501'})\n  ok: exactly 9,500 chars -> 0 (got 0; budget: 1 projects, 0 with a page named, not inlined, 0 skipped\n)\na project with no sidecar -> 2\n  ok: exit 2 (got 2)\n  ok: error names the project\n  ok: no sidecar: no traceback\nhook prints nothing, sidecar lists none -> 0\n  ok: exit 0 (got 0; budget: 2 projects, 0 with a page named, not inlined, 0 skipped\n )\n  ok: empty row, chars 0 (got {'project': '/tmp/tmpd0jg3txj/projects/quiet', 'applies': '', 'inlined': '', 'named': '', 'chars': '0'})\n  ok: empty block also gives a row\nhook prints nothing but sidecar lists one -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names project and slug (got 'FAIL: /tmp/tmpidql3eat/projects/silent: applies but neither inlined nor named: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\nmissing folder skipped and counted; disabled ignored; budget line counts\n  ok: exit 0 (got 0; budget: 3 projects, 1 with a page named, not inlined, 2 skipped\n )\n  ok: header + 3 rows (got 4)\n  ok: budget line (got 'budget: 3 projects, 1 with a page named, not inlined, 2 skipped')\nhook prints non-JSON -> 2; hook exits non-zero -> 2\n  ok: non-JSON exit 2 (got 2)\n  ok: non-JSON: no traceback\n  ok: non-zero hook exit 2 (got 2)\n  ok: hook exit: no traceback\nusage errors -> 2\n  ok: no args exit 2 (got 2)\n  ok: unreadable registry exit 2 (got 2)\n  ok: unreadable registry: no traceback\n\nall checks passed"
+ },
+ "break_patch": "--- a/evals/stack-budget/measure.py\n+++ b/evals/stack-budget/measure.py\n@@ -132,8 +132,6 @@\n     why = []\n     a, i, n = set(applies), set(inlined), set(named)\n     dropped = sorted(a - i - n)\n-    if dropped:\n-        why.append(f\"applies but neither inlined nor named: {','.join(dropped)}\")\n     both = sorted(i & n)\n     if both:\n         why.append(f\"both inlined and named: {','.join(both)}\")\n",
+ "build": null,
+ "created": "2026-11-19T08:00:12+00:00",
+ "fingerprint": "3b904f6e4cf07b13fa7d0abd0053ddf94c508caf5d08a662e50cddf6a65720b4",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "plain Python script, nothing to build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-17-stack-knowledge-to-vault-sub-03-rollout-and-retire-plan.md",
+ "red": {
+  "elapsed_s": 1.2,
+  "exit": 1,
+  "tail": "  ok: exit 1 (got 1)\n  ok: FAIL line names the project and the missing field (got 'FAIL: /tmp/tmpqr6h2hrz/projects/shape: hook JSON has no hookSpecificOutput.additionalContext for SessionStart\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: wrong-shape JSON: no traceback\na page inlined that the sidecar does not list -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmphw7fmo3c/projects/extra: emitted but not listed in the sidecar: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\noutput over 9,500 chars -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpbvfwssa9/projects/big: output is 9501 characters, over 9500\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: chars 9501 recorded (got {'project': '/tmp/tmpbvfwssa9/projects/big', 'applies': 'readme', 'inlined': 'readme', 'named': '', 'chars': '9501'})\n  ok: exactly 9,500 chars -> 0 (got 0; budget: 1 projects, 0 with a page named, not inlined, 0 skipped\n)\na project with no sidecar -> 2\n  ok: exit 2 (got 2)\n  ok: error names the project\n  ok: no sidecar: no traceback\nhook prints nothing, sidecar lists none -> 0\n  ok: exit 0 (got 0; budget: 2 projects, 0 with a page named, not inlined, 0 skipped\n )\n  ok: empty row, chars 0 (got {'project': '/tmp/tmpt72xxku0/projects/quiet', 'applies': '', 'inlined': '', 'named': '', 'chars': '0'})\n  ok: empty block also gives a row\nhook prints nothing but sidecar lists one -> 1\n  FAIL: exit 1 (got 0)\n  FAIL: FAIL line names project and slug (got 'budget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\nmissing folder skipped and counted; disabled ignored; budget line counts\n  ok: exit 0 (got 0; budget: 3 projects, 1 with a page named, not inlined, 2 skipped\n )\n  ok: header + 3 rows (got 4)\n  ok: budget line (got 'budget: 3 projects, 1 with a page named, not inlined, 2 skipped')\nhook prints non-JSON -> 2; hook exits non-zero -> 2\n  ok: non-JSON exit 2 (got 2)\n  ok: non-JSON: no traceback\n  ok: non-zero hook exit 2 (got 2)\n  ok: hook exit: no traceback\nusage errors -> 2\n  ok: no args exit 2 (got 2)\n  ok: unreadable registry exit 2 (got 2)\n  ok: unreadable registry: no traceback\n\n4 check(s) failed"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "1.6",
+ "test": "python3 evals/stack-budget/tests/test-measure.py",
+ "text": "the sweep fails a project whose sidecar lists a stack that the hook's output neither inlines nor names (red if a silently dropped page passes), fails a page both inlined and named and an output over 9,500 characters, refuses a project with no sidecar, records a named page without failing",
+ "touched": [
+  "evals/stack-budget/measure.py"
+ ],
+ "touched_blobs": {
+  "evals/stack-budget/measure.py": "bd830634e21b1042d9a20e3472c3492d8a8d461a"
+ },
+ "witness_blobs": {
+  "evals/stack-budget/tests/test-measure.py": "9231a170062d2242531930d0d98302f2660e199a"
+ }
+}

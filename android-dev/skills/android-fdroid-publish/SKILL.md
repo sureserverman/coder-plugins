@@ -9,11 +9,11 @@ Get an Android app onto **F-Droid**. F-Droid does not accept your APK — it clo
 
 ## Prerequisites
 
-- `android-release-signing` already ran (you have an upload keystore and a working `:app:assembleRelease`).
+- Release signing is set up per the `android-build` stack page (`~/.claude/vault-stacks/vault-stack-android-build.md`) (you have an upload keystore and a working `:app:assembleRelease`).
 - App lives in a **public** Git repo (GitHub, GitLab, Codeberg, etc.).
 - You have **at least one tagged release** with `versionCode` ≥ 1. F-Droid needs a tag (e.g. `v1.0.0`) that the metadata's `Builds:` block can point at by commit hash.
 
-If any prerequisite is missing, hand off back to `android-release-signing` or stop and ask.
+If any prerequisite is missing, set up signing per that page or stop and ask.
 
 ## Quick audit (punchlist)
 
@@ -79,60 +79,11 @@ Choose path: RFP issue (Option A) or direct MR (Option B)?
 
 ## Step 1: Fastlane metadata in the app repo
 
-F-Droid pulls the store-listing copy from the **app repo itself**, from a path matching the [fastlane structure](https://f-droid.org/en/docs/All_About_Descriptions_Graphics_and_Screenshots/). Create:
-
-```
-fastlane/metadata/android/en-US/
-├── title.txt                              # ≤ 50 chars
-├── short_description.txt                  # ≤ 80 chars, single line, no markdown
-├── full_description.txt                   # ≤ 4000 chars; plain text or simple HTML
-├── changelogs/
-│   └── <versionCode>.txt                  # ≤ 500 chars per version
-└── images/
-    ├── icon.png                           # 512×512 PNG, no transparency
-    ├── featureGraphic.png                 # optional, 1024×500
-    └── phoneScreenshots/                  # optional but strongly recommended
-        ├── 01_main.png
-        ├── 02_detail.png
-        └── ...
-```
-
-Hard rules from the F-Droid docs:
-
-- `title.txt` is **plain text only**, no markdown, no quotes around it.
-- `short_description.txt` must NOT start with the app name and must NOT exceed 80 chars (F-Droid will truncate silently).
-- `full_description.txt` cannot reference Google Play, in-app purchases, or "leave a 5-star review" language (F-Droid policy).
-- One `<versionCode>.txt` per release — F-Droid associates a changelog by `versionCode`, not `versionName`. A version without a changelog renders blank on the app page.
-- Screenshots: 320–3840 px on each side, aspect ratio between 1:2 and 2:1. PNG or JPEG.
-
-**F-Droid only uses metadata files from the latest release** (checked 2026-11-10, https://f-droid.org/docs/All_About_Descriptions_Graphics_and_Screenshots/). Screenshots added after `v1.0.0` land only once you tag `v1.0.1`.
+F-Droid pulls the store-listing copy from the **app repo itself**. Scaffold `fastlane/metadata/android/en-US/` to the directory shape, per-file limits, hard rules and locale conventions in the `android-store-metadata` stack page (`~/.claude/vault-stacks/vault-stack-android-store-metadata.md`).
 
 ## Step 2: `fdroiddata` build recipe
 
-The recipe lives in `gitlab.com/fdroid/fdroiddata` at `metadata/<applicationId>.yml`. Keep a copy in your own repo at `docs/f-droid/<applicationId>.yml` so the recipe is reviewed alongside the source it builds.
-
-Use `references/fdroiddata-template.yml` as a starting point. Key fields:
-
-| Field | What it does | Common mistakes |
-|---|---|---|
-| `Categories` | One or more from F-Droid's [fixed list](https://gitlab.com/fdroid/fdroiddata/-/blob/master/CATEGORIES.md) | Inventing a category — must be from the list |
-| `License` | SPDX identifier (e.g. `Apache-2.0`, `GPL-3.0-or-later`) | Using `Apache 2.0` (space) — must be SPDX form |
-| `SourceCode` / `IssueTracker` | URLs of the public repo and its issue tracker | Pointing to a private fork |
-| `RepoType: git` + `Repo:` | Where F-Droid clones from | Pointing at a tag, not the repo root |
-| `Builds:` | One block per version, each with `versionName` / `versionCode` / `commit` (hash or tag) / `subdir` / `gradle: [yes]` | Using `commit: v1.0.0` then re-tagging — F-Droid pins by hash and detects mutation |
-| `Binaries:` | URL pattern with `%v` for `versionName` — F-Droid downloads from your GitHub release and verifies signature | Forgetting that `%v` is `versionName`, not `versionCode` |
-| `AllowedAPKSigningKeys` | SHA-256 of your signing cert, lowercase hex no colons. Pins which key is allowed to sign uploaded binaries | Including the colons that `keytool -list -v` prints — strip them |
-| `AutoUpdateMode: Version` | New entries auto-generated when you push a new tag | Forgetting `UpdateCheckMode: Tags` to actually scan tags |
-| `CurrentVersion` / `CurrentVersionCode` | Latest release the catalog should point at | Letting these drift behind reality after a manual build |
-
-Compute `AllowedAPKSigningKeys` from your upload keystore:
-
-```bash
-keytool -list -v -keystore upload.keystore -alias upload \
-  | awk '/SHA256:/ {gsub(":",""); print tolower($2)}'
-```
-
-That hex string is what goes into the YAML. Once F-Droid merges it, **the cert is permanently pinned** for this `applicationId` — losing the keystore now means losing the F-Droid listing.
+Draft `docs/f-droid/<applicationId>.yml` from `references/fdroiddata-template.yml`. The recipe's home in fdroiddata, the field table with its common mistakes, and the command that computes `AllowedAPKSigningKeys` are in the `android-store-metadata` stack page (`~/.claude/vault-stacks/vault-stack-android-store-metadata.md`).
 
 ## Step 3a: Option A — RFP issue (easiest, slowest)
 
@@ -184,20 +135,8 @@ With `Binaries:` + `AllowedAPKSigningKeys`, a mismatch means F-Droid skips that 
 | `versionCode` strictly increases per release | F-Droid (and Android itself) reject downgrades |
 | Repo is public and clone works without auth | F-Droid's builders are unauthenticated |
 | No proprietary deps / Google Maps / Firebase / GMS | F-Droid's `AntiFeatures:` flag or rejection |
-| Adaptive launcher icon present in the APK (`mipmap-anydpi-v26/ic_launcher.xml` with `<background>`+`<foreground>`+`<monochrome>` and legacy PNG fallbacks) | Without it the F-Droid client renders a generic gray square and themed icons fail on Android 13+. See `android-ui-design-figma → references/adaptive-icons.md` |
-
-## Common mistakes
-
-| Mistake | Correct |
-|---|---|
-| Putting `Summary:` and `Description:` in fdroiddata YAML | Use `fastlane/metadata/.../short_description.txt` and `full_description.txt` |
-| Tagging `1.0.0` (no `v` prefix) and writing `commit: v1.0.0` in YAML | Match the actual tag — either both `1.0.0` or both `v1.0.0` |
-| Forgetting `subdir: app` when the Gradle module isn't at repo root | Build fails with "no build.gradle found" |
-| `Builds:` with `gradle: yes` (string) | Must be a list: `gradle:\n  - yes` |
-| Adding screenshots after the last tag and expecting them to show up | F-Droid uses metadata from the latest release only — bump and re-tag |
-| Including F-Droid build keys' fingerprint in `AllowedAPKSigningKeys` | Use **your** upload cert fingerprint, not theirs |
+| Adaptive launcher icon present in the APK (`mipmap-anydpi-v26/ic_launcher.xml` with `<background>`+`<foreground>`+`<monochrome>` and legacy PNG fallbacks) | Without it the F-Droid client renders a generic gray square and themed icons fail on Android 13+. See the `android-icons` stack page (`~/.claude/vault-stacks/vault-stack-android-icons.md`) |
 
 ## Reference files
 
 - `references/fdroiddata-template.yml` — drop-in YAML template with all common fields.
-- `references/fastlane-layout.md` — full directory layout + per-file constraints.

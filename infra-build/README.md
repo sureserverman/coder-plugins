@@ -17,8 +17,6 @@ Each pipeline expects a specific layout in the source repo **and** an entry in t
 | Skill | When it fires | What it does |
 |---|---|---|
 | `build-readiness-check` | "is this project ready to publish", "check build readiness" | Read-only audit. Reports which of the three pipelines the project is / isn't ready for, with the exact missing files or registration entries. |
-| `deb-package` | "fix my control file", "scaffold deb/", "dpkg-deb error" | Reference for the canonical `deb/package/DEBIAN/control` + `deb/{amd64,arm64}/` layout that `infra/utils/pkgskel` expects. |
-| `mac-package` | "fix my mac/ Makefile", "pkgbuild error", "launchctl bootout" | Reference for the canonical `mac/{Makefile,payload,scripts}` layout that `infra/build-for-mac` expects. |
 | `bash-script-audit` | "audit my postinst", "check this installer" | Static + URL-health audit for `postinst`, `prerm`, launchd helpers, and other bash that ships inside packages. |
 | `utils-register` | "register this project for utils", "add to pkg.list" | Adds the project to `infra/utils/pkg.list` and scaffolds `deb/` via the bundled `pkgskel`. |
 | `build-for-mac-register` | "register this for build-for-mac", "add to programs.txt" | Adds to `programs.txt` **and** patches `.github/workflows/build_and_package.yml` (boolean input + matrix entry) in lockstep. |
@@ -31,7 +29,11 @@ Each pipeline expects a specific layout in the source repo **and** an entry in t
 /plugin install infra-build@coder-plugins
 ```
 
-All seven skills fire on the phrases above and are invocable as `/infra-build:<skill>`.
+All five skills fire on the phrases above and are invocable as `/infra-build:<skill>`.
+
+### Where the packaging layout rules went
+
+The reference for the canonical `deb/` layout (control file, postinst, `dpkg-deb` errors) and the `mac/` layout (`Makefile`, `payload/`, `scripts/`, `pkgbuild`, `launchctl`) is no longer a skill here. Owner rules for this stack live in a vault page and reach a session through vault-context's session-start hook: the `deb-packaging` and `mac-packaging` stack pages, synced locally as `~/.claude/vault-stacks/vault-stack-deb-packaging.md` and `~/.claude/vault-stacks/vault-stack-mac-packaging.md`.
 
 ## Determinism boundary
 
@@ -43,6 +45,8 @@ its JSON rather than re-deriving rules in prose. Scripts flag; the model decides
   invariants for the `utils` pipeline.
 - `scripts/validate-readiness.sh <project-root> [--json]` — the deterministic half of
   `build-readiness-check`: which pipelines the project is and isn't wired for.
+- `bin/infra-build-validate-deb <project-root> [--json]` — command wrapper for
+  `scripts/validate-deb.sh`, with the same arguments and output; the `deb-packaging` page names it.
 
 Run the whole lane: `bash scripts/validate.sh <target-root> [--json]` — it discovers every
 `validate-*.sh`, merges their findings, and prints one verdict. Rule ids and severities are
@@ -55,7 +59,6 @@ documented in [`scripts/README.md`](scripts/README.md).
 | Skill | Writes in **your** project | Writes in **`~/dev/infra/`** |
 |---|---|---|
 | `build-readiness-check` | nothing (read-only audit) | nothing |
-| `deb-package` / `mac-package` | scaffolds `deb/` or `mac/` layout | — |
 | `bash-script-audit` | nothing (report only) | — |
 | `utils-register` | scaffolds `deb/` via `pkgskel` | `utils/pkg.list` |
 | `build-for-mac-register` | — | `build-for-mac/programs.txt` **and** `.github/workflows/build_and_package.yml` |

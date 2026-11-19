@@ -248,9 +248,37 @@ def test_unpin_missing_claude():
               "the failing keys are named, with no traceback")
 
 
+VAULT_CONTEXT = "vault-context@obsidian-wiki"  # on in user settings (OD-11)
+
+
+def test_rust_keeps_vault_context():
+    print("set rust: vault-context, on in user settings, is not turned off")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        home = root / "home"
+        project = root / "project"
+        project.mkdir()
+        user_on = set(BUNDLED_ALWAYS_ON) | {VAULT_CONTEXT, USER_ON}
+        write(home / ".claude" / "settings.json",
+              {"enabledPlugins": {k: True for k in user_on}})
+        write(home / ".claude" / "plugins" / "installed_plugins.json",
+              {"version": 2, "plugins": {k: [{"scope": "user", "version": "1.0.0"}]
+                                         for k in user_on}})
+        r = run(home, project, "set", "rust")
+        check(r.returncode == 0, f"set rust exits 0 (got {r.returncode}: {r.stderr.strip()})")
+        local = json.loads((project / ".claude" / "settings.local.json").read_text())
+        written = local.get("enabledPlugins", {})
+        check(written.get(VAULT_CONTEXT) is not False,
+              f"{VAULT_CONTEXT} is not written false (got {written.get(VAULT_CONTEXT)!r})")
+        check(VAULT_CONTEXT not in written,
+              f"{VAULT_CONTEXT} is omitted, never written true (DEC-030)")
+        check(f"+ {VAULT_CONTEXT}" in r.stdout, "show lists vault-context as enabled")
+
+
 TESTS = [test_writes_false_only, test_unpin, test_unpin_dry_run, test_unpin_failure,
          test_unpin_keeps_user_off, test_unpin_without_state,
-         test_unpin_rejects_unknown_flag, test_unpin_missing_claude]
+         test_unpin_rejects_unknown_flag, test_unpin_missing_claude,
+         test_rust_keeps_vault_context]
 
 if __name__ == "__main__":
     for t in TESTS:

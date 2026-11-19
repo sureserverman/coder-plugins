@@ -1,0 +1,39 @@
+# Preflight probe log — Sub-plan 3 (rollout and retire)
+# Part A: outputs recorded when Preflight ran, 2026-11-19 ~07:27 UTC, at 3e52729 (copied
+#         verbatim from this session's command results; committed afterwards because the
+#         Stage 1 record audit asked for a probe artefact).
+# Part B: the checks that can still run, re-run now (state-dependent ones marked).
+
+## Part A — at Preflight
+[1] Sub-plan 2 green with `go`: PASS
+[2] CP clean on stack-knowledge-to-vault: PASS
+[3] tools: PASS — 2.1.328 (Claude Code) | Python 3.12.3 | jq-1.7 | gh "Logged in to github.com account (keyring)"
+[4] bash scripts/run-tests.sh -> "OK — 24 suite(s) and 9 validator(s) passed." secs=15
+[5] only rust.md in the vault, only vault-stack-rust.md in the stacks folder, none in rules: PASS
+[6] vault-context 0.7.0 stack-context.py present + stack_page_loads.sh executable: PASS
+[7] mkdir MEV + delivery; size-before.txt = 338880: PASS
+[8] sync-stack-rules.py --lint --only rust: PASS
+[9] vars.sh, pkgskel, validate-deb.sh exist: PASS
+[10] decisions: CP register 43 entries, newest DEC-043, mtime 2026-11-19 02:25:59 — matches the plan's Decisions in force
+[11] gate selectors: no pytest selectors (validate-gate-checks.py: 10 checks — executable 8, judgment 2)
+[12] review-scope: standard — no task touches a risk-listed path
+[13] dispatch probe (general-purpose) -> "DISPATCH-OK"
+[14] roster: Tasks 1.1-1.6, 2.1-2.4 -> general-purpose (10 of 13); validate-dispatch.py exit 0
+
+## Part B — re-run now
+at 2026-11-19T07:53:38Z, HEAD 03d6146, branch stack-knowledge-to-vault
+[1] PASS
+[2] FAIL — the only untracked path is this probe file, written while the check ran (git status --porcelain: "?? proof/2026-11-17-stack-knowledge-to-vault-sub-03-rollout-and-retire-plan/preflight/"); branch stack-knowledge-to-vault
+[3] 2.1.328 (Claude Code) | Python 3.12.3 | jq-1.7 | gh 1 account(s) logged in
+[4] stage-scope result recorded at the Stage 1 gate: OK — 25 suite(s) and 9 validator(s) passed.
+[5] state-dependent (Stage 1 has since added seven pages and copies): not re-runnable; rules folder still empty: PASS
+[6] PASS (0.7.1 also installed since, OD-11)
+[7] PASS ; size-before.txt = 338880
+[8] PASS
+[9] PASS
+[10] CP register 43 entries, newest DEC-043
+[11] gate selectors: 10 gate check(s) across 1 file(s): executable 8, judgment 2, scoped 0, instance-shaped 0, prose 0 — no pytest selectors
+[12] review-scope: a declaration, not a command — standard (no task touches a risk-listed path); restated in the Stage 1 gate report
+[13] dispatch probe: a dispatch, not re-run; the Stage 1 tasks were dispatched to general-purpose after it (trailers on 341ff29, bc0d80a, f6702e1, 1f2633d, 0bf70e1, 1f94d5a)
+[14] roster: validate-dispatch.py exit=0 ; Dispatch: YES tasks = 1.1 1.2 1.3 1.4 1.5 1.6 2.1 2.2 2.3 2.4 (10 of 13)
+# Part B [11]-[14] added 2026-11-19T08:01:24Z after the Stage 1 Tier-2 review noted they were missing.
