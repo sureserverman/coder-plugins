@@ -1,0 +1,14 @@
+# Task 1.6 mutation battery — each rule of measure.py broken alone; the unit test must go RED
+# run at 2026-11-19T07:59:45Z, HEAD a3d8b3b, measure.py blob bd830634e21b1042d9a20e3472c3492d8a8d461a, test-measure.py blob 9231a170062d2242531930d0d98302f2660e199a
+# test: python3 evals/stack-budget/tests/test-measure.py ; a first run left 'duplicate' and 'wrong-shape JSON' alive, so both got tests (Stage 1 gate round 1)
+baseline: exit=0
+dropped: exit=1 RED
+both: exit=1 RED
+extra: exit=1 RED
+duplicate: exit=1 RED
+over-budget: exit=1 RED
+non-zero hook exit -> 2: exit=1 RED
+non-JSON -> 2: exit=1 RED
+wrong-shape JSON -> FAIL: exit=1 RED
+errors -> exit 2: exit=1 RED
+restored: clean

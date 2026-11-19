@@ -212,6 +212,32 @@ def case_both():
     world(go)
 
 
+def case_duplicate():
+    print("a page emitted twice -> 1")
+
+    def go(s):
+        p = s.project("dup", ["rust"],
+                      out=hook_json([copy_text("rust"), copy_text("rust")]))
+        r, rows, last = s.run()
+        check(r.returncode == 1, f"exit 1 (got {r.returncode})")
+        check(f"FAIL: {p}:" in r.stdout and "more than once" in r.stdout,
+              f"FAIL line names the project and the duplicate (got {r.stdout!r})")
+    world(go)
+
+
+def case_wrong_shape_json():
+    print("hook JSON without hookSpecificOutput.additionalContext -> 1")
+
+    def go(s):
+        p = s.project("shape", ["rust"], out=json.dumps({"continue": True}) + "\n")
+        r, rows, last = s.run()
+        check(r.returncode == 1, f"exit 1 (got {r.returncode})")
+        check(f"FAIL: {p}:" in r.stdout and "hookSpecificOutput" in r.stdout,
+              f"FAIL line names the project and the missing field (got {r.stdout!r})")
+        no_traceback(r, "wrong-shape JSON")
+    world(go)
+
+
 def case_extra():
     print("a page inlined that the sidecar does not list -> 1")
 
@@ -335,7 +361,7 @@ def main():
     if not os.path.exists(MEASURE):
         print(f"FAIL: {MEASURE} does not exist")
         sys.exit(1)
-    for case in (case_all_inlined, case_one_named, case_dropped, case_both, case_extra,
+    for case in (case_all_inlined, case_one_named, case_dropped, case_both, case_duplicate, case_wrong_shape_json, case_extra,
                  case_over_budget, case_no_sidecar, case_empty_none, case_empty_but_listed,
                  case_missing_and_counts, case_non_json, case_usage):
         case()
