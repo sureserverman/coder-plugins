@@ -6,7 +6,7 @@ Idiomatic Rust authoring for Claude Code. Part of the [`coder-plugins`](..) mark
 
 A deterministic lane for Rust work, behind two commands: `rust-dev-validate <project-root> --json` runs it, `rust-dev-stack-report` prints the stack report. The owner's house rules and gotchas from past incidents live in the vault stack page `Portfolio/stacks/rust.md`; vault-context adds it to a session that starts in a project holding a Rust file (CP DEC-043). The commands exist only where this plugin is enabled.
 
-House rules: `// SAFETY:` on every `unsafe`, no locks across `.await`, bounded channels, `thiserror` in libraries / `anyhow` in binaries, no `.unwrap()` outside `main` and tests, `deny_unknown_fields` on types deserialized from external input.
+The house rules and their rule ids are listed once, in that page; `scripts/README.md` documents the rule ids the lane emits.
 
 ## Determinism boundary
 
