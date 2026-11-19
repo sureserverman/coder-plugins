@@ -7,7 +7,7 @@ Everyday git/GitHub operations for Claude Code: dispatch a diff to sibling CLIs 
 | Skill | When it fires | What it does |
 |---|---|---|
 | `github-workflow-audit` | "audit my workflows", "check github actions" | Runs `scripts/validate-workflows.sh` (a wrapper over `audit-workflows.py`) over `.github/workflows/*` for YAML errors, expression injection, outdated action versions, missing `permissions:`, and more. |
-| `review-readme` | "my readme is a mess", "clean up the README" | Audits the README against the house limits (at most 6 sections, at most 3 quick-start steps) and applies user-approved edits. README only shrinks. |
+| `review-readme` | "my readme is a mess", "clean up the README" | Audits the README against the house limits and applies user-approved edits. The limits live in the `readme` stack page, which reaches a session through vault-context's session-start hook. README only shrinks. |
 | `release-tag` | "tag a release", "cut v1.4.0" | Drafts an annotated-tag message from the top CHANGELOG entry (or commit log), confirms before tagging, confirms again before pushing, and optionally creates a GitHub release. |
 | `request-external-reviews` | "get reviews from other tools", "second opinion on this diff", "multi-model review" | Dispatches the same diff to sibling CLIs (codex, gemini, opencode — plus claude when the caller is Cursor) in non-interactive read-only mode and aggregates findings with consensus marking. |
 | `code-comment-audit` | "audit my comments", "are my comments useful", "review the comments in this file" | Disciplined comment pass: surfaces magic numbers, ordering constraints, workarounds, and un-introduced entry points where a concrete *why* exists; removes comments that just restate the code. |
