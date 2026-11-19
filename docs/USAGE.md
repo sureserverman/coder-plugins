@@ -153,10 +153,11 @@ Two plugins and a register, because an extension is judged by a reviewer who is 
 "build a Firefox extension that rewrites tracking URLs"
 ```
 
-The `browser-extensions` skill covers manifest v3, the Firefox/Chrome split, and
-`browser_specific_settings`. Popup and options pages are ordinary web UI: there is no
-dedicated agent for them, so hold the accessibility baseline yourself — keyboard
-reachability and contrast are what AMO reviewers actually cite.
+The manifest v3, Firefox/Chrome split and `browser_specific_settings` rules are not a
+skill: owner rules for this stack live in a vault page and reach a session through
+vault-context's session-start hook (the browser-extension stack page). Popup and options
+pages are ordinary web UI: there is no dedicated agent for them, so hold the accessibility
+baseline yourself — keyboard reachability and contrast are what AMO reviewers actually cite.
 
 Then the preflight, before you upload rather than after rejection:
 
