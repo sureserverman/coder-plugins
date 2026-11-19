@@ -677,6 +677,27 @@ def rule_delivery_cases():
               f"the rule arm is refused while an old copy in rules/ would deliver the page twice (rc={rc}) {se}")
 
 
+def rule_delivery_negative_cases():
+    """rule_delivery counts only a SessionStart hook_response that exited 0 with the marker
+    in its stdout: not a failed hook, not another event's hook, not a tool_result or the
+    model's own text quoting the copy."""
+    run = load("stack_pilot_run_neg", RUN_PY)
+    m = run.RULE_MARKER
+    hook = {"type": "system", "subtype": "hook_response", "hook_event": "SessionStart",
+            "exit_code": 0, "stdout": f"{{\"additionalContext\": \"<!-- {m} sha256=0 -->\"}}"}
+    with tempfile.TemporaryDirectory() as tmp:
+        nolog = os.path.join(tmp, "absent.log")
+        check(run.rule_delivery([hook], nolog) == "session_start_hook", "the hook's own output is delivery")
+        for label, events in (
+                ("a SessionStart hook that exited 1", [dict(hook, exit_code=1)]),
+                ("another event's hook_response carrying the marker", [dict(hook, hook_event="UserPromptSubmit")]),
+                ("a tool_result quoting the copy", [{"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "r1", "content": f"<!-- {m} -->"}]}}]),
+                ("the model's own text quoting the marker", [{"type": "assistant", "message": {"content": [
+                    {"type": "text", "text": m}]}}])):
+            check(run.rule_delivery(events, nolog) is None, f"{label} is not delivery")
+
+
 def rule_probe_cases():
     """--probe --arm rule shows whether the plugin's bin/ commands are on the session's PATH."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -834,6 +855,7 @@ def main():
                      ("run.py refusals", refusal_cases), ("run.py with a fake claude", fake_run_cases),
                      ("run.py isolation", isolation_cases), ("run.py rule probe", rule_probe_cases),
                      ("run.py rule delivery", rule_delivery_cases),
+                     ("run.py rule delivery, negatives", rule_delivery_negative_cases),
                      ("run.py session stores", session_store_cases),
                      ("run.py --reuse-scan", reuse_scan_cases)]:
         print(f"== {name}")
