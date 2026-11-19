@@ -1,0 +1,13 @@
+# Task 1.1 — test record (the task's work lives in the vault, outside this repo)
+# run at 2026-11-19T07:54:50Z, HEAD e1ddab8
+## command
+for S in android-build android-icons; do P=/mnt/vault/Portfolio/stacks/$S.md; L=/mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/$S.tsv; python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --lint --only $S --vault /mnt/vault && test "$(awk -F'\t' 'NR>1' $L | wc -l)" -ge 5 && ! awk -F'\t' 'NR>1 && $4 !~ /^(carried|corrected|dropped-generic|dropped-duplicate|stays-in-skill)$/' $L | grep . && awk -F'\t' 'NR>1 && ($4=="carried"||$4=="corrected"){print $5}' $L | while IFS= read -r t; do grep -qF -- "$t" $P || exit 1; done && ! grep -q 'CLAUDE_PLUGIN_ROOT' $P || exit 1; done
+## output
+stack pages lint clean: 1 page(s)
+stack pages lint clean: 1 page(s)
+exit=0
+## files covered (sha256)
+f5408aaa2d7a327604833f293df8e9b2839a2667d0df09b93857da9fe8e98f08  /mnt/vault/Portfolio/stacks/android-build.md
+0c9fa14cf55bf70a23565c8585406fea4106d82d633b85ad7939efa5164a59ab  /mnt/vault/Portfolio/stacks/android-icons.md
+07ac3acfbac30f45585f5c9224d32da169ff152fa4f67dcbaef7c097c9741169  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/android-build.tsv
+ab37700f7347281f029a6fe23fdc9af4102b41d8c105f62109c06a8d8f9df6e4  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/android-icons.tsv
