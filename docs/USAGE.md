@@ -110,9 +110,11 @@ attaches at the points where the platform actually matters.
 "add a settings screen with a dark-mode toggle"
 ```
 
-`android-gradle-build` handles module and dependency wiring. For a redesign,
+The Gradle, signing and adaptive-icon rules are not a skill: owner rules for this stack
+live in a vault page and reach a session through vault-context's session-start hook (the
+android-build, android-icons and android-store-metadata stack pages). For a redesign,
 `android-ui-design-figma` runs a screenshot → grade → iterate loop with an independent
-grader, and holds the adaptive-icon spec.
+grader.
 
 The seam worth knowing: **`executing-plans` invokes `android-stage-verify` at every Android
 stage gate automatically** — you don't ask for it. It builds the debug APK and, when a

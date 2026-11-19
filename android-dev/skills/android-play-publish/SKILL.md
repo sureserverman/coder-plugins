@@ -7,7 +7,7 @@ description: Use when preparing an already-signed Android app for publication on
 
 ## Prerequisites
 
-- Release signing is set up per the `android-build` stack page (`~/.claude/vault-stacks/vault-stack-android-build.md`) (you have an upload keystore and `:app:bundleRelease` produces `app-release.aab`).
+- Release signing is set up per the `android-build` stack page (`~/.claude/vault-stacks/vault-stack-android-build.md`): an upload keystore, and `:app:bundleRelease` produces `app-release.aab`.
 - Privacy policy is **publicly hosted** at a stable URL (GitHub-rendered markdown, GitHub Pages, or your own site). Required even for apps that don't collect user data.
 - `targetSdkVersion` meets Google's target API floor: API 36 (Android 16) for new phone and tablet apps and updates since 2026-08-31 (Wear OS and Automotive 35, TV and XR 34) (checked 2026-11-10, https://support.google.com/googleplay/android-developer/answer/11926878).
 
@@ -83,8 +83,7 @@ Play Console → **Grow users** → **Store presence** → **Main store listing*
 | App icon | `images/icon.png` | exactly 512×512 PNG, no transparency, no alpha |
 | Feature graphic | `images/featureGraphic.png` | exactly 1024×500 PNG/JPEG, **required by Play** |
 | Phone screenshots | `images/phoneScreenshots/*.png` | 2–8 images, 320–3840 px each side, long side at most 2.3× the short side |
-| 7-inch tablet screenshots | `images/sevenInchScreenshots/*.png` | optional; if provided, at least 4, sides 1,080–7,680 px, 16:9 or 9:16 |
-| 10-inch tablet screenshots | `images/tenInchScreenshots/*.png` | optional; if provided, at least 4, sides 1,080–7,680 px, 16:9 or 9:16 |
+| Tablet screenshots | `images/{sevenInch,tenInch}Screenshots/*.png` | optional; if given, ≥ 4, sides 1,080–7,680 px, 16:9 or 9:16 |
 | Release notes | `changelogs/<versionCode>.txt` | ≤ 500 chars per locale |
 
 Screenshot limits (checked 2026-11-19, https://support.google.com/googleplay/android-developer/answer/9866151).

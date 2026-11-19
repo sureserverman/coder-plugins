@@ -23,11 +23,11 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up — over one project or a group of repos treated as one business project. |
 | [`git-github`](./git-github) | Everyday git/GitHub ops: multi-model second opinions, gate audits, comment/workflow/README audits, repo-health sweeps, release tags. |
 | [`rust-dev`](./rust-dev) | Deterministic Rust lane: Cargo manifest checks, house-rule candidate scan, stack report, audit runner, behind `rust-dev-validate` and `rust-dev-stack-report`. The house rules and gotchas live in the vault stack page `Portfolio/stacks/rust.md`, which vault-context adds to Rust sessions. |
-| [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
-| [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
+| [`android-dev`](./android-dev) | Per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. Owner rules for this stack (Gradle, signing, icons, store metadata) live in vault stack pages and reach a session through vault-context's session-start hook. |
+| [`browser-extensions`](./browser-extensions) | An AMO compliance preflight for WebExtensions (Chrome, Firefox, Firefox for Android) (`skills/amo-compliance-check/scripts/amo-check.py` linter). Owner rules for this stack live in the vault stack page `browser-extension` and reach a session through vault-context's session-start hook. |
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation, new-locale scaffolding. |
 | [`release-promo`](./release-promo) | Drafts release-announcement posts (Reddit, Show HN, Lobsters, TWIM, Fediverse) for the channels a project actually belongs on. Never autoposts. |
-| [`infra-build`](./infra-build) | Registers a project with the `~/dev/infra` publishing pipelines: Debian `.deb`, macOS `.pkg`, multi-arch Docker images. |
+| [`infra-build`](./infra-build) | Registers a project with the `~/dev/infra` publishing pipelines: Debian `.deb`, macOS `.pkg`, multi-arch Docker images. Owner rules for the `deb/` and `mac/` layouts live in vault stack pages and reach a session through vault-context's session-start hook. |
 | [`loadout`](./loadout) | Per-project + per-task plugin scoping: a sticky tech baseline layered with on-demand task overlays. |
 
 Each plugin's directory has its own README documenting **every component it ships** — how it
