@@ -7,10 +7,10 @@ description: Use to register a project with the utils Debian-packaging pipeline,
 
 Register a project with the `~/dev/infra/utils/` Debian-packaging pipeline. The bundled `pkgskel` script already does the actual work — this skill's job is to (a) gather the right project path argument, (b) confirm with the user before invoking it, (c) verify the result, and (d) point at the next step.
 
-## When this fires vs. when `deb-package` fires
+## This skill vs. the `deb-packaging` stack page
 
 - **`utils-register`** — first-time setup of the directory tree and `pkg.list` registration.
-- **`deb-package`** — reference content for *fixing* an existing tree (control field syntax, postinst conventions, dpkg-deb errors). Don't duplicate that here.
+- **The `deb-packaging` stack page (`~/.claude/vault-stacks/vault-stack-deb-packaging.md`)** — reference content for *fixing* an existing tree (control field syntax, postinst conventions, dpkg-deb errors). Don't duplicate that here.
 
 ## Steps
 
@@ -40,7 +40,7 @@ Register a project with the `~/dev/infra/utils/` Debian-packaging pipeline. The 
 
 7. **Hand off.**
    - Tell the user: the layout is ready, but binaries still need to be placed in `deb/amd64/` and `deb/arm64/` before `~/dev/infra/utils/publish <project>` will produce a non-empty `.deb`.
-   - For deeper edits to `control`, `postinst`, or systemd integration, point at the `deb-package` skill in this same plugin.
+   - For deeper edits to `control`, `postinst`, or systemd integration, point at the `deb-packaging` stack page (`~/.claude/vault-stacks/vault-stack-deb-packaging.md`).
    - Do **not** run `publish` here. That builds and uploads to a remote `reprepro` repo — out of scope for a registration skill.
 
 ## Conventions

@@ -40,7 +40,7 @@ The publishing entrypoint is `~/dev/infra/utils/publish <project>`. It expects:
 
 Report per check: **OK** / **MISSING** with the exact path. If the control file exists but is malformed (missing required fields), call out which fields.
 
-For deeper layout questions defer to the `deb-package` skill in this plugin — don't duplicate its reference content here.
+For deeper layout questions defer to the `deb-packaging` stack page (`~/.claude/vault-stacks/vault-stack-deb-packaging.md`) — don't duplicate its content here.
 
 ## Pipeline 2 — `build-for-mac` (Rust → macOS `.pkg`)
 
@@ -58,7 +58,7 @@ The publishing entrypoint is the GitHub Actions checkbox dispatch in `~/dev/infr
 
 **The four registrations (`programs.txt` + three workflow edits) MUST agree.** If `programs.txt` has the project but the workflow doesn't (or vice versa), the project silently disappears from the matrix or never becomes a checkbox. Report mismatch loudly.
 
-For deeper `mac/` layout questions defer to the `mac-package` skill in this plugin.
+For deeper `mac/` layout questions defer to the `mac-packaging` stack page (`~/.claude/vault-stacks/vault-stack-mac-packaging.md`).
 
 ## Pipeline 3 — `publish-images` (multi-arch Docker)
 
@@ -93,7 +93,7 @@ status: READY | PARTIAL | NOT-READY
 missing:
   - <exact path or registration entry>
   - ...
-next step: <one-liner pointing at utils-register or deb-package>
+next step: <one-liner pointing at utils-register or the deb-packaging stack page>
 ```
 
 End with a one-line summary across all three:

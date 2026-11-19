@@ -28,7 +28,7 @@ Three of those four edits live in the same workflow file. **All four must land o
 
 2. **Pre-flight reads.** Read all four locations. Determine which (if any) of the four edits is already in place.
 
-   Also confirm in the source repo that a `mac/Makefile` exists with a `pkg` target — the workflow runs `make -C "<project>/mac" pkg PKG_ID=...`, so that target must already be defined. Specifically grep for `^pkg:` in `~/dev/<project>/mac/Makefile`. If `mac/Makefile` does not exist, or `pkg:` is not a top-level target, **stop**: tell the user to scaffold the `mac/` tree first via the `mac-package` skill, then re-run this registration. Registering without `mac/` makes the matrix entry build-fail on every dispatch.
+   Also confirm in the source repo that a `mac/Makefile` exists with a `pkg` target — the workflow runs `make -C "<project>/mac" pkg PKG_ID=...`, so that target must already be defined. Specifically grep for `^pkg:` in `~/dev/<project>/mac/Makefile`. If `mac/Makefile` does not exist, or `pkg:` is not a top-level target, **stop**: tell the user to scaffold the `mac/` tree first following the `mac-packaging` stack page (`~/.claude/vault-stacks/vault-stack-mac-packaging.md`), then re-run this registration. Registering without `mac/` makes the matrix entry build-fail on every dispatch.
 
 3. **Show a unified dry-run plan.** Print a single block listing every line that will be added, with the exact YAML indentation the surrounding file uses. Example:
 
@@ -57,7 +57,7 @@ Three of those four edits live in the same workflow file. **All four must land o
 
 7. **Hand off.**
    - Tell the user: the four edits are landed and the workflow parses. The next dispatch will pick the project up.
-   - The source repo's `mac/` tree was already validated in step 2; no further `mac/` work should be required for the build to succeed. If the user still wants to *change* the `mac/` layout, point at the `mac-package` skill.
+   - The source repo's `mac/` tree was already validated in step 2; no further `mac/` work should be required for the build to succeed. If the user still wants to *change* the `mac/` layout, point at the `mac-packaging` stack page (`~/.claude/vault-stacks/vault-stack-mac-packaging.md`).
    - Do **not** trigger the workflow. That's the user's call.
 
 ## Naming gotchas

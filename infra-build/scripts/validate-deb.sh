@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # validate-deb.sh <project-root> [--json]
 # Deterministic validation of a project's deb/ packaging tree against the
-# infra/utils pipeline's expectations (the deb-package skill's validation.md
-# checklist, made executable). Emits the shared JSON finding contract.
+# infra/utils pipeline's expectations (the deb-packaging stack page's checklist,
+# made executable). Emits the shared JSON finding contract.
 set -eu
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib/findings.sh"

@@ -8,8 +8,6 @@
   },
   "skills": [
     "./skills/build-readiness-check",
-    "./skills/deb-package",
-    "./skills/mac-package",
     "./skills/bash-script-audit",
     "./skills/utils-register",
     "./skills/build-for-mac-register",
