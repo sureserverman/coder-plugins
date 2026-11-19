@@ -1,0 +1,10 @@
+# Task 1.2 — test record (the task's work lives in the vault, outside this repo)
+# run at 2026-11-19T07:54:50Z, HEAD e1ddab8
+## command
+S=android-store-metadata; P=/mnt/vault/Portfolio/stacks/$S.md; L=/mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/$S.tsv; python3 /home/user/dev/ai-tools/obsidian-wiki-plugin/plugins/vault-context/scripts/sync-stack-rules.py --lint --only $S --vault /mnt/vault && test "$(awk -F'\t' 'NR>1' $L | wc -l)" -ge 5 && ! awk -F'\t' 'NR>1 && $4 !~ /^(carried|corrected|dropped-generic|dropped-duplicate|stays-in-skill)$/' $L | grep . && awk -F'\t' 'NR>1 && ($4=="carried"||$4=="corrected"){print $5}' $L | while IFS= read -r t; do grep -qF -- "$t" $P || exit 1; done && grep -qE '\(checked 20[0-9]{2}-[0-9]{2}-[0-9]{2}, https?://' $P && awk -F'\t' 'NR>1 && tolower($3) ~ /title/ {print $4}' $L | grep -qE '^(carried|corrected)$'
+## output
+stack pages lint clean: 1 page(s)
+exit=0
+## files covered (sha256)
+b2b6eb79320b4968996db1a836c600472f491df3a93dad8058e1e715864244a4  /mnt/vault/Portfolio/stacks/android-store-metadata.md
+7c9791b645854f5315f6609e929db19743a059bf09d7383a967ccdfc9b822544  /mnt/vault/Portfolio/ai-tools/coder-plugins/evidence/stack-knowledge/move/android-store-metadata.tsv
