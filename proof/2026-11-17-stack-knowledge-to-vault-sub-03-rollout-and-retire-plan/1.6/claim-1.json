@@ -1,0 +1,35 @@
+{
+ "baseline": {
+  "elapsed_s": 0.7,
+  "exit": 0,
+  "tail": "a page both inlined and named -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpftnbt08f/projects/both: both inlined and named: rust\\nbudget: 1 projects, 1 with a page named, not inlined, 0 skipped\\n')\na page inlined that the sidecar does not list -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmp6dgchc6b/projects/extra: emitted but not listed in the sidecar: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\noutput over 9,500 chars -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpm55iv9o2/projects/big: output is 9501 characters, over 9500\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: chars 9501 recorded (got {'project': '/tmp/tmpm55iv9o2/projects/big', 'applies': 'readme', 'inlined': 'readme', 'named': '', 'chars': '9501'})\n  ok: exactly 9,500 chars -> 0 (got 0; budget: 1 projects, 0 with a page named, not inlined, 0 skipped\n)\na project with no sidecar -> 2\n  ok: exit 2 (got 2)\n  ok: error names the project\n  ok: no sidecar: no traceback\nhook prints nothing, sidecar lists none -> 0\n  ok: exit 0 (got 0; budget: 2 projects, 0 with a page named, not inlined, 0 skipped\n )\n  ok: empty row, chars 0 (got {'project': '/tmp/tmpmf4y06b8/projects/quiet', 'applies': '', 'inlined': '', 'named': '', 'chars': '0'})\n  ok: empty block also gives a row\nhook prints nothing but sidecar lists one -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names project and slug (got 'FAIL: /tmp/tmp8nukq2n5/projects/silent: applies but neither inlined nor named: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\nmissing folder skipped and counted; disabled ignored; budget line counts\n  ok: exit 0 (got 0; budget: 3 projects, 1 with a page named, not inlined, 2 skipped\n )\n  ok: header + 3 rows (got 4)\n  ok: budget line (got 'budget: 3 projects, 1 with a page named, not inlined, 2 skipped')\nhook prints non-JSON -> 2; hook exits non-zero -> 2\n  ok: non-JSON exit 2 (got 2)\n  ok: non-JSON: no traceback\n  ok: non-zero hook exit 2 (got 2)\n  ok: hook exit: no traceback\nusage errors -> 2\n  ok: no args exit 2 (got 2)\n  ok: unreadable registry exit 2 (got 2)\n  ok: unreadable registry: no traceback\n\nall checks passed"
+ },
+ "break_patch": "--- a/evals/stack-budget/measure.py\n+++ b/evals/stack-budget/measure.py\n@@ -132,8 +132,6 @@\n     why = []\n     a, i, n = set(applies), set(inlined), set(named)\n     dropped = sorted(a - i - n)\n-    if dropped:\n-        why.append(f\"applies but neither inlined nor named: {','.join(dropped)}\")\n     both = sorted(i & n)\n     if both:\n         why.append(f\"both inlined and named: {','.join(both)}\")\n",
+ "build": null,
+ "created": "2026-11-19T07:35:44+00:00",
+ "fingerprint": "e665f1a86fd52e7ae256234abf3e14be1cee753509dc74be5e942cab45306481",
+ "index": 1,
+ "kind": "claim",
+ "named_break": null,
+ "no_build_reason": "plain Python script, nothing to build",
+ "plan": "/mnt/vault/Portfolio/ai-tools/coder-plugins/plans/2026-11-17-stack-knowledge-to-vault-sub-03-rollout-and-retire-plan.md",
+ "red": {
+  "elapsed_s": 0.7,
+  "exit": 1,
+  "tail": "a page both inlined and named -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmp1s9c4ld4/projects/both: both inlined and named: rust\\nbudget: 1 projects, 1 with a page named, not inlined, 0 skipped\\n')\na page inlined that the sidecar does not list -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpx9380tq3/projects/extra: emitted but not listed in the sidecar: rust\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\noutput over 9,500 chars -> 1\n  ok: exit 1 (got 1)\n  ok: FAIL line names the project (got 'FAIL: /tmp/tmpt5mat0qz/projects/big: output is 9501 characters, over 9500\\nbudget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\n  ok: chars 9501 recorded (got {'project': '/tmp/tmpt5mat0qz/projects/big', 'applies': 'readme', 'inlined': 'readme', 'named': '', 'chars': '9501'})\n  ok: exactly 9,500 chars -> 0 (got 0; budget: 1 projects, 0 with a page named, not inlined, 0 skipped\n)\na project with no sidecar -> 2\n  ok: exit 2 (got 2)\n  ok: error names the project\n  ok: no sidecar: no traceback\nhook prints nothing, sidecar lists none -> 0\n  ok: exit 0 (got 0; budget: 2 projects, 0 with a page named, not inlined, 0 skipped\n )\n  ok: empty row, chars 0 (got {'project': '/tmp/tmpzo0aahss/projects/quiet', 'applies': '', 'inlined': '', 'named': '', 'chars': '0'})\n  ok: empty block also gives a row\nhook prints nothing but sidecar lists one -> 1\n  FAIL: exit 1 (got 0)\n  FAIL: FAIL line names project and slug (got 'budget: 1 projects, 0 with a page named, not inlined, 0 skipped\\n')\nmissing folder skipped and counted; disabled ignored; budget line counts\n  ok: exit 0 (got 0; budget: 3 projects, 1 with a page named, not inlined, 2 skipped\n )\n  ok: header + 3 rows (got 4)\n  ok: budget line (got 'budget: 3 projects, 1 with a page named, not inlined, 2 skipped')\nhook prints non-JSON -> 2; hook exits non-zero -> 2\n  ok: non-JSON exit 2 (got 2)\n  ok: non-JSON: no traceback\n  ok: non-zero hook exit 2 (got 2)\n  ok: hook exit: no traceback\nusage errors -> 2\n  ok: no args exit 2 (got 2)\n  ok: unreadable registry exit 2 (got 2)\n  ok: unreadable registry: no traceback\n\n4 check(s) failed"
+ },
+ "schema": 2,
+ "shell": "bash",
+ "task": "1.6",
+ "test": "python3 evals/stack-budget/tests/test-measure.py",
+ "text": "the sweep fails a project whose sidecar lists a stack that the hook's output neither inlines nor names (red if a silently dropped page passes), fails a page both inlined and named and an output over 9,500 characters, refuses a project with no sidecar, records a named page without failing",
+ "touched": [
+  "evals/stack-budget/measure.py"
+ ],
+ "touched_blobs": {
+  "evals/stack-budget/measure.py": "bd830634e21b1042d9a20e3472c3492d8a8d461a"
+ },
+ "witness_blobs": {
+  "evals/stack-budget/tests/test-measure.py": "2fec0d8d372af7437ab09b56c16fc1695aae2203"
+ }
+}
