@@ -1,6 +1,6 @@
 {
   "name": "rust-dev",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Rust authoring lane: deterministic bash scripts (Cargo manifest invariants, house-rule candidate scan, stack report, audit runner) behind two commands, rust-dev-validate and rust-dev-stack-report. The house rules and gotchas live in the vault stack page Portfolio/stacks/rust.md, which vault-context adds to Rust sessions.",
   "author": {
     "name": "agents repo",
