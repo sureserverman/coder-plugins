@@ -277,6 +277,20 @@ try:
     check(False, f"a stale index should refuse, got rc={rc}")
 except SystemExit as exc:
     check("stale" in str(exc.code), "a plugin missing from the index is reported as STALE")
+# A plugin that ships no skill, agent or command (only scripts and bin/ commands, as
+# rust-dev does once its skill moved to the vault) has nothing to resolve: its
+# absence from the index is not staleness.
+with tempfile.TemporaryDirectory() as root:
+    mod = fixture(root, "/alpha:do-thing\n")
+    write(f"{root}/gamma/.claude-plugin/plugin.json", '{"name":"gamma"}')
+    write(f"{root}/gamma/bin/gamma-run", "#!/bin/sh\n")
+    write(f"{root}/gamma/scripts/tests/fixture/skills/x/SKILL.md", "# test data, not a component")
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = mod.main()
+        check(rc == 0, f"a component-less plugin absent from the index passes (rc={rc})")
+    except SystemExit as exc:
+        check(False, f"a component-less plugin absent from the index was refused: {exc.code}")
 
 print("group 6 — a token after an em-dash is extracted (BL-033)")
 # TOKEN_START_PUNCT enumerated quotes and brackets but no dash, so a fabrication

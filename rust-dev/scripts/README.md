@@ -27,7 +27,7 @@ Run the whole lane:
 bash scripts/validate.sh <rust-project-root> [--json]
 ```
 
-`--json` emits the contract (consumed by the `rust-coding` skill);
+`--json` emits the contract (consumed by the model running `rust-dev-validate`);
 without it, a human report. All scripts no-op cleanly (info finding) when the
 root contains no Cargo.toml / `.rs` sources.
 
@@ -85,9 +85,9 @@ Exit code: `1` if any error, else `0` (`2` usage, `3` jq/python3 missing).
 Only decidable checks live here — parse, field presence, enum, count, regex,
 cross-file consistency. Whether a flagged `.unwrap()` has a documented-panic
 contract, whether a lock is actually held across an await, what the error enum
-should look like — that is judgment and lives with the model working under `rust-coding`,
-which runs this lane and consumes its JSON instead of re-deriving the rules.
+should look like — that is judgment and lives with the model working under the vault's Rust stack
+page, which runs this lane and consumes its JSON instead of re-deriving the rules.
 
-Keep rule ids stable and kebab-case; the skill keys off them. Refresh
+Keep rule ids stable and kebab-case; the vault stack page names them. Refresh
 `lib/findings.sh` / `validate.sh` with plugin-dev's `install-kit.sh --force`,
 never by hand-editing.

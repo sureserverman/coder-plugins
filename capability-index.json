@@ -409,16 +409,6 @@
       "path": "release-promo/skills/twim-submission/SKILL.md",
       "plugin": "release-promo",
       "requires_enablement": false
-    },
-    {
-      "description": "Use when authoring, scaffolding, refactoring, or reviewing Rust code. Triggers on greenfield requests like \"create a Rust app\" or \"cargo new\", *.rs edits, unsafe blocks, async/tokio code, and questions like \"is this idiomatic Rust\" or \"thiserror or anyhow\".",
-      "disable_model_invocation": false,
-      "kind": "skill",
-      "model": null,
-      "name": "rust-coding",
-      "path": "rust-dev/skills/rust-coding/SKILL.md",
-      "plugin": "rust-dev",
-      "requires_enablement": false
     }
   ],
   "schema": 1

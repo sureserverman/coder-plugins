@@ -22,7 +22,7 @@ A Claude Code plugin marketplace hosting opinionated, language- and platform-spe
 | [`planning`](https://github.com/sureserverman/staged-planning) | Moved to [staged-planning](https://github.com/sureserverman/staged-planning); this marketplace's `planning` entry is a redirect that installs it from there. Idea → validated design → staged plan → gated execution. Portfolio and compass moved to `vault-portfolio@obsidian-wiki`. |
 | [`business`](./business) | Business-planning pipeline, sibling to `planning`: assess viability, revenue-model, deep cited market-research, compose a full business plan, launch, track, portfolio roll-up — over one project or a group of repos treated as one business project. |
 | [`git-github`](./git-github) | Everyday git/GitHub ops: multi-model second opinions, gate audits, comment/workflow/README audits, repo-health sweeps, release tags. |
-| [`rust-dev`](./rust-dev) | Rust house rules and incident gotchas in a `rust-coding` skill (fires on `*.rs`/`Cargo.toml` edits), plus a deterministic lane: Cargo manifest checks, house-rule candidate scan, stack report. |
+| [`rust-dev`](./rust-dev) | Deterministic Rust lane: Cargo manifest checks, house-rule candidate scan, stack report, audit runner, behind `rust-dev-validate` and `rust-dev-stack-report`. The house rules and gotchas live in the vault stack page `Portfolio/stacks/rust.md`, which vault-context adds to Rust sessions. |
 | [`android-dev`](./android-dev) | Gradle build management, per-stage on-device verify gate, bundled multi-emulator + MCP + mock-server stack under `infrastructure/`, `/android-screenshots`. |
 | [`browser-extensions`](./browser-extensions) | WebExtensions authoring for Chrome, Firefox, and Firefox for Android, plus an AMO compliance preflight (`skills/amo-compliance-check/scripts/amo-check.py` linter). |
 | [`i18n`](./i18n) | Framework detection, hardcoded-string and catalog audits, placeholder/CLDR-plural-safe translation, new-locale scaffolding. |
@@ -47,8 +47,7 @@ enabling everything at once.
 Every plugin ships some mix of three component types, and each is used differently:
 
 **Skills fire automatically.** Once a plugin is installed, its skills load when
-the context matches — editing a `.rs` file activates `rust-coding`, saying
-"plan this feature" activates `planning-projects`, touching a translation
+the context matches — saying "plan this feature" activates `planning-projects`, touching a translation
 catalog activates the `i18n` skills. You can also invoke a skill explicitly by
 its namespaced name:
 

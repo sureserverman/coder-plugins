@@ -66,4 +66,4 @@ else
 fi
 
 echo
-echo "=== done. Synthesize findings into the unified report (see SKILL.md Pass 4) ==="
+echo "=== done. Synthesize the five passes into one report ==="
